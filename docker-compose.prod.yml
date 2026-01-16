@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/lucasvienna/uppity:latest
+    image: ghcr.io/neonrook/uppity:latest
     # Or build locally:
     # build: .
     restart: unless-stopped
