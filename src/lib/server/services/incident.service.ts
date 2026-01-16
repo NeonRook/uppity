@@ -1,0 +1,336 @@
+import { db } from "$lib/server/db";
+import {
+	incident,
+	incidentMonitor,
+	incidentUpdate,
+	monitor,
+	type Incident,
+	type IncidentUpdate,
+} from "$lib/server/db/schema";
+import { eq, and, desc, inArray, ne } from "drizzle-orm";
+import { nanoid } from "nanoid";
+
+export type IncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
+export type IncidentImpact = "none" | "minor" | "major" | "critical";
+
+export interface CreateIncidentInput {
+	organizationId: string;
+	title: string;
+	status?: IncidentStatus;
+	impact?: IncidentImpact;
+	message: string;
+	monitorIds?: string[];
+	createdBy?: string;
+	isAutoCreated?: boolean;
+}
+
+export interface UpdateIncidentInput {
+	title?: string;
+	status?: IncidentStatus;
+	impact?: IncidentImpact;
+}
+
+export interface AddUpdateInput {
+	incidentId: string;
+	status: IncidentStatus;
+	message: string;
+	createdBy?: string;
+}
+
+export interface IncidentWithDetails extends Incident {
+	updates: IncidentUpdate[];
+	affectedMonitors: Array<{
+		id: string;
+		name: string;
+		type: string;
+	}>;
+}
+
+export class IncidentService {
+	async create(input: CreateIncidentInput): Promise<Incident> {
+		const id = nanoid();
+
+		const [newIncident] = await db
+			.insert(incident)
+			.values({
+				id,
+				organizationId: input.organizationId,
+				title: input.title,
+				status: input.status || "investigating",
+				impact: input.impact || "minor",
+				startedAt: new Date(),
+				createdBy: input.createdBy,
+				isAutoCreated: input.isAutoCreated || false,
+			})
+			.returning();
+
+		// Link monitors
+		if (input.monitorIds && input.monitorIds.length > 0) {
+			await db.insert(incidentMonitor).values(
+				input.monitorIds.map((monitorId) => ({
+					incidentId: id,
+					monitorId,
+				})),
+			);
+		}
+
+		// Add initial update
+		await db.insert(incidentUpdate).values({
+			id: nanoid(),
+			incidentId: id,
+			status: input.status || "investigating",
+			message: input.message,
+			createdBy: input.createdBy,
+		});
+
+		return newIncident;
+	}
+
+	async findById(id: string): Promise<Incident | null> {
+		const [result] = await db.select().from(incident).where(eq(incident.id, id)).limit(1);
+
+		return result || null;
+	}
+
+	async findByIdAndOrg(id: string, organizationId: string): Promise<Incident | null> {
+		const [result] = await db
+			.select()
+			.from(incident)
+			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
+			.limit(1);
+
+		return result || null;
+	}
+
+	async findByOrganization(
+		organizationId: string,
+		options?: { includeResolved?: boolean },
+	): Promise<Incident[]> {
+		const conditions = [eq(incident.organizationId, organizationId)];
+
+		if (!options?.includeResolved) {
+			conditions.push(ne(incident.status, "resolved"));
+		}
+
+		return db
+			.select()
+			.from(incident)
+			.where(and(...conditions))
+			.orderBy(desc(incident.startedAt));
+	}
+
+	async findWithDetails(id: string, organizationId: string): Promise<IncidentWithDetails | null> {
+		const inc = await this.findByIdAndOrg(id, organizationId);
+		if (!inc) {
+			return null;
+		}
+
+		// Get updates
+		const updates = await db
+			.select()
+			.from(incidentUpdate)
+			.where(eq(incidentUpdate.incidentId, id))
+			.orderBy(desc(incidentUpdate.createdAt));
+
+		// Get affected monitors
+		const affectedMonitorLinks = await db
+			.select({
+				id: monitor.id,
+				name: monitor.name,
+				type: monitor.type,
+			})
+			.from(incidentMonitor)
+			.innerJoin(monitor, eq(incidentMonitor.monitorId, monitor.id))
+			.where(eq(incidentMonitor.incidentId, id));
+
+		return {
+			...inc,
+			updates,
+			affectedMonitors: affectedMonitorLinks,
+		};
+	}
+
+	async update(
+		id: string,
+		organizationId: string,
+		input: UpdateIncidentInput,
+	): Promise<Incident | null> {
+		const existing = await this.findByIdAndOrg(id, organizationId);
+		if (!existing) {
+			return null;
+		}
+
+		const updateData: Record<string, unknown> = {
+			...input,
+			updatedAt: new Date(),
+		};
+
+		// If resolving, set resolvedAt
+		if (input.status === "resolved" && existing.status !== "resolved") {
+			updateData.resolvedAt = new Date();
+		}
+
+		const [updated] = await db
+			.update(incident)
+			.set(updateData)
+			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
+			.returning();
+
+		return updated || null;
+	}
+
+	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate> {
+		const id = nanoid();
+
+		const [update] = await db
+			.insert(incidentUpdate)
+			.values({
+				id,
+				incidentId: input.incidentId,
+				status: input.status,
+				message: input.message,
+				createdBy: input.createdBy,
+			})
+			.returning();
+
+		// Update incident status
+		const updateData: Record<string, unknown> = {
+			status: input.status,
+			updatedAt: new Date(),
+		};
+
+		if (input.status === "resolved") {
+			updateData.resolvedAt = new Date();
+		}
+
+		await db.update(incident).set(updateData).where(eq(incident.id, input.incidentId));
+
+		return update;
+	}
+
+	async getUpdates(incidentId: string): Promise<IncidentUpdate[]> {
+		return db
+			.select()
+			.from(incidentUpdate)
+			.where(eq(incidentUpdate.incidentId, incidentId))
+			.orderBy(desc(incidentUpdate.createdAt));
+	}
+
+	async linkMonitors(incidentId: string, monitorIds: string[]): Promise<void> {
+		if (monitorIds.length === 0) return;
+
+		await db
+			.insert(incidentMonitor)
+			.values(
+				monitorIds.map((monitorId) => ({
+					incidentId,
+					monitorId,
+				})),
+			)
+			.onConflictDoNothing();
+	}
+
+	async unlinkMonitor(incidentId: string, monitorId: string): Promise<void> {
+		await db
+			.delete(incidentMonitor)
+			.where(
+				and(eq(incidentMonitor.incidentId, incidentId), eq(incidentMonitor.monitorId, monitorId)),
+			);
+	}
+
+	async getAffectedMonitors(incidentId: string): Promise<
+		Array<{
+			id: string;
+			name: string;
+			type: string;
+		}>
+	> {
+		return db
+			.select({
+				id: monitor.id,
+				name: monitor.name,
+				type: monitor.type,
+			})
+			.from(incidentMonitor)
+			.innerJoin(monitor, eq(incidentMonitor.monitorId, monitor.id))
+			.where(eq(incidentMonitor.incidentId, incidentId));
+	}
+
+	async delete(id: string, organizationId: string): Promise<boolean> {
+		const existing = await this.findByIdAndOrg(id, organizationId);
+		if (!existing) {
+			return false;
+		}
+
+		await db
+			.delete(incident)
+			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)));
+
+		return true;
+	}
+
+	// Get active incidents for a set of monitors
+	async getActiveIncidentsForMonitors(monitorIds: string[]): Promise<Incident[]> {
+		if (monitorIds.length === 0) return [];
+
+		const incidentIds = await db
+			.selectDistinct({ incidentId: incidentMonitor.incidentId })
+			.from(incidentMonitor)
+			.where(inArray(incidentMonitor.monitorId, monitorIds));
+
+		if (incidentIds.length === 0) return [];
+
+		return db
+			.select()
+			.from(incident)
+			.where(
+				and(
+					inArray(
+						incident.id,
+						incidentIds.map((i) => i.incidentId),
+					),
+					ne(incident.status, "resolved"),
+				),
+			)
+			.orderBy(desc(incident.startedAt));
+	}
+
+	// Get active auto-created incident for a specific monitor
+	async getActiveAutoIncidentForMonitor(monitorId: string): Promise<Incident | null> {
+		const incidentIds = await db
+			.select({ incidentId: incidentMonitor.incidentId })
+			.from(incidentMonitor)
+			.where(eq(incidentMonitor.monitorId, monitorId));
+
+		if (incidentIds.length === 0) return null;
+
+		const [result] = await db
+			.select()
+			.from(incident)
+			.where(
+				and(
+					inArray(
+						incident.id,
+						incidentIds.map((i) => i.incidentId),
+					),
+					ne(incident.status, "resolved"),
+					eq(incident.isAutoCreated, true),
+				),
+			)
+			.orderBy(desc(incident.startedAt))
+			.limit(1);
+
+		return result || null;
+	}
+
+	// Auto-resolve incident when monitor recovers
+	async autoResolveIncident(incidentId: string): Promise<void> {
+		await this.addUpdate({
+			incidentId,
+			status: "resolved",
+			message: "Monitor has recovered automatically.",
+		});
+	}
+}
+
+export const incidentService = new IncidentService();

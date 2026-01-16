@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"printWidth": 100,
+	"singleQuote": false,
+	"trailingComma": "all",
+	"experimentalSortImports": {
+		"sortSideEffects": true,
+		"order": "asc",
+		"ignoreCase": true,
+		"partitionByComment": false,
+		"partitionByNewline": false,
+	},
+}
