@@ -2,6 +2,10 @@
 FROM oven/bun:1 AS base
 WORKDIR /usr/src/app
 
+ARG VITE_BETTER_AUTH_URL="http://localhost:5173"
+ARG BETTER_AUTH_URL="http://localhost:5173"
+ARG BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:5173"
+
 # install dependencies into temp directory
 # this will cache them and speed up future builds
 FROM base AS install
@@ -18,6 +22,9 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 FROM base AS builder
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
+ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+ENV BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
 RUN bun run prepare && bun run build
 
 # Stage 3: Production image
@@ -40,5 +47,8 @@ EXPOSE 3000/tcp
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+ENV BETTER_AUTH_TRUSTED_ORIGINS=$BETTER_AUTH_TRUSTED_ORIGINS
 
 CMD ["bun", "run", "./build/index.js"]
