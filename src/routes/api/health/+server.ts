@@ -8,7 +8,10 @@ export async function GET() {
 	console.log("[HEALTH DEBUG] env.BETTER_AUTH_URL:", env.BETTER_AUTH_URL);
 	console.log("[HEALTH DEBUG] env.BETTER_AUTH_TRUSTED_ORIGINS:", env.BETTER_AUTH_TRUSTED_ORIGINS);
 	console.log("[HEALTH DEBUG] Bun.env.BETTER_AUTH_URL:", Bun.env.BETTER_AUTH_URL);
-	console.log("[HEALTH DEBUG] Bun.env.BETTER_AUTH_TRUSTED_ORIGINS:", Bun.env.BETTER_AUTH_TRUSTED_ORIGINS);
+	console.log(
+		"[HEALTH DEBUG] Bun.env.BETTER_AUTH_TRUSTED_ORIGINS:",
+		Bun.env.BETTER_AUTH_TRUSTED_ORIGINS,
+	);
 
 	try {
 		await db.execute(sql`SELECT 1`);
