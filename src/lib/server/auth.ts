@@ -1,11 +1,21 @@
 import { getRequestEvent } from "$app/server";
-import { env } from "$env/dynamic/private";
 import { db } from "$lib/server/db";
 import * as authSchema from "$lib/server/db/auth-schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
+
+// Use Bun.env directly to ensure runtime resolution
+// $env/dynamic/private gets baked in at build time by svelte-adapter-bun
+const BETTER_AUTH_SECRET = Bun.env.BETTER_AUTH_SECRET;
+const BETTER_AUTH_URL = Bun.env.BETTER_AUTH_URL || "http://localhost:3000";
+const BETTER_AUTH_TRUSTED_ORIGINS = Bun.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
+	"http://localhost:3000",
+];
+
+console.log("[AUTH] Initializing with baseURL:", BETTER_AUTH_URL);
+console.log("[AUTH] Trusted origins:", BETTER_AUTH_TRUSTED_ORIGINS);
 
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
@@ -20,9 +30,9 @@ export const auth = betterAuth({
 			invitation: authSchema.invitation,
 		},
 	}),
-	secret: env.BETTER_AUTH_SECRET,
-	baseURL: env.BETTER_AUTH_URL || "http://localhost:5173",
-	trustedOrigins: env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || ["http://localhost:5173"],
+	secret: BETTER_AUTH_SECRET,
+	baseURL: BETTER_AUTH_URL,
+	trustedOrigins: BETTER_AUTH_TRUSTED_ORIGINS,
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false,

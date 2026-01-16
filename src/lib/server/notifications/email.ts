@@ -1,4 +1,3 @@
-import { env } from "$env/dynamic/private";
 import nodemailer from "nodemailer";
 
 import type {
@@ -7,6 +6,13 @@ import type {
 	NotificationProvider,
 	EmailConfig,
 } from "./types";
+
+// Use Bun.env directly to ensure runtime resolution
+const SMTP_HOST = Bun.env.SMTP_HOST;
+const SMTP_PORT = Bun.env.SMTP_PORT;
+const SMTP_USER = Bun.env.SMTP_USER;
+const SMTP_PASSWORD = Bun.env.SMTP_PASSWORD;
+const SMTP_FROM = Bun.env.SMTP_FROM;
 
 export class EmailNotificationProvider implements NotificationProvider {
 	private transporter: nodemailer.Transporter | null = null;
@@ -18,16 +24,16 @@ export class EmailNotificationProvider implements NotificationProvider {
 	}
 
 	private initTransporter() {
-		if (env.SMTP_HOST && env.SMTP_PORT) {
+		if (SMTP_HOST && SMTP_PORT) {
 			this.transporter = nodemailer.createTransport({
-				host: env.SMTP_HOST,
-				port: parseInt(env.SMTP_PORT, 10),
-				secure: env.SMTP_PORT === "465",
+				host: SMTP_HOST,
+				port: parseInt(SMTP_PORT, 10),
+				secure: SMTP_PORT === "465",
 				auth:
-					env.SMTP_USER && env.SMTP_PASSWORD
+					SMTP_USER && SMTP_PASSWORD
 						? {
-								user: env.SMTP_USER,
-								pass: env.SMTP_PASSWORD,
+								user: SMTP_USER,
+								pass: SMTP_PASSWORD,
 							}
 						: undefined,
 			});
@@ -46,7 +52,7 @@ export class EmailNotificationProvider implements NotificationProvider {
 			const { subject, html, text } = this.formatMessage(payload);
 
 			await this.transporter.sendMail({
-				from: env.SMTP_FROM || "Uppity <noreply@uppity.app>",
+				from: SMTP_FROM || "Uppity <noreply@uppity.app>",
 				to: this.config.email,
 				subject,
 				html,
