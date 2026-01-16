@@ -18,7 +18,6 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 FROM base AS builder
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
-ENV NODE_ENV=production
 RUN bun run prepare && bun run build
 
 # Stage 3: Production image
