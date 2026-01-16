@@ -1,0 +1,21 @@
+singleQuote: true
+printWidth: 100
+useTabs: true
+tabWidth: 2
+trailingComma: none
+plugins:
+  - prettier-plugin-svelte
+  - prettier-plugin-tailwindcss
+  - "@prettier/plugin-oxc"
+tailwindStylesheet: "./src/routes/layout.css"
+overrides:
+  - files: "*.svelte"
+    options:
+      parser: svelte
+  - files: "*.jsonc"
+    options:
+      trailingComma: none
+  - files: "*.md"
+    options:
+      printWidth: 80
+      proseWrap: always
