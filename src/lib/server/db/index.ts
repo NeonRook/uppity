@@ -1,12 +1,15 @@
 import { building } from "$app/environment";
-import { env } from "$env/dynamic/private";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import * as schema from "./schema";
 
-if (!env.DATABASE_URL && !building) throw new Error("DATABASE_URL is not set");
+// Use Bun.env directly to ensure runtime resolution
+// $env/dynamic/private can get baked in at build time by svelte-adapter-bun
+const DATABASE_URL = Bun.env.DATABASE_URL;
 
-const client = postgres(env.DATABASE_URL!);
+if (!DATABASE_URL && !building) throw new Error("DATABASE_URL is not set");
+
+const client = postgres(DATABASE_URL!);
 
 export const db = drizzle(client, { schema });
