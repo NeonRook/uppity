@@ -163,14 +163,15 @@
 					<div class="flex flex-wrap gap-2">
 						{#each data.organizations as org (org.id)}
 							{@const roleInfo = getRoleBadge(org.role)}
+							{@const isActive = org.id === data.currentOrganization?.id}
 							<Button
-								variant={org.id === data.currentOrganization?.id ? 'default' : 'outline'}
+								variant={isActive ? 'default' : 'outline'}
 								size="sm"
 								onclick={() => switchOrganization(org.id)}
 								disabled={switchingOrg}
 							>
 								{org.name}
-								<Badge variant={roleInfo.variant} class="ml-2 text-xs">
+								<Badge variant={isActive ? 'secondary' : roleInfo.variant} class="ml-2 text-xs">
 									{roleInfo.label}
 								</Badge>
 							</Button>
@@ -252,7 +253,7 @@
 							<Table.Head>Email</Table.Head>
 							<Table.Head>Role</Table.Head>
 							{#if data.isOwner}
-								<Table.Head class="w-[50px]"></Table.Head>
+								<Table.Head class="w-12.5"></Table.Head>
 							{/if}
 						</Table.Row>
 					</Table.Header>

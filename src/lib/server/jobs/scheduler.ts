@@ -19,10 +19,7 @@ class Scheduler {
 	private processing = false;
 
 	async start(): Promise<void> {
-		if (this.isRunning) {
-			console.log("[Scheduler] Already running");
-			return;
-		}
+		if (this.isRunning) return;
 
 		console.log("[Scheduler] Starting...");
 		this.isRunning = true;

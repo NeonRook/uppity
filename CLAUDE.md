@@ -18,39 +18,34 @@ Uppity is a self-hosted monitoring and status page application built with Svelte
 # Development
 bun run dev                 # Start dev server at localhost:5173
 bun run check               # Type check with svelte-check
-bun run check:watch         # Watch mode type checking
 
 # Code Quality
-bun run fmt                 # Format all files (oxfmt + prettier)
+pnpm run fmt                # Format all files (oxfmt + prettier) - use pnpm, not bun
 bun run lint                # Lint with auto-fix (oxlint + eslint)
-bun run lint:ci             # CI linting (strict, no auto-fix)
 
 # Testing
-bun run test:unit           # Run unit tests with Vitest
-bun run test:e2e            # Run E2E tests with Playwright
-bun run test                # Run all tests
+bun run test:unit           # Run all unit tests
+bun run test:unit -- --run src/lib/server/services/check.service.spec.ts  # Run single test file
 
 # Database (requires DATABASE_URL in .env)
 bun run db:push             # Push schema changes to database
-bun run db:generate         # Generate migration files
-bun run db:migrate          # Run pending migrations
 bun run db:studio           # Open Drizzle Studio GUI
 
 # Build
 bun run build               # Production build (uses svelte-adapter-bun)
-bun run preview             # Preview production build
 ```
 
 ## Architecture
 
 ### Tech Stack
 
-- **Runtime:** Bun
+- **Runtime:** Bun (use Bun APIs like `Bun.connect()` instead of Node.js `net`/`tls`)
 - **Framework:** SvelteKit 2 with Svelte 5
 - **Database:** PostgreSQL via Drizzle ORM
 - **Auth:** better-auth with organization support
 - **UI:** shadcn/svelte components in `src/lib/components/ui/`
-- **Forms:** sveltekit-superforms with Zod/Valibot validation
+- **Forms:** sveltekit-superforms with Zod validation
+- **i18n:** Paraglide for internationalization (`src/lib/paraglide/`)
 
 ### Directory Structure
 
@@ -59,10 +54,6 @@ src/lib/
 ├── server/
 │   ├── db/schema.ts              # Drizzle schema (monitors, incidents, etc.)
 │   ├── services/                 # Business logic layer
-│   │   ├── monitor.service.ts
-│   │   ├── incident.service.ts
-│   │   ├── notification-channel.service.ts
-│   │   └── status-page.service.ts
 │   ├── notifications/            # Channel implementations (email, slack, discord, webhook)
 │   ├── jobs/scheduler.ts         # node-cron background health checks
 │   └── auth.ts                   # better-auth configuration
@@ -80,8 +71,38 @@ src/routes/
 
 - **Service Layer:** Routes delegate to services in `src/lib/server/services/`
 - **Schema Validation:** Zod schemas in `src/lib/schemas/` used by superforms
-- **Real-time Updates:** Server-Sent Events via `src/lib/server/sse.ts`
 - **Background Jobs:** Monitor checks scheduled via node-cron in `scheduler.ts`
+
+### Superforms Pattern
+
+Forms use sveltekit-superforms. The correct pattern:
+
+```svelte
+<script lang="ts">
+  import { superForm } from 'sveltekit-superforms';
+  import { untrack } from 'svelte';
+
+  let { data } = $props();
+  const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+</script>
+
+<form method="POST" use:enhance>
+  <input bind:value={$form.name} disabled={$delayed} />
+  {#if $errors.name}<span class="error">{$errors.name}</span>{/if}
+  {#if $message}<Alert variant="destructive">{$message}</Alert>{/if}
+</form>
+```
+
+For edit forms, add `resetForm: false` to preserve values after submission.
+
+### Testing
+
+Tests use Vitest with two projects:
+
+- **Server tests:** `*.spec.ts` files run in Node environment
+- **Client tests:** `*.svelte.spec.ts` files run in browser via Playwright
+
+All tests require assertions (`expect.requireAssertions: true`).
 
 ## Svelte MCP Tools
 

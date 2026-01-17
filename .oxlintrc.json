@@ -35,13 +35,8 @@
 		"@typescript-eslint/no-base-to-string": "error",
 		"@typescript-eslint/no-unsafe-type-assertion": "off",
 		"no-await-in-loop": "off",
-		"no-nested-ternary": "error",
-		"no-negated-condition": "error",
-		"import/no-cycle": "error",
-		"import/no-duplicates": "error",
 		"unicorn/no-empty-file": "off",
 		"promise/no-multiple-resolved": "off",
-		"prefer-destructuring": "error",
 		"@typescript-eslint/ban-ts-comment": "error",
 		"@typescript-eslint/no-duplicate-enum-values": "error",
 		"@typescript-eslint/no-empty-object-type": "error",
@@ -222,6 +217,12 @@
 			"rules": {
 				"no-inner-declarations": "off",
 				"no-self-assign": "off"
+			}
+		},
+		{
+			"files": ["*.test.ts", "*.spec.ts"],
+			"rules": {
+				"@typescript-eslint/unbound-method": "off"
 			}
 		}
 	],
