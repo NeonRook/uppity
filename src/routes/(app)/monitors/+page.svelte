@@ -14,47 +14,15 @@
 		Trash2
 	} from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { formatResponseTime } from '$lib/format';
+	import { getStatusBadge, getStatusColor } from '$lib/utils/status';
+	import EmptyState from '$lib/components/empty-state.svelte';
 
 	let { data } = $props();
-
-	function getStatusBadge(status: string | null, active: boolean) {
-		if (!active) {
-			return { variant: 'secondary' as const, label: 'Paused' };
-		}
-		switch (status) {
-			case 'up':
-				return { variant: 'default' as const, label: 'Operational' };
-			case 'degraded':
-				return { variant: 'outline' as const, label: 'Degraded' };
-			case 'down':
-				return { variant: 'destructive' as const, label: 'Down' };
-			default:
-				return { variant: 'secondary' as const, label: 'Unknown' };
-		}
-	}
-
-	function getStatusColor(status: string | null, active: boolean) {
-		if (!active) return 'bg-muted';
-		switch (status) {
-			case 'up':
-				return 'bg-green-500';
-			case 'degraded':
-				return 'bg-yellow-500';
-			case 'down':
-				return 'bg-red-500';
-			default:
-				return 'bg-muted';
-		}
-	}
 
 	function formatUptime(percent: number | null) {
 		if (percent === null) return '-';
 		return `${percent.toFixed(2)}%`;
-	}
-
-	function formatResponseTime(ms: number | null) {
-		if (ms === null) return '-';
-		return `${ms}ms`;
 	}
 
 	function getEndpoint(m: (typeof data.monitors)[number]) {
@@ -90,21 +58,13 @@
 	</div>
 
 	{#if data.monitors.length === 0}
-		<Card.Root>
-			<Card.Content class="pt-6">
-				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<Activity class="h-12 w-12 text-muted-foreground/50" />
-					<h3 class="mt-4 text-lg font-semibold">No monitors yet</h3>
-					<p class="mt-2 mb-4 text-sm text-muted-foreground">
-						Create your first monitor to start tracking uptime.
-					</p>
-					<Button href="/monitors/new">
-						<Plus class="mr-2 h-4 w-4" />
-						Create Monitor
-					</Button>
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			icon={Activity}
+			title="No monitors yet"
+			description="Create your first monitor to start tracking uptime."
+			buttonText="Create Monitor"
+			buttonHref="/monitors/new"
+		/>
 	{:else}
 		<Card.Root>
 			<Table.Root>

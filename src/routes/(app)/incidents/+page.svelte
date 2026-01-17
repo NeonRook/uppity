@@ -1,16 +1,15 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Plus, TriangleAlert, Trash2 } from '@lucide/svelte';
 	import { getStatusInfo, getImpactInfo, formatIncidentDate } from '$lib/incidents';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 
 	let { data } = $props();
 
 	let deleteIncidentId = $state<string | null>(null);
-	let deleting = $state(false);
 
 	function getDuration(startedAt: Date, resolvedAt: Date | null): string {
 		const end = resolvedAt ? new Date(resolvedAt) : new Date();
@@ -54,19 +53,13 @@
 	</div>
 
 	{#if data.incidents.length === 0}
-		<Card.Root>
-			<Card.Content class="pt-6">
-				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<TriangleAlert class="h-12 w-12 text-muted-foreground/50" />
-					<h3 class="mt-4 text-lg font-semibold">No incidents</h3>
-					<p class="mt-2 mb-4 text-sm text-muted-foreground">
-						{data.includeResolved
-							? 'No incidents have been reported yet.'
-							: 'All systems operational. No active incidents.'}
-					</p>
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			icon={TriangleAlert}
+			title="No incidents"
+			description={data.includeResolved
+				? 'No incidents have been reported yet.'
+				: 'All systems operational. No active incidents.'}
+		/>
 	{:else}
 		<div class="space-y-4">
 			{#each data.incidents as inc (inc.id)}
@@ -110,37 +103,10 @@
 	{/if}
 </div>
 
-<AlertDialog.Root
-	open={deleteIncidentId !== null}
-	onOpenChange={(open) => !open && (deleteIncidentId = null)}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete incident?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently delete this incident and all its updates. This action cannot be
-				undone.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteIncidentId = null)}>Cancel</AlertDialog.Cancel>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-						deleteIncidentId = null;
-					};
-				}}
-			>
-				<input type="hidden" name="incidentId" value={deleteIncidentId} />
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	itemId={deleteIncidentId}
+	onOpenChange={() => (deleteIncidentId = null)}
+	title="Delete incident?"
+	description="This will permanently delete this incident and all its updates. This action cannot be undone."
+	inputName="incidentId"
+/>

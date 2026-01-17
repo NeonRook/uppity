@@ -9,29 +9,13 @@
 	} from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
+	import { formatDuration, formatDateMonthDay } from '$lib/format';
+	import { getMonitorStatusColor, getDayStatusColor } from '$lib/utils/status';
 
 	let { data } = $props();
 
 	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents, resolvedIncidents } =
 		$derived(data.statusData);
-
-	function formatDuration(startedAt: Date, resolvedAt: Date | null): string {
-		const start = new Date(startedAt);
-		const end = resolvedAt ? new Date(resolvedAt) : new Date();
-		const diffMs = end.getTime() - start.getTime();
-
-		const minutes = Math.floor(diffMs / 60000);
-		const hours = Math.floor(minutes / 60);
-		const days = Math.floor(hours / 24);
-
-		if (days > 0) {
-			return `${days}d ${hours % 24}h`;
-		}
-		if (hours > 0) {
-			return `${hours}h ${minutes % 60}m`;
-		}
-		return `${minutes}m`;
-	}
 
 	function getOverallStatusInfo() {
 		switch (overallStatus) {
@@ -71,39 +55,6 @@
 					textColor: 'text-gray-500'
 				};
 		}
-	}
-
-	function getMonitorStatusColor(status: string): string {
-		switch (status) {
-			case 'up':
-				return 'bg-green-500';
-			case 'down':
-				return 'bg-red-500';
-			case 'degraded':
-				return 'bg-yellow-500';
-			default:
-				return 'bg-gray-400';
-		}
-	}
-
-	function getDayStatusColor(status: string): string {
-		switch (status) {
-			case 'up':
-				return 'bg-green-500 hover:bg-green-400';
-			case 'down':
-				return 'bg-red-500 hover:bg-red-400';
-			case 'degraded':
-				return 'bg-yellow-500 hover:bg-yellow-400';
-			case 'partial':
-				return 'bg-orange-500 hover:bg-orange-400';
-			default:
-				return 'bg-gray-300 hover:bg-gray-200';
-		}
-	}
-
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
 	const statusInfo = $derived(getOverallStatusInfo());
@@ -246,7 +197,7 @@
 								{#each monitor.dailyHistory as day (day.date)}
 									<div
 										class="h-8 flex-1 rounded-sm transition-colors {getDayStatusColor(day.status)}"
-										title="{formatDate(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
+										title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
 									></div>
 								{/each}
 							</div>
@@ -287,7 +238,7 @@
 											class="h-8 flex-1 rounded-sm transition-colors {getDayStatusColor(
 												day.status
 											)}"
-											title="{formatDate(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
+											title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
 										></div>
 									{/each}
 								</div>

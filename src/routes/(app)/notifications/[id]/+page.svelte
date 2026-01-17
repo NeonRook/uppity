@@ -7,7 +7,7 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
@@ -23,7 +23,6 @@
 	let { data, form } = $props();
 
 	let loading = $state(false);
-	let deleting = $state(false);
 	let showDeleteDialog = $state(false);
 
 	const config = $derived(data.channel.config as Record<string, unknown>);
@@ -287,32 +286,10 @@
 	</form>
 </div>
 
-<AlertDialog.Root bind:open={showDeleteDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete notification channel?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently delete "{data.channel.name}". You will no longer receive alerts
-				through this channel.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-					};
-				}}
-			>
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title="Delete notification channel?"
+	description="This will permanently delete &quot;{data.channel
+		.name}&quot;. You will no longer receive alerts through this channel."
+/>

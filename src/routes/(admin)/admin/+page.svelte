@@ -3,16 +3,10 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
 	import { Users, Building2, Monitor, TriangleAlert } from '@lucide/svelte';
+	import { formatDateShort } from '$lib/format';
+	import StatCard from '$lib/components/stat-card.svelte';
 
 	let { data } = $props();
-
-	function formatDate(date: Date): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
 </script>
 
 <svelte:head>
@@ -24,45 +18,10 @@
 
 	<!-- Stats Cards -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Users</Card.Title>
-				<Users class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.totalUsers}</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Organizations</Card.Title>
-				<Building2 class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.totalOrganizations}</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Monitors</Card.Title>
-				<Monitor class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.totalMonitors}</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Incidents</Card.Title>
-				<TriangleAlert class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{data.stats.totalIncidents}</div>
-			</Card.Content>
-		</Card.Root>
+		<StatCard title="Total Users" value={data.stats.totalUsers} icon={Users} />
+		<StatCard title="Total Organizations" value={data.stats.totalOrganizations} icon={Building2} />
+		<StatCard title="Total Monitors" value={data.stats.totalMonitors} icon={Monitor} />
+		<StatCard title="Total Incidents" value={data.stats.totalIncidents} icon={TriangleAlert} />
 	</div>
 
 	<!-- Recent Activity -->
@@ -91,7 +50,9 @@
 									</a>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{user.email}</Table.Cell>
-								<Table.Cell class="text-muted-foreground">{formatDate(user.createdAt)}</Table.Cell>
+								<Table.Cell class="text-muted-foreground"
+									>{formatDateShort(user.createdAt)}</Table.Cell
+								>
 							</Table.Row>
 						{/each}
 						{#if data.stats.recentUsers.length === 0}
@@ -130,7 +91,9 @@
 									</a>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{org.slug}</Table.Cell>
-								<Table.Cell class="text-muted-foreground">{formatDate(org.createdAt)}</Table.Cell>
+								<Table.Cell class="text-muted-foreground"
+									>{formatDateShort(org.createdAt)}</Table.Cell
+								>
 							</Table.Row>
 						{/each}
 						{#if data.stats.recentOrganizations.length === 0}

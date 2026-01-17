@@ -9,8 +9,11 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, ArrowLeft, Trash2, Ban, CircleCheck } from '@lucide/svelte';
+	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck } from '@lucide/svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
+	import { formatDateTimeShort } from '$lib/format';
 
 	let { data } = $props();
 
@@ -30,16 +33,6 @@
 	let showDeleteDialog = $state(false);
 	let showBanDialog = $state(false);
 
-	function formatDate(date: Date | string): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
-
 	function getRoleLabel(role: string | undefined): string {
 		return roleOptions.find((r) => r.value === role)?.label || 'User';
 	}
@@ -50,25 +43,20 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/admin/users">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div class="flex-1">
-			<h1 class="text-2xl font-bold">{data.user.name}</h1>
-			<p class="text-muted-foreground">{data.user.email}</p>
-		</div>
-		<div class="flex items-center gap-2">
-			{#if data.user.banned}
-				<Badge variant="destructive">Banned</Badge>
-			{:else}
-				<Badge variant="outline">Active</Badge>
-			{/if}
-			<Badge variant={data.user.role === 'admin' ? 'default' : 'secondary'}>
-				{data.user.role || 'user'}
-			</Badge>
-		</div>
-	</div>
+	<PageHeader backHref="/admin/users" title={data.user.name} description={data.user.email}>
+		{#snippet actions()}
+			<div class="flex items-center gap-2">
+				{#if data.user.banned}
+					<Badge variant="destructive">Banned</Badge>
+				{:else}
+					<Badge variant="outline">Active</Badge>
+				{/if}
+				<Badge variant={data.user.role === 'admin' ? 'default' : 'secondary'}>
+					{data.user.role || 'user'}
+				</Badge>
+			</div>
+		{/snippet}
+	</PageHeader>
 
 	<!-- User Details -->
 	<Card.Root>
@@ -131,8 +119,8 @@
 				</div>
 
 				<div class="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-					<div>Created: {formatDate(data.user.createdAt)}</div>
-					<div>Updated: {formatDate(data.user.updatedAt)}</div>
+					<div>Created: {formatDateTimeShort(data.user.createdAt)}</div>
+					<div>Updated: {formatDateTimeShort(data.user.updatedAt)}</div>
 				</div>
 
 				<div class="pt-4">
@@ -228,20 +216,9 @@
 	</AlertDialog.Content>
 </AlertDialog.Root>
 
-<!-- Delete Dialog -->
-<AlertDialog.Root bind:open={showDeleteDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete User</AlertDialog.Title>
-			<AlertDialog.Description>
-				Are you sure you want to delete {data.user.name}? This action cannot be undone.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/delete">
-				<Button type="submit" variant="destructive">Delete User</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title="Delete User"
+	description="Are you sure you want to delete {data.user.name}? This action cannot be undone."
+/>

@@ -9,11 +9,10 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import {
 		CircleAlert,
-		ArrowLeft,
 		LoaderCircle,
 		Plus,
 		Trash2,
@@ -21,6 +20,7 @@
 		GripVertical,
 		CircleCheck
 	} from '@lucide/svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 
 	let { data } = $props();
 
@@ -38,7 +38,6 @@
 	);
 
 	let showDeleteDialog = $state(false);
-	let deleting = $state(false);
 	let newGroupName = $state('');
 
 	const availableMonitors = $derived(
@@ -58,23 +57,22 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/status-pages">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div class="flex-1">
-			<h1 class="text-3xl font-bold tracking-tight">{data.statusPage.name}</h1>
-			<p class="text-muted-foreground">Edit status page settings</p>
-		</div>
-		<Button variant="outline" href={getStatusPageUrl()} target="_blank">
-			<ExternalLink class="mr-2 h-4 w-4" />
-			View Page
-		</Button>
-		<Button variant="destructive" onclick={() => (showDeleteDialog = true)}>
-			<Trash2 class="mr-2 h-4 w-4" />
-			Delete
-		</Button>
-	</div>
+	<PageHeader
+		backHref="/status-pages"
+		title={data.statusPage.name}
+		description="Edit status page settings"
+	>
+		{#snippet actions()}
+			<Button variant="outline" href={getStatusPageUrl()} target="_blank">
+				<ExternalLink class="mr-2 h-4 w-4" />
+				View Page
+			</Button>
+			<Button variant="destructive" onclick={() => (showDeleteDialog = true)}>
+				<Trash2 class="mr-2 h-4 w-4" />
+				Delete
+			</Button>
+		{/snippet}
+	</PageHeader>
 
 	{#if $updateMessage}
 		<Alert
@@ -359,32 +357,10 @@
 	</Tabs.Root>
 </div>
 
-<AlertDialog.Root bind:open={showDeleteDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete status page?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently delete "{data.statusPage.name}". The public URL will no longer be
-				accessible.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-					};
-				}}
-			>
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title="Delete status page?"
+	description="This will permanently delete &quot;{data.statusPage
+		.name}&quot;. The public URL will no longer be accessible."
+/>

@@ -26,6 +26,64 @@ export function formatDate(date: Date | null): string {
 }
 
 /**
+ * Format a date in short format (e.g., "Jan 15, 2024")
+ */
+export function formatDateShort(date: Date | string | null): string {
+	if (!date) return "-";
+	return new Date(date).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+}
+
+/**
+ * Format a date with time in short format (e.g., "Jan 15, 2024, 09:30 AM")
+ */
+export function formatDateTimeShort(date: Date | string | null): string {
+	if (!date) return "-";
+	return new Date(date).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}
+
+/**
+ * Format a duration between two dates (e.g., "2d 5h", "3h 20m", "45m")
+ */
+export function formatDuration(startedAt: Date, resolvedAt: Date | null): string {
+	const start = new Date(startedAt);
+	const end = resolvedAt ? new Date(resolvedAt) : new Date();
+	const diffMs = end.getTime() - start.getTime();
+
+	const minutes = Math.floor(diffMs / 60000);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+
+	if (days > 0) {
+		return `${days}d ${hours % 24}h`;
+	}
+	if (hours > 0) {
+		return `${hours}h ${minutes % 60}m`;
+	}
+	return `${minutes}m`;
+}
+
+/**
+ * Format a date showing only month and day (e.g., "Jan 15")
+ */
+export function formatDateMonthDay(date: Date | string | null): string {
+	if (!date) return "-";
+	return new Date(date).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+	});
+}
+
+/**
  * Format response time in milliseconds
  * Returns formatted string like "123ms" or "-" if null
  */

@@ -8,6 +8,7 @@
 	import { Plus, Search, ChevronLeft, ChevronRight, Users } from '@lucide/svelte';
 	import { useSearchParams } from 'runed/kit';
 	import * as v from 'valibot';
+	import { formatDateShort } from '$lib/format';
 
 	let { data } = $props();
 
@@ -19,14 +20,6 @@
 	const params = useSearchParams(searchSchema);
 
 	const totalPages = $derived(Math.ceil(data.total / data.limit));
-
-	function formatDate(date: Date | string): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
 </script>
 
 <svelte:head>
@@ -82,7 +75,8 @@
 									{org.members.length}
 								</Badge>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground">{formatDate(org.createdAt)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground">{formatDateShort(org.createdAt)}</Table.Cell
+							>
 						</Table.Row>
 					{/each}
 					{#if data.organizations.length === 0}
