@@ -501,19 +501,32 @@ export class StatusPageService {
 			)
 			.groupBy(incident.id);
 
-		const formattedIncidents = activeIncidents.map((ai) => ({
-			id: ai.incident.id,
-			title: ai.incident.title,
-			status: ai.incident.status,
-			impact: ai.incident.impact,
-			createdAt: ai.incident.createdAt,
-			updates: JSON.parse(ai.updates) as Array<{
-				id: string;
-				status: string;
-				message: string;
-				createdAt: Date;
-			}>,
-		}));
+		const formattedIncidents = activeIncidents.map((ai) => {
+			// PostgreSQL json_agg may return parsed objects or strings depending on driver
+			const updates =
+				typeof ai.updates === "string"
+					? (JSON.parse(ai.updates) as Array<{
+							id: string;
+							status: string;
+							message: string;
+							createdAt: Date;
+						}>)
+					: (ai.updates as Array<{
+							id: string;
+							status: string;
+							message: string;
+							createdAt: Date;
+						}>);
+
+			return {
+				id: ai.incident.id,
+				title: ai.incident.title,
+				status: ai.incident.status,
+				impact: ai.incident.impact,
+				createdAt: ai.incident.createdAt,
+				updates,
+			};
+		});
 
 		return {
 			page,
