@@ -56,6 +56,22 @@ export interface AddMonitorInput {
 	order?: number;
 }
 
+export interface PublicIncidentData {
+	id: string;
+	title: string;
+	status: string;
+	impact: string;
+	createdAt: Date;
+	startedAt: Date;
+	resolvedAt: Date | null;
+	updates: Array<{
+		id: string;
+		status: string;
+		message: string;
+		createdAt: Date;
+	}>;
+}
+
 export interface PublicStatusPageData {
 	page: StatusPage;
 	groups: Array<{
@@ -67,19 +83,8 @@ export interface PublicStatusPageData {
 	}>;
 	ungroupedMonitors: PublicMonitorStatus[];
 	overallStatus: "operational" | "degraded" | "partial_outage" | "major_outage";
-	activeIncidents: Array<{
-		id: string;
-		title: string;
-		status: string;
-		impact: string;
-		createdAt: Date;
-		updates: Array<{
-			id: string;
-			status: string;
-			message: string;
-			createdAt: Date;
-		}>;
-	}>;
+	activeIncidents: PublicIncidentData[];
+	resolvedIncidents: PublicIncidentData[];
 }
 
 export interface PublicMonitorStatus {
@@ -475,7 +480,7 @@ export class StatusPageService {
 		}
 
 		// Get active incidents
-		const activeIncidents = await db
+		const activeIncidentsRaw = await db
 			.select({
 				incident: incident,
 				updates: sql<string>`COALESCE(
@@ -499,41 +504,187 @@ export class StatusPageService {
 					sql`${incident.status} != 'resolved'`,
 				),
 			)
-			.groupBy(incident.id);
+			.groupBy(incident.id)
+			.orderBy(desc(incident.startedAt));
 
-		const formattedIncidents = activeIncidents.map((ai) => {
-			// PostgreSQL json_agg may return parsed objects or strings depending on driver
-			const updates =
-				typeof ai.updates === "string"
-					? (JSON.parse(ai.updates) as Array<{
-							id: string;
-							status: string;
-							message: string;
-							createdAt: Date;
-						}>)
-					: (ai.updates as Array<{
-							id: string;
-							status: string;
-							message: string;
-							createdAt: Date;
-						}>);
+		const activeIncidents = activeIncidentsRaw.map(this.formatIncidentData);
 
-			return {
-				id: ai.incident.id,
-				title: ai.incident.title,
-				status: ai.incident.status,
-				impact: ai.incident.impact,
-				createdAt: ai.incident.createdAt,
-				updates,
-			};
-		});
+		// Get resolved incidents (last 90 days)
+		const resolvedIncidentsRaw = await db
+			.select({
+				incident: incident,
+				updates: sql<string>`COALESCE(
+					json_agg(
+						json_build_object(
+							'id', ${incidentUpdate.id},
+							'status', ${incidentUpdate.status},
+							'message', ${incidentUpdate.message},
+							'createdAt', ${incidentUpdate.createdAt}
+						) ORDER BY ${incidentUpdate.createdAt} DESC
+					) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
+					'[]'
+				)`.as("updates"),
+			})
+			.from(incident)
+			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
+			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
+			.where(
+				and(
+					inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]),
+					sql`${incident.status} = 'resolved'`,
+					gte(incident.resolvedAt, ninetyDaysAgo),
+				),
+			)
+			.groupBy(incident.id)
+			.orderBy(desc(incident.resolvedAt));
+
+		const resolvedIncidents = resolvedIncidentsRaw.map(this.formatIncidentData);
 
 		return {
 			page,
 			groups: groupsWithMonitors,
 			ungroupedMonitors,
 			overallStatus,
-			activeIncidents: formattedIncidents,
+			activeIncidents,
+			resolvedIncidents,
+		};
+	}
+
+	// Helper to format incident data
+	private formatIncidentData(
+		this: void,
+		ai: {
+			incident: typeof incident.$inferSelect;
+			updates: string;
+		},
+	): PublicIncidentData {
+		const updates =
+			typeof ai.updates === "string"
+				? (JSON.parse(ai.updates) as Array<{
+						id: string;
+						status: string;
+						message: string;
+						createdAt: Date;
+					}>)
+				: (ai.updates as Array<{
+						id: string;
+						status: string;
+						message: string;
+						createdAt: Date;
+					}>);
+
+		return {
+			id: ai.incident.id,
+			title: ai.incident.title,
+			status: ai.incident.status,
+			impact: ai.incident.impact,
+			createdAt: ai.incident.createdAt,
+			startedAt: ai.incident.startedAt,
+			resolvedAt: ai.incident.resolvedAt,
+			updates,
+		};
+	}
+
+	// Get public incident detail for a status page
+	async getPublicIncident(
+		slug: string,
+		incidentId: string,
+	): Promise<{
+		page: StatusPage;
+		incident: PublicIncidentData;
+		affectedMonitors: Array<{ id: string; name: string }>;
+	} | null> {
+		const page = await this.findBySlug(slug);
+		if (!page || !page.isPublic) {
+			return null;
+		}
+
+		// Get monitors on this status page
+		const pageMonitors = await this.getMonitors(page.id);
+		const monitorIds = pageMonitors.map((pm) => pm.monitor.id);
+
+		if (monitorIds.length === 0) {
+			return null;
+		}
+
+		// Check if incident affects any of the page's monitors
+		const incidentMonitorLinks = await db
+			.select({ monitorId: incidentMonitor.monitorId })
+			.from(incidentMonitor)
+			.where(
+				and(
+					eq(incidentMonitor.incidentId, incidentId),
+					inArray(incidentMonitor.monitorId, monitorIds),
+				),
+			);
+
+		if (incidentMonitorLinks.length === 0) {
+			return null;
+		}
+
+		// Get incident with all updates
+		const incidentResult = await db
+			.select({
+				incident: incident,
+				updates: sql<string>`COALESCE(
+					json_agg(
+						json_build_object(
+							'id', ${incidentUpdate.id},
+							'status', ${incidentUpdate.status},
+							'message', ${incidentUpdate.message},
+							'createdAt', ${incidentUpdate.createdAt}
+						) ORDER BY ${incidentUpdate.createdAt} DESC
+					) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
+					'[]'
+				)`.as("updates"),
+			})
+			.from(incident)
+			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
+			.where(eq(incident.id, incidentId))
+			.groupBy(incident.id);
+
+		if (incidentResult.length === 0) {
+			return null;
+		}
+
+		const [incidentData] = incidentResult;
+		const updates =
+			typeof incidentData.updates === "string"
+				? (JSON.parse(incidentData.updates) as Array<{
+						id: string;
+						status: string;
+						message: string;
+						createdAt: Date;
+					}>)
+				: (incidentData.updates as Array<{
+						id: string;
+						status: string;
+						message: string;
+						createdAt: Date;
+					}>);
+
+		// Get affected monitors that are on this status page
+		const affectedMonitorIds = new Set(incidentMonitorLinks.map((im) => im.monitorId));
+		const affectedMonitors = pageMonitors
+			.filter((pm) => affectedMonitorIds.has(pm.monitor.id))
+			.map((pm) => ({
+				id: pm.pageMonitor.id,
+				name: pm.pageMonitor.displayName || pm.monitor.name,
+			}));
+
+		return {
+			page,
+			incident: {
+				id: incidentData.incident.id,
+				title: incidentData.incident.title,
+				status: incidentData.incident.status,
+				impact: incidentData.incident.impact,
+				createdAt: incidentData.incident.createdAt,
+				startedAt: incidentData.incident.startedAt,
+				resolvedAt: incidentData.incident.resolvedAt,
+				updates,
+			},
+			affectedMonitors,
 		};
 	}
 }

@@ -11,7 +11,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { ArrowLeft, LoaderCircle, Trash2 } from '@lucide/svelte';
+	import { ArrowLeft, LoaderCircle, Trash2, FileText, Pencil, X } from '@lucide/svelte';
 	import {
 		statusOptions,
 		impactOptions,
@@ -48,8 +48,31 @@
 		}
 	);
 
+	const {
+		form: postmortemForm,
+		errors: postmortemErrors,
+		enhance: postmortemEnhance,
+		delayed: postmortemDelayed,
+		message: postmortemMessage
+	} = superForm(untrack(() => data.postmortemForm));
+
+	const {
+		form: editPostmortemForm,
+		errors: editPostmortemErrors,
+		enhance: editPostmortemEnhance,
+		delayed: editPostmortemDelayed,
+		message: editPostmortemMessage
+	} = superForm(
+		untrack(() => data.editPostmortemForm),
+		{ resetForm: false }
+	);
+
 	let showDeleteDialog = $state(false);
 	let deleting = $state(false);
+	let editingPostmortem = $state(false);
+
+	// Get existing postmortem if any
+	const existingPostmortem = $derived(data.incident.updates.find((u) => u.status === 'postmortem'));
 
 	const statusInfo = $derived(getStatusInfo(data.incident.status));
 	const impactInfo = $derived(getImpactInfo(data.incident.impact));
@@ -93,6 +116,18 @@
 	{#if $addMessage}
 		<Alert>
 			<AlertDescription>{$addMessage}</AlertDescription>
+		</Alert>
+	{/if}
+
+	{#if $postmortemMessage}
+		<Alert>
+			<AlertDescription>{$postmortemMessage}</AlertDescription>
+		</Alert>
+	{/if}
+
+	{#if $editPostmortemMessage}
+		<Alert>
+			<AlertDescription>{$editPostmortemMessage}</AlertDescription>
 		</Alert>
 	{/if}
 
@@ -158,6 +193,118 @@
 		</Card.Root>
 	{/if}
 
+	<!-- Postmortem Section (only for resolved incidents) -->
+	{#if data.incident.status === 'resolved'}
+		<Card.Root class="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
+			<Card.Header>
+				<Card.Title class="flex items-center gap-2">
+					<FileText class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+					Postmortem
+				</Card.Title>
+				<Card.Description>
+					{#if existingPostmortem}
+						Document what happened, root cause, and lessons learned
+					{:else}
+						Add a postmortem to document what happened and lessons learned
+					{/if}
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				{#if existingPostmortem}
+					{#if editingPostmortem}
+						<!-- Edit postmortem form -->
+						<form
+							method="POST"
+							action="?/editPostmortem"
+							class="space-y-4"
+							use:editPostmortemEnhance
+						>
+							<input type="hidden" name="updateId" value={existingPostmortem.id} />
+							<div class="space-y-2">
+								<Label for="edit-postmortem-message">Postmortem Content *</Label>
+								<Textarea
+									id="edit-postmortem-message"
+									name="message"
+									placeholder="Describe what happened, the root cause, impact, and lessons learned..."
+									bind:value={$editPostmortemForm.message}
+									disabled={$editPostmortemDelayed}
+									rows={6}
+									aria-invalid={$editPostmortemErrors.message ? 'true' : undefined}
+								/>
+								{#if $editPostmortemErrors.message}
+									<p class="text-sm text-destructive">{$editPostmortemErrors.message}</p>
+								{/if}
+							</div>
+
+							<div class="flex gap-2">
+								<Button
+									type="submit"
+									disabled={$editPostmortemDelayed || !$editPostmortemForm.message?.trim()}
+								>
+									{#if $editPostmortemDelayed}
+										<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+										Saving...
+									{:else}
+										Save Changes
+									{/if}
+								</Button>
+								<Button type="button" variant="outline" onclick={() => (editingPostmortem = false)}>
+									<X class="mr-2 h-4 w-4" />
+									Cancel
+								</Button>
+							</div>
+						</form>
+					{:else}
+						<!-- Show existing postmortem -->
+						<div class="space-y-4">
+							<div class="rounded-md bg-card p-4">
+								<p class="text-sm whitespace-pre-wrap">{existingPostmortem.message}</p>
+							</div>
+							<div class="flex items-center justify-between">
+								<p class="text-xs text-muted-foreground">
+									Published {formatIncidentDate(existingPostmortem.createdAt)}
+								</p>
+								<Button variant="outline" size="sm" onclick={() => (editingPostmortem = true)}>
+									<Pencil class="mr-2 h-3 w-3" />
+									Edit
+								</Button>
+							</div>
+						</div>
+					{/if}
+				{:else}
+					<!-- Add postmortem form -->
+					<form method="POST" action="?/addPostmortem" class="space-y-4" use:postmortemEnhance>
+						<div class="space-y-2">
+							<Label for="postmortem-message">Postmortem Content *</Label>
+							<Textarea
+								id="postmortem-message"
+								name="message"
+								placeholder="Describe what happened, the root cause, impact, and lessons learned..."
+								bind:value={$postmortemForm.message}
+								disabled={$postmortemDelayed}
+								rows={6}
+								aria-invalid={$postmortemErrors.message ? 'true' : undefined}
+							/>
+							{#if $postmortemErrors.message}
+								<p class="text-sm text-destructive">{$postmortemErrors.message}</p>
+							{/if}
+						</div>
+
+						<Button type="submit" disabled={$postmortemDelayed || !$postmortemForm.message?.trim()}>
+							{#if $postmortemDelayed}
+								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+								Publishing...
+							{:else}
+								<FileText class="mr-2 h-4 w-4" />
+								Publish Postmortem
+							{/if}
+						</Button>
+					</form>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
+
 	<!-- Timeline -->
 	<Card.Root>
 		<Card.Header>
@@ -170,7 +317,7 @@
 					{@const UpdateIcon = updateStatusInfo.icon}
 					<div class="relative flex gap-4">
 						{#if i < data.incident.updates.length - 1}
-							<div class="absolute top-8 left-[15px] h-full w-0.5 bg-border"></div>
+							<div class="absolute top-8 left-3.75 h-full w-0.5 bg-border"></div>
 						{/if}
 						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
 							<UpdateIcon class="h-4 w-4" />

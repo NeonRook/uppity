@@ -10,7 +10,12 @@ import {
 import { eq, and, desc, inArray, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-export type IncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
+export type IncidentStatus =
+	| "investigating"
+	| "identified"
+	| "monitoring"
+	| "resolved"
+	| "postmortem";
 export type IncidentImpact = "none" | "minor" | "major" | "critical";
 
 export interface CreateIncidentInput {
@@ -214,6 +219,16 @@ export class IncidentService {
 			.from(incidentUpdate)
 			.where(eq(incidentUpdate.incidentId, incidentId))
 			.orderBy(desc(incidentUpdate.createdAt));
+	}
+
+	async updateIncidentUpdate(updateId: string, message: string): Promise<IncidentUpdate | null> {
+		const [updated] = await db
+			.update(incidentUpdate)
+			.set({ message })
+			.where(eq(incidentUpdate.id, updateId))
+			.returning();
+
+		return updated || null;
 	}
 
 	async linkMonitors(incidentId: string, monitorIds: string[]): Promise<void> {

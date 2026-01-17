@@ -25,7 +25,7 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 
 	// Auto-activate first organization if user has one but none is active
 	if (locals.session && !locals.session.activeOrganizationId && userMemberships.length > 0) {
-		const firstOrg = userMemberships[0];
+		const [firstOrg] = userMemberships;
 
 		// Use better-auth API to set active organization
 		await auth.api.setActiveOrganization({
