@@ -7,16 +7,17 @@ import {
 	removeMemberSchema,
 } from "$lib/schemas/settings";
 import { auth } from "$lib/server/auth";
+import { db } from "$lib/server/db";
+import { member } from "$lib/server/db/auth-schema";
 import { fail, redirect } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ locals, request }) => {
-	if (!locals.user) {
-		redirect(302, "/login");
-	}
+	if (locals.user === null) redirect(302, "/login");
 
 	// Get user's organizations using better-auth API
 	const orgsResult = await auth.api.listOrganizations({
@@ -24,6 +25,14 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 	});
 
 	const organizations = orgsResult || [];
+
+	// Get user's membership roles for all organizations
+	const userMemberships = await db
+		.select({ organizationId: member.organizationId, role: member.role })
+		.from(member)
+		.where(eq(member.userId, locals.user.id));
+
+	const roleByOrgId = new Map(userMemberships.map((m) => [m.organizationId, m.role]));
 
 	// Get current organization details with members
 	let currentOrganization = null;
@@ -59,19 +68,15 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 			};
 
 			// Map members
-			currentOrgMembers = (fullOrg.members || []).map(
-				(m: { user: { id: string; name: string; email: string }; role: string }) => ({
-					id: m.user.id,
-					name: m.user.name,
-					email: m.user.email,
-					role: m.role,
-				}),
-			);
+			currentOrgMembers = (fullOrg.members || []).map((m) => ({
+				id: m.user.id,
+				name: m.user.name,
+				email: m.user.email,
+				role: m.role,
+			}));
 
 			// Find current user's role
-			const currentMember = fullOrg.members?.find(
-				(m: { user: { id: string } }) => m.user.id === locals.user!.id,
-			);
+			const currentMember = fullOrg.members?.find((m) => m.user.id === locals.user!.id);
 			isOwner = currentMember?.role === "owner";
 			isAdmin = currentMember?.role === "owner" || currentMember?.role === "admin";
 		}
@@ -85,8 +90,8 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 		});
 
 		pendingInvitations = (invitationsResult || [])
-			.filter((inv: { status: string }) => inv.status === "pending")
-			.map((inv: { id: string; email: string; role: string; expiresAt: Date }) => ({
+			.filter((inv) => inv.status === "pending")
+			.map((inv) => ({
 				id: inv.id,
 				email: inv.email,
 				role: inv.role,
@@ -100,11 +105,11 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 			name: locals.user.name,
 			email: locals.user.email,
 		},
-		organizations: organizations.map((o: { id: string; name: string; slug: string }) => ({
+		organizations: organizations.map((o) => ({
 			id: o.id,
 			name: o.name,
 			slug: o.slug,
-			role: "member", // listOrganizations doesn't include role, we get it from fullOrg
+			role: roleByOrgId.get(o.id) ?? "member",
 		})),
 		currentOrganization,
 		currentOrgMembers,
