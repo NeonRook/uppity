@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Uppity is a self-hosted monitoring and status page application built with SvelteKit 2 and Svelte 5. It provides:
+
 - HTTP, TCP, and push-based monitor health checks
 - Incident tracking and management
 - Multi-channel notifications (Email, Slack, Discord, Webhooks)
@@ -43,6 +44,7 @@ bun run preview             # Preview production build
 ## Architecture
 
 ### Tech Stack
+
 - **Runtime:** Bun
 - **Framework:** SvelteKit 2 with Svelte 5
 - **Database:** PostgreSQL via Drizzle ORM
@@ -51,6 +53,7 @@ bun run preview             # Preview production build
 - **Forms:** sveltekit-superforms with Zod/Valibot validation
 
 ### Directory Structure
+
 ```
 src/lib/
 ├── server/
@@ -74,6 +77,7 @@ src/routes/
 ```
 
 ### Key Patterns
+
 - **Service Layer:** Routes delegate to services in `src/lib/server/services/`
 - **Schema Validation:** Zod schemas in `src/lib/schemas/` used by superforms
 - **Real-time Updates:** Server-Sent Events via `src/lib/server/sse.ts`

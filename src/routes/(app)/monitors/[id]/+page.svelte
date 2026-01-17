@@ -14,7 +14,10 @@
 		Clock,
 		TriangleAlert,
 		Copy,
-		Check
+		Check,
+		ShieldCheck,
+		ShieldAlert,
+		ShieldX
 	} from '@lucide/svelte';
 	import { page } from '$app/state';
 
@@ -81,6 +84,35 @@
 
 	const statusInfo = $derived(getStatusBadge(data.status?.status ?? null, data.monitor.active));
 	const StatusIcon = $derived(statusInfo.icon);
+
+	function getDaysUntilExpiry(expiresAt: Date | null): number | null {
+		if (!expiresAt) return null;
+		const now = new Date();
+		const expiry = new Date(expiresAt);
+		const diffMs = expiry.getTime() - now.getTime();
+		return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+	}
+
+	function getSslStatus(daysUntil: number | null, threshold: number | null) {
+		if (daysUntil === null) {
+			return { variant: 'secondary' as const, label: 'Unknown', icon: ShieldX };
+		}
+		if (daysUntil <= 0) {
+			return { variant: 'destructive' as const, label: 'Expired', icon: ShieldX };
+		}
+		if (daysUntil <= (threshold ?? 14)) {
+			return { variant: 'outline' as const, label: 'Expiring Soon', icon: ShieldAlert };
+		}
+		return { variant: 'default' as const, label: 'Valid', icon: ShieldCheck };
+	}
+
+	// SSL info comes from the most recent check
+	const latestSslInfo = $derived(data.recentChecks[0] ?? null);
+	const sslDaysUntilExpiry = $derived(getDaysUntilExpiry(latestSslInfo?.sslExpiresAt ?? null));
+	const sslStatus = $derived(
+		getSslStatus(sslDaysUntilExpiry, data.monitor.sslExpiryThresholdDays ?? null)
+	);
+	const SslIcon = $derived(sslStatus.icon);
 </script>
 
 <svelte:head>
@@ -259,6 +291,70 @@
 			</dl>
 		</Card.Content>
 	</Card.Root>
+
+	<!-- SSL Certificate -->
+	{#if data.monitor.type === 'http' && data.monitor.sslCheckEnabled}
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<Card.Title>SSL Certificate</Card.Title>
+					<Badge variant={sslStatus.variant}>
+						<SslIcon class="mr-1 h-3 w-3" />
+						{sslStatus.label}
+					</Badge>
+				</div>
+			</Card.Header>
+			<Card.Content>
+				<dl class="grid gap-4 sm:grid-cols-2">
+					<div>
+						<dt class="text-sm font-medium text-muted-foreground">Expires</dt>
+						<dd class="mt-1 text-sm">
+							{#if latestSslInfo?.sslExpiresAt}
+								{new Date(latestSslInfo.sslExpiresAt).toLocaleDateString(undefined, {
+									year: 'numeric',
+									month: 'long',
+									day: 'numeric'
+								})}
+							{:else}
+								-
+							{/if}
+						</dd>
+					</div>
+
+					<div>
+						<dt class="text-sm font-medium text-muted-foreground">Days Until Expiry</dt>
+						<dd class="mt-1 text-sm">
+							{#if sslDaysUntilExpiry !== null}
+								<span
+									class={sslDaysUntilExpiry <= 0
+										? 'font-medium text-red-500'
+										: sslDaysUntilExpiry <= (data.monitor.sslExpiryThresholdDays ?? 14)
+											? 'font-medium text-yellow-500'
+											: ''}
+								>
+									{sslDaysUntilExpiry <= 0
+										? `Expired ${Math.abs(sslDaysUntilExpiry)} days ago`
+										: `${sslDaysUntilExpiry} days`}
+								</span>
+							{:else}
+								-
+							{/if}
+						</dd>
+					</div>
+
+					<div>
+						<dt class="text-sm font-medium text-muted-foreground">Issuer</dt>
+						<dd class="mt-1 text-sm">{latestSslInfo?.sslIssuer || '-'}</dd>
+					</div>
+
+					<div>
+						<dt class="text-sm font-medium text-muted-foreground">Expiry Alert Threshold</dt>
+						<dd class="mt-1 text-sm">{data.monitor.sslExpiryThresholdDays ?? 14} days</dd>
+					</div>
+				</dl>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	<!-- Recent Checks -->
 	<Card.Root>
