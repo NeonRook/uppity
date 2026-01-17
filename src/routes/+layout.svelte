@@ -11,6 +11,7 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 {@render children()}
+
 <div style="display:none">
 	{#each locales as locale (locale)}
 		<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -- localizeHref returns dynamic paths -->
