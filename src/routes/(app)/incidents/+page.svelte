@@ -4,52 +4,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Plus, TriangleAlert, CircleCheckBig, Search, Eye, Clock, Trash2 } from '@lucide/svelte';
+	import { Plus, TriangleAlert, Trash2 } from '@lucide/svelte';
+	import { getStatusInfo, getImpactInfo, formatIncidentDate } from '$lib/incidents';
 
 	let { data } = $props();
 
 	let deleteIncidentId = $state<string | null>(null);
 	let deleting = $state(false);
-
-	function getStatusInfo(status: string) {
-		switch (status) {
-			case 'investigating':
-				return { label: 'Investigating', variant: 'destructive' as const, icon: Search };
-			case 'identified':
-				return { label: 'Identified', variant: 'destructive' as const, icon: Eye };
-			case 'monitoring':
-				return { label: 'Monitoring', variant: 'secondary' as const, icon: Clock };
-			case 'resolved':
-				return { label: 'Resolved', variant: 'outline' as const, icon: CircleCheckBig };
-			default:
-				return { label: status, variant: 'secondary' as const, icon: TriangleAlert };
-		}
-	}
-
-	function getImpactInfo(impact: string) {
-		switch (impact) {
-			case 'none':
-				return { label: 'None', variant: 'outline' as const };
-			case 'minor':
-				return { label: 'Minor', variant: 'secondary' as const };
-			case 'major':
-				return { label: 'Major', variant: 'destructive' as const };
-			case 'critical':
-				return { label: 'Critical', variant: 'destructive' as const };
-			default:
-				return { label: impact, variant: 'secondary' as const };
-		}
-	}
-
-	function formatDate(date: Date): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function getDuration(startedAt: Date, resolvedAt: Date | null): string {
 		const end = resolvedAt ? new Date(resolvedAt) : new Date();
@@ -128,9 +89,9 @@
 									{/if}
 								</div>
 								<div class="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-									<span>Started: {formatDate(inc.startedAt)}</span>
+									<span>Started: {formatIncidentDate(inc.startedAt)}</span>
 									{#if inc.resolvedAt}
-										<span>Resolved: {formatDate(inc.resolvedAt)}</span>
+										<span>Resolved: {formatIncidentDate(inc.resolvedAt)}</span>
 									{/if}
 									<span>Duration: {getDuration(inc.startedAt, inc.resolvedAt)}</span>
 								</div>

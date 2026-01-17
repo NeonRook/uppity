@@ -11,16 +11,14 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { ArrowLeft, LoaderCircle, Trash2 } from '@lucide/svelte';
 	import {
-		ArrowLeft,
-		LoaderCircle,
-		Trash2,
-		Search,
-		Eye,
-		Clock,
-		CircleCheckBig,
-		TriangleAlert
-	} from '@lucide/svelte';
+		statusOptions,
+		impactOptions,
+		getStatusInfo,
+		getImpactInfo,
+		formatIncidentDate
+	} from '$lib/incidents';
 
 	let { data } = $props();
 
@@ -53,60 +51,8 @@
 	let showDeleteDialog = $state(false);
 	let deleting = $state(false);
 
-	const statusOptions = [
-		{ value: 'investigating', label: 'Investigating', icon: Search },
-		{ value: 'identified', label: 'Identified', icon: Eye },
-		{ value: 'monitoring', label: 'Monitoring', icon: Clock },
-		{ value: 'resolved', label: 'Resolved', icon: CircleCheckBig }
-	] as const;
-
-	const impactOptions = [
-		{ value: 'none', label: 'None' },
-		{ value: 'minor', label: 'Minor' },
-		{ value: 'major', label: 'Major' },
-		{ value: 'critical', label: 'Critical' }
-	] as const;
-
-	function getStatusInfo(status: string) {
-		switch (status) {
-			case 'investigating':
-				return { label: 'Investigating', variant: 'destructive' as const, icon: Search };
-			case 'identified':
-				return { label: 'Identified', variant: 'destructive' as const, icon: Eye };
-			case 'monitoring':
-				return { label: 'Monitoring', variant: 'secondary' as const, icon: Clock };
-			case 'resolved':
-				return { label: 'Resolved', variant: 'outline' as const, icon: CircleCheckBig };
-			default:
-				return { label: status, variant: 'secondary' as const, icon: TriangleAlert };
-		}
-	}
-
-	function getImpactVariant(impact: string) {
-		switch (impact) {
-			case 'none':
-				return 'outline' as const;
-			case 'minor':
-				return 'secondary' as const;
-			case 'major':
-			case 'critical':
-				return 'destructive' as const;
-			default:
-				return 'secondary' as const;
-		}
-	}
-
-	function formatDate(date: Date): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
-
 	const statusInfo = $derived(getStatusInfo(data.incident.status));
+	const impactInfo = $derived(getImpactInfo(data.incident.impact));
 </script>
 
 <svelte:head>
@@ -122,14 +68,14 @@
 			<div class="flex items-center gap-2">
 				<h1 class="text-2xl font-bold tracking-tight">{data.incident.title}</h1>
 				<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-				<Badge variant={getImpactVariant(data.incident.impact)}>
-					{data.incident.impact} impact
+				<Badge variant={impactInfo.variant}>
+					{impactInfo.label} impact
 				</Badge>
 			</div>
 			<p class="text-sm text-muted-foreground">
-				Started {formatDate(data.incident.startedAt)}
+				Started {formatIncidentDate(data.incident.startedAt)}
 				{#if data.incident.resolvedAt}
-					| Resolved {formatDate(data.incident.resolvedAt)}
+					| Resolved {formatIncidentDate(data.incident.resolvedAt)}
 				{/if}
 			</p>
 		</div>
@@ -235,7 +181,7 @@
 									{updateStatusInfo.label}
 								</Badge>
 								<span class="text-xs text-muted-foreground">
-									{formatDate(update.createdAt)}
+									{formatIncidentDate(update.createdAt)}
 								</span>
 							</div>
 							<p class="mt-1 text-sm">{update.message}</p>

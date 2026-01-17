@@ -1,5 +1,11 @@
 <script lang="ts">
 	import { CircleCheckBig, TriangleAlert, CircleX, CircleMinus } from '@lucide/svelte';
+	import {
+		getStatusInfo,
+		getImpactInfo,
+		formatIncidentDateTime
+	} from '$lib/incidents';
+
 	let { data } = $props();
 
 	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents } = $derived(
@@ -79,15 +85,6 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
-	function formatDateTime(date: Date): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
-
 	const statusInfo = $derived(getOverallStatusInfo());
 </script>
 
@@ -131,29 +128,62 @@
 				<h2 class="mb-4 text-lg font-semibold text-gray-900">Active Incidents</h2>
 				<div class="space-y-4">
 					{#each activeIncidents as incident (incident.id)}
-						<div class="rounded-lg border border-orange-200 bg-orange-50 p-4">
-							<div class="flex items-start justify-between">
+						{@const incidentStatusInfo = getStatusInfo(incident.status)}
+						{@const impactInfo = getImpactInfo(incident.impact)}
+						<div class="rounded-lg border bg-white p-5 shadow-sm">
+							<!-- Incident Header -->
+							<div class="mb-4 flex items-start justify-between">
 								<div>
-									<h3 class="font-semibold text-orange-900">{incident.title}</h3>
-									<p class="text-sm text-orange-700">
-										Impact: {incident.impact} | Status: {incident.status}
-									</p>
+									<h3 class="text-lg font-semibold text-gray-900">{incident.title}</h3>
+									<div class="mt-1 flex flex-wrap items-center gap-2">
+										<span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {incidentStatusInfo.bg} {incidentStatusInfo.color}">
+											<incidentStatusInfo.icon class="h-3 w-3" />
+											{incidentStatusInfo.label}
+										</span>
+										<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}">
+											{impactInfo.label} Impact
+										</span>
+										<span class="text-xs text-gray-500">
+											Started {formatIncidentDateTime(incident.createdAt)}
+										</span>
+									</div>
 								</div>
-								<span class="text-xs text-orange-600">
-									{formatDateTime(incident.createdAt)}
-								</span>
 							</div>
+
+							<!-- Timeline -->
 							{#if incident.updates.length > 0}
-								<div class="mt-3 border-t border-orange-200 pt-3">
-									{#each incident.updates.slice(0, 3) as update (update.id)}
-										<div class="mb-2 text-sm">
-											<span class="font-medium text-orange-800">{update.status}:</span>
-											<span class="text-orange-700">{update.message}</span>
-											<span class="ml-2 text-xs text-orange-500">
-												{formatDateTime(update.createdAt)}
-											</span>
+								<div class="relative mt-4 space-y-4 border-t border-gray-100 pt-4">
+									{#each incident.updates.slice(0, 5) as update, i (update.id)}
+										{@const updateStatusInfo = getStatusInfo(update.status)}
+										{@const UpdateIcon = updateStatusInfo.icon}
+										<div class="relative flex gap-4">
+											<!-- Connector line -->
+											{#if i < Math.min(incident.updates.length, 5) - 1}
+												<div class="absolute left-[15px] top-8 h-full w-0.5 bg-gray-200"></div>
+											{/if}
+											<!-- Icon -->
+											<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {updateStatusInfo.bg}">
+												<UpdateIcon class="h-4 w-4 {updateStatusInfo.color}" />
+											</div>
+											<!-- Content -->
+											<div class="flex-1 pb-2">
+												<div class="flex flex-wrap items-center gap-2">
+													<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {updateStatusInfo.bg} {updateStatusInfo.color}">
+														{updateStatusInfo.label}
+													</span>
+													<span class="text-xs text-gray-500">
+														{formatIncidentDateTime(update.createdAt)}
+													</span>
+												</div>
+												<p class="mt-1 text-sm text-gray-700">{update.message}</p>
+											</div>
 										</div>
 									{/each}
+									{#if incident.updates.length > 5}
+										<p class="pl-12 text-xs text-gray-500">
+											+ {incident.updates.length - 5} more updates
+										</p>
+									{/if}
 								</div>
 							{/if}
 						</div>
