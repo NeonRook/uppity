@@ -9,60 +9,22 @@
 		Settings,
 		Pause,
 		Play,
-		CheckCircle,
-		XCircle,
+		CircleCheckBig,
+		CircleX,
 		Clock,
-		AlertTriangle,
+		TriangleAlert,
 		Copy,
 		Check
 	} from '@lucide/svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
-	interface Props {
-		data: {
-			monitor: {
-				id: string;
-				name: string;
-				description: string | null;
-				type: string;
-				url: string | null;
-				method: string | null;
-				hostname: string | null;
-				port: number | null;
-				active: boolean;
-				intervalSeconds: number;
-				timeoutSeconds: number;
-				retries: number;
-				alertAfterFailures: number;
-				pushToken: string | null;
-				pushGracePeriodSeconds: number | null;
-			};
-			status: {
-				status: string;
-				lastCheckAt: Date | null;
-				lastStatusChange: Date | null;
-				consecutiveFailures: number;
-				uptimePercent24h: number | null;
-				avgResponseTimeMs24h: number | null;
-			} | null;
-			recentChecks: Array<{
-				id: string;
-				status: string;
-				statusCode: number | null;
-				responseTimeMs: number | null;
-				errorMessage: string | null;
-				checkedAt: Date;
-			}>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	let copied = $state(false);
 
 	const pushUrl = $derived(
 		data.monitor.type === 'push' && data.monitor.pushToken
-			? `${$page.url.origin}/api/webhooks/push/${data.monitor.pushToken}`
+			? `${page.url.origin}/api/webhooks/push/${data.monitor.pushToken}`
 			: null
 	);
 
@@ -78,11 +40,11 @@
 		}
 		switch (status) {
 			case 'up':
-				return { variant: 'default' as const, label: 'Operational', icon: CheckCircle };
+				return { variant: 'default' as const, label: 'Operational', icon: CircleCheckBig };
 			case 'degraded':
-				return { variant: 'outline' as const, label: 'Degraded', icon: AlertTriangle };
+				return { variant: 'outline' as const, label: 'Degraded', icon: TriangleAlert };
 			case 'down':
-				return { variant: 'destructive' as const, label: 'Down', icon: XCircle };
+				return { variant: 'destructive' as const, label: 'Down', icon: CircleX };
 			default:
 				return { variant: 'secondary' as const, label: 'Unknown', icon: Clock };
 		}
@@ -91,11 +53,11 @@
 	function getCheckIcon(status: string) {
 		switch (status) {
 			case 'up':
-				return { component: CheckCircle, class: 'text-green-500' };
+				return { component: CircleCheckBig, class: 'text-green-500' };
 			case 'degraded':
-				return { component: AlertTriangle, class: 'text-yellow-500' };
+				return { component: TriangleAlert, class: 'text-yellow-500' };
 			case 'down':
-				return { component: XCircle, class: 'text-red-500' };
+				return { component: CircleX, class: 'text-red-500' };
 			default:
 				return { component: Clock, class: 'text-muted-foreground' };
 		}
@@ -311,7 +273,7 @@
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head class="w-[40px]"></Table.Head>
+							<Table.Head class="w-10"></Table.Head>
 							<Table.Head>Time</Table.Head>
 							<Table.Head>Status Code</Table.Head>
 							<Table.Head class="text-right">Response Time</Table.Head>
@@ -335,7 +297,7 @@
 								<Table.Cell class="text-right font-mono text-sm">
 									{formatResponseTime(check.responseTimeMs)}
 								</Table.Cell>
-								<Table.Cell class="max-w-[200px] truncate text-sm text-muted-foreground">
+								<Table.Cell class="max-w-50 truncate text-sm text-muted-foreground">
 									{check.errorMessage || '-'}
 								</Table.Cell>
 							</Table.Row>

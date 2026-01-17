@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Plus, AlertTriangle, CheckCircle2, Search, Eye, Clock, Trash2 } from '@lucide/svelte';
+	import { Plus, TriangleAlert, CircleCheckBig, Search, Eye, Clock, Trash2 } from '@lucide/svelte';
 	import type { Incident } from '$lib/server/db/schema';
 
 	interface Props {
@@ -28,9 +28,9 @@
 			case 'monitoring':
 				return { label: 'Monitoring', variant: 'secondary' as const, icon: Clock };
 			case 'resolved':
-				return { label: 'Resolved', variant: 'outline' as const, icon: CheckCircle2 };
+				return { label: 'Resolved', variant: 'outline' as const, icon: CircleCheckBig };
 			default:
-				return { label: status, variant: 'secondary' as const, icon: AlertTriangle };
+				return { label: status, variant: 'secondary' as const, icon: TriangleAlert };
 		}
 	}
 
@@ -104,7 +104,7 @@
 		<Card.Root>
 			<Card.Content class="pt-6">
 				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<AlertTriangle class="h-12 w-12 text-muted-foreground/50" />
+					<TriangleAlert class="h-12 w-12 text-muted-foreground/50" />
 					<h3 class="mt-4 text-lg font-semibold">No incidents</h3>
 					<p class="mt-2 mb-4 text-sm text-muted-foreground">
 						{data.includeResolved

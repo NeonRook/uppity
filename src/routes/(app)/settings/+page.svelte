@@ -16,7 +16,7 @@
 		Mail,
 		Crown,
 		Shield,
-		Loader2,
+		LoaderCircle,
 		Plus,
 		X,
 		UserMinus,
@@ -176,7 +176,7 @@
 				</div>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
 					Save Profile
 				</Button>
@@ -249,7 +249,7 @@
 					</div>
 					<Button type="submit" disabled={loading}>
 						{#if loading}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 						{/if}
 						Update Organization
 					</Button>
@@ -409,7 +409,7 @@
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
 					Create
 				</Button>
@@ -474,7 +474,7 @@
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
 					Send Invitation
 				</Button>
@@ -511,7 +511,7 @@
 				<input type="hidden" name="memberId" value={memberToRemove?.id} />
 				<Button type="submit" variant="destructive" disabled={loading}>
 					{#if loading}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
 					Remove
 				</Button>

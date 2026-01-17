@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckCircle2, AlertTriangle, XCircle, MinusCircle } from '@lucide/svelte';
+	import { CircleCheckBig, TriangleAlert, CircleX, CircleMinus } from '@lucide/svelte';
 	import type { PublicStatusPageData } from '$lib/server/services/status-page.service';
 
 	interface Props {
@@ -19,35 +19,35 @@
 			case 'operational':
 				return {
 					label: 'All Systems Operational',
-					icon: CheckCircle2,
+					icon: CircleCheckBig,
 					bgColor: 'bg-green-500',
 					textColor: 'text-green-500'
 				};
 			case 'degraded':
 				return {
 					label: 'Degraded Performance',
-					icon: AlertTriangle,
+					icon: TriangleAlert,
 					bgColor: 'bg-yellow-500',
 					textColor: 'text-yellow-500'
 				};
 			case 'partial_outage':
 				return {
 					label: 'Partial Outage',
-					icon: MinusCircle,
+					icon: CircleMinus,
 					bgColor: 'bg-orange-500',
 					textColor: 'text-orange-500'
 				};
 			case 'major_outage':
 				return {
 					label: 'Major Outage',
-					icon: XCircle,
+					icon: CircleX,
 					bgColor: 'bg-red-500',
 					textColor: 'text-red-500'
 				};
 			default:
 				return {
 					label: 'Unknown',
-					icon: MinusCircle,
+					icon: CircleMinus,
 					bgColor: 'bg-gray-500',
 					textColor: 'text-gray-500'
 				};
