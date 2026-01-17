@@ -1,7 +1,4 @@
 <script lang="ts">
-	import type { SuperValidated } from 'sveltekit-superforms';
-	import type { Monitor } from '$lib/server/db/schema';
-	import type { CreateIncidentForm } from '$lib/schemas/incident';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -15,14 +12,7 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
 
-	interface Props {
-		data: {
-			monitors: Monitor[];
-			form: SuperValidated<CreateIncidentForm>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
 

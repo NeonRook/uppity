@@ -1,7 +1,4 @@
 <script lang="ts">
-	import type { SuperValidated } from 'sveltekit-superforms';
-	import type { UpdateIncidentForm, AddIncidentUpdateForm } from '$lib/schemas/incident';
-	import type { IncidentWithDetails } from '$lib/server/services/incident.service';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
@@ -25,15 +22,7 @@
 		TriangleAlert
 	} from '@lucide/svelte';
 
-	interface Props {
-		data: {
-			incident: IncidentWithDetails;
-			updateForm: SuperValidated<UpdateIncidentForm>;
-			addUpdateForm: SuperValidated<AddIncidentUpdateForm>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	const {
 		form: editForm,

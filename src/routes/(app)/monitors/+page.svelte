@@ -15,29 +15,7 @@
 	} from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
-	interface Props {
-		data: {
-			monitors: Array<{
-				id: string;
-				name: string;
-				description: string | null;
-				type: string;
-				url: string | null;
-				hostname: string | null;
-				port: number | null;
-				active: boolean;
-				intervalSeconds: number;
-				createdAt: Date;
-				status: string | null;
-				lastCheckAt: Date | null;
-				consecutiveFailures: number | null;
-				uptimePercent24h: number | null;
-				avgResponseTimeMs24h: number | null;
-			}>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	function getStatusBadge(status: string | null, active: boolean) {
 		if (!active) {
@@ -79,7 +57,7 @@
 		return `${ms}ms`;
 	}
 
-	function getEndpoint(m: Props['data']['monitors'][0]) {
+	function getEndpoint(m: (typeof data.monitors)[number]) {
 		if (m.type === 'http' && m.url) {
 			try {
 				const url = new URL(m.url);

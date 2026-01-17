@@ -1,6 +1,4 @@
 <script lang="ts">
-	import type { SuperValidated } from 'sveltekit-superforms';
-	import type { NotificationChannelForm } from '$lib/schemas/notification-channel';
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '$lib/components/ui/button';
@@ -19,13 +17,7 @@
 		Webhook
 	} from '@lucide/svelte';
 
-	interface Props {
-		data: {
-			form: SuperValidated<NotificationChannelForm>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
 

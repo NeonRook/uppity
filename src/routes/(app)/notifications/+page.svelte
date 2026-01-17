@@ -8,13 +8,7 @@
 	import { Plus, Bell, Mail, MessageSquare, Webhook, Pencil, Trash2 } from '@lucide/svelte';
 	import type { NotificationChannel } from '$lib/server/db/schema';
 
-	interface Props {
-		data: {
-			channels: NotificationChannel[];
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	let deleteChannelId = $state<string | null>(null);
 	let deleting = $state(false);

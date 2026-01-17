@@ -24,52 +24,7 @@
 	} from '@lucide/svelte';
 	import { organization } from '$lib/auth-client';
 
-	interface Props {
-		data: {
-			user: {
-				id: string;
-				name: string;
-				email: string;
-			};
-			organizations: Array<{
-				id: string;
-				name: string;
-				slug: string;
-				role: string;
-			}>;
-			currentOrganization: {
-				id: string;
-				name: string;
-				slug: string;
-			} | null;
-			currentOrgMembers: Array<{
-				id: string;
-				name: string;
-				email: string;
-				role: string;
-			}>;
-			pendingInvitations: Array<{
-				id: string;
-				email: string;
-				role: string;
-				createdAt: Date;
-			}>;
-			isOwner: boolean;
-			isAdmin: boolean;
-		};
-		form: {
-			error?: string;
-			success?: boolean;
-			profileUpdated?: boolean;
-			orgUpdated?: boolean;
-			orgCreated?: boolean;
-			inviteSent?: boolean;
-			invitationCancelled?: boolean;
-			memberRemoved?: boolean;
-		} | null;
-	}
-
-	let { data, form }: Props = $props();
+	let { data, form } = $props();
 
 	let loading = $state(false);
 	let showCreateOrgDialog = $state(false);

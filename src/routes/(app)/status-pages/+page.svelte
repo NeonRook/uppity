@@ -7,13 +7,7 @@
 	import { Plus, Globe, ExternalLink, Pencil, Trash2, Lock, Unlock } from '@lucide/svelte';
 	import type { StatusPage } from '$lib/server/db/schema';
 
-	interface Props {
-		data: {
-			statusPages: StatusPage[];
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	let deletePageId = $state<string | null>(null);
 	let deleting = $state(false);

@@ -5,29 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Activity, TriangleAlert, CircleCheck, Clock, Plus } from '@lucide/svelte';
 
-	interface Props {
-		data: {
-			stats: {
-				total: number;
-				operational: number;
-				degraded: number;
-				down: number;
-			};
-			monitors: Array<{
-				id: string;
-				name: string;
-				type: string;
-				url: string | null;
-				active: boolean;
-				status: string | null;
-				lastCheckAt: Date | null;
-				uptimePercent24h: number | null;
-				avgResponseTimeMs24h: number | null;
-			}>;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	function getStatusColor(status: string | null, active: boolean) {
 		if (!active) return 'bg-muted';
