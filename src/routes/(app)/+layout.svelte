@@ -93,7 +93,7 @@
 	}
 </script>
 
-<div class="flex min-h-screen">
+<div class="h-screen overflow-hidden">
 	{#if sidebarOpen}
 		<div
 			class="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -105,7 +105,7 @@
 	{/if}
 
 	<aside
-		class="fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-card transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 {sidebarOpen
+		class="fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-card transition-transform duration-200 ease-in-out lg:translate-x-0 {sidebarOpen
 			? 'translate-x-0'
 			: '-translate-x-full'}"
 	>
@@ -244,8 +244,8 @@
 		</div>
 	</aside>
 
-	<div class="flex flex-1 flex-col">
-		<!-- Mobile header - only hamburger menu -->
+	<div class="grid h-full grid-rows-[auto_1fr] lg:ml-64">
+		<!-- Mobile header -->
 		<header class="flex h-14 items-center gap-4 border-b bg-card px-4 lg:hidden">
 			<Button variant="ghost" size="icon" onclick={() => (sidebarOpen = !sidebarOpen)}>
 				{#if sidebarOpen}
@@ -259,7 +259,7 @@
 			</span>
 		</header>
 
-		<main class="flex-1 overflow-y-auto bg-background p-6">
+		<main class="overflow-y-auto bg-background p-6">
 			{@render children()}
 		</main>
 	</div>
