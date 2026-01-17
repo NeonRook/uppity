@@ -42,24 +42,28 @@ export const actions: Actions = {
 				alertAfterFailures: data.alertAfterFailures ?? 1,
 			};
 
-			if (data.type === "http") {
-				monitor = await monitorService.create({
-					...baseData,
-					url: data.url,
-					method: data.method ?? "GET",
-					sslCheckEnabled: data.sslCheckEnabled ?? false,
-				});
-			} else if (data.type === "tcp") {
-				monitor = await monitorService.create({
-					...baseData,
-					hostname: data.hostname,
-					port: data.port,
-				});
-			} else {
-				monitor = await monitorService.create({
-					...baseData,
-					pushGracePeriodSeconds: data.pushGracePeriodSeconds ?? 60,
-				});
+			switch (data.type) {
+				case "http":
+					monitor = await monitorService.create({
+						...baseData,
+						url: data.url,
+						method: data.method ?? "GET",
+						sslCheckEnabled: data.sslCheckEnabled ?? false,
+					});
+					break;
+				case "tcp":
+					monitor = await monitorService.create({
+						...baseData,
+						hostname: data.hostname,
+						port: data.port,
+					});
+					break;
+				case "push":
+					monitor = await monitorService.create({
+						...baseData,
+						pushGracePeriodSeconds: data.pushGracePeriodSeconds ?? 60,
+					});
+					break;
 			}
 		} catch (error) {
 			console.error("Failed to create monitor:", error);

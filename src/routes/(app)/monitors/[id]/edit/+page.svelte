@@ -10,39 +10,29 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
-	import { HTTP_METHODS, CHECK_INTERVALS } from '$lib/constants/monitor';
+	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from '$lib/constants/monitor';
 
-	interface Props {
-		form: {
-			error?: string;
-			name?: string;
-			description?: string;
-			type?: string;
-			url?: string;
-			method?: string;
-		} | null;
-	}
-
-	let { form }: Props = $props();
+	let { data } = $props();
 
 	let loading = $state(false);
-	let type = $state(untrack(() => form?.type || 'http'));
-	let method = $state(untrack(() => form?.method || 'GET'));
-	let sslCheckEnabled = $state(true);
+	let type = $state(untrack(() => data.monitor.type));
+	let method = $state(untrack(() => data.monitor.method ?? 'GET'));
+	let sslCheckEnabled = $state(untrack(() => data.monitor.sslCheckEnabled ?? true));
+	let intervalSeconds = $state(untrack(() => String(data.monitor.intervalSeconds)));
 </script>
 
 <svelte:head>
-	<title>New Monitor - Uppity</title>
+	<title>Edit {data.monitor.name} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
 	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/monitors">
+		<Button variant="ghost" size="icon" href="/monitors/{data.monitor.id}">
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">New Monitor</h1>
-			<p class="text-muted-foreground">Create a new uptime monitor</p>
+			<h1 class="text-3xl font-bold tracking-tight">Edit Monitor</h1>
+			<p class="text-muted-foreground">{data.monitor.name}</p>
 		</div>
 	</div>
 
@@ -56,10 +46,10 @@
 			};
 		}}
 	>
-		{#if form?.error}
+		{#if data.form.message}
 			<Alert variant="destructive" class="mb-6">
 				<CircleAlert class="h-4 w-4" />
-				<AlertDescription>{form.error}</AlertDescription>
+				<AlertDescription>{data.form.message}</AlertDescription>
 			</Alert>
 		{/if}
 
@@ -74,7 +64,7 @@
 						id="name"
 						name="name"
 						placeholder="My Website"
-						value={form?.name || ''}
+						value={data.form.data.name}
 						required
 						disabled={loading}
 					/>
@@ -86,24 +76,19 @@
 						id="description"
 						name="description"
 						placeholder="Optional description"
-						value={form?.description || ''}
+						value={data.form.data.description ?? ''}
 						disabled={loading}
 					/>
 				</div>
 
 				<div class="space-y-2">
-					<Label for="type">Monitor Type</Label>
-					<Select.Root type="single" name="type" value={type} onValueChange={(v) => (type = v)}>
-						<Select.Trigger class="w-full">
-							{type === 'http' ? 'HTTP(S)' : type === 'tcp' ? 'TCP Port' : 'Push / Heartbeat'}
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="http">HTTP(S) - Monitor a URL</Select.Item>
-							<Select.Item value="tcp">TCP Port - Check if port is open</Select.Item>
-							<Select.Item value="push">Push / Heartbeat - Wait for pings</Select.Item>
-						</Select.Content>
-					</Select.Root>
+					<Label>Monitor Type</Label>
+					<Input
+						value={type === 'http' ? 'HTTP(S)' : type === 'tcp' ? 'TCP Port' : 'Push / Heartbeat'}
+						disabled
+					/>
 					<input type="hidden" name="type" value={type} />
+					<p class="text-xs text-muted-foreground">Monitor type cannot be changed after creation</p>
 				</div>
 			</Card.Content>
 		</Card.Root>
@@ -121,7 +106,7 @@
 							name="url"
 							type="url"
 							placeholder="https://example.com"
-							value={form?.url || ''}
+							value={data.monitor.url ?? ''}
 							required={type === 'http'}
 							disabled={loading}
 						/>
@@ -170,6 +155,7 @@
 								id="hostname"
 								name="hostname"
 								placeholder="example.com"
+								value={data.monitor.hostname ?? ''}
 								required={type === 'tcp'}
 								disabled={loading}
 							/>
@@ -183,6 +169,7 @@
 								placeholder="443"
 								min="1"
 								max="65535"
+								value={data.monitor.port ?? ''}
 								required={type === 'tcp'}
 								disabled={loading}
 							/>
@@ -195,12 +182,25 @@
 				<Card.Header>
 					<Card.Title>Push / Heartbeat</Card.Title>
 				</Card.Header>
-				<Card.Content>
+				<Card.Content class="space-y-4">
 					<p class="text-sm text-muted-foreground">
-						A unique URL will be generated after creation. Your application should send regular
-						requests to this URL. If no request is received within the expected interval, the
-						monitor will be marked as down.
+						Your application should send regular requests to the push URL. If no request is received
+						within the expected interval plus grace period, the monitor will be marked as down.
 					</p>
+					<div class="space-y-2">
+						<Label for="pushGracePeriodSeconds">Grace Period (seconds)</Label>
+						<Input
+							id="pushGracePeriodSeconds"
+							name="pushGracePeriodSeconds"
+							type="number"
+							min="0"
+							value={data.monitor.pushGracePeriodSeconds ?? 60}
+							disabled={loading}
+						/>
+						<p class="text-xs text-muted-foreground">
+							Extra time to wait after the interval before marking as down
+						</p>
+					</div>
 				</Card.Content>
 			</Card.Root>
 		{/if}
@@ -213,15 +213,20 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
 						<Label for="intervalSeconds">Check Interval</Label>
-						<Select.Root type="single" name="intervalSeconds" value="60">
-							<Select.Trigger class="w-full">1 minute</Select.Trigger>
+						<Select.Root
+							type="single"
+							name="intervalSeconds"
+							value={intervalSeconds}
+							onValueChange={(v) => (intervalSeconds = v)}
+						>
+							<Select.Trigger class="w-full">{getIntervalLabel(intervalSeconds)}</Select.Trigger>
 							<Select.Content>
 								{#each CHECK_INTERVALS as interval (interval.value)}
 									<Select.Item value={interval.value}>{interval.label}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<input type="hidden" name="intervalSeconds" value="60" />
+						<input type="hidden" name="intervalSeconds" value={intervalSeconds} />
 					</div>
 
 					<div class="space-y-2">
@@ -230,7 +235,7 @@
 							id="timeoutSeconds"
 							name="timeoutSeconds"
 							type="number"
-							value="30"
+							value={data.form.data.timeoutSeconds ?? 30}
 							min="1"
 							max="120"
 							disabled={loading}
@@ -246,7 +251,7 @@
 							id="retries"
 							name="retries"
 							type="number"
-							value="0"
+							value={data.form.data.retries ?? 0}
 							min="0"
 							max="5"
 							disabled={loading}
@@ -260,7 +265,7 @@
 							id="alertAfterFailures"
 							name="alertAfterFailures"
 							type="number"
-							value="1"
+							value={data.form.data.alertAfterFailures ?? 1}
 							min="1"
 							max="10"
 							disabled={loading}
@@ -272,13 +277,15 @@
 		</Card.Root>
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/monitors" disabled={loading}>Cancel</Button>
+			<Button variant="outline" href="/monitors/{data.monitor.id}" disabled={loading}>
+				Cancel
+			</Button>
 			<Button type="submit" disabled={loading}>
 				{#if loading}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Creating...
+					Saving...
 				{:else}
-					Create Monitor
+					Save Changes
 				{/if}
 			</Button>
 		</div>
