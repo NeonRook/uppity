@@ -22,7 +22,8 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
-		"auth:generate": "bun x @better-auth/cli@latest generate --output src/lib/server/db/auth-schema.ts --yes"
+		"auth:generate": "bun x @better-auth/cli@latest generate --output src/lib/server/db/auth-schema.ts --yes",
+		"i18n:generate": "bun x @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
@@ -41,7 +42,7 @@
 		"@radix-ui/react-switch": "^1.2.6",
 		"@radix-ui/react-tabs": "^1.1.13",
 		"@radix-ui/react-tooltip": "^1.2.8",
-		"better-auth": "^1.4.13",
+		"better-auth": "^1.4.14",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",

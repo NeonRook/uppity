@@ -3,7 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Activity, AlertTriangle, CheckCircle, Clock, Plus } from '@lucide/svelte';
+	import { Activity, TriangleAlert, CircleCheck, Clock, Plus } from '@lucide/svelte';
 
 	interface Props {
 		data: {
@@ -102,7 +102,7 @@
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<Card.Title class="text-sm font-medium">Operational</Card.Title>
-				<CheckCircle class="h-4 w-4 text-green-500" />
+				<CircleCheck class="h-4 w-4 text-green-500" />
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">{data.stats.operational}</div>
@@ -124,7 +124,7 @@
 		<Card.Root>
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<Card.Title class="text-sm font-medium">Down</Card.Title>
-				<AlertTriangle class="h-4 w-4 text-red-500" />
+				<TriangleAlert class="h-4 w-4 text-red-500" />
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">{data.stats.down}</div>

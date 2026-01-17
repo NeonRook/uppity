@@ -11,9 +11,9 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import {
-		AlertCircle,
+		CircleAlert,
 		ArrowLeft,
-		Loader2,
+		LoaderCircle,
 		Plus,
 		Trash2,
 		ExternalLink,
@@ -84,7 +84,7 @@
 
 	{#if form?.error}
 		<Alert variant="destructive">
-			<AlertCircle class="h-4 w-4" />
+			<CircleAlert class="h-4 w-4" />
 			<AlertDescription>{form.error}</AlertDescription>
 		</Alert>
 	{/if}
@@ -203,7 +203,7 @@
 				<div class="mt-6 flex justify-end">
 					<Button type="submit" disabled={loading}>
 						{#if loading}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 							Saving...
 						{:else}
 							Save Changes

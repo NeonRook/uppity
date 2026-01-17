@@ -11,9 +11,9 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
-		AlertCircle,
+		CircleAlert,
 		ArrowLeft,
-		Loader2,
+		LoaderCircle,
 		Mail,
 		MessageSquare,
 		Webhook,
@@ -107,7 +107,7 @@
 	>
 		{#if form?.error}
 			<Alert variant="destructive" class="mb-6">
-				<AlertCircle class="h-4 w-4" />
+				<CircleAlert class="h-4 w-4" />
 				<AlertDescription>{form.error}</AlertDescription>
 			</Alert>
 		{/if}
@@ -287,7 +287,7 @@
 			<Button variant="outline" href="/notifications" disabled={loading}>Cancel</Button>
 			<Button type="submit" disabled={loading}>
 				{#if loading}
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Saving...
 				{:else}
 					Save Changes

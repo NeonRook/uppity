@@ -16,13 +16,13 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import {
 		ArrowLeft,
-		Loader2,
+		LoaderCircle,
 		Trash2,
 		Search,
 		Eye,
 		Clock,
-		CheckCircle2,
-		AlertTriangle
+		CircleCheckBig,
+		TriangleAlert
 	} from '@lucide/svelte';
 
 	interface Props {
@@ -68,7 +68,7 @@
 		{ value: 'investigating', label: 'Investigating', icon: Search },
 		{ value: 'identified', label: 'Identified', icon: Eye },
 		{ value: 'monitoring', label: 'Monitoring', icon: Clock },
-		{ value: 'resolved', label: 'Resolved', icon: CheckCircle2 }
+		{ value: 'resolved', label: 'Resolved', icon: CircleCheckBig }
 	] as const;
 
 	const impactOptions = [
@@ -87,9 +87,9 @@
 			case 'monitoring':
 				return { label: 'Monitoring', variant: 'secondary' as const, icon: Clock };
 			case 'resolved':
-				return { label: 'Resolved', variant: 'outline' as const, icon: CheckCircle2 };
+				return { label: 'Resolved', variant: 'outline' as const, icon: CircleCheckBig };
 			default:
-				return { label: status, variant: 'secondary' as const, icon: AlertTriangle };
+				return { label: status, variant: 'secondary' as const, icon: TriangleAlert };
 		}
 	}
 
@@ -212,7 +212,7 @@
 
 					<Button type="submit" disabled={$addDelayed || !$addForm.message?.trim()}>
 						{#if $addDelayed}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 							Posting...
 						{:else}
 							Post Update
@@ -322,7 +322,7 @@
 
 				<Button type="submit" disabled={$editDelayed}>
 					{#if $editDelayed}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 						Saving...
 					{:else}
 						Save Changes

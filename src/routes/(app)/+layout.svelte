@@ -10,7 +10,7 @@
 	import {
 		LayoutDashboard,
 		Monitor,
-		AlertTriangle,
+		TriangleAlert,
 		Globe,
 		Bell,
 		Settings,
@@ -37,7 +37,7 @@
 	const navigation = [
 		{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 		{ name: 'Monitors', href: '/monitors', icon: Monitor },
-		{ name: 'Incidents', href: '/incidents', icon: AlertTriangle },
+		{ name: 'Incidents', href: '/incidents', icon: TriangleAlert },
 		{ name: 'Status Pages', href: '/status-pages', icon: Globe },
 		{ name: 'Notifications', href: '/notifications', icon: Bell },
 		{ name: 'Settings', href: '/settings', icon: Settings }

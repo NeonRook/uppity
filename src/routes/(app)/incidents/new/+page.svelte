@@ -13,7 +13,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { AlertCircle, ArrowLeft, Loader2 } from '@lucide/svelte';
+	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
 
 	interface Props {
 		data: {
@@ -70,7 +70,7 @@
 	<form method="POST" use:enhance>
 		{#if $message}
 			<Alert variant="destructive" class="mb-6">
-				<AlertCircle class="h-4 w-4" />
+				<CircleAlert class="h-4 w-4" />
 				<AlertDescription>{$message}</AlertDescription>
 			</Alert>
 		{/if}
@@ -209,7 +209,7 @@
 			<Button variant="outline" href="/incidents" disabled={$delayed}>Cancel</Button>
 			<Button type="submit" disabled={$delayed}>
 				{#if $delayed}
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Creating...
 				{:else}
 					Create Incident
