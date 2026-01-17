@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { signOut } from '$lib/auth-client';
+	import { signOut, organization } from '$lib/auth-client';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import ThemeToggle from '$lib/components/theme-toggle.svelte';
 	import {
 		LayoutDashboard,
 		Monitor,
@@ -16,12 +15,51 @@
 		LogOut,
 		ChevronDown,
 		Menu,
-		X
+		X,
+		Building2,
+		Check,
+		Sun,
+		Moon,
+		SunMoon
 	} from '@lucide/svelte';
+	import { onMount } from 'svelte';
 
 	let { data, children } = $props();
 
 	let sidebarOpen = $state(false);
+	let switchingOrg = $state(false);
+	let orgMenuOpen = $state(false);
+	let accountMenuOpen = $state(false);
+
+	// Theme state
+	type Theme = 'light' | 'dark' | 'system';
+	let theme = $state<Theme>('system');
+	let mounted = $state(false);
+
+	onMount(() => {
+		const stored = localStorage.getItem('theme') as Theme | null;
+		if (stored) {
+			theme = stored;
+		}
+		mounted = true;
+	});
+
+	function setTheme(newTheme: Theme) {
+		theme = newTheme;
+		localStorage.setItem('theme', newTheme);
+
+		if (newTheme === 'dark') {
+			document.documentElement.classList.add('dark');
+		} else if (newTheme === 'light') {
+			document.documentElement.classList.remove('dark');
+		} else {
+			if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		}
+	}
 
 	const navigation = [
 		{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -39,6 +77,19 @@
 	async function handleSignOut() {
 		await signOut();
 		goto(resolve('/login'));
+	}
+
+	async function switchOrganization(orgId: string) {
+		if (orgId === data.currentOrganization?.id) return;
+		switchingOrg = true;
+		try {
+			await organization.setActive({ organizationId: orgId });
+			window.location.reload();
+		} catch (error) {
+			console.error('Failed to switch organization:', error);
+		} finally {
+			switchingOrg = false;
+		}
 	}
 </script>
 
@@ -59,9 +110,55 @@
 			: '-translate-x-full'}"
 	>
 		<div class="flex h-full flex-col">
-			<div class="flex h-16 items-center gap-2 border-b px-6">
-				<Monitor class="h-6 w-6 text-primary" />
-				<span class="text-xl font-bold">Uppity</span>
+			<!-- Org Switcher -->
+			<div class="border-b p-3">
+				<DropdownMenu.Root bind:open={orgMenuOpen}>
+					<DropdownMenu.Trigger
+						class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted"
+						disabled={switchingOrg}
+					>
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground"
+						>
+							<Building2 class="h-4 w-4" />
+						</div>
+						<div class="flex flex-1 flex-col items-start overflow-hidden">
+							<span class="w-full truncate text-sm font-medium">
+								{data.currentOrganization?.name ?? 'No Organization'}
+							</span>
+						</div>
+						<ChevronDown
+							class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 {orgMenuOpen
+								? 'rotate-180'
+								: ''}"
+						/>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content class="w-56" align="start">
+						<DropdownMenu.Label>Organizations</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						{#each data.organizations as org (org.id)}
+							<DropdownMenu.Item
+								onSelect={() => switchOrganization(org.id)}
+								class="flex items-center justify-between"
+							>
+								<span class="truncate">{org.name}</span>
+								{#if org.id === data.currentOrganization?.id}
+									<Check class="h-4 w-4 shrink-0" />
+								{/if}
+							</DropdownMenu.Item>
+						{/each}
+						{#if data.organizations.length === 0}
+							<DropdownMenu.Item disabled>No organizations</DropdownMenu.Item>
+						{/if}
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item>
+							<a href={resolve('/settings')} class="flex w-full items-center">
+								<Settings class="mr-2 h-4 w-4" />
+								Manage Organizations
+							</a>
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 
 			<nav class="flex-1 space-y-1 p-4">
@@ -83,7 +180,7 @@
 			</nav>
 
 			<div class="border-t p-4">
-				<DropdownMenu.Root>
+				<DropdownMenu.Root bind:open={accountMenuOpen}>
 					<DropdownMenu.Trigger
 						class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted"
 					>
@@ -92,11 +189,15 @@
 						>
 							{data.user.name.charAt(0).toUpperCase()}
 						</div>
-						<div class="flex flex-1 flex-col items-start">
-							<span class="text-sm font-medium">{data.user.name}</span>
-							<span class="text-xs text-muted-foreground">{data.user.email}</span>
+						<div class="flex flex-1 flex-col items-start overflow-hidden">
+							<span class="w-full truncate text-sm font-medium">{data.user.name}</span>
+							<span class="w-full truncate text-xs text-muted-foreground">{data.user.email}</span>
 						</div>
-						<ChevronDown class="h-4 w-4 text-muted-foreground" />
+						<ChevronDown
+							class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 {accountMenuOpen
+								? 'rotate-180'
+								: ''}"
+						/>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content class="w-56" align="end">
 						<DropdownMenu.Label>My Account</DropdownMenu.Label>
@@ -106,6 +207,31 @@
 								<Settings class="mr-2 h-4 w-4" />
 								Settings
 							</a>
+						</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Label class="text-xs font-normal text-muted-foreground">
+							Theme
+						</DropdownMenu.Label>
+						<DropdownMenu.Item onSelect={() => setTheme('light')}>
+							<Sun class="mr-2 h-4 w-4" />
+							Light
+							{#if mounted && theme === 'light'}
+								<Check class="ml-auto h-4 w-4" />
+							{/if}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onSelect={() => setTheme('dark')}>
+							<Moon class="mr-2 h-4 w-4" />
+							Dark
+							{#if mounted && theme === 'dark'}
+								<Check class="ml-auto h-4 w-4" />
+							{/if}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onSelect={() => setTheme('system')}>
+							<SunMoon class="mr-2 h-4 w-4" />
+							System
+							{#if mounted && theme === 'system'}
+								<Check class="ml-auto h-4 w-4" />
+							{/if}
 						</DropdownMenu.Item>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item onSelect={handleSignOut}>
@@ -119,7 +245,8 @@
 	</aside>
 
 	<div class="flex flex-1 flex-col">
-		<header class="flex h-16 items-center gap-4 border-b bg-card px-4 lg:hidden">
+		<!-- Mobile header - only hamburger menu -->
+		<header class="flex h-14 items-center gap-4 border-b bg-card px-4 lg:hidden">
 			<Button variant="ghost" size="icon" onclick={() => (sidebarOpen = !sidebarOpen)}>
 				{#if sidebarOpen}
 					<X class="h-6 w-6" />
@@ -127,15 +254,9 @@
 					<Menu class="h-6 w-6" />
 				{/if}
 			</Button>
-			<div class="flex flex-1 items-center gap-2">
-				<Monitor class="h-6 w-6 text-primary" />
-				<span class="text-xl font-bold">Uppity</span>
-			</div>
-			<ThemeToggle />
-		</header>
-
-		<header class="hidden h-16 items-center justify-end gap-4 border-b bg-card px-6 lg:flex">
-			<ThemeToggle />
+			<span class="truncate text-sm font-medium">
+				{data.currentOrganization?.name ?? 'Uppity'}
+			</span>
 		</header>
 
 		<main class="flex-1 overflow-y-auto bg-background p-6">
