@@ -5,16 +5,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Plus, TriangleAlert, CircleCheckBig, Search, Eye, Clock, Trash2 } from '@lucide/svelte';
-	import type { Incident } from '$lib/server/db/schema';
 
-	interface Props {
-		data: {
-			incidents: Incident[];
-			includeResolved: boolean;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	let deleteIncidentId = $state<string | null>(null);
 	let deleting = $state(false);

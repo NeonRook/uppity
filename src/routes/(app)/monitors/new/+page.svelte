@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -10,25 +9,11 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
-	import { HTTP_METHODS, CHECK_INTERVALS } from '$lib/constants/monitor';
+	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from '$lib/constants/monitor';
+	import { superForm } from 'sveltekit-superforms';
 
-	interface Props {
-		form: {
-			error?: string;
-			name?: string;
-			description?: string;
-			type?: string;
-			url?: string;
-			method?: string;
-		} | null;
-	}
-
-	let { form }: Props = $props();
-
-	let loading = $state(false);
-	let type = $state(untrack(() => form?.type || 'http'));
-	let method = $state(untrack(() => form?.method || 'GET'));
-	let sslCheckEnabled = $state(true);
+	let { data } = $props();
+	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 </script>
 
 <svelte:head>
@@ -46,20 +31,11 @@
 		</div>
 	</div>
 
-	<form
-		method="POST"
-		use:enhance={() => {
-			loading = true;
-			return async ({ update }) => {
-				loading = false;
-				await update();
-			};
-		}}
-	>
-		{#if form?.error}
+	<form method="POST" use:enhance>
+		{#if $message}
 			<Alert variant="destructive" class="mb-6">
 				<CircleAlert class="h-4 w-4" />
-				<AlertDescription>{form.error}</AlertDescription>
+				<AlertDescription>{$message}</AlertDescription>
 			</Alert>
 		{/if}
 
@@ -74,10 +50,14 @@
 						id="name"
 						name="name"
 						placeholder="My Website"
-						value={form?.name || ''}
+						bind:value={$form.name}
 						required
-						disabled={loading}
+						disabled={$delayed}
+						aria-invalid={$errors.name ? 'true' : undefined}
 					/>
+					{#if $errors.name}
+						<p class="text-sm text-destructive">{$errors.name}</p>
+					{/if}
 				</div>
 
 				<div class="space-y-2">
@@ -86,16 +66,29 @@
 						id="description"
 						name="description"
 						placeholder="Optional description"
-						value={form?.description || ''}
-						disabled={loading}
+						bind:value={$form.description}
+						disabled={$delayed}
+						aria-invalid={$errors.description ? 'true' : undefined}
 					/>
+					{#if $errors.description}
+						<p class="text-sm text-destructive">{$errors.description}</p>
+					{/if}
 				</div>
 
 				<div class="space-y-2">
 					<Label for="type">Monitor Type</Label>
-					<Select.Root type="single" name="type" value={type} onValueChange={(v) => (type = v)}>
+					<Select.Root
+						type="single"
+						name="type"
+						value={$form.type}
+						onValueChange={(v) => ($form.type = v as 'http' | 'tcp' | 'push')}
+					>
 						<Select.Trigger class="w-full">
-							{type === 'http' ? 'HTTP(S)' : type === 'tcp' ? 'TCP Port' : 'Push / Heartbeat'}
+							{$form.type === 'http'
+								? 'HTTP(S)'
+								: $form.type === 'tcp'
+									? 'TCP Port'
+									: 'Push / Heartbeat'}
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="http">HTTP(S) - Monitor a URL</Select.Item>
@@ -103,12 +96,15 @@
 							<Select.Item value="push">Push / Heartbeat - Wait for pings</Select.Item>
 						</Select.Content>
 					</Select.Root>
-					<input type="hidden" name="type" value={type} />
+					<input type="hidden" name="type" value={$form.type} />
+					{#if $errors.type}
+						<p class="text-sm text-destructive">{$errors.type}</p>
+					{/if}
 				</div>
 			</Card.Content>
 		</Card.Root>
 
-		{#if type === 'http'}
+		{#if $form.type === 'http'}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>HTTP Configuration</Card.Title>
@@ -121,10 +117,14 @@
 							name="url"
 							type="url"
 							placeholder="https://example.com"
-							value={form?.url || ''}
-							required={type === 'http'}
-							disabled={loading}
+							bind:value={$form.url}
+							required={$form.type === 'http'}
+							disabled={$delayed}
+							aria-invalid={$errors.url ? 'true' : undefined}
 						/>
+						{#if $errors.url}
+							<p class="text-sm text-destructive">{$errors.url}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2">
@@ -132,11 +132,12 @@
 						<Select.Root
 							type="single"
 							name="method"
-							value={method}
-							onValueChange={(v) => (method = v)}
+							value={$form.method}
+							onValueChange={(v) =>
+								($form.method = v as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD')}
 						>
 							<Select.Trigger class="w-full">
-								{method}
+								{$form.method}
 							</Select.Trigger>
 							<Select.Content>
 								{#each HTTP_METHODS as m (m)}
@@ -144,7 +145,10 @@
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<input type="hidden" name="method" value={method} />
+						<input type="hidden" name="method" value={$form.method} />
+						{#if $errors.method}
+							<p class="text-sm text-destructive">{$errors.method}</p>
+						{/if}
 					</div>
 
 					<div class="flex items-center justify-between">
@@ -152,12 +156,19 @@
 							<Label>SSL Certificate Check</Label>
 							<p class="text-sm text-muted-foreground">Monitor SSL certificate expiry</p>
 						</div>
-						<Switch bind:checked={sslCheckEnabled} />
-						<input type="hidden" name="sslCheckEnabled" value={sslCheckEnabled.toString()} />
+						<Switch
+							checked={$form.sslCheckEnabled ?? true}
+							onCheckedChange={(checked) => ($form.sslCheckEnabled = checked)}
+						/>
+						<input
+							type="hidden"
+							name="sslCheckEnabled"
+							value={String($form.sslCheckEnabled ?? true)}
+						/>
 					</div>
 				</Card.Content>
 			</Card.Root>
-		{:else if type === 'tcp'}
+		{:else if $form.type === 'tcp'}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>TCP Configuration</Card.Title>
@@ -170,9 +181,14 @@
 								id="hostname"
 								name="hostname"
 								placeholder="example.com"
-								required={type === 'tcp'}
-								disabled={loading}
+								bind:value={$form.hostname}
+								required={$form.type === 'tcp'}
+								disabled={$delayed}
+								aria-invalid={$errors.hostname ? 'true' : undefined}
 							/>
+							{#if $errors.hostname}
+								<p class="text-sm text-destructive">{$errors.hostname}</p>
+							{/if}
 						</div>
 						<div class="space-y-2">
 							<Label for="port">Port *</Label>
@@ -183,14 +199,19 @@
 								placeholder="443"
 								min="1"
 								max="65535"
-								required={type === 'tcp'}
-								disabled={loading}
+								bind:value={$form.port}
+								required={$form.type === 'tcp'}
+								disabled={$delayed}
+								aria-invalid={$errors.port ? 'true' : undefined}
 							/>
+							{#if $errors.port}
+								<p class="text-sm text-destructive">{$errors.port}</p>
+							{/if}
 						</div>
 					</div>
 				</Card.Content>
 			</Card.Root>
-		{:else if type === 'push'}
+		{:else if $form.type === 'push'}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>Push / Heartbeat</Card.Title>
@@ -213,15 +234,25 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
 						<Label for="intervalSeconds">Check Interval</Label>
-						<Select.Root type="single" name="intervalSeconds" value="60">
-							<Select.Trigger class="w-full">1 minute</Select.Trigger>
+						<Select.Root
+							type="single"
+							name="intervalSeconds"
+							value={String($form.intervalSeconds ?? 60)}
+							onValueChange={(v) => ($form.intervalSeconds = Number(v))}
+						>
+							<Select.Trigger class="w-full">
+								{getIntervalLabel(String($form.intervalSeconds ?? 60))}
+							</Select.Trigger>
 							<Select.Content>
 								{#each CHECK_INTERVALS as interval (interval.value)}
 									<Select.Item value={interval.value}>{interval.label}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
-						<input type="hidden" name="intervalSeconds" value="60" />
+						<input type="hidden" name="intervalSeconds" value={$form.intervalSeconds ?? 60} />
+						{#if $errors.intervalSeconds}
+							<p class="text-sm text-destructive">{$errors.intervalSeconds}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2">
@@ -230,12 +261,16 @@
 							id="timeoutSeconds"
 							name="timeoutSeconds"
 							type="number"
-							value="30"
+							bind:value={$form.timeoutSeconds}
 							min="1"
 							max="120"
-							disabled={loading}
+							disabled={$delayed}
+							aria-invalid={$errors.timeoutSeconds ? 'true' : undefined}
 						/>
 						<p class="text-xs text-muted-foreground">seconds</p>
+						{#if $errors.timeoutSeconds}
+							<p class="text-sm text-destructive">{$errors.timeoutSeconds}</p>
+						{/if}
 					</div>
 				</div>
 
@@ -246,12 +281,16 @@
 							id="retries"
 							name="retries"
 							type="number"
-							value="0"
+							bind:value={$form.retries}
 							min="0"
 							max="5"
-							disabled={loading}
+							disabled={$delayed}
+							aria-invalid={$errors.retries ? 'true' : undefined}
 						/>
 						<p class="text-xs text-muted-foreground">Retry before marking as down</p>
+						{#if $errors.retries}
+							<p class="text-sm text-destructive">{$errors.retries}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2">
@@ -260,21 +299,25 @@
 							id="alertAfterFailures"
 							name="alertAfterFailures"
 							type="number"
-							value="1"
+							bind:value={$form.alertAfterFailures}
 							min="1"
 							max="10"
-							disabled={loading}
+							disabled={$delayed}
+							aria-invalid={$errors.alertAfterFailures ? 'true' : undefined}
 						/>
 						<p class="text-xs text-muted-foreground">Consecutive failures before alert</p>
+						{#if $errors.alertAfterFailures}
+							<p class="text-sm text-destructive">{$errors.alertAfterFailures}</p>
+						{/if}
 					</div>
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/monitors" disabled={loading}>Cancel</Button>
-			<Button type="submit" disabled={loading}>
-				{#if loading}
+			<Button variant="outline" href="/monitors" disabled={$delayed}>Cancel</Button>
+			<Button type="submit" disabled={$delayed}>
+				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Creating...
 				{:else}

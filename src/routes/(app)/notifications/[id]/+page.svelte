@@ -19,18 +19,8 @@
 		Webhook,
 		Trash2
 	} from '@lucide/svelte';
-	import type { NotificationChannel } from '$lib/server/db/schema';
 
-	interface Props {
-		data: {
-			channel: NotificationChannel;
-		};
-		form: {
-			error?: string;
-		} | null;
-	}
-
-	let { data, form }: Props = $props();
+	let { data, form } = $props();
 
 	let loading = $state(false);
 	let deleting = $state(false);

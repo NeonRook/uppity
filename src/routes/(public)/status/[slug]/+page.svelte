@@ -1,14 +1,6 @@
 <script lang="ts">
 	import { CircleCheckBig, TriangleAlert, CircleX, CircleMinus } from '@lucide/svelte';
-	import type { PublicStatusPageData } from '$lib/server/services/status-page.service';
-
-	interface Props {
-		data: {
-			statusData: PublicStatusPageData;
-		};
-	}
-
-	let { data }: Props = $props();
+	let { data } = $props();
 
 	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents } = $derived(
 		data.statusData

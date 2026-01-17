@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { signOut } from '$lib/auth-client';
@@ -20,17 +19,7 @@
 		X
 	} from '@lucide/svelte';
 
-	interface Props {
-		data: {
-			user: {
-				name: string;
-				email: string;
-			};
-		};
-		children: Snippet;
-	}
-
-	let { data, children }: Props = $props();
+	let { data, children } = $props();
 
 	let sidebarOpen = $state(false);
 

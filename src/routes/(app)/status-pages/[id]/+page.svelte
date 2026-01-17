@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -17,35 +18,28 @@
 		Plus,
 		Trash2,
 		ExternalLink,
-		GripVertical
+		GripVertical,
+		CircleCheck
 	} from '@lucide/svelte';
-	import type { StatusPage, StatusPageGroup, Monitor } from '$lib/server/db/schema';
 
-	interface Props {
-		data: {
-			statusPage: StatusPage;
-			allMonitors: Monitor[];
-			selectedMonitorIds: string[];
-			groups: StatusPageGroup[];
-			pageMonitors: Array<{
-				pageMonitor: { id: string; monitorId: string; groupId: string | null };
-				monitor: { id: string; name: string; type: string; url: string | null };
-			}>;
-		};
-		form: {
-			error?: string;
-			success?: boolean;
-		} | null;
-	}
+	let { data } = $props();
 
-	let { data, form }: Props = $props();
+	const {
+		form: updateForm,
+		errors: updateErrors,
+		message: updateMessage,
+		enhance: updateEnhance,
+		delayed: updateDelayed
+	} = superForm(
+		untrack(() => data.updateForm),
+		{
+			resetForm: false
+		}
+	);
 
-	let loading = $state(false);
 	let showDeleteDialog = $state(false);
 	let deleting = $state(false);
 	let newGroupName = $state('');
-
-	let isPublic = $state(untrack(() => data.statusPage.isPublic));
 
 	const availableMonitors = $derived(
 		data.allMonitors.filter((m) => !data.selectedMonitorIds.includes(m.id))
@@ -82,16 +76,18 @@
 		</Button>
 	</div>
 
-	{#if form?.error}
-		<Alert variant="destructive">
-			<CircleAlert class="h-4 w-4" />
-			<AlertDescription>{form.error}</AlertDescription>
-		</Alert>
-	{/if}
-
-	{#if form?.success}
-		<Alert>
-			<AlertDescription>Status page updated successfully.</AlertDescription>
+	{#if $updateMessage}
+		<Alert
+			variant={$updateMessage.includes('error') || $updateMessage.includes('taken')
+				? 'destructive'
+				: 'default'}
+		>
+			{#if $updateMessage.includes('error') || $updateMessage.includes('taken')}
+				<CircleAlert class="h-4 w-4" />
+			{:else}
+				<CircleCheck class="h-4 w-4" />
+			{/if}
+			<AlertDescription>{$updateMessage}</AlertDescription>
 		</Alert>
 	{/if}
 
@@ -103,17 +99,7 @@
 		</Tabs.List>
 
 		<Tabs.Content value="settings" class="mt-6">
-			<form
-				method="POST"
-				action="?/update"
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						loading = false;
-						await update();
-					};
-				}}
-			>
+			<form method="POST" action="?/update" use:updateEnhance>
 				<Card.Root>
 					<Card.Header>
 						<Card.Title>Basic Information</Card.Title>
@@ -124,10 +110,14 @@
 							<Input
 								id="name"
 								name="name"
-								value={data.statusPage.name}
+								bind:value={$updateForm.name}
 								required
-								disabled={loading}
+								disabled={$updateDelayed}
+								aria-invalid={$updateErrors.name ? 'true' : undefined}
 							/>
+							{#if $updateErrors.name}
+								<p class="text-sm text-destructive">{$updateErrors.name}</p>
+							{/if}
 						</div>
 
 						<div class="space-y-2">
@@ -137,12 +127,16 @@
 								<Input
 									id="slug"
 									name="slug"
-									value={data.statusPage.slug}
+									bind:value={$updateForm.slug}
 									required
-									disabled={loading}
+									disabled={$updateDelayed}
 									class="flex-1"
+									aria-invalid={$updateErrors.slug ? 'true' : undefined}
 								/>
 							</div>
+							{#if $updateErrors.slug}
+								<p class="text-sm text-destructive">{$updateErrors.slug}</p>
+							{/if}
 						</div>
 
 						<div class="space-y-2">
@@ -150,9 +144,13 @@
 							<Textarea
 								id="description"
 								name="description"
-								value={data.statusPage.description || ''}
-								disabled={loading}
+								bind:value={$updateForm.description}
+								disabled={$updateDelayed}
+								aria-invalid={$updateErrors.description ? 'true' : undefined}
 							/>
+							{#if $updateErrors.description}
+								<p class="text-sm text-destructive">{$updateErrors.description}</p>
+							{/if}
 						</div>
 
 						<div class="flex items-center justify-between">
@@ -162,8 +160,11 @@
 									Make this status page publicly accessible
 								</p>
 							</div>
-							<Switch bind:checked={isPublic} />
-							<input type="hidden" name="isPublic" value={isPublic.toString()} />
+							<Switch
+								checked={$updateForm.isPublic}
+								onCheckedChange={(checked) => ($updateForm.isPublic = checked)}
+							/>
+							<input type="hidden" name="isPublic" value={String($updateForm.isPublic)} />
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -179,9 +180,13 @@
 								id="logoUrl"
 								name="logoUrl"
 								type="url"
-								value={data.statusPage.logoUrl || ''}
-								disabled={loading}
+								bind:value={$updateForm.logoUrl}
+								disabled={$updateDelayed}
+								aria-invalid={$updateErrors.logoUrl ? 'true' : undefined}
 							/>
+							{#if $updateErrors.logoUrl}
+								<p class="text-sm text-destructive">{$updateErrors.logoUrl}</p>
+							{/if}
 						</div>
 
 						<div class="space-y-2">
@@ -191,18 +196,21 @@
 									type="color"
 									id="primaryColor"
 									name="primaryColor"
-									value={data.statusPage.primaryColor || '#000000'}
+									bind:value={$updateForm.primaryColor}
 									class="h-10 w-10 cursor-pointer rounded border"
-									disabled={loading}
+									disabled={$updateDelayed}
 								/>
 							</div>
+							{#if $updateErrors.primaryColor}
+								<p class="text-sm text-destructive">{$updateErrors.primaryColor}</p>
+							{/if}
 						</div>
 					</Card.Content>
 				</Card.Root>
 
 				<div class="mt-6 flex justify-end">
-					<Button type="submit" disabled={loading}>
-						{#if loading}
+					<Button type="submit" disabled={$updateDelayed}>
+						{#if $updateDelayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 							Saving...
 						{:else}
