@@ -3,7 +3,7 @@
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle, ArrowLeft } from '@lucide/svelte';
@@ -57,8 +57,8 @@
 					</Alert>
 				{/if}
 
-				<div class="space-y-2">
-					<Label for="name">Name</Label>
+				<Field.Field>
+					<Field.Label for="name">Name</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -66,13 +66,11 @@
 						disabled={$delayed}
 						placeholder="Acme Inc."
 					/>
-					{#if $errors.name}
-						<p class="text-sm text-destructive">{$errors.name}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.name} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="slug">Slug</Label>
+				<Field.Field>
+					<Field.Label for="slug">Slug</Field.Label>
 					<Input
 						id="slug"
 						name="slug"
@@ -81,16 +79,14 @@
 						placeholder="acme-inc"
 						oninput={handleSlugChange}
 					/>
-					<p class="text-xs text-muted-foreground">
+					<Field.Description>
 						Used in URLs. Only lowercase letters, numbers, and hyphens.
-					</p>
-					{#if $errors.slug}
-						<p class="text-sm text-destructive">{$errors.slug}</p>
-					{/if}
-				</div>
+					</Field.Description>
+					<Field.Error errors={$errors.slug} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="logo">Logo URL (optional)</Label>
+				<Field.Field>
+					<Field.Label for="logo">Logo URL (optional)</Field.Label>
 					<Input
 						id="logo"
 						name="logo"
@@ -99,10 +95,8 @@
 						disabled={$delayed}
 						placeholder="https://example.com/logo.png"
 					/>
-					{#if $errors.logo}
-						<p class="text-sm text-destructive">{$errors.logo}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.logo} />
+				</Field.Field>
 
 				<div class="flex gap-2 pt-4">
 					<Button type="submit" disabled={$delayed}>

@@ -4,10 +4,10 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
@@ -63,8 +63,8 @@
 				<Card.Title>Basic Information</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="name">Name *</Label>
+				<Field.Field>
+					<Field.Label for="name">Name *</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -75,13 +75,11 @@
 						disabled={$delayed}
 						aria-invalid={$errors.name ? 'true' : undefined}
 					/>
-					{#if $errors.name}
-						<p class="text-sm text-destructive">{$errors.name}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.name} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="slug">URL Slug *</Label>
+				<Field.Field>
+					<Field.Label for="slug">URL Slug *</Field.Label>
 					<div class="flex items-center gap-2">
 						<span class="text-sm text-muted-foreground">/status/</span>
 						<Input
@@ -95,16 +93,14 @@
 							aria-invalid={$errors.slug ? 'true' : undefined}
 						/>
 					</div>
-					<p class="text-xs text-muted-foreground">
+					<Field.Description>
 						Only lowercase letters, numbers, and hyphens allowed.
-					</p>
-					{#if $errors.slug}
-						<p class="text-sm text-destructive">{$errors.slug}</p>
-					{/if}
-				</div>
+					</Field.Description>
+					<Field.Error errors={$errors.slug} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="description">Description</Label>
+				<Field.Field>
+					<Field.Label for="description">Description</Field.Label>
 					<Textarea
 						id="description"
 						name="description"
@@ -113,22 +109,18 @@
 						disabled={$delayed}
 						aria-invalid={$errors.description ? 'true' : undefined}
 					/>
-					{#if $errors.description}
-						<p class="text-sm text-destructive">{$errors.description}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.description} />
+				</Field.Field>
 
-				<div class="flex items-center justify-between">
-					<div class="space-y-0.5">
-						<Label>Public</Label>
-						<p class="text-sm text-muted-foreground">Make this status page publicly accessible</p>
-					</div>
+				<Field.Field orientation="horizontal">
+					<Field.Label>Public</Field.Label>
+					<Field.Description>Make this status page publicly accessible</Field.Description>
 					<Switch
 						checked={$form.isPublic}
 						onCheckedChange={(checked) => ($form.isPublic = checked)}
 					/>
 					<input type="hidden" name="isPublic" value={String($form.isPublic)} />
-				</div>
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 
@@ -138,8 +130,8 @@
 				<Card.Description>Customize the appearance of your status page</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="logoUrl">Logo URL</Label>
+				<Field.Field>
+					<Field.Label for="logoUrl">Logo URL</Field.Label>
 					<Input
 						id="logoUrl"
 						name="logoUrl"
@@ -149,13 +141,11 @@
 						disabled={$delayed}
 						aria-invalid={$errors.logoUrl ? 'true' : undefined}
 					/>
-					{#if $errors.logoUrl}
-						<p class="text-sm text-destructive">{$errors.logoUrl}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.logoUrl} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="primaryColor">Primary Color</Label>
+				<Field.Field>
+					<Field.Label for="primaryColor">Primary Color</Field.Label>
 					<div class="flex items-center gap-2">
 						<input
 							type="color"
@@ -173,10 +163,8 @@
 							class="flex-1"
 						/>
 					</div>
-					{#if $errors.primaryColor}
-						<p class="text-sm text-destructive">{$errors.primaryColor}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.primaryColor} />
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 

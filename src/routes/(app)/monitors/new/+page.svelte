@@ -2,8 +2,8 @@
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Switch } from '$lib/components/ui/switch';
@@ -44,8 +44,8 @@
 				<Card.Title>Basic Information</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="name">Name *</Label>
+				<Field.Field>
+					<Field.Label for="name">Name *</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -55,13 +55,11 @@
 						disabled={$delayed}
 						aria-invalid={$errors.name ? 'true' : undefined}
 					/>
-					{#if $errors.name}
-						<p class="text-sm text-destructive">{$errors.name}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.name} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="description">Description</Label>
+				<Field.Field>
+					<Field.Label for="description">Description</Field.Label>
 					<Textarea
 						id="description"
 						name="description"
@@ -70,13 +68,11 @@
 						disabled={$delayed}
 						aria-invalid={$errors.description ? 'true' : undefined}
 					/>
-					{#if $errors.description}
-						<p class="text-sm text-destructive">{$errors.description}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.description} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="type">Monitor Type</Label>
+				<Field.Field>
+					<Field.Label for="type">Monitor Type</Field.Label>
 					<Select.Root
 						type="single"
 						name="type"
@@ -97,10 +93,8 @@
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="type" value={$form.type} />
-					{#if $errors.type}
-						<p class="text-sm text-destructive">{$errors.type}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.type} />
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 
@@ -110,8 +104,8 @@
 					<Card.Title>HTTP Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="url">URL *</Label>
+					<Field.Field>
+						<Field.Label for="url">URL *</Field.Label>
 						<Input
 							id="url"
 							name="url"
@@ -122,13 +116,11 @@
 							disabled={$delayed}
 							aria-invalid={$errors.url ? 'true' : undefined}
 						/>
-						{#if $errors.url}
-							<p class="text-sm text-destructive">{$errors.url}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.url} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="method">HTTP Method</Label>
+					<Field.Field>
+						<Field.Label for="method">HTTP Method</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -146,16 +138,12 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="method" value={$form.method} />
-						{#if $errors.method}
-							<p class="text-sm text-destructive">{$errors.method}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.method} />
+					</Field.Field>
 
-					<div class="flex items-center justify-between">
-						<div class="space-y-0.5">
-							<Label>SSL Certificate Check</Label>
-							<p class="text-sm text-muted-foreground">Monitor SSL certificate expiry</p>
-						</div>
+					<Field.Field orientation="horizontal">
+						<Field.Label>SSL Certificate Check</Field.Label>
+						<Field.Description>Monitor SSL certificate expiry</Field.Description>
 						<Switch
 							checked={$form.sslCheckEnabled ?? true}
 							onCheckedChange={(checked) => ($form.sslCheckEnabled = checked)}
@@ -165,7 +153,7 @@
 							name="sslCheckEnabled"
 							value={String($form.sslCheckEnabled ?? true)}
 						/>
-					</div>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if $form.type === 'tcp'}
@@ -175,8 +163,8 @@
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="grid grid-cols-2 gap-4">
-						<div class="space-y-2">
-							<Label for="hostname">Hostname *</Label>
+						<Field.Field>
+							<Field.Label for="hostname">Hostname *</Field.Label>
 							<Input
 								id="hostname"
 								name="hostname"
@@ -186,12 +174,10 @@
 								disabled={$delayed}
 								aria-invalid={$errors.hostname ? 'true' : undefined}
 							/>
-							{#if $errors.hostname}
-								<p class="text-sm text-destructive">{$errors.hostname}</p>
-							{/if}
-						</div>
-						<div class="space-y-2">
-							<Label for="port">Port *</Label>
+							<Field.Error errors={$errors.hostname} />
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="port">Port *</Field.Label>
 							<Input
 								id="port"
 								name="port"
@@ -204,10 +190,8 @@
 								disabled={$delayed}
 								aria-invalid={$errors.port ? 'true' : undefined}
 							/>
-							{#if $errors.port}
-								<p class="text-sm text-destructive">{$errors.port}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$errors.port} />
+						</Field.Field>
 					</div>
 				</Card.Content>
 			</Card.Root>
@@ -232,8 +216,8 @@
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label for="intervalSeconds">Check Interval</Label>
+					<Field.Field>
+						<Field.Label for="intervalSeconds">Check Interval</Field.Label>
 						<Select.Root
 							type="single"
 							name="intervalSeconds"
@@ -250,13 +234,11 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="intervalSeconds" value={$form.intervalSeconds ?? 60} />
-						{#if $errors.intervalSeconds}
-							<p class="text-sm text-destructive">{$errors.intervalSeconds}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.intervalSeconds} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="timeoutSeconds">Timeout</Label>
+					<Field.Field>
+						<Field.Label for="timeoutSeconds">Timeout</Field.Label>
 						<Input
 							id="timeoutSeconds"
 							name="timeoutSeconds"
@@ -267,16 +249,14 @@
 							disabled={$delayed}
 							aria-invalid={$errors.timeoutSeconds ? 'true' : undefined}
 						/>
-						<p class="text-xs text-muted-foreground">seconds</p>
-						{#if $errors.timeoutSeconds}
-							<p class="text-sm text-destructive">{$errors.timeoutSeconds}</p>
-						{/if}
-					</div>
+						<Field.Description>seconds</Field.Description>
+						<Field.Error errors={$errors.timeoutSeconds} />
+					</Field.Field>
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label for="retries">Retries</Label>
+					<Field.Field>
+						<Field.Label for="retries">Retries</Field.Label>
 						<Input
 							id="retries"
 							name="retries"
@@ -287,14 +267,12 @@
 							disabled={$delayed}
 							aria-invalid={$errors.retries ? 'true' : undefined}
 						/>
-						<p class="text-xs text-muted-foreground">Retry before marking as down</p>
-						{#if $errors.retries}
-							<p class="text-sm text-destructive">{$errors.retries}</p>
-						{/if}
-					</div>
+						<Field.Description>Retry before marking as down</Field.Description>
+						<Field.Error errors={$errors.retries} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="alertAfterFailures">Alert After Failures</Label>
+					<Field.Field>
+						<Field.Label for="alertAfterFailures">Alert After Failures</Field.Label>
 						<Input
 							id="alertAfterFailures"
 							name="alertAfterFailures"
@@ -305,11 +283,9 @@
 							disabled={$delayed}
 							aria-invalid={$errors.alertAfterFailures ? 'true' : undefined}
 						/>
-						<p class="text-xs text-muted-foreground">Consecutive failures before alert</p>
-						{#if $errors.alertAfterFailures}
-							<p class="text-sm text-destructive">{$errors.alertAfterFailures}</p>
-						{/if}
-					</div>
+						<Field.Description>Consecutive failures before alert</Field.Description>
+						<Field.Error errors={$errors.alertAfterFailures} />
+					</Field.Field>
 				</div>
 			</Card.Content>
 		</Card.Root>
