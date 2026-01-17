@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
-	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -9,9 +8,10 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { ArrowLeft, LoaderCircle, Trash2, FileText, Pencil, X } from '@lucide/svelte';
+	import { LoaderCircle, Trash2, FileText, Pencil, X } from '@lucide/svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import {
 		statusOptions,
 		impactOptions,
@@ -68,7 +68,6 @@
 	);
 
 	let showDeleteDialog = $state(false);
-	let deleting = $state(false);
 	let editingPostmortem = $state(false);
 
 	// Get existing postmortem if any
@@ -83,29 +82,26 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/incidents">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div class="flex-1">
-			<div class="flex items-center gap-2">
-				<h1 class="text-2xl font-bold tracking-tight">{data.incident.title}</h1>
-				<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-				<Badge variant={impactInfo.variant}>
-					{impactInfo.label} impact
-				</Badge>
-			</div>
-			<p class="text-sm text-muted-foreground">
-				Started {formatIncidentDate(data.incident.startedAt)}
-				{#if data.incident.resolvedAt}
-					| Resolved {formatIncidentDate(data.incident.resolvedAt)}
-				{/if}
-			</p>
+	<PageHeader backHref="/incidents">
+		<div class="flex items-center gap-2">
+			<h1 class="text-2xl font-bold tracking-tight">{data.incident.title}</h1>
+			<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+			<Badge variant={impactInfo.variant}>
+				{impactInfo.label} impact
+			</Badge>
 		</div>
-		<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}>
-			<Trash2 class="h-4 w-4" />
-		</Button>
-	</div>
+		<p class="text-sm text-muted-foreground">
+			Started {formatIncidentDate(data.incident.startedAt)}
+			{#if data.incident.resolvedAt}
+				| Resolved {formatIncidentDate(data.incident.resolvedAt)}
+			{/if}
+		</p>
+		{#snippet actions()}
+			<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}>
+				<Trash2 class="h-4 w-4" />
+			</Button>
+		{/snippet}
+	</PageHeader>
 
 	{#if $editMessage}
 		<Alert>
@@ -415,32 +411,10 @@
 	</Card.Root>
 </div>
 
-<AlertDialog.Root bind:open={showDeleteDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete incident?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently delete "{data.incident.title}" and all its updates. This action cannot
-				be undone.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-					};
-				}}
-			>
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title="Delete incident?"
+	description="This will permanently delete &quot;{data.incident
+		.title}&quot; and all its updates. This action cannot be undone."
+/>

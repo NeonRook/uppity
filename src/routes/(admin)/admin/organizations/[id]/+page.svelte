@@ -10,8 +10,11 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Select from '$lib/components/ui/select';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, ArrowLeft, Trash2, UserPlus } from '@lucide/svelte';
+	import { CircleAlert, LoaderCircle, Trash2, UserPlus } from '@lucide/svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
+	import { formatDateShort } from '$lib/format';
 
 	let { data } = $props();
 
@@ -34,14 +37,6 @@
 		{ value: 'admin', label: 'Admin' },
 		{ value: 'owner', label: 'Owner' }
 	];
-
-	function formatDate(date: Date | string): string {
-		return new Date(date).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	}
 
 	function getRoleBadgeVariant(role: string) {
 		switch (role) {
@@ -69,15 +64,11 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/admin/organizations">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div class="flex-1">
-			<h1 class="text-2xl font-bold">{data.org.name}</h1>
-			<p class="text-muted-foreground">/{data.org.slug}</p>
-		</div>
-	</div>
+	<PageHeader
+		backHref="/admin/organizations"
+		title={data.org.name}
+		description="/{data.org.slug}"
+	/>
 
 	<!-- Organization Details -->
 	<Card.Root>
@@ -127,7 +118,9 @@
 					{/if}
 				</div>
 
-				<div class="text-sm text-muted-foreground">Created: {formatDate(data.org.createdAt)}</div>
+				<div class="text-sm text-muted-foreground">
+					Created: {formatDateShort(data.org.createdAt)}
+				</div>
 
 				<div class="pt-4">
 					<Button type="submit" disabled={$delayed}>
@@ -184,7 +177,9 @@
 									{member.role}
 								</Badge>
 							</Table.Cell>
-							<Table.Cell class="text-muted-foreground">{formatDate(member.createdAt)}</Table.Cell>
+							<Table.Cell class="text-muted-foreground"
+								>{formatDateShort(member.createdAt)}</Table.Cell
+							>
 							<Table.Cell>
 								<Button
 									variant="ghost"
@@ -299,21 +294,10 @@
 	</AlertDialog.Content>
 </AlertDialog.Root>
 
-<!-- Delete Dialog -->
-<AlertDialog.Root bind:open={showDeleteDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete Organization</AlertDialog.Title>
-			<AlertDialog.Description>
-				Are you sure you want to delete {data.org.name}? This action cannot be undone. All monitors,
-				incidents, and other data associated with this organization will be permanently deleted.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<form method="POST" action="?/delete">
-				<Button type="submit" variant="destructive">Delete Organization</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title="Delete Organization"
+	description="Are you sure you want to delete {data.org
+		.name}? This action cannot be undone. All monitors, incidents, and other data associated with this organization will be permanently deleted."
+/>

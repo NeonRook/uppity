@@ -2,6 +2,7 @@
 	import { ArrowLeft, Clock, Server, FileText } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
+	import { formatDuration } from '$lib/format';
 
 	let { data } = $props();
 
@@ -12,24 +13,6 @@
 	// Separate postmortem from timeline updates
 	const postmortemUpdate = $derived(incident.updates.find((u) => u.status === 'postmortem'));
 	const timelineUpdates = $derived(incident.updates.filter((u) => u.status !== 'postmortem'));
-
-	function formatDuration(startedAt: Date, resolvedAt: Date | null): string {
-		const start = new Date(startedAt);
-		const end = resolvedAt ? new Date(resolvedAt) : new Date();
-		const diffMs = end.getTime() - start.getTime();
-
-		const minutes = Math.floor(diffMs / 60000);
-		const hours = Math.floor(minutes / 60);
-		const days = Math.floor(hours / 24);
-
-		if (days > 0) {
-			return `${days}d ${hours % 24}h`;
-		}
-		if (hours > 0) {
-			return `${hours}h ${minutes % 60}m`;
-		}
-		return `${minutes}m`;
-	}
 </script>
 
 <svelte:head>

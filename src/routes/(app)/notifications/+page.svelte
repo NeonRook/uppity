@@ -4,14 +4,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Plus, Bell, Mail, MessageSquare, Webhook, Pencil, Trash2 } from '@lucide/svelte';
 	import type { NotificationChannel } from '$lib/server/db/schema';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 
 	let { data } = $props();
 
 	let deleteChannelId = $state<string | null>(null);
-	let deleting = $state(false);
 
 	function getChannelIcon(type: string) {
 		switch (type) {
@@ -77,21 +77,13 @@
 	</div>
 
 	{#if data.channels.length === 0}
-		<Card.Root>
-			<Card.Content class="pt-6">
-				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<Bell class="h-12 w-12 text-muted-foreground/50" />
-					<h3 class="mt-4 text-lg font-semibold">No notification channels</h3>
-					<p class="mt-2 mb-4 text-sm text-muted-foreground">
-						Add notification channels to receive alerts when monitors go down.
-					</p>
-					<Button href="/notifications/new">
-						<Plus class="mr-2 h-4 w-4" />
-						Add Channel
-					</Button>
-				</div>
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			icon={Bell}
+			title="No notification channels"
+			description="Add notification channels to receive alerts when monitors go down."
+			buttonText="Add Channel"
+			buttonHref="/notifications/new"
+		/>
 	{:else}
 		<div class="grid gap-4">
 			{#each data.channels as channel (channel.id)}
@@ -135,37 +127,10 @@
 	{/if}
 </div>
 
-<AlertDialog.Root
-	open={deleteChannelId !== null}
-	onOpenChange={(open) => !open && (deleteChannelId = null)}
->
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Delete notification channel?</AlertDialog.Title>
-			<AlertDialog.Description>
-				This will permanently delete this notification channel. You will no longer receive alerts
-				through this channel.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteChannelId = null)}>Cancel</AlertDialog.Cancel>
-			<form
-				method="POST"
-				action="?/delete"
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-						deleteChannelId = null;
-					};
-				}}
-			>
-				<input type="hidden" name="channelId" value={deleteChannelId} />
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
-				</Button>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	itemId={deleteChannelId}
+	onOpenChange={() => (deleteChannelId = null)}
+	title="Delete notification channel?"
+	description="This will permanently delete this notification channel. You will no longer receive alerts through this channel."
+	inputName="channelId"
+/>

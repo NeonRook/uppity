@@ -4,22 +4,20 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Table from '$lib/components/ui/table';
 	import {
-		ArrowLeft,
 		ExternalLink,
 		Settings,
 		Pause,
 		Play,
-		CircleCheckBig,
-		CircleX,
-		Clock,
-		TriangleAlert,
 		Copy,
 		Check,
 		ShieldCheck,
 		ShieldAlert,
 		ShieldX
 	} from '@lucide/svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import { page } from '$app/state';
+	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
+	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
 
 	let { data } = $props();
 
@@ -37,52 +35,9 @@
 		setTimeout(() => (copied = false), 2000);
 	}
 
-	function getStatusBadge(status: string | null, active: boolean) {
-		if (!active) {
-			return { variant: 'secondary' as const, label: 'Paused', icon: Pause };
-		}
-		switch (status) {
-			case 'up':
-				return { variant: 'default' as const, label: 'Operational', icon: CircleCheckBig };
-			case 'degraded':
-				return { variant: 'outline' as const, label: 'Degraded', icon: TriangleAlert };
-			case 'down':
-				return { variant: 'destructive' as const, label: 'Down', icon: CircleX };
-			default:
-				return { variant: 'secondary' as const, label: 'Unknown', icon: Clock };
-		}
-	}
-
-	function getCheckIcon(status: string) {
-		switch (status) {
-			case 'up':
-				return { component: CircleCheckBig, class: 'text-green-500' };
-			case 'degraded':
-				return { component: TriangleAlert, class: 'text-yellow-500' };
-			case 'down':
-				return { component: CircleX, class: 'text-red-500' };
-			default:
-				return { component: Clock, class: 'text-muted-foreground' };
-		}
-	}
-
-	function formatDate(date: Date | null) {
-		if (!date) return '-';
-		return new Date(date).toLocaleString();
-	}
-
-	function formatResponseTime(ms: number | null) {
-		if (ms === null) return '-';
-		return `${ms}ms`;
-	}
-
-	function formatInterval(seconds: number) {
-		if (seconds < 60) return `${seconds}s`;
-		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-		return `${Math.floor(seconds / 3600)}h`;
-	}
-
-	const statusInfo = $derived(getStatusBadge(data.status?.status ?? null, data.monitor.active));
+	const statusInfo = $derived(
+		getStatusBadgeWithIcon(data.status?.status ?? null, data.monitor.active)
+	);
 	const StatusIcon = $derived(statusInfo.icon);
 
 	function getDaysUntilExpiry(expiresAt: Date | null): number | null {
@@ -120,40 +75,35 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" href="/monitors">
-				<ArrowLeft class="h-4 w-4" />
-			</Button>
-			<div>
-				<div class="flex items-center gap-3">
-					<h1 class="text-3xl font-bold tracking-tight">{data.monitor.name}</h1>
-					<Badge variant={statusInfo.variant}>
-						<StatusIcon class="mr-1 h-3 w-3" />
-						{statusInfo.label}
-					</Badge>
-				</div>
-				{#if data.monitor.description}
-					<p class="text-muted-foreground">{data.monitor.description}</p>
-				{/if}
+	<PageHeader backHref="/monitors">
+		<div class="flex items-center gap-3">
+			<h1 class="text-3xl font-bold tracking-tight">{data.monitor.name}</h1>
+			<Badge variant={statusInfo.variant}>
+				<StatusIcon class="mr-1 h-3 w-3" />
+				{statusInfo.label}
+			</Badge>
+		</div>
+		{#if data.monitor.description}
+			<p class="text-muted-foreground">{data.monitor.description}</p>
+		{/if}
+		{#snippet actions()}
+			<div class="flex gap-2">
+				<Button variant="outline" size="sm">
+					{#if data.monitor.active}
+						<Pause class="mr-2 h-4 w-4" />
+						Pause
+					{:else}
+						<Play class="mr-2 h-4 w-4" />
+						Resume
+					{/if}
+				</Button>
+				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
+					<Settings class="mr-2 h-4 w-4" />
+					Edit
+				</Button>
 			</div>
-		</div>
-		<div class="flex gap-2">
-			<Button variant="outline" size="sm">
-				{#if data.monitor.active}
-					<Pause class="mr-2 h-4 w-4" />
-					Pause
-				{:else}
-					<Play class="mr-2 h-4 w-4" />
-					Resume
-				{/if}
-			</Button>
-			<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
-				<Settings class="mr-2 h-4 w-4" />
-				Edit
-			</Button>
-		</div>
-	</div>
+		{/snippet}
+	</PageHeader>
 
 	<!-- Stats Cards -->
 	<div class="grid gap-4 md:grid-cols-4">
