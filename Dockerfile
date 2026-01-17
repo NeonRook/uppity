@@ -18,8 +18,9 @@ RUN cd /temp/prod && bun install --frozen-lockfile --production
 FROM base AS builder
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
-# Don't set BETTER_AUTH_* env vars here - they must be runtime-only
-# to prevent the bundler from inlining them
+# VITE_ prefixed vars are client-side and must be set at build time
+ARG VITE_BETTER_AUTH_URL="https://localhost:3000"
+ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
 RUN bun run prepare && bun run build
 
 # Stage 3: Production image
