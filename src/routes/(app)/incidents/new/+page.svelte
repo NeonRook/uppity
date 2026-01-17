@@ -4,9 +4,9 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
@@ -70,8 +70,8 @@
 				<Card.Title>Incident Details</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="title">Title *</Label>
+				<Field.Field>
+					<Field.Label for="title">Title *</Field.Label>
 					<Input
 						id="title"
 						name="title"
@@ -80,14 +80,12 @@
 						disabled={$delayed}
 						aria-invalid={$errors.title ? 'true' : undefined}
 					/>
-					{#if $errors.title}
-						<p class="text-sm text-destructive">{$errors.title}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.title} />
+				</Field.Field>
 
 				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label for="status">Status</Label>
+					<Field.Field>
+						<Field.Label for="status">Status</Field.Label>
 						<Select.Root
 							type="single"
 							name="status"
@@ -105,13 +103,11 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="status" bind:value={$form.status} />
-						{#if $errors.status}
-							<p class="text-sm text-destructive">{$errors.status}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.status} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="impact">Impact</Label>
+					<Field.Field>
+						<Field.Label for="impact">Impact</Field.Label>
 						<Select.Root
 							type="single"
 							name="impact"
@@ -129,14 +125,12 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="impact" bind:value={$form.impact} />
-						{#if $errors.impact}
-							<p class="text-sm text-destructive">{$errors.impact}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.impact} />
+					</Field.Field>
 				</div>
 
-				<div class="space-y-2">
-					<Label for="message">Initial Update *</Label>
+				<Field.Field>
+					<Field.Label for="message">Initial Update *</Field.Label>
 					<Textarea
 						id="message"
 						name="message"
@@ -146,13 +140,11 @@
 						rows={4}
 						aria-invalid={$errors.message ? 'true' : undefined}
 					/>
-					{#if $errors.message}
-						<p class="text-sm text-destructive">{$errors.message}</p>
-					{/if}
-					<p class="text-xs text-muted-foreground">
+					<Field.Description>
 						This message will be shown in the incident timeline.
-					</p>
-				</div>
+					</Field.Description>
+					<Field.Error errors={$errors.message} />
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 

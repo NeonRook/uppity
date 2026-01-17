@@ -3,8 +3,8 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
@@ -74,8 +74,8 @@
 				<Card.Title>Basic Information</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="name">Name *</Label>
+				<Field.Field>
+					<Field.Label for="name">Name *</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -84,13 +84,11 @@
 						disabled={$delayed}
 						aria-invalid={$errors.name ? 'true' : undefined}
 					/>
-					{#if $errors.name}
-						<p class="text-sm text-destructive">{$errors.name}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.name} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label>Channel Type</Label>
+				<Field.Field>
+					<Field.Label>Channel Type</Field.Label>
 					<div class="grid grid-cols-2 gap-3">
 						{#each channelTypes as channelType (channelType.value)}
 							{@const Icon = channelType.icon}
@@ -112,7 +110,7 @@
 						{/each}
 					</div>
 					<input type="hidden" name="type" bind:value={$form.type} />
-				</div>
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 
@@ -122,8 +120,8 @@
 					<Card.Title>Email Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="email">Email Address *</Label>
+					<Field.Field>
+						<Field.Label for="email">Email Address *</Field.Label>
 						<Input
 							id="email"
 							name="email"
@@ -133,11 +131,9 @@
 							disabled={$delayed}
 							aria-invalid={$errors.email ? 'true' : undefined}
 						/>
-						{#if $errors.email}
-							<p class="text-sm text-destructive">{$errors.email}</p>
-						{/if}
-						<p class="text-xs text-muted-foreground">Alerts will be sent to this email address.</p>
-					</div>
+						<Field.Description>Alerts will be sent to this email address.</Field.Description>
+						<Field.Error errors={$errors.email} />
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if $form.type === 'slack'}
@@ -146,8 +142,8 @@
 					<Card.Title>Slack Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="webhookUrl">Webhook URL *</Label>
+					<Field.Field>
+						<Field.Label for="webhookUrl">Webhook URL *</Field.Label>
 						<Input
 							id="webhookUrl"
 							name="webhookUrl"
@@ -157,16 +153,14 @@
 							disabled={$delayed}
 							aria-invalid={$errors.webhookUrl ? 'true' : undefined}
 						/>
-						{#if $errors.webhookUrl}
-							<p class="text-sm text-destructive">{$errors.webhookUrl}</p>
-						{/if}
-						<p class="text-xs text-muted-foreground">
+						<Field.Description>
 							Create an incoming webhook in your Slack workspace settings.
-						</p>
-					</div>
+						</Field.Description>
+						<Field.Error errors={$errors.webhookUrl} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="channel">Channel (optional)</Label>
+					<Field.Field>
+						<Field.Label for="channel">Channel (optional)</Field.Label>
 						<Input
 							id="channel"
 							name="channel"
@@ -174,10 +168,10 @@
 							bind:value={$form.channel}
 							disabled={$delayed}
 						/>
-						<p class="text-xs text-muted-foreground">
+						<Field.Description>
 							Override the default channel. Don't include the # symbol.
-						</p>
-					</div>
+						</Field.Description>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if $form.type === 'discord'}
@@ -186,8 +180,8 @@
 					<Card.Title>Discord Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="discordWebhookUrl">Webhook URL *</Label>
+					<Field.Field>
+						<Field.Label for="discordWebhookUrl">Webhook URL *</Field.Label>
 						<Input
 							id="discordWebhookUrl"
 							name="discordWebhookUrl"
@@ -197,14 +191,12 @@
 							disabled={$delayed}
 							aria-invalid={$errors.discordWebhookUrl ? 'true' : undefined}
 						/>
-						{#if $errors.discordWebhookUrl}
-							<p class="text-sm text-destructive">{$errors.discordWebhookUrl}</p>
-						{/if}
-						<p class="text-xs text-muted-foreground">
+						<Field.Description>
 							Create a webhook in your Discord channel settings (Edit Channel → Integrations →
 							Webhooks).
-						</p>
-					</div>
+						</Field.Description>
+						<Field.Error errors={$errors.discordWebhookUrl} />
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if $form.type === 'webhook'}
@@ -213,8 +205,8 @@
 					<Card.Title>Webhook Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="url">URL *</Label>
+					<Field.Field>
+						<Field.Label for="url">URL *</Field.Label>
 						<Input
 							id="url"
 							name="url"
@@ -224,13 +216,11 @@
 							disabled={$delayed}
 							aria-invalid={$errors.url ? 'true' : undefined}
 						/>
-						{#if $errors.url}
-							<p class="text-sm text-destructive">{$errors.url}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.url} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="method">HTTP Method</Label>
+					<Field.Field>
+						<Field.Label for="method">HTTP Method</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -247,10 +237,10 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="method" bind:value={$form.method} />
-					</div>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="headers">Custom Headers (JSON)</Label>
+					<Field.Field>
+						<Field.Label for="headers">Custom Headers (JSON)</Field.Label>
 						<Textarea
 							id="headers"
 							name="headers"
@@ -259,11 +249,11 @@
 							bind:value={$form.headers}
 							disabled={$delayed}
 						/>
-						<p class="text-xs text-muted-foreground">Optional. Must be valid JSON.</p>
-					</div>
+						<Field.Description>Optional. Must be valid JSON.</Field.Description>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="bodyTemplate">Custom Body Template (JSON)</Label>
+					<Field.Field>
+						<Field.Label for="bodyTemplate">Custom Body Template (JSON)</Field.Label>
 						<Textarea
 							id="bodyTemplate"
 							name="bodyTemplate"
@@ -272,11 +262,11 @@
 							bind:value={$form.bodyTemplate}
 							disabled={$delayed}
 						/>
-						<p class="text-xs text-muted-foreground">
+						<Field.Description>
 							Optional. Use placeholders like {'{{monitor.name}}'}, {'{{status}}'}, {'{{timestamp}}'},
 							{'{{errorMessage}}'}.
-						</p>
-					</div>
+						</Field.Description>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{/if}

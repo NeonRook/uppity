@@ -3,8 +3,8 @@
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
@@ -108,8 +108,8 @@
 				<Card.Title>Basic Information</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="space-y-2">
-					<Label for="name">Name *</Label>
+				<Field.Field>
+					<Field.Label for="name">Name *</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -118,20 +118,20 @@
 						required
 						disabled={loading}
 					/>
-				</div>
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label>Channel Type</Label>
+				<Field.Field>
+					<Field.Label>Channel Type</Field.Label>
 					<div class="flex items-center gap-3 rounded-lg border p-4">
 						<TypeIcon class="h-5 w-5 shrink-0" />
 						<div>
 							<div class="font-medium">{getChannelTypeName(type)}</div>
-							<div class="text-xs text-muted-foreground">
+							<Field.Description>
 								Channel type cannot be changed. Create a new channel instead.
-							</div>
+							</Field.Description>
 						</div>
 					</div>
-				</div>
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 
@@ -141,8 +141,8 @@
 					<Card.Title>Email Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="email">Email Address *</Label>
+					<Field.Field>
+						<Field.Label for="email">Email Address *</Field.Label>
 						<Input
 							id="email"
 							name="email"
@@ -152,7 +152,7 @@
 							required
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if type === 'slack'}
@@ -161,8 +161,8 @@
 					<Card.Title>Slack Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="webhookUrl">Webhook URL *</Label>
+					<Field.Field>
+						<Field.Label for="webhookUrl">Webhook URL *</Field.Label>
 						<Input
 							id="webhookUrl"
 							name="webhookUrl"
@@ -172,10 +172,10 @@
 							required
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="channel">Channel (optional)</Label>
+					<Field.Field>
+						<Field.Label for="channel">Channel (optional)</Field.Label>
 						<Input
 							id="channel"
 							name="channel"
@@ -183,7 +183,7 @@
 							value={(config.channel as string) || ''}
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if type === 'discord'}
@@ -192,8 +192,8 @@
 					<Card.Title>Discord Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="discordWebhookUrl">Webhook URL *</Label>
+					<Field.Field>
+						<Field.Label for="discordWebhookUrl">Webhook URL *</Field.Label>
 						<Input
 							id="discordWebhookUrl"
 							name="discordWebhookUrl"
@@ -203,7 +203,7 @@
 							required
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{:else if type === 'webhook'}
@@ -212,8 +212,8 @@
 					<Card.Title>Webhook Configuration</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
-						<Label for="url">URL *</Label>
+					<Field.Field>
+						<Field.Label for="url">URL *</Field.Label>
 						<Input
 							id="url"
 							name="url"
@@ -223,10 +223,10 @@
 							required
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="method">HTTP Method</Label>
+					<Field.Field>
+						<Field.Label for="method">HTTP Method</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -243,10 +243,10 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="method" value={method} />
-					</div>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="headers">Custom Headers (JSON)</Label>
+					<Field.Field>
+						<Field.Label for="headers">Custom Headers (JSON)</Field.Label>
 						<Textarea
 							id="headers"
 							name="headers"
@@ -255,10 +255,10 @@
 							class="font-mono text-sm"
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="bodyTemplate">Custom Body Template (JSON)</Label>
+					<Field.Field>
+						<Field.Label for="bodyTemplate">Custom Body Template (JSON)</Field.Label>
 						<Textarea
 							id="bodyTemplate"
 							name="bodyTemplate"
@@ -267,7 +267,7 @@
 							class="font-mono text-sm"
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 				</Card.Content>
 			</Card.Root>
 		{/if}

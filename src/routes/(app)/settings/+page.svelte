@@ -3,7 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Select from '$lib/components/ui/select';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -120,15 +120,15 @@
 					};
 				}}
 			>
-				<div class="space-y-2">
-					<Label for="name">Name</Label>
+				<Field.Field>
+					<Field.Label for="name">Name</Field.Label>
 					<Input id="name" name="name" value={data.user.name} required disabled={loading} />
-				</div>
-				<div class="space-y-2">
-					<Label for="email">Email</Label>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="email">Email</Field.Label>
 					<Input id="email" type="email" value={data.user.email} disabled />
-					<p class="text-xs text-muted-foreground">Email cannot be changed</p>
-				</div>
+					<Field.Description>Email cannot be changed</Field.Description>
+				</Field.Field>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -158,8 +158,8 @@
 		</Card.Header>
 		<Card.Content class="space-y-4">
 			{#if data.organizations.length > 1}
-				<div class="space-y-2">
-					<Label>Switch Organization</Label>
+				<Field.Field>
+					<Field.Label>Switch Organization</Field.Label>
 					<div class="flex flex-wrap gap-2">
 						{#each data.organizations as org (org.id)}
 							{@const roleInfo = getRoleBadge(org.role)}
@@ -177,7 +177,7 @@
 							</Button>
 						{/each}
 					</div>
-				</div>
+				</Field.Field>
 			{/if}
 
 			{#if data.currentOrganization && data.isAdmin}
@@ -193,8 +193,8 @@
 						};
 					}}
 				>
-					<div class="space-y-2">
-						<Label for="orgName">Organization Name</Label>
+					<Field.Field>
+						<Field.Label for="orgName">Organization Name</Field.Label>
 						<Input
 							id="orgName"
 							name="name"
@@ -202,7 +202,7 @@
 							required
 							disabled={loading}
 						/>
-					</div>
+					</Field.Field>
 					<Button type="submit" disabled={loading}>
 						{#if loading}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -211,10 +211,10 @@
 					</Button>
 				</form>
 			{:else if data.currentOrganization}
-				<div class="space-y-2">
-					<Label>Organization Name</Label>
+				<Field.Field>
+					<Field.Label>Organization Name</Field.Label>
 					<p class="text-sm">{data.currentOrganization.name}</p>
-				</div>
+				</Field.Field>
 			{:else}
 				<p class="text-sm text-muted-foreground">
 					No organization selected. Create or join an organization to continue.
@@ -356,10 +356,10 @@
 			}}
 		>
 			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="newOrgName">Organization Name</Label>
+				<Field.Field>
+					<Field.Label for="newOrgName">Organization Name</Field.Label>
 					<Input id="newOrgName" name="name" placeholder="My Company" required disabled={loading} />
-				</div>
+				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
@@ -396,8 +396,8 @@
 			}}
 		>
 			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="inviteEmail">Email Address</Label>
+				<Field.Field>
+					<Field.Label for="inviteEmail">Email Address</Field.Label>
 					<Input
 						id="inviteEmail"
 						name="email"
@@ -406,9 +406,9 @@
 						required
 						disabled={loading}
 					/>
-				</div>
-				<div class="space-y-2">
-					<Label for="inviteRole">Role</Label>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="inviteRole">Role</Field.Label>
 					<Select.Root
 						type="single"
 						name="role"
@@ -424,7 +424,7 @@
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="role" value={inviteRole} />
-				</div>
+				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>

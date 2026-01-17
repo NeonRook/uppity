@@ -3,7 +3,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
@@ -136,8 +136,8 @@
 			</Card.Header>
 			<Card.Content>
 				<form method="POST" action="?/addUpdate" class="space-y-4" use:addEnhance>
-					<div class="space-y-2">
-						<Label for="status">New Status</Label>
+					<Field.Field>
+						<Field.Label for="status">New Status</Field.Label>
 						<Select.Root
 							type="single"
 							name="status"
@@ -155,13 +155,11 @@
 							</Select.Content>
 						</Select.Root>
 						<input type="hidden" name="status" bind:value={$addForm.status} />
-						{#if $addErrors.status}
-							<p class="text-sm text-destructive">{$addErrors.status}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$addErrors.status} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="message">Update Message *</Label>
+					<Field.Field>
+						<Field.Label for="message">Update Message *</Field.Label>
 						<Textarea
 							id="message"
 							name="message"
@@ -171,10 +169,8 @@
 							rows={3}
 							aria-invalid={$addErrors.message ? 'true' : undefined}
 						/>
-						{#if $addErrors.message}
-							<p class="text-sm text-destructive">{$addErrors.message}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$addErrors.message} />
+					</Field.Field>
 
 					<Button type="submit" disabled={$addDelayed || !$addForm.message?.trim()}>
 						{#if $addDelayed}
@@ -216,8 +212,8 @@
 							use:editPostmortemEnhance
 						>
 							<input type="hidden" name="updateId" value={existingPostmortem.id} />
-							<div class="space-y-2">
-								<Label for="edit-postmortem-message">Postmortem Content *</Label>
+							<Field.Field>
+								<Field.Label for="edit-postmortem-message">Postmortem Content *</Field.Label>
 								<Textarea
 									id="edit-postmortem-message"
 									name="message"
@@ -227,10 +223,8 @@
 									rows={6}
 									aria-invalid={$editPostmortemErrors.message ? 'true' : undefined}
 								/>
-								{#if $editPostmortemErrors.message}
-									<p class="text-sm text-destructive">{$editPostmortemErrors.message}</p>
-								{/if}
-							</div>
+								<Field.Error errors={$editPostmortemErrors.message} />
+							</Field.Field>
 
 							<div class="flex gap-2">
 								<Button
@@ -270,8 +264,8 @@
 				{:else}
 					<!-- Add postmortem form -->
 					<form method="POST" action="?/addPostmortem" class="space-y-4" use:postmortemEnhance>
-						<div class="space-y-2">
-							<Label for="postmortem-message">Postmortem Content *</Label>
+						<Field.Field>
+							<Field.Label for="postmortem-message">Postmortem Content *</Field.Label>
 							<Textarea
 								id="postmortem-message"
 								name="message"
@@ -281,10 +275,8 @@
 								rows={6}
 								aria-invalid={$postmortemErrors.message ? 'true' : undefined}
 							/>
-							{#if $postmortemErrors.message}
-								<p class="text-sm text-destructive">{$postmortemErrors.message}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$postmortemErrors.message} />
+						</Field.Field>
 
 						<Button type="submit" disabled={$postmortemDelayed || !$postmortemForm.message?.trim()}>
 							{#if $postmortemDelayed}
@@ -361,8 +353,8 @@
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/update" class="space-y-4" use:editEnhance>
-				<div class="space-y-2">
-					<Label for="title">Title</Label>
+				<Field.Field>
+					<Field.Label for="title">Title</Field.Label>
 					<Input
 						id="title"
 						name="title"
@@ -370,13 +362,11 @@
 						disabled={$editDelayed}
 						aria-invalid={$editErrors.title ? 'true' : undefined}
 					/>
-					{#if $editErrors.title}
-						<p class="text-sm text-destructive">{$editErrors.title}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$editErrors.title} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="impact">Impact</Label>
+				<Field.Field>
+					<Field.Label for="impact">Impact</Field.Label>
 					<Select.Root
 						type="single"
 						name="impact"
@@ -393,10 +383,8 @@
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="impact" bind:value={$editForm.impact} />
-					{#if $editErrors.impact}
-						<p class="text-sm text-destructive">{$editErrors.impact}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$editErrors.impact} />
+				</Field.Field>
 
 				<Button type="submit" disabled={$editDelayed}>
 					{#if $editDelayed}

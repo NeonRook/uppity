@@ -3,7 +3,7 @@
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
@@ -45,8 +45,8 @@
 					</Alert>
 				{/if}
 
-				<div class="space-y-2">
-					<Label for="name">Name</Label>
+				<Field.Field>
+					<Field.Label for="name">Name</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -54,13 +54,11 @@
 						disabled={$delayed}
 						placeholder="John Doe"
 					/>
-					{#if $errors.name}
-						<p class="text-sm text-destructive">{$errors.name}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.name} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="email">Email</Label>
+				<Field.Field>
+					<Field.Label for="email">Email</Field.Label>
 					<Input
 						id="email"
 						name="email"
@@ -69,13 +67,11 @@
 						disabled={$delayed}
 						placeholder="john@example.com"
 					/>
-					{#if $errors.email}
-						<p class="text-sm text-destructive">{$errors.email}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.email} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="password">Password</Label>
+				<Field.Field>
+					<Field.Label for="password">Password</Field.Label>
 					<Input
 						id="password"
 						name="password"
@@ -84,13 +80,11 @@
 						disabled={$delayed}
 						placeholder="Min. 8 characters"
 					/>
-					{#if $errors.password}
-						<p class="text-sm text-destructive">{$errors.password}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.password} />
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="role">Role</Label>
+				<Field.Field>
+					<Field.Label for="role">Role</Field.Label>
 					<input type="hidden" name="role" bind:value={$form.role} />
 					<Select.Root
 						type="single"
@@ -108,7 +102,7 @@
 							{/each}
 						</Select.Content>
 					</Select.Root>
-				</div>
+				</Field.Field>
 
 				<div class="flex gap-2 pt-4">
 					<Button type="submit" disabled={$delayed}>

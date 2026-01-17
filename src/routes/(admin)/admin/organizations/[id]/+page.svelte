@@ -4,8 +4,8 @@
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
 	import * as Select from '$lib/components/ui/select';
@@ -86,25 +86,21 @@
 				{/if}
 
 				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="space-y-2">
-						<Label for="name">Name</Label>
+					<Field.Field>
+						<Field.Label for="name">Name</Field.Label>
 						<Input id="name" name="name" bind:value={$form.name} disabled={$delayed} />
-						{#if $errors.name}
-							<p class="text-sm text-destructive">{$errors.name}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.name} />
+					</Field.Field>
 
-					<div class="space-y-2">
-						<Label for="slug">Slug</Label>
+					<Field.Field>
+						<Field.Label for="slug">Slug</Field.Label>
 						<Input id="slug" name="slug" bind:value={$form.slug} disabled={$delayed} />
-						{#if $errors.slug}
-							<p class="text-sm text-destructive">{$errors.slug}</p>
-						{/if}
-					</div>
+						<Field.Error errors={$errors.slug} />
+					</Field.Field>
 				</div>
 
-				<div class="space-y-2">
-					<Label for="logo">Logo URL (optional)</Label>
+				<Field.Field>
+					<Field.Label for="logo">Logo URL (optional)</Field.Label>
 					<Input
 						id="logo"
 						name="logo"
@@ -113,10 +109,8 @@
 						disabled={$delayed}
 						placeholder="https://example.com/logo.png"
 					/>
-					{#if $errors.logo}
-						<p class="text-sm text-destructive">{$errors.logo}</p>
-					{/if}
-				</div>
+					<Field.Error errors={$errors.logo} />
+				</Field.Field>
 
 				<div class="text-sm text-muted-foreground">
 					Created: {formatDateShort(data.org.createdAt)}
@@ -227,8 +221,8 @@
 		</AlertDialog.Header>
 		<form method="POST" action="?/addMember">
 			<div class="space-y-4 py-4">
-				<div class="space-y-2">
-					<Label for="userId">User</Label>
+				<Field.Field>
+					<Field.Label for="userId">User</Field.Label>
 					<input type="hidden" name="userId" bind:value={selectedUserId} />
 					<Select.Root
 						type="single"
@@ -245,10 +239,10 @@
 							{/each}
 						</Select.Content>
 					</Select.Root>
-				</div>
+				</Field.Field>
 
-				<div class="space-y-2">
-					<Label for="role">Role</Label>
+				<Field.Field>
+					<Field.Label for="role">Role</Field.Label>
 					<input type="hidden" name="role" bind:value={selectedRole} />
 					<Select.Root
 						type="single"
@@ -265,7 +259,7 @@
 							{/each}
 						</Select.Content>
 					</Select.Root>
-				</div>
+				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>

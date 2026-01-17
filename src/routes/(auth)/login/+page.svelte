@@ -4,7 +4,7 @@
 	import { signIn } from '$lib/auth-client';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle } from '@lucide/svelte';
@@ -57,8 +57,8 @@
 				</Alert>
 			{/if}
 
-			<div class="space-y-2">
-				<Label for="email">Email</Label>
+			<Field.Field>
+				<Field.Label for="email">Email</Field.Label>
 				<Input
 					id="email"
 					type="email"
@@ -67,12 +67,12 @@
 					required
 					disabled={loading}
 				/>
-			</div>
+			</Field.Field>
 
-			<div class="space-y-2">
-				<Label for="password">Password</Label>
+			<Field.Field>
+				<Field.Label for="password">Password</Field.Label>
 				<Input id="password" type="password" bind:value={password} required disabled={loading} />
-			</div>
+			</Field.Field>
 
 			<Button type="submit" class="w-full" disabled={loading}>
 				{#if loading}

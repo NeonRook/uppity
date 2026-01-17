@@ -4,7 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Card from '$lib/components/ui/card';
@@ -103,8 +103,8 @@
 						<Card.Title>Basic Information</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-4">
-						<div class="space-y-2">
-							<Label for="name">Name *</Label>
+						<Field.Field>
+							<Field.Label for="name">Name *</Field.Label>
 							<Input
 								id="name"
 								name="name"
@@ -113,13 +113,11 @@
 								disabled={$updateDelayed}
 								aria-invalid={$updateErrors.name ? 'true' : undefined}
 							/>
-							{#if $updateErrors.name}
-								<p class="text-sm text-destructive">{$updateErrors.name}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$updateErrors.name} />
+						</Field.Field>
 
-						<div class="space-y-2">
-							<Label for="slug">URL Slug *</Label>
+						<Field.Field>
+							<Field.Label for="slug">URL Slug *</Field.Label>
 							<div class="flex items-center gap-2">
 								<span class="text-sm text-muted-foreground">/status/</span>
 								<Input
@@ -132,13 +130,11 @@
 									aria-invalid={$updateErrors.slug ? 'true' : undefined}
 								/>
 							</div>
-							{#if $updateErrors.slug}
-								<p class="text-sm text-destructive">{$updateErrors.slug}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$updateErrors.slug} />
+						</Field.Field>
 
-						<div class="space-y-2">
-							<Label for="description">Description</Label>
+						<Field.Field>
+							<Field.Label for="description">Description</Field.Label>
 							<Textarea
 								id="description"
 								name="description"
@@ -146,24 +142,18 @@
 								disabled={$updateDelayed}
 								aria-invalid={$updateErrors.description ? 'true' : undefined}
 							/>
-							{#if $updateErrors.description}
-								<p class="text-sm text-destructive">{$updateErrors.description}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$updateErrors.description} />
+						</Field.Field>
 
-						<div class="flex items-center justify-between">
-							<div class="space-y-0.5">
-								<Label>Public</Label>
-								<p class="text-sm text-muted-foreground">
-									Make this status page publicly accessible
-								</p>
-							</div>
+						<Field.Field orientation="horizontal">
+							<Field.Label>Public</Field.Label>
+							<Field.Description>Make this status page publicly accessible</Field.Description>
 							<Switch
 								checked={$updateForm.isPublic}
 								onCheckedChange={(checked) => ($updateForm.isPublic = checked)}
 							/>
 							<input type="hidden" name="isPublic" value={String($updateForm.isPublic)} />
-						</div>
+						</Field.Field>
 					</Card.Content>
 				</Card.Root>
 
@@ -172,8 +162,8 @@
 						<Card.Title>Branding</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-4">
-						<div class="space-y-2">
-							<Label for="logoUrl">Logo URL</Label>
+						<Field.Field>
+							<Field.Label for="logoUrl">Logo URL</Field.Label>
 							<Input
 								id="logoUrl"
 								name="logoUrl"
@@ -182,13 +172,11 @@
 								disabled={$updateDelayed}
 								aria-invalid={$updateErrors.logoUrl ? 'true' : undefined}
 							/>
-							{#if $updateErrors.logoUrl}
-								<p class="text-sm text-destructive">{$updateErrors.logoUrl}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$updateErrors.logoUrl} />
+						</Field.Field>
 
-						<div class="space-y-2">
-							<Label for="primaryColor">Primary Color</Label>
+						<Field.Field>
+							<Field.Label for="primaryColor">Primary Color</Field.Label>
 							<div class="flex items-center gap-2">
 								<input
 									type="color"
@@ -199,10 +187,8 @@
 									disabled={$updateDelayed}
 								/>
 							</div>
-							{#if $updateErrors.primaryColor}
-								<p class="text-sm text-destructive">{$updateErrors.primaryColor}</p>
-							{/if}
-						</div>
+							<Field.Error errors={$updateErrors.primaryColor} />
+						</Field.Field>
 					</Card.Content>
 				</Card.Root>
 
