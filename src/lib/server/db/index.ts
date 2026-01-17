@@ -6,7 +6,7 @@ import * as schema from "./schema";
 
 // Use Bun.env directly to ensure runtime resolution
 // $env/dynamic/private can get baked in at build time by svelte-adapter-bun
-const DATABASE_URL = Bun.env.DATABASE_URL;
+const { DATABASE_URL } = Bun.env;
 
 if (!DATABASE_URL && !building) throw new Error("DATABASE_URL is not set");
 

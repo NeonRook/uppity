@@ -8,11 +8,7 @@ import type {
 } from "./types";
 
 // Use Bun.env directly to ensure runtime resolution
-const SMTP_HOST = Bun.env.SMTP_HOST;
-const SMTP_PORT = Bun.env.SMTP_PORT;
-const SMTP_USER = Bun.env.SMTP_USER;
-const SMTP_PASSWORD = Bun.env.SMTP_PASSWORD;
-const SMTP_FROM = Bun.env.SMTP_FROM;
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = Bun.env;
 
 export class EmailNotificationProvider implements NotificationProvider {
 	private transporter: nodemailer.Transporter | null = null;
