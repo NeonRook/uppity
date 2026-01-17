@@ -7,10 +7,7 @@ import { scheduler } from "$lib/server/jobs/scheduler";
 import { sequence } from "@sveltejs/kit/hooks";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 
-// Start the scheduler when the server starts (not during build)
-if (!building) {
-	void scheduler.start();
-}
+if (!building) void scheduler.start();
 
 const handleParaglide: Handle = ({ event, resolve }) =>
 	paraglideMiddleware(
@@ -25,7 +22,6 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 	);
 
 const handleAuth: Handle = async ({ event, resolve }) => {
-	// Populate session in locals for server-side access
 	const session = await auth.api.getSession({
 		headers: event.request.headers,
 	});
@@ -33,7 +29,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	event.locals.user = session?.user ?? null;
 	event.locals.session = session?.session ?? null;
 
-	// Use svelteKitHandler for auth API routes
+	// svelteKitHandler automatically handles better-auth routes
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 

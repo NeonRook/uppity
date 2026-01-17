@@ -10,8 +10,6 @@ import { notificationService } from "$lib/server/notifications";
 import { incidentService } from "$lib/server/services/incident.service";
 import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import * as net from "net";
-import * as tls from "tls";
 
 export interface CheckResult {
 	status: "up" | "down" | "degraded";
@@ -128,38 +126,76 @@ export class CheckService {
 		}
 
 		const startTime = Date.now();
-		const timeout = (monitor.timeoutSeconds || 30) * 1000;
+		const timeoutMs = (monitor.timeoutSeconds || 30) * 1000;
 
 		return new Promise((resolve) => {
-			const socket = new net.Socket();
+			let resolved = false;
+			let socket: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never;
 
 			const timer = setTimeout(() => {
-				socket.destroy();
-				resolve({
-					status: "down",
-					responseTimeMs: Date.now() - startTime,
-					errorMessage: `Connection timeout after ${monitor.timeoutSeconds}s`,
-				});
-			}, timeout);
+				if (!resolved) {
+					resolved = true;
+					socket?.end();
+					resolve({
+						status: "down",
+						responseTimeMs: Date.now() - startTime,
+						errorMessage: `Connection timeout after ${monitor.timeoutSeconds}s`,
+					});
+				}
+			}, timeoutMs);
 
-			socket.connect(monitor.port!, monitor.hostname!, () => {
-				clearTimeout(timer);
-				const responseTimeMs = Date.now() - startTime;
-				socket.destroy();
-				resolve({
-					status: responseTimeMs > 5000 ? "degraded" : "up",
-					responseTimeMs,
-				});
-			});
-
-			socket.on("error", (err) => {
-				clearTimeout(timer);
-				socket.destroy();
-				resolve({
-					status: "down",
-					responseTimeMs: Date.now() - startTime,
-					errorMessage: err.message,
-				});
+			Bun.connect({
+				hostname: monitor.hostname!,
+				port: monitor.port!,
+				socket: {
+					open(s) {
+						socket = s;
+						if (!resolved) {
+							resolved = true;
+							clearTimeout(timer);
+							const responseTimeMs = Date.now() - startTime;
+							s.end();
+							resolve({
+								status: responseTimeMs > 5000 ? "degraded" : "up",
+								responseTimeMs,
+							});
+						}
+					},
+					data() {},
+					close() {},
+					error(_, err) {
+						if (!resolved) {
+							resolved = true;
+							clearTimeout(timer);
+							resolve({
+								status: "down",
+								responseTimeMs: Date.now() - startTime,
+								errorMessage: err?.message || "Connection failed",
+							});
+						}
+					},
+					connectError(_, err) {
+						if (!resolved) {
+							resolved = true;
+							clearTimeout(timer);
+							resolve({
+								status: "down",
+								responseTimeMs: Date.now() - startTime,
+								errorMessage: err?.message || "Connection failed",
+							});
+						}
+					},
+				},
+			}).catch((err) => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timer);
+					resolve({
+						status: "down",
+						responseTimeMs: Date.now() - startTime,
+						errorMessage: err?.message || "Connection failed",
+					});
+				}
 			});
 		});
 	}
@@ -171,37 +207,64 @@ export class CheckService {
 			const port = urlObj.port ? parseInt(urlObj.port, 10) : 443;
 
 			return new Promise((resolve) => {
-				const socket = tls.connect(
-					{
-						host: hostname,
-						port,
-						servername: hostname,
+				let resolved = false;
+
+				const timer = setTimeout(() => {
+					if (!resolved) {
+						resolved = true;
+						resolve({});
+					}
+				}, 5000);
+
+				Bun.connect({
+					hostname,
+					port,
+					tls: {
 						rejectUnauthorized: false,
 					},
-					() => {
-						const cert = socket.getPeerCertificate();
-						socket.destroy();
+					socket: {
+						open(socket) {
+							if (!resolved) {
+								resolved = true;
+								clearTimeout(timer);
 
-						if (cert && cert.valid_to) {
-							resolve({
-								sslExpiresAt: new Date(cert.valid_to),
-								sslIssuer: cert.issuer?.O || cert.issuer?.CN,
-							});
-						} else {
-							resolve({});
-						}
+								const cert = socket.getPeerCertificate();
+								socket.end();
+
+								if (cert && cert.valid_to) {
+									resolve({
+										sslExpiresAt: new Date(cert.valid_to),
+										sslIssuer: cert.issuer?.O || cert.issuer?.CN,
+									});
+								} else {
+									resolve({});
+								}
+							}
+						},
+						data() {},
+						close() {},
+						error() {
+							if (!resolved) {
+								resolved = true;
+								clearTimeout(timer);
+								resolve({});
+							}
+						},
+						connectError() {
+							if (!resolved) {
+								resolved = true;
+								clearTimeout(timer);
+								resolve({});
+							}
+						},
 					},
-				);
-
-				socket.on("error", () => {
-					socket.destroy();
-					resolve({});
+				}).catch(() => {
+					if (!resolved) {
+						resolved = true;
+						clearTimeout(timer);
+						resolve({});
+					}
 				});
-
-				setTimeout(() => {
-					socket.destroy();
-					resolve({});
-				}, 5000);
 			});
 		} catch {
 			return {};
