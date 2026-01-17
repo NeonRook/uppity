@@ -3,6 +3,8 @@ import type { IncidentStatus, IncidentImpact } from "$lib/server/services/incide
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,
+	addPostmortemSchema,
+	editPostmortemSchema,
 	incidentImpactValues,
 } from "$lib/schemas/incident";
 import { incidentService } from "$lib/server/services/incident.service";
@@ -31,8 +33,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		valibot(updateIncidentSchema),
 	);
 	const addUpdateForm = await superValidate(valibot(addIncidentUpdateSchema));
+	const postmortemForm = await superValidate(valibot(addPostmortemSchema));
 
-	return { incident, updateForm, addUpdateForm };
+	// Check if incident already has a postmortem
+	const existingPostmortem = incident.updates.find((u) => u.status === "postmortem");
+	const editPostmortemForm = await superValidate(
+		existingPostmortem
+			? { updateId: existingPostmortem.id, message: existingPostmortem.message }
+			: { updateId: "", message: "" },
+		valibot(editPostmortemSchema),
+	);
+
+	return { incident, updateForm, addUpdateForm, postmortemForm, editPostmortemForm };
 };
 
 export const actions: Actions = {
@@ -74,6 +86,91 @@ export const actions: Actions = {
 		});
 
 		return message(form, "Update added");
+	},
+
+	addPostmortem: async ({ request, params, locals }) => {
+		if (!locals.session?.activeOrganizationId) {
+			return fail(401, { error: "Not authenticated" });
+		}
+
+		const form = await superValidate(request, valibot(addPostmortemSchema));
+
+		if (!form.valid) {
+			return fail(400, { postmortemForm: form });
+		}
+
+		// Verify incident exists and is resolved
+		const incident = await incidentService.findByIdAndOrg(
+			params.id,
+			locals.session.activeOrganizationId,
+		);
+
+		if (!incident) {
+			return fail(404, { error: "Incident not found" });
+		}
+
+		if (incident.status !== "resolved") {
+			return message(form, "Postmortem can only be added to resolved incidents", {
+				status: 400,
+			});
+		}
+
+		// Check if postmortem already exists
+		const updates = await incidentService.getUpdates(params.id);
+		if (updates.some((u) => u.status === "postmortem")) {
+			return message(form, "This incident already has a postmortem", {
+				status: 400,
+			});
+		}
+
+		await incidentService.addUpdate({
+			incidentId: params.id,
+			status: "postmortem",
+			message: form.data.message,
+			createdBy: locals.user?.id,
+		});
+
+		return message(form, "Postmortem added");
+	},
+
+	editPostmortem: async ({ request, params, locals }) => {
+		if (!locals.session?.activeOrganizationId) {
+			return fail(401, { error: "Not authenticated" });
+		}
+
+		const form = await superValidate(request, valibot(editPostmortemSchema));
+
+		if (!form.valid) {
+			return fail(400, { editPostmortemForm: form });
+		}
+
+		// Verify incident exists and is resolved
+		const incident = await incidentService.findByIdAndOrg(
+			params.id,
+			locals.session.activeOrganizationId,
+		);
+
+		if (!incident) {
+			return fail(404, { error: "Incident not found" });
+		}
+
+		if (incident.status !== "resolved") {
+			return message(form, "Postmortem can only be edited on resolved incidents", {
+				status: 400,
+			});
+		}
+
+		// Update the postmortem
+		const updated = await incidentService.updateIncidentUpdate(
+			form.data.updateId,
+			form.data.message,
+		);
+
+		if (!updated) {
+			return message(form, "Postmortem not found", { status: 404 });
+		}
+
+		return message(form, "Postmortem updated");
 	},
 
 	delete: async ({ params, locals }) => {

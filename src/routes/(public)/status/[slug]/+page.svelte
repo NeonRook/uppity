@@ -1,16 +1,37 @@
 <script lang="ts">
-	import { CircleCheckBig, TriangleAlert, CircleX, CircleMinus } from '@lucide/svelte';
 	import {
-		getStatusInfo,
-		getImpactInfo,
-		formatIncidentDateTime
-	} from '$lib/incidents';
+		CircleCheckBig,
+		TriangleAlert,
+		CircleX,
+		CircleMinus,
+		ChevronRight,
+		History
+	} from '@lucide/svelte';
+	import { resolve } from '$app/paths';
+	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
 
 	let { data } = $props();
 
-	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents } = $derived(
-		data.statusData
-	);
+	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents, resolvedIncidents } =
+		$derived(data.statusData);
+
+	function formatDuration(startedAt: Date, resolvedAt: Date | null): string {
+		const start = new Date(startedAt);
+		const end = resolvedAt ? new Date(resolvedAt) : new Date();
+		const diffMs = end.getTime() - start.getTime();
+
+		const minutes = Math.floor(diffMs / 60000);
+		const hours = Math.floor(minutes / 60);
+		const days = Math.floor(hours / 24);
+
+		if (days > 0) {
+			return `${days}d ${hours % 24}h`;
+		}
+		if (hours > 0) {
+			return `${hours}h ${minutes % 60}m`;
+		}
+		return `${minutes}m`;
+	}
 
 	function getOverallStatusInfo() {
 		switch (overallStatus) {
@@ -130,45 +151,58 @@
 					{#each activeIncidents as incident (incident.id)}
 						{@const incidentStatusInfo = getStatusInfo(incident.status)}
 						{@const impactInfo = getImpactInfo(incident.impact)}
-						<div class="rounded-lg border bg-white p-5 shadow-sm">
+						{@const timelineUpdates = incident.updates.filter((u) => u.status !== 'postmortem')}
+						<a
+							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
+							class="block rounded-lg border bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+						>
 							<!-- Incident Header -->
 							<div class="mb-4 flex items-start justify-between">
-								<div>
+								<div class="flex-1">
 									<h3 class="text-lg font-semibold text-gray-900">{incident.title}</h3>
 									<div class="mt-1 flex flex-wrap items-center gap-2">
-										<span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {incidentStatusInfo.bg} {incidentStatusInfo.color}">
+										<span
+											class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {incidentStatusInfo.bg} {incidentStatusInfo.color}"
+										>
 											<incidentStatusInfo.icon class="h-3 w-3" />
 											{incidentStatusInfo.label}
 										</span>
-										<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}">
+										<span
+											class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}"
+										>
 											{impactInfo.label} Impact
 										</span>
 										<span class="text-xs text-gray-500">
-											Started {formatIncidentDateTime(incident.createdAt)}
+											Started {formatIncidentDateTime(incident.startedAt)}
 										</span>
 									</div>
 								</div>
+								<ChevronRight class="h-5 w-5 shrink-0 text-gray-400" />
 							</div>
 
-							<!-- Timeline -->
-							{#if incident.updates.length > 0}
+							<!-- Timeline (excluding postmortem) -->
+							{#if timelineUpdates.length > 0}
 								<div class="relative mt-4 space-y-4 border-t border-gray-100 pt-4">
-									{#each incident.updates.slice(0, 5) as update, i (update.id)}
+									{#each timelineUpdates.slice(0, 3) as update, i (update.id)}
 										{@const updateStatusInfo = getStatusInfo(update.status)}
 										{@const UpdateIcon = updateStatusInfo.icon}
 										<div class="relative flex gap-4">
 											<!-- Connector line -->
-											{#if i < Math.min(incident.updates.length, 5) - 1}
-												<div class="absolute left-[15px] top-8 h-full w-0.5 bg-gray-200"></div>
+											{#if i < Math.min(timelineUpdates.length, 3) - 1}
+												<div class="absolute top-8 left-3.75 h-full w-0.5 bg-gray-200"></div>
 											{/if}
 											<!-- Icon -->
-											<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {updateStatusInfo.bg}">
+											<div
+												class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {updateStatusInfo.bg}"
+											>
 												<UpdateIcon class="h-4 w-4 {updateStatusInfo.color}" />
 											</div>
 											<!-- Content -->
 											<div class="flex-1 pb-2">
 												<div class="flex flex-wrap items-center gap-2">
-													<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {updateStatusInfo.bg} {updateStatusInfo.color}">
+													<span
+														class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {updateStatusInfo.bg} {updateStatusInfo.color}"
+													>
 														{updateStatusInfo.label}
 													</span>
 													<span class="text-xs text-gray-500">
@@ -179,14 +213,14 @@
 											</div>
 										</div>
 									{/each}
-									{#if incident.updates.length > 5}
+									{#if timelineUpdates.length > 3}
 										<p class="pl-12 text-xs text-gray-500">
-											+ {incident.updates.length - 5} more updates
+											+ {timelineUpdates.length - 3} more updates - click to view all
 										</p>
 									{/if}
 								</div>
 							{/if}
-						</div>
+						</a>
 					{/each}
 				</div>
 			</section>
@@ -267,6 +301,47 @@
 				</section>
 			{/if}
 		{/each}
+
+		<!-- Incident History -->
+		<section class="mb-8">
+			<h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
+				<History class="h-5 w-5 text-gray-500" />
+				Incident History
+			</h2>
+			{#if resolvedIncidents.length > 0}
+				<div class="space-y-3">
+					{#each resolvedIncidents as incident (incident.id)}
+						{@const impactInfo = getImpactInfo(incident.impact)}
+						<a
+							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
+							class="flex items-center justify-between rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+						>
+							<div class="flex-1">
+								<div class="flex flex-wrap items-center gap-2">
+									<h3 class="font-medium text-gray-900">{incident.title}</h3>
+									<span
+										class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}"
+									>
+										{impactInfo.label}
+									</span>
+								</div>
+								<div class="mt-1 flex flex-wrap gap-3 text-xs text-gray-500">
+									<span>{formatIncidentDateTime(incident.startedAt)}</span>
+									{#if incident.resolvedAt}
+										<span>Duration: {formatDuration(incident.startedAt, incident.resolvedAt)}</span>
+									{/if}
+								</div>
+							</div>
+							<ChevronRight class="h-5 w-5 shrink-0 text-gray-400" />
+						</a>
+					{/each}
+				</div>
+			{:else}
+				<div class="rounded-lg border bg-white p-6 text-center text-gray-500">
+					No incidents in the past 90 days.
+				</div>
+			{/if}
+		</section>
 
 		<!-- Legend -->
 		<section class="mt-12 border-t pt-6">
