@@ -116,9 +116,7 @@ class Scheduler {
 		// Remove existing job if any
 		this.unscheduleMonitor(m.id);
 
-		if (!m.active) {
-			return;
-		}
+		if (!m.active) return;
 
 		const intervalSeconds = m.intervalSeconds || 60;
 
@@ -190,9 +188,7 @@ class Scheduler {
 	private async runCheck(monitorId: string): Promise<void> {
 		try {
 			const m = await this.findMonitorById(monitorId);
-			if (!m || !m.active) {
-				return;
-			}
+			if (!m || !m.active) return;
 
 			console.log(`[Scheduler] Running check for ${m.name}`);
 			const result = await checkService.performCheckWithRetries(m);
