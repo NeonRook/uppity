@@ -53,11 +53,11 @@
 		"nodemailer": "^7.0.12",
 		"postgres": "^3.4.8",
 		"react-hook-form": "^7.71.1",
+		"runed": "^0.37.1",
 		"sonner": "^2.0.7",
 		"tailwind-merge": "^3.4.0",
 		"tailwind-variants": "^3.2.2",
-		"valibot": "^1.2.0",
-		"zod": "^4.3.5"
+		"valibot": "^1.2.0"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.1",
