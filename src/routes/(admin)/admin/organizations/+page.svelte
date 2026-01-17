@@ -5,7 +5,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
-	import { Plus, Search, ChevronLeft, ChevronRight, Users } from '@lucide/svelte';
+	import { Plus, Search, Users } from '@lucide/svelte';
+	import Pagination from '$lib/components/pagination.svelte';
 	import { useSearchParams } from 'runed/kit';
 	import * as v from 'valibot';
 	import { formatDateShort } from '$lib/format';
@@ -89,38 +90,14 @@
 				</Table.Body>
 			</Table.Root>
 
-			<!-- Pagination -->
-			{#if totalPages > 1}
-				<div class="mt-4 flex items-center justify-between">
-					<p class="text-sm text-muted-foreground">
-						Showing {(data.page - 1) * data.limit + 1} to {Math.min(
-							data.page * data.limit,
-							data.total
-						)} of {data.total} organizations
-					</p>
-					<div class="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="icon"
-							disabled={data.page <= 1}
-							onclick={() => (params.page = data.page - 1)}
-						>
-							<ChevronLeft class="h-4 w-4" />
-						</Button>
-						<span class="text-sm">
-							Page {data.page} of {totalPages}
-						</span>
-						<Button
-							variant="outline"
-							size="icon"
-							disabled={data.page >= totalPages}
-							onclick={() => (params.page = data.page + 1)}
-						>
-							<ChevronRight class="h-4 w-4" />
-						</Button>
-					</div>
-				</div>
-			{/if}
+			<Pagination
+				page={data.page}
+				{totalPages}
+				limit={data.limit}
+				total={data.total}
+				itemName="organizations"
+				onPageChange={(p) => (params.page = p)}
+			/>
 		</Card.Content>
 	</Card.Root>
 </div>
