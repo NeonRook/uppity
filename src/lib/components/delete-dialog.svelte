@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages.js';
 
 	interface Props {
 		/** Explicit open state (use this for detail pages) */
@@ -49,7 +50,9 @@
 			<AlertDialog.Description>{description}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => onOpenChange(false)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel onclick={() => onOpenChange(false)}
+				>{m.common_cancel()}</AlertDialog.Cancel
+			>
 			<form
 				method="POST"
 				{action}
@@ -66,7 +69,7 @@
 					<input type="hidden" name={inputName} value={itemId} />
 				{/if}
 				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? 'Deleting...' : 'Delete'}
+					{deleting ? m.common_deleting() : m.common_delete()}
 				</Button>
 			</form>
 		</AlertDialog.Footer>

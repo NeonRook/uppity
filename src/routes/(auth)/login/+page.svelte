@@ -8,6 +8,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle } from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let email = $state('');
 	let password = $state('');
@@ -26,14 +27,14 @@
 			});
 
 			if (result.error) {
-				error = result.error.message || 'Invalid email or password';
+				error = result.error.message || m.auth_login_error_invalid();
 				loading = false;
 				return;
 			}
 
 			goto(resolve('/dashboard'));
 		} catch {
-			error = 'An unexpected error occurred';
+			error = m.auth_login_error_unexpected();
 			loading = false;
 		}
 	}
@@ -45,8 +46,8 @@
 
 <Card.Root>
 	<Card.Header class="space-y-1">
-		<Card.Title class="text-2xl font-bold">Sign in</Card.Title>
-		<Card.Description>Enter your email and password to access your account</Card.Description>
+		<Card.Title class="text-2xl font-bold">{m.auth_login_title()}</Card.Title>
+		<Card.Description>{m.auth_login_subtitle()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<form onsubmit={handleSubmit} class="space-y-4">
@@ -58,7 +59,7 @@
 			{/if}
 
 			<Field.Field>
-				<Field.Label for="email">Email</Field.Label>
+				<Field.Label for="email">{m.common_email()}</Field.Label>
 				<Input
 					id="email"
 					type="email"
@@ -70,16 +71,16 @@
 			</Field.Field>
 
 			<Field.Field>
-				<Field.Label for="password">Password</Field.Label>
+				<Field.Label for="password">{m.common_password()}</Field.Label>
 				<Input id="password" type="password" bind:value={password} required disabled={loading} />
 			</Field.Field>
 
 			<Button type="submit" class="w-full" disabled={loading}>
 				{#if loading}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Signing in...
+					{m.auth_login_signing_in()}
 				{:else}
-					Sign in
+					{m.auth_login_sign_in()}
 				{/if}
 			</Button>
 		</form>
@@ -90,13 +91,13 @@
 				href={resolve('/forgot-password')}
 				class="underline-offset-4 hover:text-primary hover:underline"
 			>
-				Forgot your password?
+				{m.auth_login_forgot_password()}
 			</a>
 		</div>
 		<div class="text-sm text-muted-foreground">
-			Don't have an account?
+			{m.auth_login_no_account()}
 			<a href={resolve('/register')} class="text-primary underline-offset-4 hover:underline"
-				>Sign up</a
+				>{m.auth_login_sign_up()}</a
 			>
 		</div>
 	</Card.Footer>

@@ -14,6 +14,7 @@
 	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck } from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateTimeShort } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -24,22 +25,17 @@
 		}
 	);
 
-	const roleOptions = [
-		{ value: 'user', label: 'User' },
-		{ value: 'admin', label: 'Admin' }
-	];
-
 	let banReason = $state('');
 	let showDeleteDialog = $state(false);
 	let showBanDialog = $state(false);
 
 	function getRoleLabel(role: string | undefined): string {
-		return roleOptions.find((r) => r.value === role)?.label || 'User';
+		return role === 'admin' ? m.admin_role_admin() : m.admin_role_user();
 	}
 </script>
 
 <svelte:head>
-	<title>Edit User - Admin - Uppity</title>
+	<title>{m.admin_users_edit()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -47,12 +43,12 @@
 		{#snippet actions()}
 			<div class="flex items-center gap-2">
 				{#if data.user.banned}
-					<Badge variant="destructive">Banned</Badge>
+					<Badge variant="destructive">{m.admin_users_banned()}</Badge>
 				{:else}
-					<Badge variant="outline">Active</Badge>
+					<Badge variant="outline">{m.common_active()}</Badge>
 				{/if}
 				<Badge variant={data.user.role === 'admin' ? 'default' : 'secondary'}>
-					{data.user.role || 'user'}
+					{data.user.role === 'admin' ? m.admin_role_admin() : m.admin_role_user()}
 				</Badge>
 			</div>
 		{/snippet}
@@ -61,8 +57,8 @@
 	<!-- User Details -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>User Details</Card.Title>
-			<Card.Description>Update user information and role</Card.Description>
+			<Card.Title>{m.admin_users_details()}</Card.Title>
+			<Card.Description>{m.admin_users_details_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/update" use:enhance class="space-y-4">
@@ -75,13 +71,13 @@
 
 				<div class="grid gap-4 sm:grid-cols-2">
 					<Field.Field>
-						<Field.Label for="name">Name</Field.Label>
+						<Field.Label for="name">{m.common_name()}</Field.Label>
 						<Input id="name" name="name" bind:value={$form.name} disabled={$delayed} />
 						<Field.Error errors={$errors.name} />
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="email">Email</Field.Label>
+						<Field.Label for="email">{m.common_email()}</Field.Label>
 						<Input
 							id="email"
 							name="email"
@@ -94,7 +90,7 @@
 				</div>
 
 				<Field.Field>
-					<Field.Label for="role">Role</Field.Label>
+					<Field.Label for="role">{m.common_role()}</Field.Label>
 					<input type="hidden" name="role" bind:value={$form.role} />
 					<Select.Root
 						type="single"
@@ -107,25 +103,24 @@
 							{getRoleLabel($form.role)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each roleOptions as option (option.value)}
-								<Select.Item value={option.value}>{option.label}</Select.Item>
-							{/each}
+							<Select.Item value="user">{m.admin_role_user()}</Select.Item>
+							<Select.Item value="admin">{m.admin_role_admin()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</Field.Field>
 
 				<div class="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-					<div>Created: {formatDateTimeShort(data.user.createdAt)}</div>
-					<div>Updated: {formatDateTimeShort(data.user.updatedAt)}</div>
+					<div>{m.common_created()}: {formatDateTimeShort(data.user.createdAt)}</div>
+					<div>{m.common_updated()}: {formatDateTimeShort(data.user.updatedAt)}</div>
 				</div>
 
 				<div class="pt-4">
 					<Button type="submit" disabled={$delayed}>
 						{#if $delayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							Saving...
+							{m.admin_saving()}
 						{:else}
-							Save Changes
+							{m.admin_save_changes()}
 						{/if}
 					</Button>
 				</div>
@@ -136,33 +131,33 @@
 	<!-- Ban Status -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Account Status</Card.Title>
-			<Card.Description>Manage user ban status</Card.Description>
+			<Card.Title>{m.admin_users_account_status()}</Card.Title>
+			<Card.Description>{m.admin_users_account_status_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-4">
 			{#if data.user.banned}
 				<Alert variant="destructive">
 					<Ban class="h-4 w-4" />
 					<AlertDescription>
-						This user is banned.
+						{m.admin_users_user_banned()}
 						{#if data.user.banReason}
-							Reason: {data.user.banReason}
+							{m.admin_users_ban_reason({ reason: data.user.banReason })}
 						{/if}
 					</AlertDescription>
 				</Alert>
 				<form method="POST" action="?/unban">
 					<Button type="submit" variant="outline">
 						<CircleCheck class="mr-2 h-4 w-4" />
-						Unban User
+						{m.admin_users_unban()}
 					</Button>
 				</form>
 			{:else}
 				<p class="text-sm text-muted-foreground">
-					This user is currently active. You can ban them to prevent login.
+					{m.admin_users_user_active_desc()}
 				</p>
 				<Button variant="destructive" onclick={() => (showBanDialog = true)}>
 					<Ban class="mr-2 h-4 w-4" />
-					Ban User
+					{m.admin_users_ban()}
 				</Button>
 			{/if}
 		</Card.Content>
@@ -171,13 +166,13 @@
 	<!-- Danger Zone -->
 	<Card.Root class="border-destructive">
 		<Card.Header>
-			<Card.Title class="text-destructive">Danger Zone</Card.Title>
-			<Card.Description>Irreversible actions</Card.Description>
+			<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
+			<Card.Description>{m.settings_irreversible()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Button variant="destructive" onclick={() => (showDeleteDialog = true)}>
 				<Trash2 class="mr-2 h-4 w-4" />
-				Delete User
+				{m.admin_users_delete()}
 			</Button>
 		</Card.Content>
 	</Card.Root>
@@ -187,26 +182,26 @@
 <AlertDialog.Root bind:open={showBanDialog}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Ban User</AlertDialog.Title>
+			<AlertDialog.Title>{m.admin_users_ban_dialog_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to ban {data.user.name}? They will not be able to log in.
+				{m.admin_users_ban_dialog_desc({ name: data.user.name })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form method="POST" action="?/ban">
 			<div class="py-4">
 				<Field.Field>
-					<Field.Label for="banReason">Reason (optional)</Field.Label>
+					<Field.Label for="banReason">{m.admin_users_ban_reason_label()}</Field.Label>
 					<Textarea
 						id="banReason"
 						name="banReason"
 						bind:value={banReason}
-						placeholder="Enter a reason for the ban..."
+						placeholder={m.admin_users_ban_reason_placeholder()}
 					/>
 				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-				<Button type="submit" variant="destructive">Ban User</Button>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button type="submit" variant="destructive">{m.admin_users_ban()}</Button>
 			</AlertDialog.Footer>
 		</form>
 	</AlertDialog.Content>
@@ -215,6 +210,6 @@
 <DeleteDialog
 	open={showDeleteDialog}
 	onOpenChange={(open) => (showDeleteDialog = open)}
-	title="Delete User"
-	description="Are you sure you want to delete {data.user.name}? This action cannot be undone."
+	title={m.admin_users_delete()}
+	description={m.admin_users_delete_confirm({ name: data.user.name })}
 />

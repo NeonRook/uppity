@@ -11,26 +11,20 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
+	import {
+		INCIDENT_STATUS_VALUES,
+		INCIDENT_IMPACTS,
+		type IncidentStatusValue,
+		type IncidentImpact
+	} from '$lib/constants/status';
+	import { getStatusLabel, getImpactLabel, getImpactDescription } from '$lib/incidents';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
 
 	let selectedMonitors = new SvelteSet<string>();
-
-	const statusOptions = [
-		{ value: 'investigating', label: 'Investigating' },
-		{ value: 'identified', label: 'Identified' },
-		{ value: 'monitoring', label: 'Monitoring' },
-		{ value: 'resolved', label: 'Resolved' }
-	] as const;
-
-	const impactOptions = [
-		{ value: 'none', label: 'None - No impact' },
-		{ value: 'minor', label: 'Minor - Some users affected' },
-		{ value: 'major', label: 'Major - Many users affected' },
-		{ value: 'critical', label: 'Critical - All users affected' }
-	] as const;
 
 	function toggleMonitor(id: string) {
 		if (selectedMonitors.has(id)) {
@@ -43,7 +37,7 @@
 </script>
 
 <svelte:head>
-	<title>Report Incident - Uppity</title>
+	<title>{m.incident_new_title()} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -52,8 +46,8 @@
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Report Incident</h1>
-			<p class="text-muted-foreground">Create a new incident report</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.incident_new_title()}</h1>
+			<p class="text-muted-foreground">{m.incident_new_subtitle()}</p>
 		</div>
 	</div>
 
@@ -67,15 +61,15 @@
 
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Incident Details</Card.Title>
+				<Card.Title>{m.incident_details()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<Field.Field>
-					<Field.Label for="title">Title *</Field.Label>
+					<Field.Label for="title">{m.incident_title_label()} *</Field.Label>
 					<Input
 						id="title"
 						name="title"
-						placeholder="API experiencing high latency"
+						placeholder={m.incident_title_placeholder()}
 						bind:value={$form.title}
 						disabled={$delayed}
 						aria-invalid={$errors.title ? 'true' : undefined}
@@ -85,20 +79,19 @@
 
 				<div class="grid grid-cols-2 gap-4">
 					<Field.Field>
-						<Field.Label for="status">Status</Field.Label>
+						<Field.Label for="status">{m.common_status()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="status"
 							value={$form.status}
-							onValueChange={(v) =>
-								($form.status = v as 'investigating' | 'identified' | 'monitoring' | 'resolved')}
+							onValueChange={(v) => ($form.status = v as IncidentStatusValue)}
 						>
 							<Select.Trigger class="w-full">
-								{statusOptions.find((s) => s.value === $form.status)?.label || 'Select status'}
+								{getStatusLabel($form.status) || m.incident_select_status()}
 							</Select.Trigger>
 							<Select.Content>
-								{#each statusOptions as opt (opt.value)}
-									<Select.Item value={opt.value}>{opt.label}</Select.Item>
+								{#each INCIDENT_STATUS_VALUES as status (status)}
+									<Select.Item value={status}>{getStatusLabel(status)}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -107,20 +100,21 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="impact">Impact</Field.Label>
+						<Field.Label for="impact">{m.incident_impact()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="impact"
 							value={$form.impact}
-							onValueChange={(v) => ($form.impact = v as 'none' | 'minor' | 'major' | 'critical')}
+							onValueChange={(v) => ($form.impact = v as IncidentImpact)}
 						>
 							<Select.Trigger class="w-full">
-								{impactOptions.find((i) => i.value === $form.impact)?.label.split(' - ')[0] ||
-									'Select impact'}
+								{getImpactLabel($form.impact) || m.incident_select_impact()}
 							</Select.Trigger>
 							<Select.Content>
-								{#each impactOptions as opt (opt.value)}
-									<Select.Item value={opt.value}>{opt.label}</Select.Item>
+								{#each INCIDENT_IMPACTS as impact (impact)}
+									<Select.Item value={impact}
+										>{getImpactLabel(impact)} - {getImpactDescription(impact)}</Select.Item
+									>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -130,18 +124,18 @@
 				</div>
 
 				<Field.Field>
-					<Field.Label for="message">Initial Update *</Field.Label>
+					<Field.Label for="message">{m.incident_initial_update()} *</Field.Label>
 					<Textarea
 						id="message"
 						name="message"
-						placeholder="We are investigating reports of increased latency..."
+						placeholder={m.incident_initial_update_placeholder()}
 						bind:value={$form.message}
 						disabled={$delayed}
 						rows={4}
 						aria-invalid={$errors.message ? 'true' : undefined}
 					/>
 					<Field.Description>
-						This message will be shown in the incident timeline.
+						{m.incident_initial_update_desc()}
 					</Field.Description>
 					<Field.Error errors={$errors.message} />
 				</Field.Field>
@@ -150,12 +144,14 @@
 
 		<Card.Root class="mt-6">
 			<Card.Header>
-				<Card.Title>Affected Monitors</Card.Title>
-				<Card.Description>Select the monitors affected by this incident</Card.Description>
+				<Card.Title>{m.incident_affected_monitors()}</Card.Title>
+				<Card.Description>{m.incident_affected_monitors_desc()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				{#if data.monitors.length === 0}
-					<p class="py-4 text-center text-sm text-muted-foreground">No monitors available.</p>
+					<p class="py-4 text-center text-sm text-muted-foreground">
+						{m.incident_no_monitors()}
+					</p>
 				{:else}
 					<div class="space-y-3">
 						{#each data.monitors as monitor (monitor.id)}
@@ -188,13 +184,13 @@
 		</Card.Root>
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/incidents" disabled={$delayed}>Cancel</Button>
+			<Button variant="outline" href="/incidents" disabled={$delayed}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={$delayed}>
 				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Creating...
+					{m.incident_creating()}
 				{:else}
-					Create Incident
+					{m.incident_create()}
 				{/if}
 			</Button>
 		</div>

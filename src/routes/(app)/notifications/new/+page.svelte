@@ -16,38 +16,55 @@
 		MessageSquare,
 		Webhook
 	} from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
 
-	const channelTypes = [
-		{ value: 'email', label: 'Email', icon: Mail, description: 'Send alerts via email' },
-		{
-			value: 'slack',
-			label: 'Slack',
-			icon: MessageSquare,
-			description: 'Post to a Slack channel via webhook'
-		},
-		{
-			value: 'discord',
-			label: 'Discord',
-			icon: MessageSquare,
-			description: 'Post to a Discord channel via webhook'
-		},
-		{
-			value: 'webhook',
-			label: 'Webhook',
-			icon: Webhook,
-			description: 'Send to a custom HTTP endpoint'
+	function getChannelTypeLabel(type: string): string {
+		switch (type) {
+			case 'email':
+				return m.notification_type_email();
+			case 'slack':
+				return m.notification_type_slack();
+			case 'discord':
+				return m.notification_type_discord();
+			case 'webhook':
+				return m.notification_type_webhook();
+			default:
+				return type;
 		}
-	] as const;
+	}
+
+	function getChannelTypeDesc(type: string): string {
+		switch (type) {
+			case 'email':
+				return m.notification_email_desc();
+			case 'slack':
+				return m.notification_slack_desc();
+			case 'discord':
+				return m.notification_discord_desc();
+			case 'webhook':
+				return m.notification_webhook_desc();
+			default:
+				return '';
+		}
+	}
+
+	const channelTypeValues = ['email', 'slack', 'discord', 'webhook'] as const;
+	const channelTypeIcons = {
+		email: Mail,
+		slack: MessageSquare,
+		discord: MessageSquare,
+		webhook: Webhook
+	};
 
 	const httpMethods = ['POST', 'PUT', 'PATCH'] as const;
 </script>
 
 <svelte:head>
-	<title>New Notification Channel - Uppity</title>
+	<title>{m.notification_new_title()} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -56,8 +73,8 @@
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">New Notification Channel</h1>
-			<p class="text-muted-foreground">Configure where to receive alerts</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.notification_new_title()}</h1>
+			<p class="text-muted-foreground">{m.notification_new_subtitle()}</p>
 		</div>
 	</div>
 
@@ -71,15 +88,15 @@
 
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Basic Information</Card.Title>
+				<Card.Title>{m.notification_basic_info()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<Field.Field>
-					<Field.Label for="name">Name *</Field.Label>
+					<Field.Label for="name">{m.common_name()} *</Field.Label>
 					<Input
 						id="name"
 						name="name"
-						placeholder="My Notification Channel"
+						placeholder={m.notification_name_placeholder()}
 						bind:value={$form.name}
 						disabled={$delayed}
 						aria-invalid={$errors.name ? 'true' : undefined}
@@ -88,23 +105,23 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label>Channel Type</Field.Label>
+					<Field.Label>{m.notification_channel_type()}</Field.Label>
 					<div class="grid grid-cols-2 gap-3">
-						{#each channelTypes as channelType (channelType.value)}
-							{@const Icon = channelType.icon}
+						{#each channelTypeValues as channelType (channelType)}
+							{@const Icon = channelTypeIcons[channelType]}
 							<button
 								type="button"
 								class="flex items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted {$form.type ===
-								channelType.value
+								channelType
 									? 'border-primary bg-primary/5'
 									: 'border-border'}"
-								onclick={() => ($form.type = channelType.value)}
+								onclick={() => ($form.type = channelType)}
 								disabled={$delayed}
 							>
 								<Icon class="h-5 w-5 shrink-0" />
 								<div>
-									<div class="font-medium">{channelType.label}</div>
-									<div class="text-xs text-muted-foreground">{channelType.description}</div>
+									<div class="font-medium">{getChannelTypeLabel(channelType)}</div>
+									<div class="text-xs text-muted-foreground">{getChannelTypeDesc(channelType)}</div>
 								</div>
 							</button>
 						{/each}
@@ -117,11 +134,11 @@
 		{#if $form.type === 'email'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Email Configuration</Card.Title>
+					<Card.Title>{m.notification_email_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="email">Email Address *</Field.Label>
+						<Field.Label for="email">{m.notification_email_address()} *</Field.Label>
 						<Input
 							id="email"
 							name="email"
@@ -131,7 +148,7 @@
 							disabled={$delayed}
 							aria-invalid={$errors.email ? 'true' : undefined}
 						/>
-						<Field.Description>Alerts will be sent to this email address.</Field.Description>
+						<Field.Description>{m.notification_email_address_desc()}</Field.Description>
 						<Field.Error errors={$errors.email} />
 					</Field.Field>
 				</Card.Content>
@@ -139,11 +156,11 @@
 		{:else if $form.type === 'slack'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Slack Configuration</Card.Title>
+					<Card.Title>{m.notification_slack_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="webhookUrl">Webhook URL *</Field.Label>
+						<Field.Label for="webhookUrl">{m.notification_webhook_url()} *</Field.Label>
 						<Input
 							id="webhookUrl"
 							name="webhookUrl"
@@ -154,13 +171,13 @@
 							aria-invalid={$errors.webhookUrl ? 'true' : undefined}
 						/>
 						<Field.Description>
-							Create an incoming webhook in your Slack workspace settings.
+							{m.notification_slack_webhook_desc()}
 						</Field.Description>
 						<Field.Error errors={$errors.webhookUrl} />
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="channel">Channel (optional)</Field.Label>
+						<Field.Label for="channel">{m.notification_slack_channel()}</Field.Label>
 						<Input
 							id="channel"
 							name="channel"
@@ -169,7 +186,7 @@
 							disabled={$delayed}
 						/>
 						<Field.Description>
-							Override the default channel. Don't include the # symbol.
+							{m.notification_slack_channel_desc()}
 						</Field.Description>
 					</Field.Field>
 				</Card.Content>
@@ -177,11 +194,11 @@
 		{:else if $form.type === 'discord'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Discord Configuration</Card.Title>
+					<Card.Title>{m.notification_discord_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="discordWebhookUrl">Webhook URL *</Field.Label>
+						<Field.Label for="discordWebhookUrl">{m.notification_webhook_url()} *</Field.Label>
 						<Input
 							id="discordWebhookUrl"
 							name="discordWebhookUrl"
@@ -192,8 +209,7 @@
 							aria-invalid={$errors.discordWebhookUrl ? 'true' : undefined}
 						/>
 						<Field.Description>
-							Create a webhook in your Discord channel settings (Edit Channel → Integrations →
-							Webhooks).
+							{m.notification_discord_webhook_desc()}
 						</Field.Description>
 						<Field.Error errors={$errors.discordWebhookUrl} />
 					</Field.Field>
@@ -202,11 +218,11 @@
 		{:else if $form.type === 'webhook'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Webhook Configuration</Card.Title>
+					<Card.Title>{m.notification_webhook_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="url">URL *</Field.Label>
+						<Field.Label for="url">{m.notification_webhook_endpoint()} *</Field.Label>
 						<Input
 							id="url"
 							name="url"
@@ -220,7 +236,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="method">HTTP Method</Field.Label>
+						<Field.Label for="method">{m.notification_http_method()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -231,8 +247,8 @@
 								{$form.method ?? 'POST'}
 							</Select.Trigger>
 							<Select.Content>
-								{#each httpMethods as m (m)}
-									<Select.Item value={m}>{m}</Select.Item>
+								{#each httpMethods as method (method)}
+									<Select.Item value={method}>{method}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -240,7 +256,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="headers">Custom Headers (JSON)</Field.Label>
+						<Field.Label for="headers">{m.notification_custom_headers()}</Field.Label>
 						<Textarea
 							id="headers"
 							name="headers"
@@ -249,11 +265,11 @@
 							bind:value={$form.headers}
 							disabled={$delayed}
 						/>
-						<Field.Description>Optional. Must be valid JSON.</Field.Description>
+						<Field.Description>{m.notification_headers_desc()}</Field.Description>
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="bodyTemplate">Custom Body Template (JSON)</Field.Label>
+						<Field.Label for="bodyTemplate">{m.notification_body_template()}</Field.Label>
 						<Textarea
 							id="bodyTemplate"
 							name="bodyTemplate"
@@ -263,8 +279,7 @@
 							disabled={$delayed}
 						/>
 						<Field.Description>
-							Optional. Use placeholders like {'{{monitor.name}}'}, {'{{status}}'}, {'{{timestamp}}'},
-							{'{{errorMessage}}'}.
+							{m.notification_body_template_desc()}
 						</Field.Description>
 					</Field.Field>
 				</Card.Content>
@@ -272,13 +287,15 @@
 		{/if}
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/notifications" disabled={$delayed}>Cancel</Button>
+			<Button variant="outline" href="/notifications" disabled={$delayed}
+				>{m.common_cancel()}</Button
+			>
 			<Button type="submit" disabled={$delayed}>
 				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Creating...
+					{m.notification_creating()}
 				{:else}
-					Create Channel
+					{m.notification_create()}
 				{/if}
 			</Button>
 		</div>

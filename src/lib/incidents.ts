@@ -1,5 +1,6 @@
 import type { Component } from "svelte";
 
+import { m } from "$lib/paraglide/messages.js";
 import {
 	Search,
 	Eye,
@@ -27,25 +28,76 @@ export interface ImpactInfo {
 	bg: string;
 }
 
-export const statusOptions = [
-	{ value: "investigating", label: "Investigating", icon: Search },
-	{ value: "identified", label: "Identified", icon: Eye },
-	{ value: "monitoring", label: "Monitoring", icon: Clock },
-	{ value: "resolved", label: "Resolved", icon: CircleCheckBig },
-] as const;
+export function getStatusOptions() {
+	return [
+		{ value: "investigating", label: m.incident_status_investigating(), icon: Search },
+		{ value: "identified", label: m.incident_status_identified(), icon: Eye },
+		{ value: "monitoring", label: m.incident_status_monitoring(), icon: Clock },
+		{ value: "resolved", label: m.incident_status_resolved(), icon: CircleCheckBig },
+	] as const;
+}
 
-export const impactOptions = [
-	{ value: "none", label: "None" },
-	{ value: "minor", label: "Minor" },
-	{ value: "major", label: "Major" },
-	{ value: "critical", label: "Critical" },
-] as const;
+export function getImpactOptions() {
+	return [
+		{ value: "none", label: m.incident_impact_none() },
+		{ value: "minor", label: m.incident_impact_minor() },
+		{ value: "major", label: m.incident_impact_major() },
+		{ value: "critical", label: m.incident_impact_critical() },
+	] as const;
+}
+
+export function getStatusLabel(status: string): string {
+	switch (status) {
+		case "investigating":
+			return m.incident_status_investigating();
+		case "identified":
+			return m.incident_status_identified();
+		case "monitoring":
+			return m.incident_status_monitoring();
+		case "resolved":
+			return m.incident_status_resolved();
+		case "postmortem":
+			return m.incident_status_postmortem();
+		default:
+			return status;
+	}
+}
+
+export function getImpactLabel(impact: string): string {
+	switch (impact) {
+		case "none":
+			return m.incident_impact_none();
+		case "minor":
+			return m.incident_impact_minor();
+		case "major":
+			return m.incident_impact_major();
+		case "critical":
+			return m.incident_impact_critical();
+		default:
+			return impact;
+	}
+}
+
+export function getImpactDescription(impact: string): string {
+	switch (impact) {
+		case "none":
+			return m.incident_impact_none_desc();
+		case "minor":
+			return m.incident_impact_minor_desc();
+		case "major":
+			return m.incident_impact_major_desc();
+		case "critical":
+			return m.incident_impact_critical_desc();
+		default:
+			return "";
+	}
+}
 
 export function getStatusInfo(status: string): StatusInfo {
 	switch (status) {
 		case "investigating":
 			return {
-				label: "Investigating",
+				label: m.incident_status_investigating(),
 				icon: Search,
 				variant: "destructive",
 				color: "text-red-600",
@@ -53,7 +105,7 @@ export function getStatusInfo(status: string): StatusInfo {
 			};
 		case "identified":
 			return {
-				label: "Identified",
+				label: m.incident_status_identified(),
 				icon: Eye,
 				variant: "destructive",
 				color: "text-orange-600",
@@ -61,7 +113,7 @@ export function getStatusInfo(status: string): StatusInfo {
 			};
 		case "monitoring":
 			return {
-				label: "Monitoring",
+				label: m.incident_status_monitoring(),
 				icon: Clock,
 				variant: "secondary",
 				color: "text-yellow-600",
@@ -69,7 +121,7 @@ export function getStatusInfo(status: string): StatusInfo {
 			};
 		case "resolved":
 			return {
-				label: "Resolved",
+				label: m.incident_status_resolved(),
 				icon: CircleCheckBig,
 				variant: "outline",
 				color: "text-green-600",
@@ -77,7 +129,7 @@ export function getStatusInfo(status: string): StatusInfo {
 			};
 		case "postmortem":
 			return {
-				label: "Postmortem",
+				label: m.incident_status_postmortem(),
 				icon: FileText,
 				variant: "outline",
 				color: "text-blue-600",
@@ -98,28 +150,28 @@ export function getImpactInfo(impact: string): ImpactInfo {
 	switch (impact) {
 		case "none":
 			return {
-				label: "None",
+				label: m.incident_impact_none(),
 				variant: "outline",
 				color: "text-gray-600",
 				bg: "bg-gray-100",
 			};
 		case "minor":
 			return {
-				label: "Minor",
+				label: m.incident_impact_minor(),
 				variant: "secondary",
 				color: "text-yellow-700",
 				bg: "bg-yellow-100",
 			};
 		case "major":
 			return {
-				label: "Major",
+				label: m.incident_impact_major(),
 				variant: "destructive",
 				color: "text-orange-700",
 				bg: "bg-orange-100",
 			};
 		case "critical":
 			return {
-				label: "Critical",
+				label: m.incident_impact_critical(),
 				variant: "destructive",
 				color: "text-red-700",
 				bg: "bg-red-100",

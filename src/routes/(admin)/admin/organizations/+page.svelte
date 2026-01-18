@@ -10,6 +10,7 @@
 	import { useSearchParams } from 'runed/kit';
 	import * as v from 'valibot';
 	import { formatDateShort } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -24,15 +25,15 @@
 </script>
 
 <svelte:head>
-	<title>Organizations - Admin - Uppity</title>
+	<title>{m.admin_orgs_title()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-bold">Organizations</h1>
+		<h1 class="text-2xl font-bold">{m.admin_orgs_title()}</h1>
 		<Button href={resolve('/admin/organizations/new')}>
 			<Plus class="mr-2 h-4 w-4" />
-			New Organization
+			{m.admin_orgs_new()}
 		</Button>
 	</div>
 
@@ -43,7 +44,7 @@
 					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						type="search"
-						placeholder="Search organizations..."
+						placeholder={m.admin_orgs_search()}
 						class="pl-9"
 						bind:value={params.search}
 						onchange={() => (params.page = 1)}
@@ -55,10 +56,10 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head>Slug</Table.Head>
-						<Table.Head>Members</Table.Head>
-						<Table.Head>Created</Table.Head>
+						<Table.Head>{m.admin_table_name()}</Table.Head>
+						<Table.Head>{m.admin_table_slug()}</Table.Head>
+						<Table.Head>{m.admin_table_members()}</Table.Head>
+						<Table.Head>{m.admin_table_created()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -83,7 +84,7 @@
 					{#if data.organizations.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={4} class="text-center text-muted-foreground">
-								No organizations found
+								{m.admin_orgs_no_orgs()}
 							</Table.Cell>
 						</Table.Row>
 					{/if}
@@ -95,7 +96,7 @@
 				{totalPages}
 				limit={data.limit}
 				total={data.total}
-				itemName="organizations"
+				itemName={m.items_organizations()}
 				onPageChange={(p) => (params.page = p)}
 			/>
 		</Card.Content>

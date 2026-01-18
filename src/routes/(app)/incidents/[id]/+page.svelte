@@ -13,12 +13,19 @@
 	import { LoaderCircle, Trash2, FileText, Pencil, X } from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import {
-		statusOptions,
-		impactOptions,
 		getStatusInfo,
 		getImpactInfo,
+		getStatusLabel,
+		getImpactLabel,
 		formatIncidentDate
 	} from '$lib/incidents';
+	import {
+		INCIDENT_STATUS_VALUES,
+		INCIDENT_IMPACTS,
+		type IncidentStatusValue,
+		type IncidentImpact
+	} from '$lib/constants/status';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -85,15 +92,15 @@
 	<PageHeader backHref="/incidents">
 		<div class="flex items-center gap-2">
 			<h1 class="text-2xl font-bold tracking-tight">{data.incident.title}</h1>
-			<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+			<Badge variant={statusInfo.variant}>{getStatusLabel(data.incident.status)}</Badge>
 			<Badge variant={impactInfo.variant}>
-				{impactInfo.label} impact
+				{m.incidents_impact({ impact: getImpactLabel(data.incident.impact) })}
 			</Badge>
 		</div>
 		<p class="text-sm text-muted-foreground">
-			Started {formatIncidentDate(data.incident.startedAt)}
+			{m.incident_started_at({ date: formatIncidentDate(data.incident.startedAt) })}
 			{#if data.incident.resolvedAt}
-				| Resolved {formatIncidentDate(data.incident.resolvedAt)}
+				| {m.incident_resolved_at({ date: formatIncidentDate(data.incident.resolvedAt) })}
 			{/if}
 		</p>
 		{#snippet actions()}
@@ -131,26 +138,25 @@
 	{#if data.incident.status !== 'resolved'}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Post Update</Card.Title>
-				<Card.Description>Add a new update to the incident timeline</Card.Description>
+				<Card.Title>{m.incident_post_update()}</Card.Title>
+				<Card.Description>{m.incident_post_update_desc()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<form method="POST" action="?/addUpdate" class="space-y-4" use:addEnhance>
 					<Field.Field>
-						<Field.Label for="status">New Status</Field.Label>
+						<Field.Label for="status">{m.incident_new_status()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="status"
 							value={$addForm.status}
-							onValueChange={(v) =>
-								($addForm.status = v as 'investigating' | 'identified' | 'monitoring' | 'resolved')}
+							onValueChange={(v) => ($addForm.status = v as IncidentStatusValue)}
 						>
 							<Select.Trigger class="w-full">
-								{statusOptions.find((s) => s.value === $addForm.status)?.label || 'Select status'}
+								{getStatusLabel($addForm.status) || m.incident_select_status()}
 							</Select.Trigger>
 							<Select.Content>
-								{#each statusOptions as opt (opt.value)}
-									<Select.Item value={opt.value}>{opt.label}</Select.Item>
+								{#each INCIDENT_STATUS_VALUES as status (status)}
+									<Select.Item value={status}>{getStatusLabel(status)}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -159,11 +165,11 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="message">Update Message *</Field.Label>
+						<Field.Label for="message">{m.incident_update_message()} *</Field.Label>
 						<Textarea
 							id="message"
 							name="message"
-							placeholder="Provide an update on the current status..."
+							placeholder={m.incident_update_placeholder()}
 							bind:value={$addForm.message}
 							disabled={$addDelayed}
 							rows={3}
@@ -175,9 +181,9 @@
 					<Button type="submit" disabled={$addDelayed || !$addForm.message?.trim()}>
 						{#if $addDelayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							Posting...
+							{m.incident_posting()}
 						{:else}
-							Post Update
+							{m.incident_post_update()}
 						{/if}
 					</Button>
 				</form>
@@ -191,13 +197,13 @@
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
 					<FileText class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-					Postmortem
+					{m.incident_postmortem()}
 				</Card.Title>
 				<Card.Description>
 					{#if existingPostmortem}
-						Document what happened, root cause, and lessons learned
+						{m.incident_postmortem_desc_existing()}
 					{:else}
-						Add a postmortem to document what happened and lessons learned
+						{m.incident_postmortem_desc_new()}
 					{/if}
 				</Card.Description>
 			</Card.Header>
@@ -213,11 +219,13 @@
 						>
 							<input type="hidden" name="updateId" value={existingPostmortem.id} />
 							<Field.Field>
-								<Field.Label for="edit-postmortem-message">Postmortem Content *</Field.Label>
+								<Field.Label for="edit-postmortem-message"
+									>{m.incident_postmortem_content()} *</Field.Label
+								>
 								<Textarea
 									id="edit-postmortem-message"
 									name="message"
-									placeholder="Describe what happened, the root cause, impact, and lessons learned..."
+									placeholder={m.incident_postmortem_placeholder()}
 									bind:value={$editPostmortemForm.message}
 									disabled={$editPostmortemDelayed}
 									rows={6}
@@ -233,14 +241,14 @@
 								>
 									{#if $editPostmortemDelayed}
 										<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-										Saving...
+										{m.common_saving()}
 									{:else}
-										Save Changes
+										{m.common_save_changes()}
 									{/if}
 								</Button>
 								<Button type="button" variant="outline" onclick={() => (editingPostmortem = false)}>
 									<X class="mr-2 h-4 w-4" />
-									Cancel
+									{m.common_cancel()}
 								</Button>
 							</div>
 						</form>
@@ -252,11 +260,13 @@
 							</div>
 							<div class="flex items-center justify-between">
 								<p class="text-xs text-muted-foreground">
-									Published {formatIncidentDate(existingPostmortem.createdAt)}
+									{m.incident_postmortem_published({
+										date: formatIncidentDate(existingPostmortem.createdAt)
+									})}
 								</p>
 								<Button variant="outline" size="sm" onclick={() => (editingPostmortem = true)}>
 									<Pencil class="mr-2 h-3 w-3" />
-									Edit
+									{m.common_edit()}
 								</Button>
 							</div>
 						</div>
@@ -265,11 +275,12 @@
 					<!-- Add postmortem form -->
 					<form method="POST" action="?/addPostmortem" class="space-y-4" use:postmortemEnhance>
 						<Field.Field>
-							<Field.Label for="postmortem-message">Postmortem Content *</Field.Label>
+							<Field.Label for="postmortem-message">{m.incident_postmortem_content()} *</Field.Label
+							>
 							<Textarea
 								id="postmortem-message"
 								name="message"
-								placeholder="Describe what happened, the root cause, impact, and lessons learned..."
+								placeholder={m.incident_postmortem_placeholder()}
 								bind:value={$postmortemForm.message}
 								disabled={$postmortemDelayed}
 								rows={6}
@@ -281,10 +292,10 @@
 						<Button type="submit" disabled={$postmortemDelayed || !$postmortemForm.message?.trim()}>
 							{#if $postmortemDelayed}
 								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-								Publishing...
+								{m.incident_postmortem_publishing()}
 							{:else}
 								<FileText class="mr-2 h-4 w-4" />
-								Publish Postmortem
+								{m.incident_postmortem_publish()}
 							{/if}
 						</Button>
 					</form>
@@ -296,7 +307,7 @@
 	<!-- Timeline -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Timeline</Card.Title>
+			<Card.Title>{m.incident_timeline()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<div class="relative space-y-6">
@@ -313,7 +324,7 @@
 						<div class="flex-1 pb-2">
 							<div class="flex items-center gap-2">
 								<Badge variant={updateStatusInfo.variant} class="text-xs">
-									{updateStatusInfo.label}
+									{getStatusLabel(update.status)}
 								</Badge>
 								<span class="text-xs text-muted-foreground">
 									{formatIncidentDate(update.createdAt)}
@@ -331,7 +342,7 @@
 	{#if data.incident.affectedMonitors.length > 0}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Affected Monitors</Card.Title>
+				<Card.Title>{m.incident_affected_monitors()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<div class="flex flex-wrap gap-2">
@@ -349,12 +360,12 @@
 	<!-- Edit Incident -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Edit Incident</Card.Title>
+			<Card.Title>{m.incident_edit()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/update" class="space-y-4" use:editEnhance>
 				<Field.Field>
-					<Field.Label for="title">Title</Field.Label>
+					<Field.Label for="title">{m.incident_title_label()}</Field.Label>
 					<Input
 						id="title"
 						name="title"
@@ -366,19 +377,19 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="impact">Impact</Field.Label>
+					<Field.Label for="impact">{m.incident_impact()}</Field.Label>
 					<Select.Root
 						type="single"
 						name="impact"
 						value={$editForm.impact}
-						onValueChange={(v) => ($editForm.impact = v as 'none' | 'minor' | 'major' | 'critical')}
+						onValueChange={(v) => ($editForm.impact = v as IncidentImpact)}
 					>
 						<Select.Trigger class="w-full">
-							{impactOptions.find((i) => i.value === $editForm.impact)?.label || 'Select impact'}
+							{getImpactLabel($editForm.impact) || m.incident_select_impact()}
 						</Select.Trigger>
 						<Select.Content>
-							{#each impactOptions as opt (opt.value)}
-								<Select.Item value={opt.value}>{opt.label}</Select.Item>
+							{#each INCIDENT_IMPACTS as impact (impact)}
+								<Select.Item value={impact}>{getImpactLabel(impact)}</Select.Item>
 							{/each}
 						</Select.Content>
 					</Select.Root>
@@ -389,9 +400,9 @@
 				<Button type="submit" disabled={$editDelayed}>
 					{#if $editDelayed}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						Saving...
+						{m.common_saving()}
 					{:else}
-						Save Changes
+						{m.common_save_changes()}
 					{/if}
 				</Button>
 			</form>
@@ -402,7 +413,6 @@
 <DeleteDialog
 	open={showDeleteDialog}
 	onOpenChange={(open) => (showDeleteDialog = open)}
-	title="Delete incident?"
-	description="This will permanently delete &quot;{data.incident
-		.title}&quot; and all its updates. This action cannot be undone."
+	title={m.incident_delete_confirm()}
+	description={m.incident_delete_desc({ title: data.incident.title })}
 />

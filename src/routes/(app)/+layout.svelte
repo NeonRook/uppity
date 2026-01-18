@@ -23,6 +23,7 @@
 		SunMoon
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, children } = $props();
 
@@ -62,12 +63,12 @@
 	}
 
 	const navigation = [
-		{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-		{ name: 'Monitors', href: '/monitors', icon: Monitor },
-		{ name: 'Incidents', href: '/incidents', icon: TriangleAlert },
-		{ name: 'Status Pages', href: '/status-pages', icon: Globe },
-		{ name: 'Notifications', href: '/notifications', icon: Bell },
-		{ name: 'Settings', href: '/settings', icon: Settings }
+		{ name: m.nav_dashboard(), href: '/dashboard', icon: LayoutDashboard },
+		{ name: m.nav_monitors(), href: '/monitors', icon: Monitor },
+		{ name: m.nav_incidents(), href: '/incidents', icon: TriangleAlert },
+		{ name: m.nav_status_pages(), href: '/status-pages', icon: Globe },
+		{ name: m.nav_notifications(), href: '/notifications', icon: Bell },
+		{ name: m.nav_settings(), href: '/settings', icon: Settings }
 	];
 
 	function isActive(href: string): boolean {
@@ -124,7 +125,7 @@
 						</div>
 						<div class="flex flex-1 flex-col items-start overflow-hidden">
 							<span class="w-full truncate text-sm font-medium">
-								{data.currentOrganization?.name ?? 'No Organization'}
+								{data.currentOrganization?.name ?? m.org_no_organization()}
 							</span>
 						</div>
 						<ChevronDown
@@ -134,7 +135,7 @@
 						/>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content class="w-56" align="start">
-						<DropdownMenu.Label>Organizations</DropdownMenu.Label>
+						<DropdownMenu.Label>{m.org_organizations()}</DropdownMenu.Label>
 						<DropdownMenu.Separator />
 						{#each data.organizations as org (org.id)}
 							<DropdownMenu.Item
@@ -148,13 +149,13 @@
 							</DropdownMenu.Item>
 						{/each}
 						{#if data.organizations.length === 0}
-							<DropdownMenu.Item disabled>No organizations</DropdownMenu.Item>
+							<DropdownMenu.Item disabled>{m.org_no_organizations()}</DropdownMenu.Item>
 						{/if}
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item>
 							<a href={resolve('/settings')} class="flex w-full items-center">
 								<Settings class="mr-2 h-4 w-4" />
-								Manage Organizations
+								{m.org_manage()}
 							</a>
 						</DropdownMenu.Item>
 					</DropdownMenu.Content>
@@ -200,35 +201,35 @@
 						/>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content class="w-56" align="end">
-						<DropdownMenu.Label>My Account</DropdownMenu.Label>
+						<DropdownMenu.Label>{m.account_my_account()}</DropdownMenu.Label>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item>
 							<a href={resolve('/settings')} class="flex w-full items-center">
 								<Settings class="mr-2 h-4 w-4" />
-								Settings
+								{m.common_settings()}
 							</a>
 						</DropdownMenu.Item>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Label class="text-xs font-normal text-muted-foreground">
-							Theme
+							{m.theme_theme()}
 						</DropdownMenu.Label>
 						<DropdownMenu.Item onSelect={() => setTheme('light')}>
 							<Sun class="mr-2 h-4 w-4" />
-							Light
+							{m.theme_light()}
 							{#if mounted && theme === 'light'}
 								<Check class="ml-auto h-4 w-4" />
 							{/if}
 						</DropdownMenu.Item>
 						<DropdownMenu.Item onSelect={() => setTheme('dark')}>
 							<Moon class="mr-2 h-4 w-4" />
-							Dark
+							{m.theme_dark()}
 							{#if mounted && theme === 'dark'}
 								<Check class="ml-auto h-4 w-4" />
 							{/if}
 						</DropdownMenu.Item>
 						<DropdownMenu.Item onSelect={() => setTheme('system')}>
 							<SunMoon class="mr-2 h-4 w-4" />
-							System
+							{m.theme_system()}
 							{#if mounted && theme === 'system'}
 								<Check class="ml-auto h-4 w-4" />
 							{/if}
@@ -236,7 +237,7 @@
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item onSelect={handleSignOut}>
 							<LogOut class="mr-2 h-4 w-4" />
-							Sign out
+							{m.account_sign_out()}
 						</DropdownMenu.Item>
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>

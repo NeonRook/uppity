@@ -7,6 +7,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle, ArrowLeft } from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -36,7 +37,7 @@
 </script>
 
 <svelte:head>
-	<title>Create Organization - Admin - Uppity</title>
+	<title>{m.admin_orgs_create()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -44,7 +45,7 @@
 		<Button variant="ghost" size="icon" href="/admin/organizations">
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
-		<h1 class="text-2xl font-bold">Create Organization</h1>
+		<h1 class="text-2xl font-bold">{m.admin_orgs_create()}</h1>
 	</div>
 
 	<Card.Root>
@@ -58,7 +59,7 @@
 				{/if}
 
 				<Field.Field>
-					<Field.Label for="name">Name</Field.Label>
+					<Field.Label for="name">{m.common_name()}</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -70,7 +71,7 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="slug">Slug</Field.Label>
+					<Field.Label for="slug">{m.admin_orgs_slug()}</Field.Label>
 					<Input
 						id="slug"
 						name="slug"
@@ -80,20 +81,20 @@
 						oninput={handleSlugChange}
 					/>
 					<Field.Description>
-						Used in URLs. Only lowercase letters, numbers, and hyphens.
+						{m.admin_orgs_slug_desc()}
 					</Field.Description>
 					<Field.Error errors={$errors.slug} />
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="logo">Logo URL (optional)</Field.Label>
+					<Field.Label for="logo">{m.admin_orgs_logo()}</Field.Label>
 					<Input
 						id="logo"
 						name="logo"
 						type="url"
 						bind:value={$form.logo}
 						disabled={$delayed}
-						placeholder="https://example.com/logo.png"
+						placeholder={m.admin_orgs_logo_placeholder()}
 					/>
 					<Field.Error errors={$errors.logo} />
 				</Field.Field>
@@ -102,12 +103,14 @@
 					<Button type="submit" disabled={$delayed}>
 						{#if $delayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							Creating...
+							{m.admin_orgs_creating()}
 						{:else}
-							Create Organization
+							{m.admin_orgs_create()}
 						{/if}
 					</Button>
-					<Button variant="outline" href="/admin/organizations" disabled={$delayed}>Cancel</Button>
+					<Button variant="outline" href="/admin/organizations" disabled={$delayed}
+						>{m.common_cancel()}</Button
+					>
 				</div>
 			</form>
 		</Card.Content>
