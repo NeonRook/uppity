@@ -1,3 +1,10 @@
+import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
+
+import {
+	DEFAULT_INCIDENT_STATUS,
+	DEFAULT_INCIDENT_IMPACT,
+	AUTO_RESOLVE_MESSAGE,
+} from "$lib/constants/defaults";
 import { db } from "$lib/server/db";
 import {
 	incident,
@@ -9,14 +16,6 @@ import {
 } from "$lib/server/db/schema";
 import { eq, and, desc, inArray, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
-
-export type IncidentStatus =
-	| "investigating"
-	| "identified"
-	| "monitoring"
-	| "resolved"
-	| "postmortem";
-export type IncidentImpact = "none" | "minor" | "major" | "critical";
 
 export interface CreateIncidentInput {
 	organizationId: string;
@@ -61,8 +60,8 @@ export class IncidentService {
 				id,
 				organizationId: input.organizationId,
 				title: input.title,
-				status: input.status || "investigating",
-				impact: input.impact || "minor",
+				status: input.status || DEFAULT_INCIDENT_STATUS,
+				impact: input.impact || DEFAULT_INCIDENT_IMPACT,
 				startedAt: new Date(),
 				createdBy: input.createdBy,
 				isAutoCreated: input.isAutoCreated || false,
@@ -83,7 +82,7 @@ export class IncidentService {
 		await db.insert(incidentUpdate).values({
 			id: nanoid(),
 			incidentId: id,
-			status: input.status || "investigating",
+			status: input.status || DEFAULT_INCIDENT_STATUS,
 			message: input.message,
 			createdBy: input.createdBy,
 		});
@@ -343,7 +342,7 @@ export class IncidentService {
 		await this.addUpdate({
 			incidentId,
 			status: "resolved",
-			message: "Monitor has recovered automatically.",
+			message: AUTO_RESOLVE_MESSAGE,
 		});
 	}
 }

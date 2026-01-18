@@ -10,14 +10,6 @@ import {
 	type IconProps,
 } from "@lucide/svelte";
 
-export type IncidentStatus =
-	| "investigating"
-	| "identified"
-	| "monitoring"
-	| "resolved"
-	| "postmortem";
-export type IncidentImpact = "none" | "minor" | "major" | "critical";
-
 type IconComponent = Component<IconProps>;
 
 export interface StatusInfo {

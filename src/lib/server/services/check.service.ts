@@ -1,3 +1,18 @@
+import {
+	DEFAULT_TIMEOUT_SECONDS,
+	DEFAULT_INTERVAL_SECONDS,
+	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+	DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
+	DEFAULT_HTTP_METHOD,
+	DEFAULT_EXPECTED_STATUS_CODES,
+	DEFAULT_HTTPS_PORT,
+	DEFAULT_INCIDENT_STATUS,
+	DEGRADED_RESPONSE_TIME_MS,
+	SSL_INFO_TIMEOUT_MS,
+	RETRY_DELAY_MS,
+	USER_AGENT,
+	DEFAULT_RETRIES,
+} from "$lib/constants/defaults";
 import { db } from "$lib/server/db";
 import {
 	monitorCheck,
@@ -41,16 +56,17 @@ export class CheckService {
 
 		const startTime = Date.now();
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), (monitor.timeoutSeconds || 30) * 1000);
+		const timeoutSeconds = monitor.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
+		const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
 
 		try {
 			const headers: Record<string, string> = {
-				"User-Agent": "Uppity/1.0 (Uptime Monitor)",
+				"User-Agent": USER_AGENT,
 				...monitor.headers,
 			};
 
 			const response = await fetch(monitor.url, {
-				method: monitor.method || "GET",
+				method: monitor.method || DEFAULT_HTTP_METHOD,
 				headers,
 				body: monitor.method !== "GET" && monitor.method !== "HEAD" ? monitor.body : undefined,
 				signal: controller.signal,
@@ -60,7 +76,7 @@ export class CheckService {
 			const responseTimeMs = Date.now() - startTime;
 
 			// Check status code
-			const expectedCodes = monitor.expectedStatusCodes || [200];
+			const expectedCodes = monitor.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES];
 			const statusOk = expectedCodes.includes(response.status);
 
 			// Check body content if configured
@@ -79,7 +95,7 @@ export class CheckService {
 			// Determine status without nested ternary
 			let status: "up" | "down" | "degraded" = "down";
 			if (statusOk && bodyOk) {
-				status = responseTimeMs > 5000 ? "degraded" : "up";
+				status = responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up";
 			}
 
 			// Determine error message without negated conditions
@@ -106,7 +122,7 @@ export class CheckService {
 			let errorMessage = "Unknown error";
 			if (error instanceof Error) {
 				if (error.name === "AbortError") {
-					errorMessage = `Request timeout after ${monitor.timeoutSeconds}s`;
+					errorMessage = `Request timeout after ${timeoutSeconds}s`;
 				} else {
 					errorMessage = error.message;
 				}
@@ -126,7 +142,8 @@ export class CheckService {
 		}
 
 		const startTime = Date.now();
-		const timeoutMs = (monitor.timeoutSeconds || 30) * 1000;
+		const timeoutSeconds = monitor.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
+		const timeoutMs = timeoutSeconds * 1000;
 
 		return new Promise((resolve) => {
 			let resolved = false;
@@ -139,7 +156,7 @@ export class CheckService {
 					resolve({
 						status: "down",
 						responseTimeMs: Date.now() - startTime,
-						errorMessage: `Connection timeout after ${monitor.timeoutSeconds}s`,
+						errorMessage: `Connection timeout after ${timeoutSeconds}s`,
 					});
 				}
 			}, timeoutMs);
@@ -156,7 +173,7 @@ export class CheckService {
 							const responseTimeMs = Date.now() - startTime;
 							s.end();
 							resolve({
-								status: responseTimeMs > 5000 ? "degraded" : "up",
+								status: responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up",
 								responseTimeMs,
 							});
 						}
@@ -204,7 +221,7 @@ export class CheckService {
 		try {
 			const urlObj = new URL(url);
 			const { hostname } = urlObj;
-			const port = urlObj.port ? parseInt(urlObj.port, 10) : 443;
+			const port = urlObj.port ? parseInt(urlObj.port, 10) : DEFAULT_HTTPS_PORT;
 
 			return new Promise((resolve) => {
 				let resolved = false;
@@ -214,7 +231,7 @@ export class CheckService {
 						resolved = true;
 						resolve({});
 					}
-				}, 5000);
+				}, SSL_INFO_TIMEOUT_MS);
 
 				Bun.connect({
 					hostname,
@@ -273,8 +290,8 @@ export class CheckService {
 
 	private async performPushCheck(monitor: Monitor): Promise<CheckResult> {
 		// Push monitors check if we received a ping within the grace period
-		const gracePeriodSeconds = monitor.pushGracePeriodSeconds || 60;
-		const expectedInterval = monitor.intervalSeconds || 60;
+		const gracePeriodSeconds = monitor.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS;
+		const expectedInterval = monitor.intervalSeconds || DEFAULT_INTERVAL_SECONDS;
 		const totalAllowedSeconds = expectedInterval + gracePeriodSeconds;
 
 		// Get the last check for this monitor
@@ -390,7 +407,7 @@ export class CheckService {
 					await incidentService.create({
 						organizationId: monitor.organizationId,
 						title: `${monitor.name} is down`,
-						status: "investigating",
+						status: DEFAULT_INCIDENT_STATUS,
 						impact: "major",
 						message: result.errorMessage || "Monitor is not responding.",
 						monitorIds: [monitorId],
@@ -425,7 +442,7 @@ export class CheckService {
 			const daysUntilExpiry = Math.floor(
 				(result.sslExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
 			);
-			const threshold = monitor.sslExpiryThresholdDays || 14;
+			const threshold = monitor.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
 
 			if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
 				const updatedStatus: MonitorStatus = {
@@ -445,7 +462,7 @@ export class CheckService {
 	}
 
 	async performCheckWithRetries(monitor: Monitor): Promise<CheckResult> {
-		const retries = monitor.retries || 0;
+		const retries = monitor.retries ?? DEFAULT_RETRIES;
 		let lastResult: CheckResult | null = null;
 
 		for (let attempt = 0; attempt <= retries; attempt++) {
@@ -457,7 +474,7 @@ export class CheckService {
 
 			// Wait a bit before retrying
 			if (attempt < retries) {
-				await new Promise((resolve) => setTimeout(resolve, 1000));
+				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 			}
 		}
 

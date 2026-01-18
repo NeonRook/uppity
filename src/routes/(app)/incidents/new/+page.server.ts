@@ -1,4 +1,4 @@
-import type { IncidentStatus, IncidentImpact } from "$lib/server/services/incident.service";
+import type { IncidentStatus } from "$lib/constants/status";
 
 import { createIncidentSchema } from "$lib/schemas/incident";
 import { incidentService } from "$lib/server/services/incident.service";
@@ -40,7 +40,7 @@ export const actions: Actions = {
 				organizationId: locals.session.activeOrganizationId,
 				title: data.title,
 				status: data.status as IncidentStatus,
-				impact: data.impact as IncidentImpact,
+				impact: data.impact,
 				message: data.message,
 				monitorIds: data.monitors ?? [],
 				createdBy: locals.user?.id,

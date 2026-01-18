@@ -1,4 +1,11 @@
 import { getRequestEvent } from "$app/server";
+import {
+	SESSION_EXPIRES_IN_SECONDS,
+	SESSION_UPDATE_AGE_SECONDS,
+	ORGANIZATION_MEMBERSHIP_LIMIT,
+	ORGANIZATION_LIMIT_PER_USER,
+	ORGANIZATION_CREATOR_ROLE,
+} from "$lib/constants/auth";
 import { db } from "$lib/server/db";
 import * as authSchema from "$lib/server/db/auth-schema";
 import { betterAuth } from "better-auth";
@@ -36,15 +43,15 @@ export const auth = betterAuth({
 		requireEmailVerification: false,
 	},
 	session: {
-		expiresIn: 60 * 60 * 24 * 30, // 30 days
-		updateAge: 60 * 60 * 24, // 1 day
+		expiresIn: SESSION_EXPIRES_IN_SECONDS,
+		updateAge: SESSION_UPDATE_AGE_SECONDS,
 	},
 	plugins: [
 		organization({
 			allowUserToCreateOrganization: true,
-			organizationLimit: 5,
-			creatorRole: "owner",
-			membershipLimit: 100,
+			organizationLimit: ORGANIZATION_LIMIT_PER_USER,
+			creatorRole: ORGANIZATION_CREATOR_ROLE,
+			membershipLimit: ORGANIZATION_MEMBERSHIP_LIMIT,
 		}),
 		admin(),
 		sveltekitCookies(getRequestEvent),

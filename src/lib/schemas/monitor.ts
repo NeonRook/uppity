@@ -1,19 +1,30 @@
+import {
+	DEFAULT_INTERVAL_SECONDS,
+	DEFAULT_TIMEOUT_SECONDS,
+	DEFAULT_RETRIES,
+	DEFAULT_ALERT_AFTER_FAILURES,
+	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+	DEFAULT_HTTP_METHOD,
+} from "$lib/constants/defaults";
 import * as v from "valibot";
 
 const baseMonitorSchema = {
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
 	description: v.optional(v.string()),
-	intervalSeconds: v.optional(v.pipe(v.number(), v.minValue(10)), 60),
-	timeoutSeconds: v.optional(v.pipe(v.number(), v.minValue(1)), 30),
-	retries: v.optional(v.pipe(v.number(), v.minValue(0)), 0),
-	alertAfterFailures: v.optional(v.pipe(v.number(), v.minValue(1)), 1),
+	intervalSeconds: v.optional(v.pipe(v.number(), v.minValue(10)), DEFAULT_INTERVAL_SECONDS),
+	timeoutSeconds: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_TIMEOUT_SECONDS),
+	retries: v.optional(v.pipe(v.number(), v.minValue(0)), DEFAULT_RETRIES),
+	alertAfterFailures: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_ALERT_AFTER_FAILURES),
 };
 
 const httpMonitorSchema = v.object({
 	...baseMonitorSchema,
 	type: v.literal("http"),
 	url: v.pipe(v.string(), v.url("Valid URL is required")),
-	method: v.optional(v.picklist(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]), "GET"),
+	method: v.optional(
+		v.picklist(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]),
+		DEFAULT_HTTP_METHOD,
+	),
 	sslCheckEnabled: v.optional(v.boolean(), false),
 });
 
@@ -27,7 +38,10 @@ const tcpMonitorSchema = v.object({
 const pushMonitorSchema = v.object({
 	...baseMonitorSchema,
 	type: v.literal("push"),
-	pushGracePeriodSeconds: v.optional(v.pipe(v.number(), v.minValue(0)), 60),
+	pushGracePeriodSeconds: v.optional(
+		v.pipe(v.number(), v.minValue(0)),
+		DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+	),
 });
 
 export const createMonitorSchema = v.variant("type", [

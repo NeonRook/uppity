@@ -1,11 +1,10 @@
-import type { IncidentStatus, IncidentImpact } from "$lib/server/services/incident.service";
+import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
 
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,
 	addPostmortemSchema,
 	editPostmortemSchema,
-	incidentImpactValues,
 } from "$lib/schemas/incident";
 import { incidentService } from "$lib/server/services/incident.service";
 import { fail, redirect, error } from "@sveltejs/kit";
@@ -29,7 +28,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const updateForm = await superValidate(
-		{ title: incident.title, impact: incident.impact as (typeof incidentImpactValues)[number] },
+		{ title: incident.title, impact: incident.impact as IncidentImpact },
 		valibot(updateIncidentSchema),
 	);
 	const addUpdateForm = await superValidate(valibot(addIncidentUpdateSchema));
@@ -61,7 +60,7 @@ export const actions: Actions = {
 
 		await incidentService.update(params.id, locals.session.activeOrganizationId, {
 			title: form.data.title,
-			impact: form.data.impact as IncidentImpact,
+			impact: form.data.impact,
 		});
 
 		return message(form, "Incident updated");
