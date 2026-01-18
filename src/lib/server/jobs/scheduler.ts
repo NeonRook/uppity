@@ -1,3 +1,13 @@
+import { DEFAULT_INTERVAL_SECONDS } from "$lib/constants/defaults";
+import {
+	CRON_DAILY_STATS,
+	CRON_ROLLING_STATS,
+	CRON_CLEANUP,
+	CHECK_RETENTION_DAYS,
+	QUEUE_POLL_INTERVAL_MS,
+	MINUTE_THRESHOLD_SECONDS,
+	HOUR_THRESHOLD_SECONDS,
+} from "$lib/constants/scheduler";
 import { db } from "$lib/server/db";
 import { monitor, type Monitor } from "$lib/server/db/schema";
 import { checkService } from "$lib/server/services/check.service";
@@ -53,8 +63,8 @@ class Scheduler {
 	}
 
 	private scheduleMaintenanceJobs(): void {
-		// Daily stats aggregation - runs at 1:00 AM
-		const dailyStatsJob = cron.schedule("0 1 * * *", async () => {
+		// Daily stats aggregation
+		const dailyStatsJob = cron.schedule(CRON_DAILY_STATS, async () => {
 			console.log("[Scheduler] Running daily stats aggregation...");
 			try {
 				const count = await statsService.aggregateYesterday();
@@ -64,10 +74,10 @@ class Scheduler {
 			}
 		});
 		this.maintenanceJobs.push(dailyStatsJob);
-		console.log("[Scheduler] Scheduled daily stats aggregation (1:00 AM)");
+		console.log(`[Scheduler] Scheduled daily stats aggregation (${CRON_DAILY_STATS})`);
 
-		// 24h rolling stats update - runs every 5 minutes
-		const rollingStatsJob = cron.schedule("*/5 * * * *", async () => {
+		// 24h rolling stats update
+		const rollingStatsJob = cron.schedule(CRON_ROLLING_STATS, async () => {
 			try {
 				await statsService.updateAll24hStats();
 			} catch (error) {
@@ -75,20 +85,22 @@ class Scheduler {
 			}
 		});
 		this.maintenanceJobs.push(rollingStatsJob);
-		console.log("[Scheduler] Scheduled 24h stats updates (every 5 min)");
+		console.log(`[Scheduler] Scheduled 24h stats updates (${CRON_ROLLING_STATS})`);
 
-		// Cleanup old checks - runs at 2:00 AM
-		const cleanupJob = cron.schedule("0 2 * * *", async () => {
+		// Cleanup old checks
+		const cleanupJob = cron.schedule(CRON_CLEANUP, async () => {
 			console.log("[Scheduler] Running check data cleanup...");
 			try {
-				const deleted = await statsService.cleanupOldChecks(30);
+				const deleted = await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS);
 				console.log(`[Scheduler] Deleted ${deleted} old check records`);
 			} catch (error) {
 				console.error("[Scheduler] Failed to cleanup old checks:", error);
 			}
 		});
 		this.maintenanceJobs.push(cleanupJob);
-		console.log("[Scheduler] Scheduled check cleanup (2:00 AM, keep 30 days)");
+		console.log(
+			`[Scheduler] Scheduled check cleanup (${CRON_CLEANUP}, keep ${CHECK_RETENTION_DAYS} days)`,
+		);
 	}
 
 	stop(): void {
@@ -115,15 +127,15 @@ class Scheduler {
 
 		if (!m.active) return;
 
-		const intervalSeconds = m.intervalSeconds || 60;
+		const intervalSeconds = m.intervalSeconds || DEFAULT_INTERVAL_SECONDS;
 
 		// Convert interval to cron expression
 		// For intervals less than 60 seconds, we use a different approach
 		let cronExpression: string;
-		if (intervalSeconds < 60) {
+		if (intervalSeconds < MINUTE_THRESHOLD_SECONDS) {
 			// Run every minute and handle sub-minute intervals in the callback
 			cronExpression = "* * * * *";
-		} else if (intervalSeconds < 3600) {
+		} else if (intervalSeconds < HOUR_THRESHOLD_SECONDS) {
 			// Run every N minutes
 			const minutes = Math.floor(intervalSeconds / 60);
 			cronExpression = `*/${minutes} * * * *`;
@@ -171,7 +183,7 @@ class Scheduler {
 
 		while (this.isRunning) {
 			if (this.checkQueue.length === 0) {
-				await new Promise((resolve) => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, QUEUE_POLL_INTERVAL_MS));
 				continue;
 			}
 

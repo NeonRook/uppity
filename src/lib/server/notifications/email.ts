@@ -1,3 +1,4 @@
+import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "$lib/constants/defaults";
 import nodemailer from "nodemailer";
 
 import type {
@@ -9,6 +10,7 @@ import type {
 
 // Use Bun.env directly to ensure runtime resolution
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = Bun.env;
+const SMTP_SECURE_PORT = String(DEFAULT_SMTP_SECURE_PORT);
 
 export class EmailNotificationProvider implements NotificationProvider {
 	private transporter: nodemailer.Transporter | null = null;
@@ -24,7 +26,7 @@ export class EmailNotificationProvider implements NotificationProvider {
 			this.transporter = nodemailer.createTransport({
 				host: SMTP_HOST,
 				port: parseInt(SMTP_PORT, 10),
-				secure: SMTP_PORT === "465",
+				secure: SMTP_PORT === SMTP_SECURE_PORT,
 				auth:
 					SMTP_USER && SMTP_PASSWORD
 						? {
@@ -48,7 +50,7 @@ export class EmailNotificationProvider implements NotificationProvider {
 			const { subject, html, text } = this.formatMessage(payload);
 
 			await this.transporter.sendMail({
-				from: SMTP_FROM || "Uppity <noreply@uppity.app>",
+				from: SMTP_FROM || DEFAULT_EMAIL_FROM,
 				to: this.config.email,
 				subject,
 				html,

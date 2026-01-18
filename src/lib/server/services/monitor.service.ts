@@ -1,3 +1,14 @@
+import {
+	DEFAULT_TIMEOUT_SECONDS,
+	DEFAULT_INTERVAL_SECONDS,
+	DEFAULT_RETRIES,
+	DEFAULT_ALERT_AFTER_FAILURES,
+	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+	DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
+	DEFAULT_HTTP_METHOD,
+	DEFAULT_EXPECTED_STATUS_CODES,
+	PUSH_TOKEN_LENGTH,
+} from "$lib/constants/defaults";
 import { db } from "$lib/server/db";
 import { monitor, monitorStatus, type Monitor } from "$lib/server/db/schema";
 import { scheduler } from "$lib/server/jobs/scheduler";
@@ -43,21 +54,21 @@ export class MonitorService {
 				description: input.description,
 				type: input.type || "http",
 				url: input.url,
-				method: input.method || "GET",
+				method: input.method || DEFAULT_HTTP_METHOD,
 				headers: input.headers,
 				body: input.body,
-				expectedStatusCodes: input.expectedStatusCodes || [200],
+				expectedStatusCodes: input.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES],
 				expectedBodyContains: input.expectedBodyContains,
 				hostname: input.hostname,
 				port: input.port,
-				intervalSeconds: input.intervalSeconds || 60,
-				timeoutSeconds: input.timeoutSeconds || 30,
-				retries: input.retries || 0,
+				intervalSeconds: input.intervalSeconds || DEFAULT_INTERVAL_SECONDS,
+				timeoutSeconds: input.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS,
+				retries: input.retries ?? DEFAULT_RETRIES,
 				sslCheckEnabled: input.sslCheckEnabled ?? true,
-				sslExpiryThresholdDays: input.sslExpiryThresholdDays || 14,
-				alertAfterFailures: input.alertAfterFailures || 1,
-				pushToken: input.type === "push" ? nanoid(32) : null,
-				pushGracePeriodSeconds: input.pushGracePeriodSeconds || 60,
+				sslExpiryThresholdDays: input.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
+				alertAfterFailures: input.alertAfterFailures || DEFAULT_ALERT_AFTER_FAILURES,
+				pushToken: input.type === "push" ? nanoid(PUSH_TOKEN_LENGTH) : null,
+				pushGracePeriodSeconds: input.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 			})
 			.returning();
 

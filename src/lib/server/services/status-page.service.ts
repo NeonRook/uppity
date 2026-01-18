@@ -1,3 +1,4 @@
+import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
 import { db } from "$lib/server/db";
 import {
 	statusPage,
@@ -121,7 +122,7 @@ export class StatusPageService {
 				isPublic: input.isPublic ?? true,
 				logoUrl: input.logoUrl,
 				faviconUrl: input.faviconUrl,
-				primaryColor: input.primaryColor || "#000000",
+				primaryColor: input.primaryColor || DEFAULT_PRIMARY_COLOR,
 				customCss: input.customCss,
 			})
 			.returning();
@@ -337,9 +338,9 @@ export class StatusPageService {
 		// Get monitors with their status
 		const pageMonitors = await this.getMonitors(page.id);
 
-		// Get 90-day history for each monitor
-		const ninetyDaysAgo = new Date();
-		ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+		// Get history for each monitor
+		const historyDaysAgo = new Date();
+		historyDaysAgo.setDate(historyDaysAgo.getDate() - STATUS_PAGE_HISTORY_DAYS);
 
 		const monitorIds = pageMonitors.map((pm) => pm.monitor.id);
 
@@ -368,7 +369,7 @@ export class StatusPageService {
 						.where(
 							and(
 								inArray(monitorCheck.monitorId, monitorIds),
-								gte(monitorCheck.checkedAt, ninetyDaysAgo),
+								gte(monitorCheck.checkedAt, historyDaysAgo),
 							),
 						)
 						.groupBy(monitorCheck.monitorId, sql`DATE(${monitorCheck.checkedAt})`)
@@ -397,8 +398,8 @@ export class StatusPageService {
 			const history = monitorHistoryMap.get(pm.monitor.id) || new Map();
 			const dailyHistory: PublicMonitorStatus["dailyHistory"] = [];
 
-			// Generate 90 days of history
-			for (let i = 89; i >= 0; i--) {
+			// Generate history for configured number of days
+			for (let i = STATUS_PAGE_HISTORY_DAYS - 1; i >= 0; i--) {
 				const date = new Date();
 				date.setDate(date.getDate() - i);
 				const [dateStr] = date.toISOString().split("T");
@@ -421,21 +422,21 @@ export class StatusPageService {
 				}
 			}
 
-			// Calculate 90-day uptime
+			// Calculate uptime over history period
 			let totalChecks = 0;
 			let upChecks = 0;
 			for (const [, data] of history) {
 				totalChecks += data.total;
 				upChecks += data.up;
 			}
-			const uptimePercent90d = totalChecks > 0 ? (upChecks / totalChecks) * 100 : 100;
+			const uptimePercentHistory = totalChecks > 0 ? (upChecks / totalChecks) * 100 : 100;
 
 			return {
 				id: pm.pageMonitor.id,
 				name: pm.pageMonitor.displayName || pm.monitor.name,
 				description: pm.monitor.description,
 				status: (pm.status?.status as "up" | "down" | "degraded") || "unknown",
-				uptimePercent90d,
+				uptimePercent90d: uptimePercentHistory,
 				dailyHistory,
 			};
 		};
@@ -509,7 +510,7 @@ export class StatusPageService {
 
 		const activeIncidents = activeIncidentsRaw.map(this.formatIncidentData);
 
-		// Get resolved incidents (last 90 days)
+		// Get resolved incidents (within history period)
 		const resolvedIncidentsRaw = await db
 			.select({
 				incident: incident,
@@ -532,7 +533,7 @@ export class StatusPageService {
 				and(
 					inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]),
 					sql`${incident.status} = 'resolved'`,
-					gte(incident.resolvedAt, ninetyDaysAgo),
+					gte(incident.resolvedAt, historyDaysAgo),
 				),
 			)
 			.groupBy(incident.id)
