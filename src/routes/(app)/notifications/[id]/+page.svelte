@@ -19,6 +19,7 @@
 		Webhook,
 		Trash2
 	} from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -33,13 +34,13 @@
 	function getChannelTypeName(t: string): string {
 		switch (t) {
 			case 'email':
-				return 'Email';
+				return m.notification_type_email();
 			case 'slack':
-				return 'Slack';
+				return m.notification_type_slack();
 			case 'discord':
-				return 'Discord';
+				return m.notification_type_discord();
 			case 'webhook':
-				return 'Webhook';
+				return m.notification_type_webhook();
 			default:
 				return t;
 		}
@@ -63,7 +64,7 @@
 </script>
 
 <svelte:head>
-	<title>Edit {data.channel.name} - Uppity</title>
+	<title>{m.notification_edit_title()} - {data.channel.name} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -76,7 +77,7 @@
 				<h1 class="text-3xl font-bold tracking-tight">{data.channel.name}</h1>
 				<Badge variant="secondary">{getChannelTypeName(type)}</Badge>
 			</div>
-			<p class="text-muted-foreground">Edit notification channel settings</p>
+			<p class="text-muted-foreground">{m.notification_edit_subtitle()}</p>
 		</div>
 		<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}>
 			<Trash2 class="h-4 w-4" />
@@ -105,15 +106,15 @@
 
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Basic Information</Card.Title>
+				<Card.Title>{m.notification_basic_info()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<Field.Field>
-					<Field.Label for="name">Name *</Field.Label>
+					<Field.Label for="name">{m.common_name()} *</Field.Label>
 					<Input
 						id="name"
 						name="name"
-						placeholder="My Notification Channel"
+						placeholder={m.notification_name_placeholder()}
 						value={data.channel.name}
 						required
 						disabled={loading}
@@ -121,13 +122,13 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label>Channel Type</Field.Label>
+					<Field.Label>{m.notification_channel_type()}</Field.Label>
 					<div class="flex items-center gap-3 rounded-lg border p-4">
 						<TypeIcon class="h-5 w-5 shrink-0" />
 						<div>
 							<div class="font-medium">{getChannelTypeName(type)}</div>
 							<Field.Description>
-								Channel type cannot be changed. Create a new channel instead.
+								{m.notification_type_cannot_change()}
 							</Field.Description>
 						</div>
 					</div>
@@ -138,11 +139,11 @@
 		{#if type === 'email'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Email Configuration</Card.Title>
+					<Card.Title>{m.notification_email_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="email">Email Address *</Field.Label>
+						<Field.Label for="email">{m.notification_email_address()} *</Field.Label>
 						<Input
 							id="email"
 							name="email"
@@ -158,11 +159,11 @@
 		{:else if type === 'slack'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Slack Configuration</Card.Title>
+					<Card.Title>{m.notification_slack_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="webhookUrl">Webhook URL *</Field.Label>
+						<Field.Label for="webhookUrl">{m.notification_webhook_url()} *</Field.Label>
 						<Input
 							id="webhookUrl"
 							name="webhookUrl"
@@ -175,7 +176,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="channel">Channel (optional)</Field.Label>
+						<Field.Label for="channel">{m.notification_slack_channel()}</Field.Label>
 						<Input
 							id="channel"
 							name="channel"
@@ -189,11 +190,11 @@
 		{:else if type === 'discord'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Discord Configuration</Card.Title>
+					<Card.Title>{m.notification_discord_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="discordWebhookUrl">Webhook URL *</Field.Label>
+						<Field.Label for="discordWebhookUrl">{m.notification_webhook_url()} *</Field.Label>
 						<Input
 							id="discordWebhookUrl"
 							name="discordWebhookUrl"
@@ -209,11 +210,11 @@
 		{:else if type === 'webhook'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Webhook Configuration</Card.Title>
+					<Card.Title>{m.notification_webhook_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="url">URL *</Field.Label>
+						<Field.Label for="url">{m.notification_webhook_endpoint()} *</Field.Label>
 						<Input
 							id="url"
 							name="url"
@@ -226,7 +227,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="method">HTTP Method</Field.Label>
+						<Field.Label for="method">{m.notification_http_method()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -237,8 +238,8 @@
 								{method}
 							</Select.Trigger>
 							<Select.Content>
-								{#each httpMethods as m (m)}
-									<Select.Item value={m}>{m}</Select.Item>
+								{#each httpMethods as httpMethod (httpMethod)}
+									<Select.Item value={httpMethod}>{httpMethod}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -246,7 +247,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="headers">Custom Headers (JSON)</Field.Label>
+						<Field.Label for="headers">{m.notification_custom_headers()}</Field.Label>
 						<Textarea
 							id="headers"
 							name="headers"
@@ -258,7 +259,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="bodyTemplate">Custom Body Template (JSON)</Field.Label>
+						<Field.Label for="bodyTemplate">{m.notification_body_template()}</Field.Label>
 						<Textarea
 							id="bodyTemplate"
 							name="bodyTemplate"
@@ -273,13 +274,14 @@
 		{/if}
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/notifications" disabled={loading}>Cancel</Button>
+			<Button variant="outline" href="/notifications" disabled={loading}>{m.common_cancel()}</Button
+			>
 			<Button type="submit" disabled={loading}>
 				{#if loading}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Saving...
+					{m.notification_saving()}
 				{:else}
-					Save Changes
+					{m.notification_save()}
 				{/if}
 			</Button>
 		</div>
@@ -289,7 +291,6 @@
 <DeleteDialog
 	open={showDeleteDialog}
 	onOpenChange={(open) => (showDeleteDialog = open)}
-	title="Delete notification channel?"
-	description="This will permanently delete &quot;{data.channel
-		.name}&quot;. You will no longer receive alerts through this channel."
+	title={m.notifications_delete_title()}
+	description={m.notifications_delete_confirm({ name: data.channel.name })}
 />

@@ -15,6 +15,7 @@
 	import { CircleAlert, LoaderCircle, Trash2, UserPlus } from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateShort } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -32,12 +33,6 @@
 	let selectedUserId = $state<string>('');
 	let selectedRole = $state<string>('member');
 
-	const roleOptions = [
-		{ value: 'member', label: 'Member' },
-		{ value: 'admin', label: 'Admin' },
-		{ value: 'owner', label: 'Owner' }
-	];
-
 	function getRoleBadgeVariant(role: string) {
 		switch (role) {
 			case 'owner':
@@ -50,17 +45,24 @@
 	}
 
 	function getRoleLabel(role: string): string {
-		return roleOptions.find((r) => r.value === role)?.label || 'Member';
+		switch (role) {
+			case 'owner':
+				return m.role_owner();
+			case 'admin':
+				return m.role_admin();
+			default:
+				return m.role_member();
+		}
 	}
 
 	function getUserLabel(userId: string): string {
 		const user = data.availableUsers.find((u) => u.id === userId);
-		return user ? `${user.name} (${user.email})` : 'Select a user...';
+		return user ? `${user.name} (${user.email})` : m.admin_orgs_select_user();
 	}
 </script>
 
 <svelte:head>
-	<title>Edit Organization - Admin - Uppity</title>
+	<title>{m.admin_orgs_edit()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
@@ -73,8 +75,8 @@
 	<!-- Organization Details -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Organization Details</Card.Title>
-			<Card.Description>Update organization information</Card.Description>
+			<Card.Title>{m.admin_orgs_details()}</Card.Title>
+			<Card.Description>{m.admin_orgs_details_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/update" use:enhance class="space-y-4">
@@ -87,42 +89,42 @@
 
 				<div class="grid gap-4 sm:grid-cols-2">
 					<Field.Field>
-						<Field.Label for="name">Name</Field.Label>
+						<Field.Label for="name">{m.common_name()}</Field.Label>
 						<Input id="name" name="name" bind:value={$form.name} disabled={$delayed} />
 						<Field.Error errors={$errors.name} />
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="slug">Slug</Field.Label>
+						<Field.Label for="slug">{m.admin_orgs_slug()}</Field.Label>
 						<Input id="slug" name="slug" bind:value={$form.slug} disabled={$delayed} />
 						<Field.Error errors={$errors.slug} />
 					</Field.Field>
 				</div>
 
 				<Field.Field>
-					<Field.Label for="logo">Logo URL (optional)</Field.Label>
+					<Field.Label for="logo">{m.admin_orgs_logo()}</Field.Label>
 					<Input
 						id="logo"
 						name="logo"
 						type="url"
 						bind:value={$form.logo}
 						disabled={$delayed}
-						placeholder="https://example.com/logo.png"
+						placeholder={m.admin_orgs_logo_placeholder()}
 					/>
 					<Field.Error errors={$errors.logo} />
 				</Field.Field>
 
 				<div class="text-sm text-muted-foreground">
-					Created: {formatDateShort(data.org.createdAt)}
+					{m.common_created()}: {formatDateShort(data.org.createdAt)}
 				</div>
 
 				<div class="pt-4">
 					<Button type="submit" disabled={$delayed}>
 						{#if $delayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							Saving...
+							{m.admin_saving()}
 						{:else}
-							Save Changes
+							{m.admin_save_changes()}
 						{/if}
 					</Button>
 				</div>
@@ -135,13 +137,13 @@
 		<Card.Header>
 			<div class="flex items-center justify-between">
 				<div>
-					<Card.Title>Members</Card.Title>
-					<Card.Description>Manage organization members</Card.Description>
+					<Card.Title>{m.admin_orgs_members()}</Card.Title>
+					<Card.Description>{m.admin_orgs_members_desc()}</Card.Description>
 				</div>
 				{#if data.availableUsers.length > 0}
 					<Button size="sm" onclick={() => (showAddMemberDialog = true)}>
 						<UserPlus class="mr-2 h-4 w-4" />
-						Add Member
+						{m.admin_orgs_add_member()}
 					</Button>
 				{/if}
 			</div>
@@ -150,10 +152,10 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head>Email</Table.Head>
-						<Table.Head>Role</Table.Head>
-						<Table.Head>Joined</Table.Head>
+						<Table.Head>{m.admin_table_name()}</Table.Head>
+						<Table.Head>{m.admin_table_email()}</Table.Head>
+						<Table.Head>{m.admin_table_role()}</Table.Head>
+						<Table.Head>{m.admin_table_joined()}</Table.Head>
 						<Table.Head class="w-[50px]"></Table.Head>
 					</Table.Row>
 				</Table.Header>
@@ -168,7 +170,7 @@
 							<Table.Cell class="text-muted-foreground">{member.user.email}</Table.Cell>
 							<Table.Cell>
 								<Badge variant={getRoleBadgeVariant(member.role)}>
-									{member.role}
+									{getRoleLabel(member.role)}
 								</Badge>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground"
@@ -188,7 +190,7 @@
 					{#if data.org.members.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={5} class="text-center text-muted-foreground">
-								No members yet
+								{m.admin_orgs_no_members()}
 							</Table.Cell>
 						</Table.Row>
 					{/if}
@@ -200,13 +202,13 @@
 	<!-- Danger Zone -->
 	<Card.Root class="border-destructive">
 		<Card.Header>
-			<Card.Title class="text-destructive">Danger Zone</Card.Title>
-			<Card.Description>Irreversible actions</Card.Description>
+			<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
+			<Card.Description>{m.settings_irreversible()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Button variant="destructive" onclick={() => (showDeleteDialog = true)}>
 				<Trash2 class="mr-2 h-4 w-4" />
-				Delete Organization
+				{m.admin_orgs_delete()}
 			</Button>
 		</Card.Content>
 	</Card.Root>
@@ -216,13 +218,13 @@
 <AlertDialog.Root bind:open={showAddMemberDialog}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Add Member</AlertDialog.Title>
-			<AlertDialog.Description>Add a user to this organization.</AlertDialog.Description>
+			<AlertDialog.Title>{m.admin_orgs_add_member_title()}</AlertDialog.Title>
+			<AlertDialog.Description>{m.admin_orgs_add_member_desc()}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form method="POST" action="?/addMember">
 			<div class="space-y-4 py-4">
 				<Field.Field>
-					<Field.Label for="userId">User</Field.Label>
+					<Field.Label for="userId">{m.admin_role_user()}</Field.Label>
 					<input type="hidden" name="userId" bind:value={selectedUserId} />
 					<Select.Root
 						type="single"
@@ -242,7 +244,7 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="role">Role</Field.Label>
+					<Field.Label for="role">{m.common_role()}</Field.Label>
 					<input type="hidden" name="role" bind:value={selectedRole} />
 					<Select.Root
 						type="single"
@@ -254,16 +256,16 @@
 							{getRoleLabel(selectedRole)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each roleOptions as option (option.value)}
-								<Select.Item value={option.value}>{option.label}</Select.Item>
-							{/each}
+							<Select.Item value="member">{m.role_member()}</Select.Item>
+							<Select.Item value="admin">{m.role_admin()}</Select.Item>
+							<Select.Item value="owner">{m.role_owner()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-				<Button type="submit" disabled={!selectedUserId}>Add Member</Button>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+				<Button type="submit" disabled={!selectedUserId}>{m.admin_orgs_add_member()}</Button>
 			</AlertDialog.Footer>
 		</form>
 	</AlertDialog.Content>
@@ -273,16 +275,16 @@
 <AlertDialog.Root open={!!memberToRemove} onOpenChange={(open) => !open && (memberToRemove = null)}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Remove Member</AlertDialog.Title>
+			<AlertDialog.Title>{m.admin_orgs_remove_member_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to remove {memberToRemove?.name} from this organization?
+				{m.admin_orgs_remove_member_desc({ name: memberToRemove?.name ?? '' })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 			<form method="POST" action="?/removeMember">
 				<input type="hidden" name="memberId" value={memberToRemove?.id || ''} />
-				<Button type="submit" variant="destructive">Remove</Button>
+				<Button type="submit" variant="destructive">{m.common_remove()}</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
@@ -291,7 +293,6 @@
 <DeleteDialog
 	open={showDeleteDialog}
 	onOpenChange={(open) => (showDeleteDialog = open)}
-	title="Delete Organization"
-	description="Are you sure you want to delete {data.org
-		.name}? This action cannot be undone. All monitors, incidents, and other data associated with this organization will be permanently deleted."
+	title={m.admin_orgs_delete()}
+	description={m.admin_orgs_delete_confirm({ name: data.org.name })}
 />

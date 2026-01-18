@@ -10,6 +10,7 @@
 	import { useSearchParams } from 'runed/kit';
 	import * as v from 'valibot';
 	import { formatDateShort } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -24,15 +25,15 @@
 </script>
 
 <svelte:head>
-	<title>Users - Admin - Uppity</title>
+	<title>{m.admin_users_title()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-bold">Users</h1>
+		<h1 class="text-2xl font-bold">{m.admin_users_title()}</h1>
 		<Button href={resolve('/admin/users/new')}>
 			<Plus class="mr-2 h-4 w-4" />
-			New User
+			{m.admin_users_new()}
 		</Button>
 	</div>
 
@@ -43,7 +44,7 @@
 					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						type="search"
-						placeholder="Search users..."
+						placeholder={m.admin_users_search()}
 						class="pl-9"
 						bind:value={params.search}
 						onchange={() => (params.page = 1)}
@@ -55,11 +56,11 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Name</Table.Head>
-						<Table.Head>Email</Table.Head>
-						<Table.Head>Role</Table.Head>
-						<Table.Head>Status</Table.Head>
-						<Table.Head>Created</Table.Head>
+						<Table.Head>{m.admin_table_name()}</Table.Head>
+						<Table.Head>{m.admin_table_email()}</Table.Head>
+						<Table.Head>{m.admin_table_role()}</Table.Head>
+						<Table.Head>{m.admin_table_status()}</Table.Head>
+						<Table.Head>{m.admin_table_created()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -73,14 +74,14 @@
 							<Table.Cell class="text-muted-foreground">{user.email}</Table.Cell>
 							<Table.Cell>
 								<Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-									{user.role || 'user'}
+									{user.role === 'admin' ? m.admin_role_admin() : m.admin_role_user()}
 								</Badge>
 							</Table.Cell>
 							<Table.Cell>
 								{#if user.banned}
-									<Badge variant="destructive">Banned</Badge>
+									<Badge variant="destructive">{m.admin_users_banned()}</Badge>
 								{:else}
-									<Badge variant="outline">Active</Badge>
+									<Badge variant="outline">{m.common_active()}</Badge>
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground"
@@ -91,7 +92,7 @@
 					{#if data.users.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={5} class="text-center text-muted-foreground">
-								No users found
+								{m.admin_users_no_users()}
 							</Table.Cell>
 						</Table.Row>
 					{/if}
@@ -103,7 +104,7 @@
 				{totalPages}
 				limit={data.limit}
 				total={data.total}
-				itemName="users"
+				itemName={m.items_users()}
 				onPageChange={(p) => (params.page = p)}
 			/>
 		</Card.Content>

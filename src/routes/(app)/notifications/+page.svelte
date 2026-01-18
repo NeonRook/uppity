@@ -8,6 +8,7 @@
 	import type { NotificationChannel } from '$lib/server/db/schema';
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -31,13 +32,13 @@
 	function getChannelTypeName(type: string): string {
 		switch (type) {
 			case 'email':
-				return 'Email';
+				return m.notifications_type_email();
 			case 'slack':
-				return 'Slack';
+				return m.notifications_type_slack();
 			case 'discord':
-				return 'Discord';
+				return m.notifications_type_discord();
 			case 'webhook':
-				return 'Webhook';
+				return m.notifications_type_webhook();
 			default:
 				return type;
 		}
@@ -47,13 +48,13 @@
 		const config = channel.config as Record<string, unknown>;
 		switch (channel.type) {
 			case 'email':
-				return (config.email as string) || 'No email configured';
+				return (config.email as string) || m.notifications_no_email();
 			case 'slack':
-				return config.channel ? `#${config.channel}` : 'Slack Webhook';
+				return config.channel ? `#${config.channel}` : m.notifications_slack_webhook();
 			case 'discord':
-				return 'Discord Webhook';
+				return m.notifications_discord_webhook();
 			case 'webhook':
-				return (config.url as string) || 'No URL configured';
+				return (config.url as string) || m.notifications_no_url();
 			default:
 				return '';
 		}
@@ -61,27 +62,27 @@
 </script>
 
 <svelte:head>
-	<title>Notifications - Uppity</title>
+	<title>{m.notifications_title()} - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Notification Channels</h1>
-			<p class="text-muted-foreground">Configure where to receive alerts</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.notifications_title()}</h1>
+			<p class="text-muted-foreground">{m.notifications_subtitle()}</p>
 		</div>
 		<Button href="/notifications/new">
 			<Plus class="mr-2 h-4 w-4" />
-			Add Channel
+			{m.notifications_add()}
 		</Button>
 	</div>
 
 	{#if data.channels.length === 0}
 		<EmptyState
 			icon={Bell}
-			title="No notification channels"
-			description="Add notification channels to receive alerts when monitors go down."
-			buttonText="Add Channel"
+			title={m.notifications_empty_title()}
+			description={m.notifications_empty_desc()}
+			buttonText={m.notifications_add()}
 			buttonHref="/notifications/new"
 		/>
 	{:else}
@@ -99,7 +100,7 @@
 									<h3 class="font-semibold">{channel.name}</h3>
 									<Badge variant="secondary">{getChannelTypeName(channel.type)}</Badge>
 									{#if !channel.enabled}
-										<Badge variant="outline">Disabled</Badge>
+										<Badge variant="outline">{m.common_disabled()}</Badge>
 									{/if}
 								</div>
 								<p class="text-sm text-muted-foreground">{getChannelDescription(channel)}</p>
@@ -130,7 +131,7 @@
 <DeleteDialog
 	itemId={deleteChannelId}
 	onOpenChange={() => (deleteChannelId = null)}
-	title="Delete notification channel?"
-	description="This will permanently delete this notification channel. You will no longer receive alerts through this channel."
+	title={m.notifications_delete_title()}
+	description={m.notifications_delete_desc()}
 	inputName="channelId"
 />

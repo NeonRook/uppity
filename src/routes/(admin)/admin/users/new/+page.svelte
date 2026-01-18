@@ -8,23 +8,19 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle, ArrowLeft } from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 
-	const roleOptions = [
-		{ value: 'user', label: 'User' },
-		{ value: 'admin', label: 'Admin' }
-	];
-
 	function getRoleLabel(role: string | undefined): string {
-		return roleOptions.find((r) => r.value === role)?.label || 'User';
+		return role === 'admin' ? m.admin_role_admin() : m.admin_role_user();
 	}
 </script>
 
 <svelte:head>
-	<title>Create User - Admin - Uppity</title>
+	<title>{m.admin_users_create()} - Admin - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -32,7 +28,7 @@
 		<Button variant="ghost" size="icon" href="/admin/users">
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
-		<h1 class="text-2xl font-bold">Create User</h1>
+		<h1 class="text-2xl font-bold">{m.admin_users_create()}</h1>
 	</div>
 
 	<Card.Root>
@@ -46,7 +42,7 @@
 				{/if}
 
 				<Field.Field>
-					<Field.Label for="name">Name</Field.Label>
+					<Field.Label for="name">{m.common_name()}</Field.Label>
 					<Input
 						id="name"
 						name="name"
@@ -58,7 +54,7 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="email">Email</Field.Label>
+					<Field.Label for="email">{m.common_email()}</Field.Label>
 					<Input
 						id="email"
 						name="email"
@@ -71,20 +67,20 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="password">Password</Field.Label>
+					<Field.Label for="password">{m.common_password()}</Field.Label>
 					<Input
 						id="password"
 						name="password"
 						type="password"
 						bind:value={$form.password}
 						disabled={$delayed}
-						placeholder="Min. 8 characters"
+						placeholder={m.admin_users_password_placeholder()}
 					/>
 					<Field.Error errors={$errors.password} />
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="role">Role</Field.Label>
+					<Field.Label for="role">{m.common_role()}</Field.Label>
 					<input type="hidden" name="role" bind:value={$form.role} />
 					<Select.Root
 						type="single"
@@ -97,9 +93,8 @@
 							{getRoleLabel($form.role)}
 						</Select.Trigger>
 						<Select.Content>
-							{#each roleOptions as option (option.value)}
-								<Select.Item value={option.value}>{option.label}</Select.Item>
-							{/each}
+							<Select.Item value="user">{m.admin_role_user()}</Select.Item>
+							<Select.Item value="admin">{m.admin_role_admin()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</Field.Field>
@@ -108,12 +103,14 @@
 					<Button type="submit" disabled={$delayed}>
 						{#if $delayed}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-							Creating...
+							{m.admin_users_creating()}
 						{:else}
-							Create User
+							{m.admin_users_create()}
 						{/if}
 					</Button>
-					<Button variant="outline" href="/admin/users" disabled={$delayed}>Cancel</Button>
+					<Button variant="outline" href="/admin/users" disabled={$delayed}
+						>{m.common_cancel()}</Button
+					>
 				</div>
 			</form>
 		</Card.Content>

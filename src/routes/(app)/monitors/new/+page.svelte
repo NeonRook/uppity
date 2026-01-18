@@ -11,13 +11,27 @@
 	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
 	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from '$lib/constants/monitor';
 	import { superForm } from 'sveltekit-superforms';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+
+	function getMonitorTypeLabel(type: string): string {
+		switch (type) {
+			case 'http':
+				return m.monitor_type_http();
+			case 'tcp':
+				return m.monitor_type_tcp();
+			case 'push':
+				return m.monitor_type_push();
+			default:
+				return type;
+		}
+	}
 </script>
 
 <svelte:head>
-	<title>New Monitor - Uppity</title>
+	<title>{m.monitor_new_title()} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
@@ -26,8 +40,8 @@
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">New Monitor</h1>
-			<p class="text-muted-foreground">Create a new uptime monitor</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.monitor_new_title()}</h1>
+			<p class="text-muted-foreground">{m.monitor_new_subtitle()}</p>
 		</div>
 	</div>
 
@@ -41,15 +55,15 @@
 
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>Basic Information</Card.Title>
+				<Card.Title>{m.monitor_basic_info()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<Field.Field>
-					<Field.Label for="name">Name *</Field.Label>
+					<Field.Label for="name">{m.common_name()} *</Field.Label>
 					<Input
 						id="name"
 						name="name"
-						placeholder="My Website"
+						placeholder={m.monitor_name_placeholder()}
 						bind:value={$form.name}
 						required
 						disabled={$delayed}
@@ -59,11 +73,11 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="description">Description</Field.Label>
+					<Field.Label for="description">{m.common_description()}</Field.Label>
 					<Textarea
 						id="description"
 						name="description"
-						placeholder="Optional description"
+						placeholder={m.monitor_desc_placeholder()}
 						bind:value={$form.description}
 						disabled={$delayed}
 						aria-invalid={$errors.description ? 'true' : undefined}
@@ -72,7 +86,7 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.Label for="type">Monitor Type</Field.Label>
+					<Field.Label for="type">{m.monitor_type()}</Field.Label>
 					<Select.Root
 						type="single"
 						name="type"
@@ -80,16 +94,12 @@
 						onValueChange={(v) => ($form.type = v as 'http' | 'tcp' | 'push')}
 					>
 						<Select.Trigger class="w-full">
-							{$form.type === 'http'
-								? 'HTTP(S)'
-								: $form.type === 'tcp'
-									? 'TCP Port'
-									: 'Push / Heartbeat'}
+							{getMonitorTypeLabel($form.type)}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="http">HTTP(S) - Monitor a URL</Select.Item>
-							<Select.Item value="tcp">TCP Port - Check if port is open</Select.Item>
-							<Select.Item value="push">Push / Heartbeat - Wait for pings</Select.Item>
+							<Select.Item value="http">{m.monitor_type_http_desc()}</Select.Item>
+							<Select.Item value="tcp">{m.monitor_type_tcp_desc()}</Select.Item>
+							<Select.Item value="push">{m.monitor_type_push_desc()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="type" value={$form.type} />
@@ -101,16 +111,16 @@
 		{#if $form.type === 'http'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>HTTP Configuration</Card.Title>
+					<Card.Title>{m.monitor_http_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<Field.Field>
-						<Field.Label for="url">URL *</Field.Label>
+						<Field.Label for="url">{m.monitor_url()} *</Field.Label>
 						<Input
 							id="url"
 							name="url"
 							type="url"
-							placeholder="https://example.com"
+							placeholder={m.monitor_url_placeholder()}
 							bind:value={$form.url}
 							required={$form.type === 'http'}
 							disabled={$delayed}
@@ -120,7 +130,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="method">HTTP Method</Field.Label>
+						<Field.Label for="method">{m.monitor_http_method()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="method"
@@ -132,8 +142,8 @@
 								{$form.method}
 							</Select.Trigger>
 							<Select.Content>
-								{#each HTTP_METHODS as m (m)}
-									<Select.Item value={m}>{m}</Select.Item>
+								{#each HTTP_METHODS as method (method)}
+									<Select.Item value={method}>{method}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -142,8 +152,8 @@
 					</Field.Field>
 
 					<Field.Field orientation="horizontal">
-						<Field.Label>SSL Certificate Check</Field.Label>
-						<Field.Description>Monitor SSL certificate expiry</Field.Description>
+						<Field.Label>{m.monitor_ssl_check()}</Field.Label>
+						<Field.Description>{m.monitor_ssl_check_desc()}</Field.Description>
 						<Switch
 							checked={$form.sslCheckEnabled ?? true}
 							onCheckedChange={(checked) => ($form.sslCheckEnabled = checked)}
@@ -159,16 +169,16 @@
 		{:else if $form.type === 'tcp'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>TCP Configuration</Card.Title>
+					<Card.Title>{m.monitor_tcp_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="grid grid-cols-2 gap-4">
 						<Field.Field>
-							<Field.Label for="hostname">Hostname *</Field.Label>
+							<Field.Label for="hostname">{m.monitor_hostname()} *</Field.Label>
 							<Input
 								id="hostname"
 								name="hostname"
-								placeholder="example.com"
+								placeholder={m.monitor_hostname_placeholder()}
 								bind:value={$form.hostname}
 								required={$form.type === 'tcp'}
 								disabled={$delayed}
@@ -177,7 +187,7 @@
 							<Field.Error errors={$errors.hostname} />
 						</Field.Field>
 						<Field.Field>
-							<Field.Label for="port">Port *</Field.Label>
+							<Field.Label for="port">{m.monitor_port()} *</Field.Label>
 							<Input
 								id="port"
 								name="port"
@@ -198,13 +208,11 @@
 		{:else if $form.type === 'push'}
 			<Card.Root class="mt-6">
 				<Card.Header>
-					<Card.Title>Push / Heartbeat</Card.Title>
+					<Card.Title>{m.monitor_push_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content>
 					<p class="text-sm text-muted-foreground">
-						A unique URL will be generated after creation. Your application should send regular
-						requests to this URL. If no request is received within the expected interval, the
-						monitor will be marked as down.
+						{m.monitor_push_desc()}
 					</p>
 				</Card.Content>
 			</Card.Root>
@@ -212,12 +220,12 @@
 
 		<Card.Root class="mt-6">
 			<Card.Header>
-				<Card.Title>Check Settings</Card.Title>
+				<Card.Title>{m.monitor_check_settings()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid grid-cols-2 gap-4">
 					<Field.Field>
-						<Field.Label for="intervalSeconds">Check Interval</Field.Label>
+						<Field.Label for="intervalSeconds">{m.monitor_interval()}</Field.Label>
 						<Select.Root
 							type="single"
 							name="intervalSeconds"
@@ -238,7 +246,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="timeoutSeconds">Timeout</Field.Label>
+						<Field.Label for="timeoutSeconds">{m.monitor_timeout()}</Field.Label>
 						<Input
 							id="timeoutSeconds"
 							name="timeoutSeconds"
@@ -249,14 +257,14 @@
 							disabled={$delayed}
 							aria-invalid={$errors.timeoutSeconds ? 'true' : undefined}
 						/>
-						<Field.Description>seconds</Field.Description>
+						<Field.Description>{m.monitor_timeout_seconds()}</Field.Description>
 						<Field.Error errors={$errors.timeoutSeconds} />
 					</Field.Field>
 				</div>
 
 				<div class="grid grid-cols-2 gap-4">
 					<Field.Field>
-						<Field.Label for="retries">Retries</Field.Label>
+						<Field.Label for="retries">{m.monitor_retries()}</Field.Label>
 						<Input
 							id="retries"
 							name="retries"
@@ -267,12 +275,12 @@
 							disabled={$delayed}
 							aria-invalid={$errors.retries ? 'true' : undefined}
 						/>
-						<Field.Description>Retry before marking as down</Field.Description>
+						<Field.Description>{m.monitor_retries_desc()}</Field.Description>
 						<Field.Error errors={$errors.retries} />
 					</Field.Field>
 
 					<Field.Field>
-						<Field.Label for="alertAfterFailures">Alert After Failures</Field.Label>
+						<Field.Label for="alertAfterFailures">{m.monitor_alert_after()}</Field.Label>
 						<Input
 							id="alertAfterFailures"
 							name="alertAfterFailures"
@@ -283,7 +291,7 @@
 							disabled={$delayed}
 							aria-invalid={$errors.alertAfterFailures ? 'true' : undefined}
 						/>
-						<Field.Description>Consecutive failures before alert</Field.Description>
+						<Field.Description>{m.monitor_alert_after_desc()}</Field.Description>
 						<Field.Error errors={$errors.alertAfterFailures} />
 					</Field.Field>
 				</div>
@@ -291,13 +299,13 @@
 		</Card.Root>
 
 		<div class="mt-6 flex justify-end gap-4">
-			<Button variant="outline" href="/monitors" disabled={$delayed}>Cancel</Button>
+			<Button variant="outline" href="/monitors" disabled={$delayed}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={$delayed}>
 				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					Creating...
+					{m.monitor_creating()}
 				{:else}
-					Create Monitor
+					{m.monitor_create()}
 				{/if}
 			</Button>
 		</div>

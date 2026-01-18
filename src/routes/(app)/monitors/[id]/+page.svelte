@@ -18,6 +18,7 @@
 	import { page } from '$app/state';
 	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
 	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -50,15 +51,19 @@
 
 	function getSslStatus(daysUntil: number | null, threshold: number | null) {
 		if (daysUntil === null) {
-			return { variant: 'secondary' as const, label: 'Unknown', icon: ShieldX };
+			return { variant: 'secondary' as const, label: m.monitor_ssl_unknown(), icon: ShieldX };
 		}
 		if (daysUntil <= 0) {
-			return { variant: 'destructive' as const, label: 'Expired', icon: ShieldX };
+			return { variant: 'destructive' as const, label: m.monitor_ssl_expired(), icon: ShieldX };
 		}
 		if (daysUntil <= (threshold ?? 14)) {
-			return { variant: 'outline' as const, label: 'Expiring Soon', icon: ShieldAlert };
+			return {
+				variant: 'outline' as const,
+				label: m.monitor_ssl_expiring_soon(),
+				icon: ShieldAlert
+			};
 		}
-		return { variant: 'default' as const, label: 'Valid', icon: ShieldCheck };
+		return { variant: 'default' as const, label: m.monitor_ssl_valid(), icon: ShieldCheck };
 	}
 
 	// SSL info comes from the most recent check
@@ -91,15 +96,15 @@
 				<Button variant="outline" size="sm">
 					{#if data.monitor.active}
 						<Pause class="mr-2 h-4 w-4" />
-						Pause
+						{m.monitors_pause()}
 					{:else}
 						<Play class="mr-2 h-4 w-4" />
-						Resume
+						{m.monitors_resume()}
 					{/if}
 				</Button>
 				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
 					<Settings class="mr-2 h-4 w-4" />
-					Edit
+					{m.common_edit()}
 				</Button>
 			</div>
 		{/snippet}
@@ -109,7 +114,9 @@
 	<div class="grid gap-4 md:grid-cols-4">
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground">Uptime (24h)</Card.Title>
+				<Card.Title class="text-sm font-medium text-muted-foreground"
+					>{m.monitor_uptime_24h()}</Card.Title
+				>
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">
@@ -122,7 +129,9 @@
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground">Avg Response</Card.Title>
+				<Card.Title class="text-sm font-medium text-muted-foreground"
+					>{m.monitor_avg_response()}</Card.Title
+				>
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">
@@ -133,7 +142,9 @@
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground">Last Check</Card.Title>
+				<Card.Title class="text-sm font-medium text-muted-foreground"
+					>{m.monitor_last_check()}</Card.Title
+				>
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">
@@ -144,7 +155,9 @@
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground">Check Interval</Card.Title>
+				<Card.Title class="text-sm font-medium text-muted-foreground"
+					>{m.monitor_check_interval()}</Card.Title
+				>
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">{formatInterval(data.monitor.intervalSeconds)}</div>
@@ -155,18 +168,18 @@
 	<!-- Monitor Details -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Configuration</Card.Title>
+			<Card.Title>{m.monitor_configuration()}</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<dl class="grid gap-4 sm:grid-cols-2">
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">Type</dt>
+					<dt class="text-sm font-medium text-muted-foreground">{m.common_type()}</dt>
 					<dd class="mt-1 text-sm uppercase">{data.monitor.type}</dd>
 				</div>
 
 				{#if data.monitor.type === 'http' && data.monitor.url}
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">URL</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_url()}</dt>
 						<dd class="mt-1 flex items-center gap-1 text-sm">
 							<span class="font-mono">{data.monitor.url}</span>
 							<a
@@ -180,14 +193,14 @@
 						</dd>
 					</div>
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Method</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_http_method()}</dt>
 						<dd class="mt-1 text-sm">{data.monitor.method}</dd>
 					</div>
 				{/if}
 
 				{#if data.monitor.type === 'tcp'}
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Host</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_hostname()}</dt>
 						<dd class="mt-1 font-mono text-sm">
 							{data.monitor.hostname}:{data.monitor.port}
 						</dd>
@@ -196,7 +209,7 @@
 
 				{#if data.monitor.type === 'push' && pushUrl}
 					<div class="sm:col-span-2">
-						<dt class="text-sm font-medium text-muted-foreground">Push URL</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_push_url()}</dt>
 						<dd class="mt-1">
 							<div class="flex items-center gap-2">
 								<code class="flex-1 rounded bg-muted px-3 py-2 text-sm break-all">
@@ -211,31 +224,31 @@
 								</Button>
 							</div>
 							<p class="mt-2 text-xs text-muted-foreground">
-								Send a GET, POST, or HEAD request to this URL to record a heartbeat. The monitor
-								will be marked as down if no heartbeat is received within
-								{data.monitor.intervalSeconds + (data.monitor.pushGracePeriodSeconds || 60)} seconds (interval
-								+ grace period).
+								{m.monitor_push_url_desc({
+									seconds:
+										data.monitor.intervalSeconds + (data.monitor.pushGracePeriodSeconds || 60)
+								})}
 							</p>
 						</dd>
 					</div>
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Grace Period</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_grace_period()}</dt>
 						<dd class="mt-1 text-sm">{data.monitor.pushGracePeriodSeconds || 60}s</dd>
 					</div>
 				{/if}
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">Timeout</dt>
+					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_timeout()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.timeoutSeconds}s</dd>
 				</div>
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">Retries</dt>
+					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_retries()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.retries}</dd>
 				</div>
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">Alert After Failures</dt>
+					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_alert_after()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.alertAfterFailures}</dd>
 				</div>
 			</dl>
@@ -247,7 +260,7 @@
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
-					<Card.Title>SSL Certificate</Card.Title>
+					<Card.Title>{m.monitor_ssl_certificate()}</Card.Title>
 					<Badge variant={sslStatus.variant}>
 						<SslIcon class="mr-1 h-3 w-3" />
 						{sslStatus.label}
@@ -257,7 +270,7 @@
 			<Card.Content>
 				<dl class="grid gap-4 sm:grid-cols-2">
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Expires</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_expires()}</dt>
 						<dd class="mt-1 text-sm">
 							{#if latestSslInfo?.sslExpiresAt}
 								{new Date(latestSslInfo.sslExpiresAt).toLocaleDateString(undefined, {
@@ -272,7 +285,7 @@
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Days Until Expiry</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_days_until()}</dt>
 						<dd class="mt-1 text-sm">
 							{#if sslDaysUntilExpiry !== null}
 								<span
@@ -283,8 +296,8 @@
 											: ''}
 								>
 									{sslDaysUntilExpiry <= 0
-										? `Expired ${Math.abs(sslDaysUntilExpiry)} days ago`
-										: `${sslDaysUntilExpiry} days`}
+										? m.monitor_ssl_expired_ago({ days: Math.abs(sslDaysUntilExpiry) })
+										: m.monitor_ssl_days({ days: sslDaysUntilExpiry })}
 								</span>
 							{:else}
 								-
@@ -293,13 +306,15 @@
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Issuer</dt>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_issuer()}</dt>
 						<dd class="mt-1 text-sm">{latestSslInfo?.sslIssuer || '-'}</dd>
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">Expiry Alert Threshold</dt>
-						<dd class="mt-1 text-sm">{data.monitor.sslExpiryThresholdDays ?? 14} days</dd>
+						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_threshold()}</dt>
+						<dd class="mt-1 text-sm">
+							{m.monitor_ssl_days({ days: data.monitor.sslExpiryThresholdDays ?? 14 })}
+						</dd>
 					</div>
 				</dl>
 			</Card.Content>
@@ -309,21 +324,21 @@
 	<!-- Recent Checks -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Recent Checks</Card.Title>
-			<Card.Description>Last 50 health checks</Card.Description>
+			<Card.Title>{m.monitor_recent_checks()}</Card.Title>
+			<Card.Description>{m.monitor_recent_checks_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			{#if data.recentChecks.length === 0}
-				<p class="py-8 text-center text-muted-foreground">No checks recorded yet</p>
+				<p class="py-8 text-center text-muted-foreground">{m.monitor_no_checks()}</p>
 			{:else}
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
 							<Table.Head class="w-10"></Table.Head>
-							<Table.Head>Time</Table.Head>
-							<Table.Head>Status Code</Table.Head>
-							<Table.Head class="text-right">Response Time</Table.Head>
-							<Table.Head>Error</Table.Head>
+							<Table.Head>{m.monitor_table_time()}</Table.Head>
+							<Table.Head>{m.monitor_table_status_code()}</Table.Head>
+							<Table.Head class="text-right">{m.monitor_table_response_time()}</Table.Head>
+							<Table.Head>{m.monitor_table_error()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>

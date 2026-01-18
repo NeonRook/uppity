@@ -6,6 +6,7 @@
 	import type { StatusPage } from '$lib/server/db/schema';
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -20,27 +21,27 @@
 </script>
 
 <svelte:head>
-	<title>Status Pages - Uppity</title>
+	<title>{m.status_pages_title()} - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Status Pages</h1>
-			<p class="text-muted-foreground">Manage your public status pages</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.status_pages_title()}</h1>
+			<p class="text-muted-foreground">{m.status_pages_subtitle()}</p>
 		</div>
 		<Button href="/status-pages/new">
 			<Plus class="mr-2 h-4 w-4" />
-			Create Status Page
+			{m.status_pages_create()}
 		</Button>
 	</div>
 
 	{#if data.statusPages.length === 0}
 		<EmptyState
 			icon={Globe}
-			title="No status pages"
-			description="Create a public status page to keep your users informed."
-			buttonText="Create Status Page"
+			title={m.status_pages_empty_title()}
+			description={m.status_pages_empty_desc()}
+			buttonText={m.status_pages_create()}
 			buttonHref="/status-pages/new"
 		/>
 	{:else}
@@ -65,12 +66,12 @@
 									{#if page.isPublic}
 										<Badge variant="secondary">
 											<Unlock class="mr-1 h-3 w-3" />
-											Public
+											{m.status_pages_public()}
 										</Badge>
 									{:else}
 										<Badge variant="outline">
 											<Lock class="mr-1 h-3 w-3" />
-											Private
+											{m.status_pages_private()}
 										</Badge>
 									{/if}
 								</div>
@@ -103,7 +104,7 @@
 <DeleteDialog
 	itemId={deletePageId}
 	onOpenChange={() => (deletePageId = null)}
-	title="Delete status page?"
-	description="This will permanently delete this status page. The public URL will no longer be accessible."
+	title={m.status_pages_delete_title()}
+	description={m.status_pages_delete_desc()}
 	inputName="statusPageId"
 />

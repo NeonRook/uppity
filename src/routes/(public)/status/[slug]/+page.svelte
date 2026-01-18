@@ -11,6 +11,7 @@
 	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
 	import { formatDuration, formatDateMonthDay } from '$lib/format';
 	import { getMonitorStatusColor, getDayStatusColor } from '$lib/utils/status';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -21,35 +22,35 @@
 		switch (overallStatus) {
 			case 'operational':
 				return {
-					label: 'All Systems Operational',
+					label: m.public_status_all_operational(),
 					icon: CircleCheckBig,
 					bgColor: 'bg-green-500',
 					textColor: 'text-green-500'
 				};
 			case 'degraded':
 				return {
-					label: 'Degraded Performance',
+					label: m.public_status_degraded(),
 					icon: TriangleAlert,
 					bgColor: 'bg-yellow-500',
 					textColor: 'text-yellow-500'
 				};
 			case 'partial_outage':
 				return {
-					label: 'Partial Outage',
+					label: m.public_status_partial(),
 					icon: CircleMinus,
 					bgColor: 'bg-orange-500',
 					textColor: 'text-orange-500'
 				};
 			case 'major_outage':
 				return {
-					label: 'Major Outage',
+					label: m.public_status_major(),
 					icon: CircleX,
 					bgColor: 'bg-red-500',
 					textColor: 'text-red-500'
 				};
 			default:
 				return {
-					label: 'Unknown',
+					label: m.public_status_unknown(),
 					icon: CircleMinus,
 					bgColor: 'bg-gray-500',
 					textColor: 'text-gray-500'
@@ -97,7 +98,9 @@
 		<!-- Active Incidents -->
 		{#if activeIncidents.length > 0}
 			<section class="mb-8">
-				<h2 class="mb-4 text-lg font-semibold text-gray-900">Active Incidents</h2>
+				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+					{m.public_status_active_incidents()}
+				</h2>
 				<div class="space-y-4">
 					{#each activeIncidents as incident (incident.id)}
 						{@const incidentStatusInfo = getStatusInfo(incident.status)}
@@ -121,10 +124,12 @@
 										<span
 											class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}"
 										>
-											{impactInfo.label} Impact
+											{m.incidents_impact({ impact: impactInfo.label })}
 										</span>
 										<span class="text-xs text-gray-500">
-											Started {formatIncidentDateTime(incident.startedAt)}
+											{m.public_status_started({
+												date: formatIncidentDateTime(incident.startedAt)
+											})}
 										</span>
 									</div>
 								</div>
@@ -166,7 +171,7 @@
 									{/each}
 									{#if timelineUpdates.length > 3}
 										<p class="pl-12 text-xs text-gray-500">
-											+ {timelineUpdates.length - 3} more updates - click to view all
+											{m.public_status_more_updates({ count: timelineUpdates.length - 3 })}
 										</p>
 									{/if}
 								</div>
@@ -189,7 +194,7 @@
 									<span class="font-medium text-gray-900">{monitor.name}</span>
 								</div>
 								<span class="text-sm text-gray-500">
-									{monitor.uptimePercent90d.toFixed(2)}% uptime
+									{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 								</span>
 							</div>
 							<!-- 90-day uptime bar -->
@@ -202,8 +207,8 @@
 								{/each}
 							</div>
 							<div class="mt-1 flex justify-between text-xs text-gray-400">
-								<span>90 days ago</span>
-								<span>Today</span>
+								<span>{m.public_status_days_ago()}</span>
+								<span>{m.public_status_today()}</span>
 							</div>
 						</div>
 					{/each}
@@ -228,7 +233,7 @@
 										<span class="font-medium text-gray-900">{monitor.name}</span>
 									</div>
 									<span class="text-sm text-gray-500">
-										{monitor.uptimePercent90d.toFixed(2)}% uptime
+										{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 									</span>
 								</div>
 								<!-- 90-day uptime bar -->
@@ -243,8 +248,8 @@
 									{/each}
 								</div>
 								<div class="mt-1 flex justify-between text-xs text-gray-400">
-									<span>90 days ago</span>
-									<span>Today</span>
+									<span>{m.public_status_days_ago()}</span>
+									<span>{m.public_status_today()}</span>
 								</div>
 							</div>
 						{/each}
@@ -257,7 +262,7 @@
 		<section class="mb-8">
 			<h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
 				<History class="h-5 w-5 text-gray-500" />
-				Incident History
+				{m.public_status_incident_history()}
 			</h2>
 			{#if resolvedIncidents.length > 0}
 				<div class="space-y-3">
@@ -279,7 +284,11 @@
 								<div class="mt-1 flex flex-wrap gap-3 text-xs text-gray-500">
 									<span>{formatIncidentDateTime(incident.startedAt)}</span>
 									{#if incident.resolvedAt}
-										<span>Duration: {formatDuration(incident.startedAt, incident.resolvedAt)}</span>
+										<span
+											>{m.public_status_duration({
+												duration: formatDuration(incident.startedAt, incident.resolvedAt)
+											})}</span
+										>
 									{/if}
 								</div>
 							</div>
@@ -289,34 +298,34 @@
 				</div>
 			{:else}
 				<div class="rounded-lg border bg-white p-6 text-center text-gray-500">
-					No incidents in the past 90 days.
+					{m.public_status_no_incidents()}
 				</div>
 			{/if}
 		</section>
 
 		<!-- Legend -->
 		<section class="mt-12 border-t pt-6">
-			<h3 class="mb-3 text-sm font-medium text-gray-700">Legend</h3>
+			<h3 class="mb-3 text-sm font-medium text-gray-700">{m.public_status_legend()}</h3>
 			<div class="flex flex-wrap gap-4 text-sm">
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-green-500"></div>
-					<span class="text-gray-600">Operational</span>
+					<span class="text-gray-600">{m.public_status_legend_operational()}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
-					<span class="text-gray-600">Degraded</span>
+					<span class="text-gray-600">{m.public_status_legend_degraded()}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-orange-500"></div>
-					<span class="text-gray-600">Partial Outage</span>
+					<span class="text-gray-600">{m.public_status_legend_partial()}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-red-500"></div>
-					<span class="text-gray-600">Down</span>
+					<span class="text-gray-600">{m.public_status_legend_down()}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-gray-400"></div>
-					<span class="text-gray-600">No Data</span>
+					<span class="text-gray-600">{m.public_status_legend_no_data()}</span>
 				</div>
 			</div>
 		</section>
@@ -324,6 +333,8 @@
 
 	<!-- Footer -->
 	<footer class="border-t bg-white py-6">
-		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500">Powered by Uppity</div>
+		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500">
+			{m.public_status_footer()}
+		</div>
 	</footer>
 </div>

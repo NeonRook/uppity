@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	interface Props {
 		/** Current page number (1-indexed) */
@@ -26,8 +27,7 @@
 {#if totalPages > 1}
 	<div class="mt-4 flex items-center justify-between">
 		<p class="text-sm text-muted-foreground">
-			Showing {showingFrom} to {showingTo} of {total}
-			{itemName}
+			{m.pagination_showing({ from: showingFrom, to: showingTo, total, items: itemName })}
 		</p>
 		<div class="flex items-center gap-2">
 			<Button
@@ -39,7 +39,7 @@
 				<ChevronLeft class="h-4 w-4" />
 			</Button>
 			<span class="text-sm">
-				Page {page} of {totalPages}
+				{m.pagination_page({ page, totalPages })}
 			</span>
 			<Button
 				variant="outline"

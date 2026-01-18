@@ -1,5 +1,6 @@
 import type { Component } from "svelte";
 
+import { m } from "$lib/paraglide/messages.js";
 import {
 	Pause,
 	CircleCheckBig,
@@ -33,16 +34,16 @@ export function getStatusColor(status: string | null, active: boolean): string {
  * Get the text label for a monitor status
  */
 export function getStatusLabel(status: string | null, active: boolean): string {
-	if (!active) return "Paused";
+	if (!active) return m.status_paused();
 	switch (status) {
 		case "up":
-			return "Operational";
+			return m.status_operational();
 		case "degraded":
-			return "Degraded";
+			return m.status_degraded();
 		case "down":
-			return "Down";
+			return m.status_down();
 		default:
-			return "Unknown";
+			return m.status_unknown();
 	}
 }
 
@@ -54,17 +55,17 @@ export function getStatusBadge(
 	active: boolean,
 ): { variant: BadgeVariant; label: string } {
 	if (!active) {
-		return { variant: "secondary", label: "Paused" };
+		return { variant: "secondary", label: m.status_paused() };
 	}
 	switch (status) {
 		case "up":
-			return { variant: "default", label: "Operational" };
+			return { variant: "default", label: m.status_operational() };
 		case "degraded":
-			return { variant: "outline", label: "Degraded" };
+			return { variant: "outline", label: m.status_degraded() };
 		case "down":
-			return { variant: "destructive", label: "Down" };
+			return { variant: "destructive", label: m.status_down() };
 		default:
-			return { variant: "secondary", label: "Unknown" };
+			return { variant: "secondary", label: m.status_unknown() };
 	}
 }
 
@@ -76,17 +77,17 @@ export function getStatusBadgeWithIcon(
 	active: boolean,
 ): { variant: BadgeVariant; label: string; icon: IconComponent } {
 	if (!active) {
-		return { variant: "secondary", label: "Paused", icon: Pause };
+		return { variant: "secondary", label: m.status_paused(), icon: Pause };
 	}
 	switch (status) {
 		case "up":
-			return { variant: "default", label: "Operational", icon: CircleCheckBig };
+			return { variant: "default", label: m.status_operational(), icon: CircleCheckBig };
 		case "degraded":
-			return { variant: "outline", label: "Degraded", icon: TriangleAlert };
+			return { variant: "outline", label: m.status_degraded(), icon: TriangleAlert };
 		case "down":
-			return { variant: "destructive", label: "Down", icon: CircleX };
+			return { variant: "destructive", label: m.status_down(), icon: CircleX };
 		default:
-			return { variant: "secondary", label: "Unknown", icon: Clock };
+			return { variant: "secondary", label: m.status_unknown(), icon: Clock };
 	}
 }
 

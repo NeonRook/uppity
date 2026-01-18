@@ -23,6 +23,7 @@
 		Check
 	} from '@lucide/svelte';
 	import { organization } from '$lib/auth-client';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form } = $props();
 
@@ -50,23 +51,23 @@
 	function getRoleBadge(role: string) {
 		switch (role) {
 			case 'owner':
-				return { icon: Crown, variant: 'default' as const, label: 'Owner' };
+				return { icon: Crown, variant: 'default' as const, label: m.role_owner() };
 			case 'admin':
-				return { icon: Shield, variant: 'secondary' as const, label: 'Admin' };
+				return { icon: Shield, variant: 'secondary' as const, label: m.role_admin() };
 			default:
-				return { icon: User, variant: 'outline' as const, label: 'Member' };
+				return { icon: User, variant: 'outline' as const, label: m.role_member() };
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Settings - Uppity</title>
+	<title>{m.settings_title()} - Uppity</title>
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
 	<div>
-		<h1 class="text-3xl font-bold tracking-tight">Settings</h1>
-		<p class="text-muted-foreground">Manage your account and organization settings</p>
+		<h1 class="text-3xl font-bold tracking-tight">{m.settings_title()}</h1>
+		<p class="text-muted-foreground">{m.settings_subtitle()}</p>
 	</div>
 
 	{#if form?.error}
@@ -80,19 +81,19 @@
 			<Check class="h-4 w-4" />
 			<AlertDescription>
 				{#if form.profileUpdated}
-					Profile updated successfully.
+					{m.settings_success_profile()}
 				{:else if form.orgUpdated}
-					Organization updated successfully.
+					{m.settings_success_org()}
 				{:else if form.orgCreated}
-					Organization created successfully. Switch to it below.
+					{m.settings_success_org_created()}
 				{:else if form.inviteSent}
-					Invitation sent successfully.
+					{m.settings_success_invite()}
 				{:else if form.invitationCancelled}
-					Invitation cancelled.
+					{m.settings_success_invite_cancelled()}
 				{:else if form.memberRemoved}
-					Member removed from organization.
+					{m.settings_success_member_removed()}
 				{:else}
-					Changes saved successfully.
+					{m.settings_success_default()}
 				{/if}
 			</AlertDescription>
 		</Alert>
@@ -103,9 +104,9 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<User class="h-5 w-5" />
-				Profile
+				{m.settings_profile()}
 			</Card.Title>
-			<Card.Description>Manage your personal information</Card.Description>
+			<Card.Description>{m.settings_profile_desc()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form
@@ -121,19 +122,19 @@
 				}}
 			>
 				<Field.Field>
-					<Field.Label for="name">Name</Field.Label>
+					<Field.Label for="name">{m.common_name()}</Field.Label>
 					<Input id="name" name="name" value={data.user.name} required disabled={loading} />
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="email">Email</Field.Label>
+					<Field.Label for="email">{m.common_email()}</Field.Label>
 					<Input id="email" type="email" value={data.user.email} disabled />
-					<Field.Description>Email cannot be changed</Field.Description>
+					<Field.Description>{m.settings_email_readonly()}</Field.Description>
 				</Field.Field>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
-					Save Profile
+					{m.settings_save_profile()}
 				</Button>
 			</form>
 		</Card.Content>
@@ -146,20 +147,20 @@
 				<div>
 					<Card.Title class="flex items-center gap-2">
 						<Building2 class="h-5 w-5" />
-						Organization
+						{m.settings_organization()}
 					</Card.Title>
-					<Card.Description>Manage your current organization</Card.Description>
+					<Card.Description>{m.settings_org_desc()}</Card.Description>
 				</div>
 				<Button variant="outline" size="sm" onclick={() => (showCreateOrgDialog = true)}>
 					<Plus class="mr-2 h-4 w-4" />
-					New
+					{m.common_new()}
 				</Button>
 			</div>
 		</Card.Header>
 		<Card.Content class="space-y-4">
 			{#if data.organizations.length > 1}
 				<Field.Field>
-					<Field.Label>Switch Organization</Field.Label>
+					<Field.Label>{m.org_switch()}</Field.Label>
 					<div class="flex flex-wrap gap-2">
 						{#each data.organizations as org (org.id)}
 							{@const roleInfo = getRoleBadge(org.role)}
@@ -194,7 +195,7 @@
 					}}
 				>
 					<Field.Field>
-						<Field.Label for="orgName">Organization Name</Field.Label>
+						<Field.Label for="orgName">{m.settings_org_name()}</Field.Label>
 						<Input
 							id="orgName"
 							name="name"
@@ -207,17 +208,17 @@
 						{#if loading}
 							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 						{/if}
-						Update Organization
+						{m.settings_update_org()}
 					</Button>
 				</form>
 			{:else if data.currentOrganization}
 				<Field.Field>
-					<Field.Label>Organization Name</Field.Label>
+					<Field.Label>{m.settings_org_name()}</Field.Label>
 					<p class="text-sm">{data.currentOrganization.name}</p>
 				</Field.Field>
 			{:else}
 				<p class="text-sm text-muted-foreground">
-					No organization selected. Create or join an organization to continue.
+					{m.org_no_org_message()}
 				</p>
 			{/if}
 		</Card.Content>
@@ -231,16 +232,18 @@
 					<div>
 						<Card.Title class="flex items-center gap-2">
 							<Users class="h-5 w-5" />
-							Team Members
+							{m.settings_team_members()}
 						</Card.Title>
 						<Card.Description>
-							{data.currentOrgMembers.length} member{data.currentOrgMembers.length !== 1 ? 's' : ''}
+							{data.currentOrgMembers.length === 1
+								? m.settings_member_count({ count: 1 })
+								: m.settings_members_count({ count: data.currentOrgMembers.length })}
 						</Card.Description>
 					</div>
 					{#if data.isAdmin}
 						<Button variant="outline" size="sm" onclick={() => (showInviteDialog = true)}>
 							<Mail class="mr-2 h-4 w-4" />
-							Invite
+							{m.common_invite()}
 						</Button>
 					{/if}
 				</div>
@@ -249,36 +252,36 @@
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>Name</Table.Head>
-							<Table.Head>Email</Table.Head>
-							<Table.Head>Role</Table.Head>
+							<Table.Head>{m.common_name()}</Table.Head>
+							<Table.Head>{m.common_email()}</Table.Head>
+							<Table.Head>{m.common_role()}</Table.Head>
 							{#if data.isOwner}
 								<Table.Head class="w-12.5"></Table.Head>
 							{/if}
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each data.currentOrgMembers as m (m.id)}
-							{@const roleInfo = getRoleBadge(m.role)}
+						{#each data.currentOrgMembers as member (member.id)}
+							{@const roleInfo = getRoleBadge(member.role)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
-									{m.name}
-									{#if m.id === data.user.id}
-										<span class="ml-2 text-xs text-muted-foreground">(You)</span>
+									{member.name}
+									{#if member.id === data.user.id}
+										<span class="ml-2 text-xs text-muted-foreground">{m.common_you()}</span>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="text-muted-foreground">{m.email}</Table.Cell>
+								<Table.Cell class="text-muted-foreground">{member.email}</Table.Cell>
 								<Table.Cell>
 									<Badge variant={roleInfo.variant}>{roleInfo.label}</Badge>
 								</Table.Cell>
 								{#if data.isOwner}
 									<Table.Cell>
-										{#if m.id !== data.user.id && m.role !== 'owner'}
+										{#if member.id !== data.user.id && member.role !== 'owner'}
 											<Button
 												variant="ghost"
 												size="icon"
 												onclick={() => {
-													memberToRemove = { id: m.id, name: m.name };
+													memberToRemove = { id: member.id, name: member.name };
 													showRemoveMemberDialog = true;
 												}}
 											>
@@ -294,7 +297,7 @@
 
 				{#if data.pendingInvitations.length > 0}
 					<div class="mt-6">
-						<h4 class="mb-2 text-sm font-medium">Pending Invitations</h4>
+						<h4 class="mb-2 text-sm font-medium">{m.settings_pending_invitations()}</h4>
 						<div class="space-y-2">
 							{#each data.pendingInvitations as inv (inv.id)}
 								<div class="flex items-center justify-between rounded-md border p-3 text-sm">
@@ -322,13 +325,13 @@
 	<!-- Danger Zone -->
 	<Card.Root class="border-destructive/50">
 		<Card.Header>
-			<Card.Title class="text-destructive">Danger Zone</Card.Title>
-			<Card.Description>Irreversible actions</Card.Description>
+			<Card.Title class="text-destructive">{m.settings_danger_zone()}</Card.Title>
+			<Card.Description>{m.settings_irreversible()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<Button variant="destructive" disabled>Delete Account</Button>
+			<Button variant="destructive" disabled>{m.settings_delete_account()}</Button>
 			<p class="mt-2 text-xs text-muted-foreground">
-				Account deletion will be available in a future update.
+				{m.settings_delete_coming_soon()}
 			</p>
 		</Card.Content>
 	</Card.Root>
@@ -338,9 +341,9 @@
 <AlertDialog.Root bind:open={showCreateOrgDialog}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Create Organization</AlertDialog.Title>
+			<AlertDialog.Title>{m.settings_dialog_create_org()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Create a new organization to manage monitors and team members.
+				{m.settings_dialog_create_org_desc()}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form
@@ -357,17 +360,23 @@
 		>
 			<div class="space-y-4 py-4">
 				<Field.Field>
-					<Field.Label for="newOrgName">Organization Name</Field.Label>
-					<Input id="newOrgName" name="name" placeholder="My Company" required disabled={loading} />
+					<Field.Label for="newOrgName">{m.settings_org_name()}</Field.Label>
+					<Input
+						id="newOrgName"
+						name="name"
+						placeholder={m.settings_dialog_org_placeholder()}
+						required
+						disabled={loading}
+					/>
 				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
-					Create
+					{m.common_create()}
 				</Button>
 			</AlertDialog.Footer>
 		</form>
@@ -378,9 +387,9 @@
 <AlertDialog.Root bind:open={showInviteDialog}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Invite Team Member</AlertDialog.Title>
+			<AlertDialog.Title>{m.settings_dialog_invite()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Send an invitation to join your organization.
+				{m.settings_dialog_invite_desc()}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form
@@ -397,18 +406,18 @@
 		>
 			<div class="space-y-4 py-4">
 				<Field.Field>
-					<Field.Label for="inviteEmail">Email Address</Field.Label>
+					<Field.Label for="inviteEmail">{m.common_email()}</Field.Label>
 					<Input
 						id="inviteEmail"
 						name="email"
 						type="email"
-						placeholder="teammate@example.com"
+						placeholder={m.settings_dialog_email_placeholder()}
 						required
 						disabled={loading}
 					/>
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="inviteRole">Role</Field.Label>
+					<Field.Label for="inviteRole">{m.common_role()}</Field.Label>
 					<Select.Root
 						type="single"
 						name="role"
@@ -416,23 +425,23 @@
 						onValueChange={(v) => (inviteRole = v)}
 					>
 						<Select.Trigger class="w-full">
-							{inviteRole === 'admin' ? 'Admin' : 'Member'}
+							{inviteRole === 'admin' ? m.role_admin() : m.role_member()}
 						</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="member">Member</Select.Item>
-							<Select.Item value="admin">Admin</Select.Item>
+							<Select.Item value="member">{m.role_member()}</Select.Item>
+							<Select.Item value="admin">{m.role_admin()}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="role" value={inviteRole} />
 				</Field.Field>
 			</div>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 				<Button type="submit" disabled={loading}>
 					{#if loading}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
-					Send Invitation
+					{m.settings_dialog_send_invite()}
 				</Button>
 			</AlertDialog.Footer>
 		</form>
@@ -443,14 +452,15 @@
 <AlertDialog.Root bind:open={showRemoveMemberDialog}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Remove Member</AlertDialog.Title>
+			<AlertDialog.Title>{m.settings_dialog_remove_member()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				Are you sure you want to remove {memberToRemove?.name} from the organization? They will lose access
-				to all monitors and data.
+				{m.settings_dialog_remove_desc({ name: memberToRemove?.name ?? '' })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (memberToRemove = null)}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Cancel onclick={() => (memberToRemove = null)}
+				>{m.common_cancel()}</AlertDialog.Cancel
+			>
 			<form
 				method="POST"
 				action="?/removeMember"
@@ -469,7 +479,7 @@
 					{#if loading}
 						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{/if}
-					Remove
+					{m.common_remove()}
 				</Button>
 			</form>
 		</AlertDialog.Footer>

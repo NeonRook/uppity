@@ -8,52 +8,55 @@
 	import { getStatusColor, getStatusLabel } from '$lib/utils/status';
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import StatCard from '$lib/components/stat-card.svelte';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 </script>
 
 <svelte:head>
-	<title>Dashboard - Uppity</title>
+	<title>{m.dashboard_title()} - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
-			<p class="text-muted-foreground">Monitor the health of all your services</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.dashboard_title()}</h1>
+			<p class="text-muted-foreground">{m.dashboard_subtitle()}</p>
 		</div>
 		<Button href="/monitors/new">
 			<Plus class="mr-2 h-4 w-4" />
-			Add Monitor
+			{m.dashboard_add_monitor()}
 		</Button>
 	</div>
 
 	<!-- Stats cards -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 		<StatCard
-			title="Total Monitors"
+			title={m.dashboard_total_monitors()}
 			value={data.stats.total}
-			description={data.stats.total === 0 ? 'No monitors configured yet' : 'Active monitoring'}
+			description={data.stats.total === 0
+				? m.dashboard_no_monitors()
+				: m.dashboard_active_monitoring()}
 			icon={Activity}
 		/>
 		<StatCard
-			title="Operational"
+			title={m.dashboard_operational()}
 			value={data.stats.operational}
-			description="All systems operational"
+			description={m.dashboard_all_operational()}
 			icon={CircleCheck}
 			iconClass="text-green-500"
 		/>
 		<StatCard
-			title="Degraded"
+			title={m.dashboard_degraded()}
 			value={data.stats.degraded}
-			description="Experiencing delays"
+			description={m.dashboard_experiencing_delays()}
 			icon={Clock}
 			iconClass="text-yellow-500"
 		/>
 		<StatCard
-			title="Down"
+			title={m.dashboard_down()}
 			value={data.stats.down}
-			description="Requires attention"
+			description={m.dashboard_requires_attention()}
 			icon={TriangleAlert}
 			iconClass="text-red-500"
 		/>
@@ -62,56 +65,56 @@
 	<!-- Monitor list -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Monitors</Card.Title>
-			<Card.Description>Overview of all your monitored endpoints</Card.Description>
+			<Card.Title>{m.dashboard_monitors()}</Card.Title>
+			<Card.Description>{m.dashboard_monitors_overview()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			{#if data.monitors.length === 0}
 				<EmptyState
 					icon={Activity}
-					title="No monitors yet"
-					description="Get started by adding your first monitor to track uptime."
-					buttonText="Add your first monitor"
+					title={m.dashboard_no_monitors_title()}
+					description={m.dashboard_no_monitors_desc()}
+					buttonText={m.dashboard_add_first_monitor()}
 					buttonHref="/monitors/new"
 					withCard={false}
 				/>
 			{:else}
 				<div class="space-y-3">
-					{#each data.monitors as m (m.id)}
+					{#each data.monitors as mon (mon.id)}
 						<a
-							href={resolve(`/monitors/${m.id}`)}
+							href={resolve(`/monitors/${mon.id}`)}
 							class="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
 						>
 							<div class="flex items-center gap-4">
-								<div class={`h-3 w-3 rounded-full ${getStatusColor(m.status, m.active)}`}></div>
+								<div class={`h-3 w-3 rounded-full ${getStatusColor(mon.status, mon.active)}`}></div>
 								<div>
-									<div class="font-medium">{m.name}</div>
+									<div class="font-medium">{mon.name}</div>
 									<div class="flex items-center gap-2 text-sm text-muted-foreground">
-										<span class="text-xs uppercase">{m.type}</span>
-										{#if m.url}
+										<span class="text-xs uppercase">{mon.type}</span>
+										{#if mon.url}
 											<span>·</span>
-											<span class="max-w-[200px] truncate">{m.url}</span>
+											<span class="max-w-[200px] truncate">{mon.url}</span>
 										{/if}
 									</div>
 								</div>
 							</div>
 							<div class="flex items-center gap-6 text-sm">
 								<div class="text-right">
-									<div class="font-mono">{formatUptime(m.uptimePercent24h)}</div>
-									<div class="text-xs text-muted-foreground">uptime</div>
+									<div class="font-mono">{formatUptime(mon.uptimePercent24h)}</div>
+									<div class="text-xs text-muted-foreground">{m.dashboard_uptime()}</div>
 								</div>
 								<div class="text-right">
-									<div class="font-mono">{formatResponseTime(m.avgResponseTimeMs24h)}</div>
-									<div class="text-xs text-muted-foreground">response</div>
+									<div class="font-mono">{formatResponseTime(mon.avgResponseTimeMs24h)}</div>
+									<div class="text-xs text-muted-foreground">{m.dashboard_response()}</div>
 								</div>
 								<Badge
-									variant={m.active && m.status === 'up'
+									variant={mon.active && mon.status === 'up'
 										? 'default'
-										: m.active && m.status === 'down'
+										: mon.active && mon.status === 'down'
 											? 'destructive'
 											: 'secondary'}
 								>
-									{getStatusLabel(m.status, m.active)}
+									{getStatusLabel(mon.status, mon.active)}
 								</Badge>
 							</div>
 						</a>
