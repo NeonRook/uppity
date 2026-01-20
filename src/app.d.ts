@@ -5,6 +5,9 @@ declare global {
 		interface Locals {
 			user: import("$lib/server/auth").User | null;
 			session: import("$lib/server/auth").Session["session"] | null;
+			event: import("$lib/server/logger").WideEventBuilder<
+				import("$lib/server/logger").RequestWideEvent
+			>;
 		}
 
 		// interface Error {}

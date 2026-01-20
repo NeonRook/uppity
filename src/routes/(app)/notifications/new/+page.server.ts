@@ -61,16 +61,23 @@ export const actions: Actions = {
 			}
 		}
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "create_notification_channel",
+			resource_type: "notification_channel",
+		});
+
 		try {
-			await notificationChannelService.create({
+			const channel = await notificationChannelService.create({
 				organizationId: locals.session.activeOrganizationId,
 				name: data.name,
 				type: data.type,
 				config,
 				enabled: true,
 			});
+			locals.event.set("resource_id", channel.id);
 		} catch (error) {
-			console.error("Failed to create notification channel:", error);
+			locals.event.setError(error);
 			return message(form, "Failed to create notification channel", { status: 500 });
 		}
 

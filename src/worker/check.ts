@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import type * as schema from "../lib/server/db/schema";
+import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
 
 import {
 	DEFAULT_TIMEOUT_SECONDS,
@@ -329,7 +330,12 @@ async function performCheckWithRetries(m: Monitor, db: Db): Promise<CheckResult>
 	return lastResult!;
 }
 
-async function saveCheckResult(m: Monitor, result: CheckResult, db: Db): Promise<void> {
+async function saveCheckResult(
+	m: Monitor,
+	result: CheckResult,
+	db: Db,
+	wideEvent?: WideEventBuilder<CheckWideEvent>,
+): Promise<void> {
 	const checkId = nanoid();
 
 	// Save the check result
@@ -368,6 +374,17 @@ async function saveCheckResult(m: Monitor, result: CheckResult, db: Db): Promise
 			updatedAt: new Date(),
 		})
 		.where(eq(monitorStatus.monitorId, m.id));
+
+	// Enrich wide event with check result
+	wideEvent?.merge({
+		check_status: result.status,
+		response_time_ms: result.responseTimeMs,
+		status_code: result.statusCode,
+		check_error: result.errorMessage,
+		status_changed: statusChanged,
+		previous_status: previousStatus,
+		consecutive_failures: consecutiveFailures,
+	});
 
 	// Handle status change notifications and incidents
 	if (statusChanged && previousStatus !== "unknown") {
@@ -408,7 +425,11 @@ async function saveCheckResult(m: Monitor, result: CheckResult, db: Db): Promise
 					createdAt: new Date(),
 				});
 
-				console.log(`[Worker] Created auto-incident ${incidentId} for monitor ${m.id}`);
+				// Enrich wide event with incident info
+				wideEvent?.merge({
+					incident_created: true,
+					incident_id: incidentId,
+				});
 			}
 		} else if (result.status === "up" && previousStatus === "down") {
 			// Auto-resolve any active incident for this monitor
@@ -437,20 +458,29 @@ async function saveCheckResult(m: Monitor, result: CheckResult, db: Db): Promise
 					createdAt: new Date(),
 				});
 
-				console.log(`[Worker] Auto-resolved incident ${existingIncident.id} for monitor ${m.id}`);
+				// Enrich wide event with resolution info
+				wideEvent?.merge({
+					incident_resolved: true,
+					incident_id: existingIncident.id,
+				});
 			}
 		}
 	}
 
-	// Log SSL expiry warnings
+	// Handle SSL expiry warnings
 	if (result.sslExpiresAt && m.sslCheckEnabled) {
 		const daysUntilExpiry = Math.floor(
 			(result.sslExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
 		);
 		const threshold = m.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
 
+		wideEvent?.merge({
+			ssl_expires_at: result.sslExpiresAt,
+			ssl_days_remaining: daysUntilExpiry,
+		});
+
 		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
-			console.warn(`[Worker] SSL certificate for ${m.name} expires in ${daysUntilExpiry} days`);
+			wideEvent?.set("ssl_expiry_warning", true);
 		}
 	}
 }
@@ -458,10 +488,18 @@ async function saveCheckResult(m: Monitor, result: CheckResult, db: Db): Promise
 /**
  * Executes a monitor check with retries and saves the result.
  */
-export async function executeCheck(m: Monitor, db: Db): Promise<void> {
+export async function executeCheck(
+	m: Monitor,
+	db: Db,
+	wideEvent?: WideEventBuilder<CheckWideEvent>,
+): Promise<void> {
 	const result = await performCheckWithRetries(m, db);
-	await saveCheckResult(m, result, db);
-	const success = result.responseTimeMs ? ` in ${result.responseTimeMs}ms` : "";
-	const error = result.errorMessage ? ` - ${result.errorMessage}` : "";
-	console.log(`[Worker] Check ${m.id} (${m.name}): ${result.status}${success}${error}`);
+	await saveCheckResult(m, result, db, wideEvent);
+
+	// Set success/error status on wide event
+	if (result.status === "down") {
+		wideEvent?.setError(new Error(result.errorMessage || "Check failed"));
+	} else {
+		wideEvent?.setSuccess();
+	}
 }

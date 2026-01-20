@@ -7,9 +7,12 @@ import {
 	DEAD_LETTER_THRESHOLD_HOURS,
 } from "../lib/constants/worker";
 import { monitor } from "../lib/server/db/schema";
+import { createCheckWideEvent, createWorkerLogger } from "../lib/server/logger";
 import { executeCheck } from "./check";
 import { db } from "./db";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
+
+const workerLogger = createWorkerLogger();
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -62,7 +65,15 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
 
 	if (newRetryCount >= CHECK_RETRY.MAX_ATTEMPTS) {
 		// Max retries exceeded - mark as dead letter
-		console.error(`[Worker] Monitor ${m.id} exceeded max retries, entering dead letter state`);
+		workerLogger.error(
+			{
+				monitor_id: m.id,
+				monitor_name: m.name,
+				retry_count: newRetryCount,
+				error: errorMessage,
+			},
+			"Monitor exceeded max retries, entering dead letter state",
+		);
 
 		await db
 			.update(monitor)
@@ -85,9 +96,16 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
 		CHECK_RETRY.MAX_BACKOFF_MS,
 	);
 
-	console.warn(
-		`[Worker] Monitor ${m.id} check failed (attempt ${newRetryCount}/${CHECK_RETRY.MAX_ATTEMPTS}), ` +
-			`backing off ${backoffMs}ms: ${errorMessage}`,
+	workerLogger.warn(
+		{
+			monitor_id: m.id,
+			monitor_name: m.name,
+			retry_attempt: newRetryCount,
+			max_attempts: CHECK_RETRY.MAX_ATTEMPTS,
+			backoff_ms: backoffMs,
+			error: errorMessage,
+		},
+		"Monitor check failed, backing off",
 	);
 
 	await db
@@ -105,8 +123,17 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
  * Processes a single monitor check.
  */
 async function processMonitor(m: typeof monitor.$inferSelect) {
+	// Create wide event for this check
+	const wideEvent = createCheckWideEvent(m.id);
+	wideEvent.merge({
+		monitor_id: m.id,
+		monitor_name: m.name,
+		monitor_type: m.type as "http" | "tcp" | "push",
+		org_id: m.organizationId,
+	});
+
 	try {
-		await executeCheck(m, db);
+		await executeCheck(m, db, wideEvent);
 
 		// Success: reset retry state, schedule next check
 		await db
@@ -119,7 +146,10 @@ async function processMonitor(m: typeof monitor.$inferSelect) {
 			})
 			.where(eq(monitor.id, m.id));
 	} catch (error) {
+		wideEvent.setError(error);
 		await handleCheckFailure(m, error);
+	} finally {
+		wideEvent.emit("check");
 	}
 }
 
@@ -159,7 +189,7 @@ async function pollLoop() {
 				// Reset backoff on successful claim
 				currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
 
-				console.log(`[Worker] Claimed ${monitors.length} monitors for checking`);
+				workerLogger.debug({ count: monitors.length }, "Claimed monitors for checking");
 
 				// Process batch concurrently
 				await Promise.all(monitors.map(processMonitor));
@@ -182,7 +212,7 @@ async function pollLoop() {
 				maintenanceCheckCounter = 0;
 			}
 		} catch (error) {
-			console.error("[Worker] Poll loop error:", error);
+			workerLogger.error({ error }, "Poll loop error");
 			await sleep(WORKER_BACKOFF.MAX_MS);
 		}
 	}
@@ -190,7 +220,7 @@ async function pollLoop() {
 
 // Graceful shutdown
 function shutdown(signal: string): void {
-	console.log(`[Worker] Received ${signal}, shutting down...`);
+	workerLogger.info({ signal }, "Received shutdown signal");
 	running = false;
 	interruptSleep();
 }
@@ -200,9 +230,14 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Start worker
 async function start() {
-	console.log("[Worker] Starting monitor scheduler worker...");
-	console.log(`[Worker] Batch size: ${WORKER_POLL_BATCH_SIZE}`);
-	console.log(`[Worker] Poll backoff: ${WORKER_BACKOFF.INITIAL_MS}ms - ${WORKER_BACKOFF.MAX_MS}ms`);
+	workerLogger.info(
+		{
+			batch_size: WORKER_POLL_BATCH_SIZE,
+			backoff_initial_ms: WORKER_BACKOFF.INITIAL_MS,
+			backoff_max_ms: WORKER_BACKOFF.MAX_MS,
+		},
+		"Starting monitor scheduler worker",
+	);
 
 	// Initialize maintenance jobs if needed
 	await initializeMaintenanceJobs();
@@ -210,11 +245,11 @@ async function start() {
 	// Start the main polling loop
 	await pollLoop();
 
-	console.log("[Worker] Shutdown complete.");
+	workerLogger.info("Shutdown complete");
 	process.exit(0);
 }
 
 start().catch((error) => {
-	console.error("[Worker] Fatal error:", error);
+	workerLogger.fatal({ error }, "Fatal error");
 	process.exit(1);
 });

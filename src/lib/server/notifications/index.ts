@@ -7,6 +7,7 @@ import {
 	type Monitor,
 	type MonitorStatus,
 } from "$lib/server/db/schema";
+import { logger } from "$lib/server/logger";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -16,6 +17,8 @@ import { DiscordNotificationProvider } from "./discord";
 import { EmailNotificationProvider } from "./email";
 import { SlackNotificationProvider } from "./slack";
 import { WebhookNotificationProvider } from "./webhook";
+
+const notificationLogger = logger.child({ context: "notification" });
 
 export class NotificationService {
 	private createProvider(channel: NotificationChannel): NotificationProvider | null {
@@ -108,7 +111,10 @@ export class NotificationService {
 	): Promise<void> {
 		const provider = this.createProvider(channel);
 		if (!provider) {
-			console.error(`No provider for channel type: ${channel.type}`);
+			notificationLogger.error(
+				{ channel_id: channel.id, channel_type: channel.type },
+				"No provider for channel type",
+			);
 			return;
 		}
 
@@ -127,7 +133,15 @@ export class NotificationService {
 		});
 
 		if (!result.success) {
-			console.error(`Failed to send notification to channel ${channel.id}: ${result.errorMessage}`);
+			notificationLogger.error(
+				{
+					channel_id: channel.id,
+					channel_type: channel.type,
+					notification_type: payload.type,
+					error: result.errorMessage,
+				},
+				"Failed to send notification",
+			);
 		}
 	}
 

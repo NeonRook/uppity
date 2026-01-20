@@ -74,6 +74,13 @@ export const actions: Actions = {
 
 		const { data } = form;
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "update_status_page",
+			resource_type: "status_page",
+			resource_id: params.id,
+		});
+
 		try {
 			await statusPageService.update(params.id, locals.session.activeOrganizationId, {
 				name: data.name,
@@ -89,7 +96,7 @@ export const actions: Actions = {
 			if (err instanceof Error && err.message === "Slug already taken") {
 				return message(form, "This slug is already taken", { status: 400 });
 			}
-			console.error("Failed to update status page:", err);
+			locals.event.setError(err);
 			return message(form, "Failed to update status page", { status: 500 });
 		}
 	},

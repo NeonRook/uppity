@@ -34,6 +34,12 @@ export const actions: Actions = {
 
 		const { data } = form;
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "create_incident",
+			resource_type: "incident",
+		});
+
 		let incident;
 		try {
 			incident = await incidentService.create({
@@ -45,8 +51,9 @@ export const actions: Actions = {
 				monitorIds: data.monitors ?? [],
 				createdBy: locals.user?.id,
 			});
+			locals.event.set("resource_id", incident.id);
 		} catch (error) {
-			console.error("Failed to create incident:", error);
+			locals.event.setError(error);
 			return message(form, "Failed to create incident", { status: 500 });
 		}
 

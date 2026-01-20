@@ -77,6 +77,13 @@ export const actions: Actions = {
 
 		const { data } = form;
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "update_monitor",
+			resource_type: "monitor",
+			resource_id: params.id,
+		});
+
 		try {
 			const baseData = {
 				name: data.name,
@@ -123,7 +130,7 @@ export const actions: Actions = {
 				return message(form, "Monitor not found", { status: 404 });
 			}
 		} catch (err) {
-			console.error("Failed to update monitor:", err);
+			locals.event.setError(err);
 			return message(form, "Failed to update monitor", { status: 500 });
 		}
 

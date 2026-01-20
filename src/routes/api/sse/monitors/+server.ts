@@ -1,5 +1,6 @@
 import { db } from "$lib/server/db";
 import { monitorStatus, monitor } from "$lib/server/db/schema";
+import { logger } from "$lib/server/logger";
 import { addConnection, removeConnection } from "$lib/server/sse";
 import { eq } from "drizzle-orm";
 
@@ -60,6 +61,6 @@ async function sendInitialStatus(
 		const message = `data: ${JSON.stringify({ type: "initial", statuses })}\n\n`;
 		controller.enqueue(new TextEncoder().encode(message));
 	} catch (error) {
-		console.error("Failed to send initial status:", error);
+		logger.error({ error, org_id: organizationId }, "Failed to send initial SSE status");
 	}
 }
