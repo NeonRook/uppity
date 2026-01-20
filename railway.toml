@@ -1,9 +1,13 @@
 [build]
 builder = "DOCKERFILE"
+dockerfilePath = "/Dockerfile"
 
 [deploy]
-preDeployCommand = ["bun --bun run db:migrate"]
+runtime = "V2"
+numReplicas = 1
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+preDeployCommand = ["bun --bun run db:migrate"]
+sleepApplication = false
 restartPolicyType = "ON_FAILURE"
+healthcheckTimeout = 30
 restartPolicyMaxRetries = 3
