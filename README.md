@@ -156,11 +156,13 @@ docker build \
 See [`.env.example`](.env.example) for all available configuration options.
 
 **Required:**
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `BETTER_AUTH_SECRET` - Auth secret key (min 32 characters)
 - `BETTER_AUTH_URL` - Public URL of your application
 
 **Optional:**
+
 - `SMTP_*` - Email notification settings
 - `UPPITY_DEFAULT_*` - Monitor default configurations
 - `UPPITY_CRON_*` - Background job schedules
