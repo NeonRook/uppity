@@ -97,13 +97,20 @@ export const actions: Actions = {
 			}
 		}
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "update_notification_channel",
+			resource_type: "notification_channel",
+			resource_id: params.id,
+		});
+
 		try {
 			await notificationChannelService.update(params.id, locals.session.activeOrganizationId, {
 				name: data.name,
 				config,
 			});
 		} catch (err) {
-			console.error("Failed to update notification channel:", err);
+			locals.event.setError(err);
 			return message(form, "Failed to update notification channel", { status: 500 });
 		}
 
@@ -114,6 +121,13 @@ export const actions: Actions = {
 		if (!locals.session?.activeOrganizationId) {
 			return fail(401, { error: "Not authenticated" });
 		}
+
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "delete_notification_channel",
+			resource_type: "notification_channel",
+			resource_id: params.id,
+		});
 
 		const deleted = await notificationChannelService.delete(
 			params.id,

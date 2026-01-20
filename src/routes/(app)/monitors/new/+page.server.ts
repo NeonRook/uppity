@@ -29,6 +29,12 @@ export const actions: Actions = {
 
 		const { data } = form;
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "create_monitor",
+			resource_type: "monitor",
+		});
+
 		let monitor;
 		try {
 			const baseData = {
@@ -65,8 +71,11 @@ export const actions: Actions = {
 					});
 					break;
 			}
+
+			// Set resource_id after creation
+			locals.event.set("resource_id", monitor.id);
 		} catch (error) {
-			console.error("Failed to create monitor:", error);
+			locals.event.setError(error);
 			return message(form, "Failed to create monitor", { status: 500 });
 		}
 

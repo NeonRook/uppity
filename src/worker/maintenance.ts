@@ -3,23 +3,31 @@ import { eq, lte, and } from "drizzle-orm";
 
 import { CHECK_RETENTION_DAYS } from "../lib/constants/scheduler";
 import { maintenanceJob } from "../lib/server/db/schema";
+import {
+	createMaintenanceWideEvent,
+	createMaintenanceLogger,
+	type MaintenanceWideEvent,
+	type WideEventBuilder,
+} from "../lib/server/logger";
 import { db } from "./db";
 import { statsService } from "./stats";
 
-type JobHandler = () => Promise<void>;
+const maintenanceLogger = createMaintenanceLogger();
+
+type JobHandler = (wideEvent: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
 
 const jobHandlers: Record<string, JobHandler> = {
-	"daily-stats": async () => {
+	"daily-stats": async (wideEvent) => {
 		const count = await statsService.aggregateYesterday();
-		console.log(`[Maintenance] Aggregated daily stats for ${count} monitors`);
+		wideEvent.set("records_processed", count);
 	},
-	"rolling-stats": async () => {
+	"rolling-stats": async (wideEvent) => {
 		const count = await statsService.updateAll24hStats();
-		console.log(`[Maintenance] Updated 24h stats for ${count} monitors`);
+		wideEvent.set("records_processed", count);
 	},
-	cleanup: async () => {
+	cleanup: async (wideEvent) => {
 		const deleted = await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS);
-		console.log(`[Maintenance] Deleted ${deleted} old check records`);
+		wideEvent.set("records_deleted", deleted);
 	},
 };
 
@@ -30,11 +38,11 @@ export async function initializeMaintenanceJobs(): Promise<void> {
 	const existingJobs = await db.select().from(maintenanceJob);
 
 	if (existingJobs.length > 0) {
-		console.log(`[Maintenance] Found ${existingJobs.length} existing jobs`);
+		maintenanceLogger.debug({ count: existingJobs.length }, "Found existing maintenance jobs");
 		return;
 	}
 
-	console.log("[Maintenance] Initializing default maintenance jobs...");
+	maintenanceLogger.info("Initializing default maintenance jobs");
 
 	const now = new Date();
 	const jobs = [
@@ -60,7 +68,7 @@ export async function initializeMaintenanceJobs(): Promise<void> {
 
 	for (const job of jobs) {
 		await db.insert(maintenanceJob).values(job).onConflictDoNothing();
-		console.log(`[Maintenance] Created job: ${job.name}`);
+		maintenanceLogger.info({ job_id: job.id, job_name: job.name }, "Created maintenance job");
 	}
 }
 
@@ -88,13 +96,19 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 	for (const job of dueJobs) {
 		const handler = jobHandlers[job.id];
 		if (!handler) {
-			console.warn(`[Maintenance] Unknown job handler: ${job.id}`);
+			maintenanceLogger.warn({ job_id: job.id }, "Unknown job handler");
 			continue;
 		}
 
+		// Create wide event for this job execution
+		const wideEvent = createMaintenanceWideEvent(job.id);
+		wideEvent.merge({
+			job_id: job.id,
+			job_name: job.name,
+		});
+
 		try {
-			console.log(`[Maintenance] Running job: ${job.name}`);
-			await handler();
+			await handler(wideEvent);
 
 			// Calculate next run time
 			const nextRun = calculateNextRun(job.cronExpression);
@@ -108,15 +122,21 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 				})
 				.where(eq(maintenanceJob.id, job.id));
 
-			console.log(`[Maintenance] Completed: ${job.name}, next run: ${nextRun.toISOString()}`);
+			wideEvent.merge({
+				next_run_at: nextRun,
+			});
+			wideEvent.setSuccess();
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.error(`[Maintenance] Job ${job.name} failed:`, errorMessage);
 
 			await db
 				.update(maintenanceJob)
 				.set({ lastError: errorMessage })
 				.where(eq(maintenanceJob.id, job.id));
+
+			wideEvent.setError(error);
+		} finally {
+			wideEvent.emit("maintenance");
 		}
 	}
 }

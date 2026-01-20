@@ -33,6 +33,12 @@ export const actions: Actions = {
 
 		const { data } = form;
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "create_status_page",
+			resource_type: "status_page",
+		});
+
 		let statusPage;
 		try {
 			statusPage = await statusPageService.create({
@@ -44,6 +50,8 @@ export const actions: Actions = {
 				logoUrl: data.logoUrl || undefined,
 				primaryColor: data.primaryColor ?? "#000000",
 			});
+
+			locals.event.set("resource_id", statusPage.id);
 
 			// Add selected monitors
 			const monitorIds = data.monitors ?? [];
@@ -58,7 +66,7 @@ export const actions: Actions = {
 			if (error instanceof Error && error.message === "Slug already taken") {
 				return message(form, "This slug is already taken", { status: 400 });
 			}
-			console.error("Failed to create status page:", error);
+			locals.event.setError(error);
 			return message(form, "Failed to create status page", { status: 500 });
 		}
 

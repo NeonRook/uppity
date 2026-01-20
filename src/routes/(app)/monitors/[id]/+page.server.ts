@@ -55,6 +55,13 @@ export const actions: Actions = {
 			return fail(401, { error: "Not authenticated" });
 		}
 
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "delete_monitor",
+			resource_type: "monitor",
+			resource_id: params.id,
+		});
+
 		await monitorService.delete(params.id, locals.session.activeOrganizationId);
 
 		redirect(303, "/monitors");
@@ -64,6 +71,13 @@ export const actions: Actions = {
 		if (!locals.session?.activeOrganizationId) {
 			return fail(401, { error: "Not authenticated" });
 		}
+
+		// Enrich wide event with action context
+		locals.event.merge({
+			action: "toggle_monitor",
+			resource_type: "monitor",
+			resource_id: params.id,
+		});
 
 		const updated = await monitorService.toggleActive(
 			params.id,
