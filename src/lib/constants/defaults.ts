@@ -1,10 +1,17 @@
 import { envInt } from "$lib/utils";
 
+/** Monitor interval constraints for worker scheduler */
+export const MONITOR_INTERVAL = {
+	MIN_SECONDS: envInt("UPPITY_MIN_INTERVAL_SECONDS", 30),
+	MAX_SECONDS: envInt("UPPITY_MAX_INTERVAL_SECONDS", 86400), // 24 hours
+	DEFAULT_SECONDS: envInt("UPPITY_DEFAULT_INTERVAL_SECONDS", 60),
+} as const;
+
 /** How long to wait for a monitor check response before timing out. */
 export const DEFAULT_TIMEOUT_SECONDS = envInt("UPPITY_DEFAULT_TIMEOUT_SECONDS", 30);
 
 /** Time between consecutive health checks for a monitor. */
-export const DEFAULT_INTERVAL_SECONDS = envInt("UPPITY_DEFAULT_INTERVAL_SECONDS", 60);
+export const DEFAULT_INTERVAL_SECONDS = MONITOR_INTERVAL.DEFAULT_SECONDS;
 
 /** Number of retry attempts after a failed check before marking as down. */
 export const DEFAULT_RETRIES = envInt("UPPITY_DEFAULT_RETRIES", 0);

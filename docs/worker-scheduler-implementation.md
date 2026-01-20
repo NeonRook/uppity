@@ -32,20 +32,18 @@ Add new columns to the `monitor` table and define a partial index for efficient
 polling:
 
 ```typescript
-import { index, pgTable, /* ... */ } from 'drizzle-orm/pg-core';
+import { index, pgTable /* ... */ } from "drizzle-orm/pg-core";
 
 export const monitor = pgTable(
-	'monitor',
+	"monitor",
 	{
 		// ... existing columns ...
 
 		// Scheduler columns
-		nextCheckAt: timestamp('next_check_at', { withTimezone: true }).default(
-			sql`NOW()`
-		),
-		checkRetryCount: integer('check_retry_count').default(0),
-		checkLastError: text('check_last_error'),
-		checkBackoffUntil: timestamp('check_backoff_until', { withTimezone: true })
+		nextCheckAt: timestamp("next_check_at", { withTimezone: true }).default(sql`NOW()`),
+		checkRetryCount: integer("check_retry_count").default(0),
+		checkLastError: text("check_last_error"),
+		checkBackoffUntil: timestamp("check_backoff_until", { withTimezone: true }),
 
 		// ... rest of table ...
 	},
@@ -53,10 +51,10 @@ export const monitor = pgTable(
 		// ... existing indexes ...
 
 		// Partial index for worker polling queries
-		index('idx_monitor_due_checks')
+		index("idx_monitor_due_checks")
 			.on(table.nextCheckAt)
-			.where(sql`${table.active} = true`)
-	]
+			.where(sql`${table.active} = true`),
+	],
 );
 ```
 
@@ -65,7 +63,7 @@ export const monitor = pgTable(
 Update `src/lib/schemas/monitor.ts` to enforce the 30-second minimum:
 
 ```typescript
-import { MONITOR_INTERVAL } from '$lib/constants/defaults';
+import { MONITOR_INTERVAL } from "$lib/constants/defaults";
 
 export const monitorSchema = z.object({
 	// ... existing fields ...
@@ -74,13 +72,13 @@ export const monitorSchema = z.object({
 		.int()
 		.min(
 			MONITOR_INTERVAL.MIN_SECONDS,
-			`Minimum interval is ${MONITOR_INTERVAL.MIN_SECONDS} seconds`
+			`Minimum interval is ${MONITOR_INTERVAL.MIN_SECONDS} seconds`,
 		)
 		.max(
 			MONITOR_INTERVAL.MAX_SECONDS,
-			`Maximum interval is ${MONITOR_INTERVAL.MAX_SECONDS} seconds`
+			`Maximum interval is ${MONITOR_INTERVAL.MAX_SECONDS} seconds`,
 		)
-		.default(MONITOR_INTERVAL.DEFAULT_SECONDS)
+		.default(MONITOR_INTERVAL.DEFAULT_SECONDS),
 });
 ```
 
@@ -89,9 +87,9 @@ export const monitorSchema = z.object({
 ```typescript
 // Monitor interval constraints
 export const MONITOR_INTERVAL = {
-	MIN_SECONDS: envInt('UPPITY_MIN_INTERVAL_SECONDS', 30),
-	MAX_SECONDS: envInt('UPPITY_MAX_INTERVAL_SECONDS', 86400), // 24 hours
-	DEFAULT_SECONDS: envInt('UPPITY_DEFAULT_INTERVAL_SECONDS', 60)
+	MIN_SECONDS: envInt("UPPITY_MIN_INTERVAL_SECONDS", 30),
+	MAX_SECONDS: envInt("UPPITY_MAX_INTERVAL_SECONDS", 86400), // 24 hours
+	DEFAULT_SECONDS: envInt("UPPITY_DEFAULT_INTERVAL_SECONDS", 60),
 } as const;
 ```
 
@@ -128,35 +126,29 @@ default. The worker will pick them up on first poll.
 ### 2.1 Create Worker Constants (`src/lib/constants/worker.ts`)
 
 ```typescript
-import { envInt } from '$lib/utils';
+import { envInt } from "$lib/utils";
 
 // Polling configuration
-export const WORKER_POLL_BATCH_SIZE = envInt('UPPITY_WORKER_BATCH_SIZE', 10);
-export const WORKER_POLL_INTERVAL_MS = envInt(
-	'UPPITY_WORKER_POLL_INTERVAL_MS',
-	1000
-);
+export const WORKER_POLL_BATCH_SIZE = envInt("UPPITY_WORKER_BATCH_SIZE", 10);
+export const WORKER_POLL_INTERVAL_MS = envInt("UPPITY_WORKER_POLL_INTERVAL_MS", 1000);
 
 // Exponential backoff for empty polls
 export const WORKER_BACKOFF = {
-	INITIAL_MS: envInt('UPPITY_WORKER_BACKOFF_INITIAL_MS', 100),
-	MAX_MS: envInt('UPPITY_WORKER_BACKOFF_MAX_MS', 5000),
-	MULTIPLIER: 2
+	INITIAL_MS: envInt("UPPITY_WORKER_BACKOFF_INITIAL_MS", 100),
+	MAX_MS: envInt("UPPITY_WORKER_BACKOFF_MAX_MS", 5000),
+	MULTIPLIER: 2,
 } as const;
 
 // Check retry configuration
 export const CHECK_RETRY = {
-	MAX_ATTEMPTS: envInt('UPPITY_CHECK_MAX_RETRIES', 3),
-	INITIAL_BACKOFF_MS: envInt('UPPITY_CHECK_BACKOFF_INITIAL_MS', 5000),
-	MAX_BACKOFF_MS: envInt('UPPITY_CHECK_BACKOFF_MAX_MS', 300000), // 5 minutes
-	MULTIPLIER: 2
+	MAX_ATTEMPTS: envInt("UPPITY_CHECK_MAX_RETRIES", 3),
+	INITIAL_BACKOFF_MS: envInt("UPPITY_CHECK_BACKOFF_INITIAL_MS", 5000),
+	MAX_BACKOFF_MS: envInt("UPPITY_CHECK_BACKOFF_MAX_MS", 300000), // 5 minutes
+	MULTIPLIER: 2,
 } as const;
 
 // Dead letter threshold - monitors stuck in retry too long
-export const DEAD_LETTER_THRESHOLD_HOURS = envInt(
-	'UPPITY_DEAD_LETTER_HOURS',
-	24
-);
+export const DEAD_LETTER_THRESHOLD_HOURS = envInt("UPPITY_DEAD_LETTER_HOURS", 24);
 ```
 
 ### Success Criteria
@@ -174,15 +166,11 @@ Not Started
 ### 3.1 Create Worker Entry Point (`src/worker/index.ts`)
 
 ```typescript
-import { db } from '$lib/server/db';
-import { monitor } from '$lib/server/db/schema';
-import { checkService } from '$lib/server/services/check.service';
-import { sql, and, eq, lte, or, isNull } from 'drizzle-orm';
-import {
-	WORKER_POLL_BATCH_SIZE,
-	WORKER_BACKOFF,
-	CHECK_RETRY
-} from '$lib/constants/worker';
+import { db } from "$lib/server/db";
+import { monitor } from "$lib/server/db/schema";
+import { checkService } from "$lib/server/services/check.service";
+import { sql, and, eq, lte, or, isNull } from "drizzle-orm";
+import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF, CHECK_RETRY } from "$lib/constants/worker";
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -218,7 +206,7 @@ async function claimDueMonitors() {
 		await tx
 			.update(monitor)
 			.set({
-				nextCheckAt: sql`NOW() + INTERVAL '1 hour'` // Temporary lock
+				nextCheckAt: sql`NOW() + INTERVAL '1 hour'`, // Temporary lock
 			})
 			.where(sql`id = ANY(${monitorIds})`);
 
@@ -247,7 +235,7 @@ async function executeCheck(m: typeof monitor.$inferSelect) {
 				nextCheckAt: sql`NOW() + INTERVAL '1 second' * ${m.intervalSeconds}`,
 				checkRetryCount: 0,
 				checkLastError: null,
-				checkBackoffUntil: null
+				checkBackoffUntil: null,
 			})
 			.where(eq(monitor.id, m.id));
 	} catch (error) {
@@ -258,18 +246,13 @@ async function executeCheck(m: typeof monitor.$inferSelect) {
 /**
  * Handles check failures with exponential backoff.
  */
-async function handleCheckFailure(
-	m: typeof monitor.$inferSelect,
-	error: unknown
-) {
+async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown) {
 	const errorMessage = error instanceof Error ? error.message : String(error);
 	const newRetryCount = (m.checkRetryCount ?? 0) + 1;
 
 	if (newRetryCount >= CHECK_RETRY.MAX_ATTEMPTS) {
 		// Max retries exceeded - mark as dead letter
-		console.error(
-			`[Worker] Monitor ${m.id} exceeded max retries, entering dead letter state`
-		);
+		console.error(`[Worker] Monitor ${m.id} exceeded max retries, entering dead letter state`);
 
 		await db
 			.update(monitor)
@@ -278,7 +261,7 @@ async function handleCheckFailure(
 				checkLastError: `Dead letter: ${errorMessage}`,
 				// Set far-future backoff - requires manual intervention
 				checkBackoffUntil: sql`NOW() + INTERVAL '${DEAD_LETTER_THRESHOLD_HOURS} hours'`,
-				nextCheckAt: sql`NOW() + INTERVAL '${DEAD_LETTER_THRESHOLD_HOURS} hours'`
+				nextCheckAt: sql`NOW() + INTERVAL '${DEAD_LETTER_THRESHOLD_HOURS} hours'`,
 			})
 			.where(eq(monitor.id, m.id));
 
@@ -288,14 +271,13 @@ async function handleCheckFailure(
 
 	// Calculate exponential backoff
 	const backoffMs = Math.min(
-		CHECK_RETRY.INITIAL_BACKOFF_MS *
-			Math.pow(CHECK_RETRY.MULTIPLIER, newRetryCount - 1),
-		CHECK_RETRY.MAX_BACKOFF_MS
+		CHECK_RETRY.INITIAL_BACKOFF_MS * Math.pow(CHECK_RETRY.MULTIPLIER, newRetryCount - 1),
+		CHECK_RETRY.MAX_BACKOFF_MS,
 	);
 
 	console.warn(
 		`[Worker] Monitor ${m.id} check failed (attempt ${newRetryCount}/${CHECK_RETRY.MAX_ATTEMPTS}), ` +
-			`backing off ${backoffMs}ms: ${errorMessage}`
+			`backing off ${backoffMs}ms: ${errorMessage}`,
 	);
 
 	await db
@@ -304,7 +286,7 @@ async function handleCheckFailure(
 			checkRetryCount: newRetryCount,
 			checkLastError: errorMessage,
 			checkBackoffUntil: sql`NOW() + INTERVAL '1 millisecond' * ${backoffMs}`,
-			nextCheckAt: sql`NOW() + INTERVAL '1 millisecond' * ${backoffMs}`
+			nextCheckAt: sql`NOW() + INTERVAL '1 millisecond' * ${backoffMs}`,
 		})
 		.where(eq(monitor.id, m.id));
 }
@@ -332,10 +314,10 @@ async function pollLoop() {
 			await sleep(currentBackoffMs);
 			currentBackoffMs = Math.min(
 				currentBackoffMs * WORKER_BACKOFF.MULTIPLIER,
-				WORKER_BACKOFF.MAX_MS
+				WORKER_BACKOFF.MAX_MS,
 			);
 		} catch (error) {
-			console.error('[Worker] Poll loop error:', error);
+			console.error("[Worker] Poll loop error:", error);
 			await sleep(WORKER_BACKOFF.MAX_MS);
 		}
 	}
@@ -346,22 +328,20 @@ function sleep(ms: number): Promise<void> {
 }
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-	console.log('[Worker] Received SIGTERM, shutting down...');
+process.on("SIGTERM", () => {
+	console.log("[Worker] Received SIGTERM, shutting down...");
 	running = false;
 });
 
-process.on('SIGINT', () => {
-	console.log('[Worker] Received SIGINT, shutting down...');
+process.on("SIGINT", () => {
+	console.log("[Worker] Received SIGINT, shutting down...");
 	running = false;
 });
 
 // Start worker
-console.log('[Worker] Starting monitor scheduler worker...');
+console.log("[Worker] Starting monitor scheduler worker...");
 console.log(`[Worker] Batch size: ${WORKER_POLL_BATCH_SIZE}`);
-console.log(
-	`[Worker] Poll interval: ${WORKER_BACKOFF.INITIAL_MS}ms - ${WORKER_BACKOFF.MAX_MS}ms`
-);
+console.log(`[Worker] Poll interval: ${WORKER_BACKOFF.INITIAL_MS}ms - ${WORKER_BACKOFF.MAX_MS}ms`);
 pollLoop();
 ```
 
@@ -435,7 +415,7 @@ export async function POST({ params }) {
 			checkRetryCount: 0,
 			checkLastError: null,
 			checkBackoffUntil: null,
-			nextCheckAt: sql`NOW()`
+			nextCheckAt: sql`NOW()`,
 		})
 		.where(eq(monitor.id, params.id));
 
@@ -461,8 +441,8 @@ export async function getDeadLetterMonitors(organizationId: string) {
 		.where(
 			and(
 				eq(monitor.organizationId, organizationId),
-				gte(monitor.checkRetryCount, CHECK_RETRY.MAX_ATTEMPTS)
-			)
+				gte(monitor.checkRetryCount, CHECK_RETRY.MAX_ATTEMPTS),
+			),
 		);
 }
 ```
@@ -485,14 +465,14 @@ Not Started
 ### 5.1 Add Maintenance Job Table (`src/lib/server/db/schema.ts`)
 
 ```typescript
-export const maintenanceJob = pgTable('maintenance_job', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull().unique(),
-	cronExpression: text('cron_expression').notNull(),
-	nextRunAt: timestamp('next_run_at', { withTimezone: true }).notNull(),
-	lastRunAt: timestamp('last_run_at', { withTimezone: true }),
-	lastError: text('last_error'),
-	enabled: boolean('enabled').default(true)
+export const maintenanceJob = pgTable("maintenance_job", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull().unique(),
+	cronExpression: text("cron_expression").notNull(),
+	nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+	lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+	lastError: text("last_error"),
+	enabled: boolean("enabled").default(true),
 });
 ```
 
@@ -504,23 +484,23 @@ await db
 	.insert(maintenanceJob)
 	.values([
 		{
-			id: 'daily-stats',
-			name: 'Daily Stats Aggregation',
-			cronExpression: '0 1 * * *',
-			nextRunAt: new Date()
+			id: "daily-stats",
+			name: "Daily Stats Aggregation",
+			cronExpression: "0 1 * * *",
+			nextRunAt: new Date(),
 		},
 		{
-			id: 'rolling-stats',
-			name: 'Rolling Stats Update',
-			cronExpression: '*/5 * * * *',
-			nextRunAt: new Date()
+			id: "rolling-stats",
+			name: "Rolling Stats Update",
+			cronExpression: "*/5 * * * *",
+			nextRunAt: new Date(),
 		},
 		{
-			id: 'cleanup',
-			name: 'Old Check Cleanup',
-			cronExpression: '0 2 * * *',
-			nextRunAt: new Date()
-		}
+			id: "cleanup",
+			name: "Old Check Cleanup",
+			cronExpression: "0 2 * * *",
+			nextRunAt: new Date(),
+		},
 	])
 	.onConflictDoNothing();
 ```
@@ -529,22 +509,22 @@ await db
 
 ```typescript
 // src/worker/maintenance.ts
-import { db } from '$lib/server/db';
-import { maintenanceJob } from '$lib/server/db/schema';
-import { statsService } from '$lib/server/services/stats.service';
-import { eq, lte, sql } from 'drizzle-orm';
-import cronParser from 'cron-parser';
+import { db } from "$lib/server/db";
+import { maintenanceJob } from "$lib/server/db/schema";
+import { statsService } from "$lib/server/services/stats.service";
+import { eq, lte, sql } from "drizzle-orm";
+import cronParser from "cron-parser";
 
 const jobHandlers: Record<string, () => Promise<void>> = {
-	'daily-stats': async () => {
+	"daily-stats": async () => {
 		await statsService.aggregateDailyStats();
 	},
-	'rolling-stats': async () => {
+	"rolling-stats": async () => {
 		await statsService.updateRollingStats();
 	},
 	cleanup: async () => {
 		await statsService.cleanupOldChecks();
-	}
+	},
 };
 
 export async function runDueMaintenanceJobs() {
@@ -553,10 +533,8 @@ export async function runDueMaintenanceJobs() {
 	const dueJobs = await db
 		.select()
 		.from(maintenanceJob)
-		.where(
-			and(eq(maintenanceJob.enabled, true), lte(maintenanceJob.nextRunAt, now))
-		)
-		.for('update', { skipLocked: true });
+		.where(and(eq(maintenanceJob.enabled, true), lte(maintenanceJob.nextRunAt, now)))
+		.for("update", { skipLocked: true });
 
 	for (const job of dueJobs) {
 		const handler = jobHandlers[job.name];
@@ -578,14 +556,13 @@ export async function runDueMaintenanceJobs() {
 				.set({
 					lastRunAt: now,
 					nextRunAt: nextRun,
-					lastError: null
+					lastError: null,
 				})
 				.where(eq(maintenanceJob.id, job.id));
 
 			console.log(`[Maintenance] Completed: ${job.name}, next run: ${nextRun}`);
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			console.error(`[Maintenance] Job ${job.name} failed:`, errorMessage);
 
 			await db
@@ -602,7 +579,7 @@ export async function runDueMaintenanceJobs() {
 Update `src/worker/index.ts`:
 
 ```typescript
-import { runDueMaintenanceJobs } from './maintenance';
+import { runDueMaintenanceJobs } from "./maintenance";
 
 // In pollLoop(), after processing monitors:
 async function pollLoop() {
@@ -657,7 +634,7 @@ When monitors are created/updated, set `next_check_at`:
 // In monitor creation
 await db.insert(monitor).values({
 	...data,
-	nextCheckAt: new Date() // Check immediately
+	nextCheckAt: new Date(), // Check immediately
 });
 
 // In monitor update (if interval changed)
@@ -665,7 +642,7 @@ await db
 	.update(monitor)
 	.set({
 		...data,
-		nextCheckAt: sql`NOW()` // Reset schedule
+		nextCheckAt: sql`NOW()`, // Reset schedule
 	})
 	.where(eq(monitor.id, id));
 
@@ -677,7 +654,7 @@ await db
 		nextCheckAt: sql`NOW()`,
 		checkRetryCount: 0,
 		checkLastError: null,
-		checkBackoffUntil: null
+		checkBackoffUntil: null,
 	})
 	.where(eq(monitor.id, id));
 ```
@@ -720,20 +697,20 @@ CMD ["bun", "run", "./build/index.js"]
 services:
   app:
     image: ghcr.io/neonrook/uppity:latest
-    command: ['bun', 'run', './build/index.js']
+    command: ["bun", "run", "./build/index.js"]
     environment:
-      DATABASE_URL: '${DATABASE_URL}'
+      DATABASE_URL: "${DATABASE_URL}"
     ports:
-      - '3000:3000'
+      - "3000:3000"
     depends_on:
       - postgres
 
   worker:
     image: ghcr.io/neonrook/uppity:latest
-    command: ['bun', 'run', './build/worker.js']
+    command: ["bun", "run", "./build/worker.js"]
     environment:
-      DATABASE_URL: '${DATABASE_URL}'
-      UPPITY_WORKER_BATCH_SIZE: '10'
+      DATABASE_URL: "${DATABASE_URL}"
+      UPPITY_WORKER_BATCH_SIZE: "10"
     depends_on:
       - postgres
     restart: unless-stopped
@@ -745,7 +722,7 @@ services:
     environment:
       POSTGRES_DB: uppity
       POSTGRES_USER: uppity
-      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -784,18 +761,18 @@ restartPolicyType = "ON_FAILURE"
 
 ```typescript
 // src/worker/index.spec.ts
-describe('Worker', () => {
-	describe('claimDueMonitors', () => {
-		it('claims up to batch size monitors');
-		it('skips monitors in backoff');
-		it('skips inactive monitors');
-		it('uses SKIP LOCKED to prevent conflicts');
+describe("Worker", () => {
+	describe("claimDueMonitors", () => {
+		it("claims up to batch size monitors");
+		it("skips monitors in backoff");
+		it("skips inactive monitors");
+		it("uses SKIP LOCKED to prevent conflicts");
 	});
 
-	describe('handleCheckFailure', () => {
-		it('increments retry count');
-		it('calculates exponential backoff correctly');
-		it('enters dead letter after max retries');
+	describe("handleCheckFailure", () => {
+		it("increments retry count");
+		it("calculates exponential backoff correctly");
+		it("enters dead letter after max retries");
 	});
 });
 ```
@@ -804,10 +781,10 @@ describe('Worker', () => {
 
 ```typescript
 // src/worker/integration.spec.ts
-describe('Worker Integration', () => {
-	it('processes monitors without duplicates across workers');
-	it('recovers from worker crash');
-	it('handles database connection loss');
+describe("Worker Integration", () => {
+	it("processes monitors without duplicates across workers");
+	it("recovers from worker crash");
+	it("handles database connection loss");
 });
 ```
 
