@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	pgTable,
 	text,
@@ -63,8 +63,20 @@ export const monitor = pgTable(
 		// Metadata
 		createdAt: timestamp("created_at").notNull().defaultNow(),
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+
+		// Scheduler columns (worker polling)
+		nextCheckAt: timestamp("next_check_at", { withTimezone: true }).default(sql`NOW()`),
+		checkRetryCount: integer("check_retry_count").default(0),
+		checkLastError: text("check_last_error"),
+		checkBackoffUntil: timestamp("check_backoff_until", { withTimezone: true }),
 	},
-	(table) => [index("monitor_org_idx").on(table.organizationId)],
+	(table) => [
+		index("monitor_org_idx").on(table.organizationId),
+		// Partial index for worker polling queries (only active monitors)
+		index("idx_monitor_due_checks")
+			.on(table.nextCheckAt)
+			.where(sql`${table.active} = true`),
+	],
 );
 
 export const monitorCheck = pgTable(
@@ -497,6 +509,20 @@ export const notificationLogRelations = relations(notificationLog, ({ one }) => 
 }));
 
 // ============================================================================
+// MAINTENANCE JOB TABLE
+// ============================================================================
+
+export const maintenanceJob = pgTable("maintenance_job", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull().unique(),
+	cronExpression: text("cron_expression").notNull(),
+	nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+	lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+	lastError: text("last_error"),
+	enabled: boolean("enabled").default(true),
+});
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -532,3 +558,6 @@ export type NewNotificationChannel = typeof notificationChannel.$inferInsert;
 
 export type NotificationLog = typeof notificationLog.$inferSelect;
 export type NewNotificationLog = typeof notificationLog.$inferInsert;
+
+export type MaintenanceJob = typeof maintenanceJob.$inferSelect;
+export type NewMaintenanceJob = typeof maintenanceJob.$inferInsert;

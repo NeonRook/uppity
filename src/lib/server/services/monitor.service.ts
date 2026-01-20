@@ -9,10 +9,10 @@ import {
 	DEFAULT_EXPECTED_STATUS_CODES,
 	PUSH_TOKEN_LENGTH,
 } from "$lib/constants/defaults";
+import { CHECK_RETRY } from "$lib/constants/worker";
 import { db } from "$lib/server/db";
 import { monitor, monitorStatus, type Monitor } from "$lib/server/db/schema";
-import { scheduler } from "$lib/server/jobs/scheduler";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export interface CreateMonitorInput {
@@ -69,6 +69,7 @@ export class MonitorService {
 				alertAfterFailures: input.alertAfterFailures || DEFAULT_ALERT_AFTER_FAILURES,
 				pushToken: input.type === "push" ? nanoid(PUSH_TOKEN_LENGTH) : null,
 				pushGracePeriodSeconds: input.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+				nextCheckAt: new Date(),
 			})
 			.returning();
 
@@ -78,9 +79,6 @@ export class MonitorService {
 			status: "unknown",
 			consecutiveFailures: 0,
 		});
-
-		// Schedule the new monitor for health checks
-		scheduler.scheduleMonitor(newMonitor);
 
 		return newMonitor;
 	}
@@ -123,19 +121,27 @@ export class MonitorService {
 			return null;
 		}
 
+		// If activating or changing interval, reset the schedule
+		const shouldResetSchedule =
+			(input.active === true && !existingMonitor.active) ||
+			(input.intervalSeconds !== undefined &&
+				input.intervalSeconds !== existingMonitor.intervalSeconds);
+
 		const [updated] = await db
 			.update(monitor)
 			.set({
 				...input,
 				updatedAt: new Date(),
+				// Reset schedule if becoming active or interval changed
+				...(shouldResetSchedule && {
+					nextCheckAt: sql`NOW()`,
+					checkRetryCount: 0,
+					checkLastError: null,
+					checkBackoffUntil: null,
+				}),
 			})
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
 			.returning();
-
-		// Reschedule the monitor (handles active state changes)
-		if (updated) {
-			scheduler.scheduleMonitor(updated);
-		}
 
 		return updated || null;
 	}
@@ -145,9 +151,6 @@ export class MonitorService {
 		if (!existingMonitor) {
 			return false;
 		}
-
-		// Unschedule the monitor first
-		scheduler.unscheduleMonitor(id);
 
 		await db
 			.delete(monitor)
@@ -163,6 +166,46 @@ export class MonitorService {
 		}
 
 		return this.update(id, organizationId, { active: !existingMonitor.active });
+	}
+
+	/**
+	 * Returns monitors that have exceeded the max retry count (dead letter state).
+	 */
+	async findDeadLetterMonitors(organizationId: string): Promise<Monitor[]> {
+		return db
+			.select()
+			.from(monitor)
+			.where(
+				and(
+					eq(monitor.organizationId, organizationId),
+					gte(monitor.checkRetryCount, CHECK_RETRY.MAX_ATTEMPTS),
+				),
+			)
+			.orderBy(desc(monitor.updatedAt));
+	}
+
+	/**
+	 * Resets a monitor from dead letter state, allowing it to be checked again.
+	 */
+	async resetDeadLetter(id: string, organizationId: string): Promise<Monitor | null> {
+		const existingMonitor = await this.findByIdAndOrg(id, organizationId);
+		if (!existingMonitor) {
+			return null;
+		}
+
+		const [updated] = await db
+			.update(monitor)
+			.set({
+				checkRetryCount: 0,
+				checkLastError: null,
+				checkBackoffUntil: null,
+				nextCheckAt: sql`NOW()`,
+				updatedAt: new Date(),
+			})
+			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
+			.returning();
+
+		return updated || null;
 	}
 }
 

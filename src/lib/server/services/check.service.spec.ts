@@ -58,6 +58,10 @@ function createMockMonitor(overrides: Partial<Monitor> = {}): Monitor {
 		active: true,
 		createdAt: new Date(),
 		updatedAt: new Date(),
+		nextCheckAt: null,
+		checkRetryCount: 0,
+		checkLastError: null,
+		checkBackoffUntil: null,
 		...overrides,
 	};
 }

@@ -3,11 +3,8 @@ import type { Handle } from "@sveltejs/kit";
 import { building } from "$app/environment";
 import { paraglideMiddleware } from "$lib/paraglide/server";
 import { auth } from "$lib/server/auth";
-import { scheduler } from "$lib/server/jobs/scheduler";
 import { sequence } from "@sveltejs/kit/hooks";
 import { svelteKitHandler } from "better-auth/svelte-kit";
-
-if (!building) void scheduler.start();
 
 const handleParaglide: Handle = ({ event, resolve }) =>
 	paraglideMiddleware(

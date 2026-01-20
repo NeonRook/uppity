@@ -67,10 +67,10 @@ server.
 Create a new entry point `src/worker/scheduler.ts`:
 
 ```typescript
-import { db } from '$lib/server/db';
-import { monitor } from '$lib/server/db/schema';
-import { checkService } from '$lib/server/services/check.service';
-import { eq, and, lte } from 'drizzle-orm';
+import { db } from "$lib/server/db";
+import { monitor } from "$lib/server/db/schema";
+import { checkService } from "$lib/server/services/check.service";
+import { eq, and, lte } from "drizzle-orm";
 
 // Poll database for monitors due for checking
 async function pollMonitors() {
@@ -81,8 +81,8 @@ async function pollMonitors() {
 		.where(
 			and(
 				eq(monitor.active, true),
-				lte(monitor.nextCheckAt, now) // New column needed
-			)
+				lte(monitor.nextCheckAt, now), // New column needed
+			),
 		);
 
 	for (const m of dueMonitors) {
@@ -109,14 +109,14 @@ CREATE INDEX monitor_next_check_idx ON monitor (next_check_at) WHERE active = tr
 services:
   app:
     image: ghcr.io/neonrook/uppity:latest
-    command: ['bun', 'run', './build/index.js']
+    command: ["bun", "run", "./build/index.js"]
     # ... web config
 
   worker:
     image: ghcr.io/neonrook/uppity:latest
-    command: ['bun', 'run', './build/worker.js']
+    command: ["bun", "run", "./build/worker.js"]
     environment:
-      DATABASE_URL: '${DATABASE_URL}'
+      DATABASE_URL: "${DATABASE_URL}"
     restart: unless-stopped
 ```
 
@@ -260,19 +260,16 @@ PostgreSQL.
 
 ```typescript
 // src/lib/server/jobs/boss.ts
-import PgBoss from 'pg-boss';
+import PgBoss from "pg-boss";
 
 export const boss = new PgBoss(process.env.DATABASE_URL!);
 
 // Producer: Schedule monitor checks
-export async function scheduleMonitorCheck(
-	monitorId: string,
-	intervalSeconds: number
-) {
+export async function scheduleMonitorCheck(monitorId: string, intervalSeconds: number) {
 	await boss.schedule(
 		`monitor-check-${monitorId}`,
 		`*/${Math.max(1, Math.floor(intervalSeconds / 60))} * * * *`,
-		{ monitorId }
+		{ monitorId },
 	);
 }
 
@@ -280,7 +277,7 @@ export async function scheduleMonitorCheck(
 async function startWorker() {
 	await boss.start();
 
-	await boss.work('monitor-check-*', async (job) => {
+	await boss.work("monitor-check-*", async (job) => {
 		const { monitorId } = job.data;
 		const monitor = await getMonitor(monitorId);
 		const result = await checkService.performCheckWithRetries(monitor);
@@ -333,34 +330,34 @@ scheduling.
 
 ```typescript
 // src/lib/server/jobs/queue.ts
-import { Queue, Worker } from 'bullmq';
+import { Queue, Worker } from "bullmq";
 
-const connection = { host: 'localhost', port: 6379 };
+const connection = { host: "localhost", port: 6379 };
 
-export const monitorQueue = new Queue('monitor-checks', { connection });
+export const monitorQueue = new Queue("monitor-checks", { connection });
 
 // Add repeatable jobs for each monitor
 export async function scheduleMonitor(monitorId: string, intervalMs: number) {
 	await monitorQueue.add(
-		'check',
+		"check",
 		{ monitorId },
 		{
 			repeat: { every: intervalMs },
-			jobId: `monitor-${monitorId}`
-		}
+			jobId: `monitor-${monitorId}`,
+		},
 	);
 }
 
 // Worker process
 const worker = new Worker(
-	'monitor-checks',
+	"monitor-checks",
 	async (job) => {
 		const { monitorId } = job.data;
 		const monitor = await getMonitor(monitorId);
 		const result = await checkService.performCheckWithRetries(monitor);
 		await checkService.saveCheckResult(monitorId, result);
 	},
-	{ connection, concurrency: 10 }
+	{ connection, concurrency: 10 },
 );
 ```
 
@@ -405,8 +402,8 @@ Simple polling loop with PostgreSQL advisory locks for coordination.
 
 ```typescript
 // src/worker/scheduler.ts
-import { db } from '$lib/server/db';
-import { sql } from 'drizzle-orm';
+import { db } from "$lib/server/db";
+import { sql } from "drizzle-orm";
 
 async function claimAndExecuteCheck(): Promise<boolean> {
 	// Atomic claim using SKIP LOCKED
