@@ -15,6 +15,13 @@
       "when": 1768638812333,
       "tag": "0001_free_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768937786599,
+      "tag": "0002_neat_prodigy",
+      "breakpoints": true
     }
   ]
 }
