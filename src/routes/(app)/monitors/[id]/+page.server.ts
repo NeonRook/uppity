@@ -1,9 +1,10 @@
 import { db } from "$lib/server/db";
 import { monitor, monitorStatus, monitorCheck } from "$lib/server/db/schema";
-import { error } from "@sveltejs/kit";
+import { monitorService } from "$lib/server/services/monitor.service";
+import { error, fail, redirect } from "@sveltejs/kit";
 import { eq, and, desc } from "drizzle-orm";
 
-import type { PageServerLoad } from "./$types";
+import type { PageServerLoad, Actions } from "./$types";
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!locals.session?.activeOrganizationId) {
@@ -46,4 +47,33 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		status: statusData || null,
 		recentChecks,
 	};
+};
+
+export const actions: Actions = {
+	delete: async ({ params, locals }) => {
+		if (!locals.session?.activeOrganizationId) {
+			return fail(401, { error: "Not authenticated" });
+		}
+
+		await monitorService.delete(params.id, locals.session.activeOrganizationId);
+
+		redirect(303, "/monitors");
+	},
+
+	toggle: async ({ params, locals }) => {
+		if (!locals.session?.activeOrganizationId) {
+			return fail(401, { error: "Not authenticated" });
+		}
+
+		const updated = await monitorService.toggleActive(
+			params.id,
+			locals.session.activeOrganizationId,
+		);
+
+		if (!updated) {
+			return fail(404, { error: "Monitor not found" });
+		}
+
+		return { success: true, active: updated.active };
+	},
 };

@@ -121,6 +121,8 @@
 	"monitors_view_details": "Ver Detalhes",
 	"monitors_pause": "Pausar",
 	"monitors_resume": "Retomar",
+	"monitors_delete_title": "Excluir monitor?",
+	"monitors_delete_desc": "Isso excluirá permanentemente este monitor e todo o seu histórico de verificações. Esta ação não pode ser desfeita.",
 
 	"monitor_new_title": "Novo Monitor",
 	"monitor_new_subtitle": "Crie um novo monitor de uptime",
