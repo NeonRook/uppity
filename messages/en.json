@@ -121,6 +121,8 @@
 	"monitors_view_details": "View Details",
 	"monitors_pause": "Pause",
 	"monitors_resume": "Resume",
+	"monitors_delete_title": "Delete monitor?",
+	"monitors_delete_desc": "This will permanently delete this monitor and all its check history. This action cannot be undone.",
 
 	"monitor_new_title": "New Monitor",
 	"monitor_new_subtitle": "Create a new uptime monitor",

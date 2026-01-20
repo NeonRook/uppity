@@ -1,28 +1,32 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
+	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import PageHeader from '$lib/components/page-header.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import * as Table from '$lib/components/ui/table';
+	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
+	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
 	import {
+		Check,
+		Copy,
 		ExternalLink,
-		Settings,
 		Pause,
 		Play,
-		Copy,
-		Check,
-		ShieldCheck,
+		Settings,
 		ShieldAlert,
-		ShieldX
+		ShieldCheck,
+		ShieldX,
+		Trash2
 	} from '@lucide/svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import { page } from '$app/state';
-	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
-	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
-	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	let copied = $state(false);
+	let showDeleteDialog = $state(false);
 
 	const pushUrl = $derived(
 		data.monitor.type === 'push' && data.monitor.pushToken
@@ -93,18 +97,25 @@
 		{/if}
 		{#snippet actions()}
 			<div class="flex gap-2">
-				<Button variant="outline" size="sm">
-					{#if data.monitor.active}
-						<Pause class="mr-2 h-4 w-4" />
-						{m.monitors_pause()}
-					{:else}
-						<Play class="mr-2 h-4 w-4" />
-						{m.monitors_resume()}
-					{/if}
-				</Button>
+				<form method="POST" action="?/toggle" use:enhance>
+					<input type="hidden" name="monitorId" value={data.monitor.id} />
+					<Button type="submit" variant="outline" size="sm">
+						{#if data.monitor.active}
+							<Pause class="mr-2 h-4 w-4" />
+							{m.monitors_pause()}
+						{:else}
+							<Play class="mr-2 h-4 w-4" />
+							{m.monitors_resume()}
+						{/if}
+					</Button>
+				</form>
 				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
 					<Settings class="mr-2 h-4 w-4" />
 					{m.common_edit()}
+				</Button>
+				<Button variant="destructive" size="sm" onclick={() => (showDeleteDialog = true)}>
+					<Trash2 class="mr-2 h-4 w-4" />
+					{m.common_delete()}
 				</Button>
 			</div>
 		{/snippet}
@@ -369,3 +380,10 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<DeleteDialog
+	open={showDeleteDialog}
+	onOpenChange={(open) => (showDeleteDialog = open)}
+	title={m.monitors_delete_title()}
+	description={m.monitors_delete_desc()}
+/>

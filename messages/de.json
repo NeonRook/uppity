@@ -121,6 +121,8 @@
 	"monitors_view_details": "Details anzeigen",
 	"monitors_pause": "Pausieren",
 	"monitors_resume": "Fortsetzen",
+	"monitors_delete_title": "Monitor löschen?",
+	"monitors_delete_desc": "Dieser Monitor und sein gesamter Prüfverlauf werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
 
 	"monitor_new_title": "Neuer Monitor",
 	"monitor_new_subtitle": "Erstelle einen neuen Verfügbarkeitsmonitor",

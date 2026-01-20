@@ -1,25 +1,29 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
+	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
+	import { formatResponseTime } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
+	import { getStatusBadge, getStatusColor } from '$lib/utils/status';
 	import {
-		Plus,
 		Activity,
 		ExternalLink,
 		MoreHorizontal,
 		Pause,
 		Play,
+		Plus,
 		Trash2
 	} from '@lucide/svelte';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { formatResponseTime } from '$lib/format';
-	import { getStatusBadge, getStatusColor } from '$lib/utils/status';
 	import EmptyState from '$lib/components/empty-state.svelte';
-	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
+
+	let deleteMonitorId = $state<string | null>(null);
 
 	function formatUptime(percent: number | null) {
 		if (percent === null) return '-';
@@ -146,16 +150,24 @@
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item>
-											{#if mon.active}
-												<Pause class="mr-2 h-4 w-4" />
-												{m.monitors_pause()}
-											{:else}
-												<Play class="mr-2 h-4 w-4" />
-												{m.monitors_resume()}
-											{/if}
+											<form method="POST" action="?/toggle" use:enhance class="contents">
+												<input type="hidden" name="monitorId" value={mon.id} />
+												<button type="submit" class="flex w-full items-center">
+													{#if mon.active}
+														<Pause class="mr-2 h-4 w-4" />
+														{m.monitors_pause()}
+													{:else}
+														<Play class="mr-2 h-4 w-4" />
+														{m.monitors_resume()}
+													{/if}
+												</button>
+											</form>
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
-										<DropdownMenu.Item variant="destructive">
+										<DropdownMenu.Item
+											variant="destructive"
+											onclick={() => (deleteMonitorId = mon.id)}
+										>
 											<Trash2 class="mr-2 h-4 w-4" />
 											{m.common_delete()}
 										</DropdownMenu.Item>
@@ -169,3 +181,11 @@
 		</Card.Root>
 	{/if}
 </div>
+
+<DeleteDialog
+	itemId={deleteMonitorId}
+	onOpenChange={() => (deleteMonitorId = null)}
+	title={m.monitors_delete_title()}
+	description={m.monitors_delete_desc()}
+	inputName="monitorId"
+/>
