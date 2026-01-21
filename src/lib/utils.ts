@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /** Reads an integer from environment variables, returning the default if missing or invalid. */
 export function envInt(key: string, defaultValue: number): number {
-	const value = Bun.env[key];
+	const value = process.env[key];
 	if (!value) return defaultValue;
 	const parsed = parseInt(value, 10);
 	return Number.isNaN(parsed) ? defaultValue : parsed;
@@ -16,7 +16,7 @@ export function envInt(key: string, defaultValue: number): number {
 
 /** Reads a string from environment variables, returning the default if missing. */
 export function envString(key: string, defaultValue: string): string {
-	return Bun.env[key] || defaultValue;
+	return process.env[key] || defaultValue;
 }
 
 export type WithoutChild<T> = T extends { child?: unknown } ? Omit<T, "child"> : T;

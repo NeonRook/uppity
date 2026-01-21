@@ -13,12 +13,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, admin } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 
-// Use Bun.env directly to ensure runtime resolution
 // $env/dynamic/private gets baked in at build time by svelte-adapter-bun
 // Note: svelte-adapter-bun presents requests as HTTPS, so defaults must use https://
-const secret = Bun.env.BETTER_AUTH_SECRET;
-const baseURL = Bun.env.BETTER_AUTH_URL || "https://localhost:3000";
-const trustedOrigins = Bun.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
+const secret = process.env.BETTER_AUTH_SECRET;
+const baseURL = process.env.BETTER_AUTH_URL || "https://localhost:3000";
+const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
 	"https://localhost:3000",
 ];
 

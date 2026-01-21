@@ -8,8 +8,7 @@ import type {
 	EmailConfig,
 } from "./types";
 
-// Use Bun.env directly to ensure runtime resolution
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = Bun.env;
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
 const SMTP_SECURE_PORT = String(DEFAULT_SMTP_SECURE_PORT);
 
 export class EmailNotificationProvider implements NotificationProvider {
