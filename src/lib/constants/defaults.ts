@@ -1,4 +1,4 @@
-import { envInt } from "$lib/utils";
+import { envInt, envString } from "$lib/utils";
 
 /** Monitor interval constraints for worker scheduler */
 export const MONITOR_INTERVAL = {
@@ -77,7 +77,7 @@ export const AUTO_RESOLVE_MESSAGE = "Monitor has recovered automatically.";
 export const DEFAULT_WEBHOOK_METHOD = "POST" as const;
 
 /** Sender address for outgoing email notifications. */
-export const DEFAULT_EMAIL_FROM = Bun.env.UPPITY_EMAIL_FROM || "Uppity <noreply@uppity.app>";
+export const DEFAULT_EMAIL_FROM = envString("UPPITY_EMAIL_FROM", "Uppity <noreply@uppity.app>");
 
 /** Number of recent items shown on admin dashboard widgets. */
 export const DEFAULT_RECENT_ITEMS_LIMIT = 5;
