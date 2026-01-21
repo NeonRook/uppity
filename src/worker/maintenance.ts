@@ -14,20 +14,20 @@ import { statsService } from "./stats";
 
 const maintenanceLogger = createMaintenanceLogger();
 
-type JobHandler = (wideEvent: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
+type JobHandler = (event: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
 
 const jobHandlers: Record<string, JobHandler> = {
-	"daily-stats": async (wideEvent) => {
+	"daily-stats": async (event) => {
 		const count = await statsService.aggregateYesterday();
-		wideEvent.set("records_processed", count);
+		event.set("records_processed", count);
 	},
-	"rolling-stats": async (wideEvent) => {
+	"rolling-stats": async (event) => {
 		const count = await statsService.updateAll24hStats();
-		wideEvent.set("records_processed", count);
+		event.set("records_processed", count);
 	},
-	cleanup: async (wideEvent) => {
+	cleanup: async (event) => {
 		const deleted = await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS);
-		wideEvent.set("records_deleted", deleted);
+		event.set("records_deleted", deleted);
 	},
 };
 
@@ -101,14 +101,14 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 		}
 
 		// Create wide event for this job execution
-		const wideEvent = createMaintenanceWideEvent(job.id);
-		wideEvent.merge({
+		const event = createMaintenanceWideEvent(job.id);
+		event.merge({
 			job_id: job.id,
 			job_name: job.name,
 		});
 
 		try {
-			await handler(wideEvent);
+			await handler(event);
 
 			// Calculate next run time
 			const nextRun = calculateNextRun(job.cronExpression);
@@ -122,10 +122,10 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 				})
 				.where(eq(maintenanceJob.id, job.id));
 
-			wideEvent.merge({
+			event.merge({
 				next_run_at: nextRun,
 			});
-			wideEvent.setSuccess();
+			event.setSuccess();
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -134,9 +134,9 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 				.set({ lastError: errorMessage })
 				.where(eq(maintenanceJob.id, job.id));
 
-			wideEvent.setError(error);
+			event.setError(error);
 		} finally {
-			wideEvent.emit("maintenance");
+			event.emit("maintenance");
 		}
 	}
 }

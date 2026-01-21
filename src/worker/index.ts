@@ -124,8 +124,8 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
  */
 async function processMonitor(m: typeof monitor.$inferSelect) {
 	// Create wide event for this check
-	const wideEvent = createCheckWideEvent(m.id);
-	wideEvent.merge({
+	const event = createCheckWideEvent(m.id);
+	event.merge({
 		monitor_id: m.id,
 		monitor_name: m.name,
 		monitor_type: m.type as "http" | "tcp" | "push",
@@ -133,7 +133,7 @@ async function processMonitor(m: typeof monitor.$inferSelect) {
 	});
 
 	try {
-		await executeCheck(m, db, wideEvent);
+		await executeCheck(m, db, event);
 
 		// Success: reset retry state, schedule next check
 		await db
@@ -146,10 +146,10 @@ async function processMonitor(m: typeof monitor.$inferSelect) {
 			})
 			.where(eq(monitor.id, m.id));
 	} catch (error) {
-		wideEvent.setError(error);
+		event.setError(error);
 		await handleCheckFailure(m, error);
 	} finally {
-		wideEvent.emit("check");
+		event.emit("check");
 	}
 }
 

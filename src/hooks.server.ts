@@ -12,10 +12,10 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
  * Must be first in the sequence to capture full request lifecycle.
  */
 const handleLogging: Handle = async ({ event, resolve }) => {
-	const wideEvent = createRequestWideEvent();
+	const reqEvent = createRequestWideEvent();
 
 	// Set initial HTTP context
-	wideEvent.merge({
+	reqEvent.merge({
 		http_method: event.request.method,
 		http_path: event.url.pathname,
 		http_route: event.route.id ?? undefined,
@@ -24,40 +24,40 @@ const handleLogging: Handle = async ({ event, resolve }) => {
 	});
 
 	// Store in locals for enrichment by other handlers/services
-	event.locals.event = wideEvent;
+	event.locals.event = reqEvent;
 
 	try {
 		const response = await resolve(event);
 
 		// Set response status and mark success
-		wideEvent.set("http_status", response.status);
+		reqEvent.set("http_status", response.status);
 		if (response.status >= 400) {
-			wideEvent.setStatus("error");
+			reqEvent.setStatus("error");
 		} else {
-			wideEvent.setSuccess();
+			reqEvent.setSuccess();
 		}
 
 		return response;
 	} catch (error) {
-		wideEvent.setError(error);
+		reqEvent.setError(error);
 		throw error;
 	} finally {
 		// Enrich with auth context if available (set by handleAuth)
 		if (event.locals.user) {
-			wideEvent.merge({
+			reqEvent.merge({
 				user_id: event.locals.user.id,
 				user_email: event.locals.user.email,
 			});
 		}
 		if (event.locals.session) {
-			wideEvent.merge({
+			reqEvent.merge({
 				session_id: event.locals.session.id,
 				org_id: event.locals.session.activeOrganizationId ?? undefined,
 			});
 		}
 
 		// Emit the wide event
-		wideEvent.emit("request");
+		reqEvent.emit("request");
 	}
 };
 

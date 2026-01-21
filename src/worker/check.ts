@@ -334,7 +334,7 @@ async function saveCheckResult(
 	m: Monitor,
 	result: CheckResult,
 	db: Db,
-	wideEvent?: WideEventBuilder<CheckWideEvent>,
+	event?: WideEventBuilder<CheckWideEvent>,
 ): Promise<void> {
 	const checkId = nanoid();
 
@@ -376,7 +376,7 @@ async function saveCheckResult(
 		.where(eq(monitorStatus.monitorId, m.id));
 
 	// Enrich wide event with check result
-	wideEvent?.merge({
+	event?.merge({
 		check_status: result.status,
 		response_time_ms: result.responseTimeMs,
 		status_code: result.statusCode,
@@ -426,7 +426,7 @@ async function saveCheckResult(
 				});
 
 				// Enrich wide event with incident info
-				wideEvent?.merge({
+				event?.merge({
 					incident_created: true,
 					incident_id: incidentId,
 				});
@@ -459,7 +459,7 @@ async function saveCheckResult(
 				});
 
 				// Enrich wide event with resolution info
-				wideEvent?.merge({
+				event?.merge({
 					incident_resolved: true,
 					incident_id: existingIncident.id,
 				});
@@ -474,13 +474,13 @@ async function saveCheckResult(
 		);
 		const threshold = m.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
 
-		wideEvent?.merge({
+		event?.merge({
 			ssl_expires_at: result.sslExpiresAt,
 			ssl_days_remaining: daysUntilExpiry,
 		});
 
 		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
-			wideEvent?.set("ssl_expiry_warning", true);
+			event?.set("ssl_expiry_warning", true);
 		}
 	}
 }
@@ -491,15 +491,15 @@ async function saveCheckResult(
 export async function executeCheck(
 	m: Monitor,
 	db: Db,
-	wideEvent?: WideEventBuilder<CheckWideEvent>,
+	event?: WideEventBuilder<CheckWideEvent>,
 ): Promise<void> {
 	const result = await performCheckWithRetries(m, db);
-	await saveCheckResult(m, result, db, wideEvent);
+	await saveCheckResult(m, result, db, event);
 
 	// Set success/error status on wide event
 	if (result.status === "down") {
-		wideEvent?.setError(new Error(result.errorMessage || "Check failed"));
+		event?.setError(new Error(result.errorMessage || "Check failed"));
 	} else {
-		wideEvent?.setSuccess();
+		event?.setSuccess();
 	}
 }
