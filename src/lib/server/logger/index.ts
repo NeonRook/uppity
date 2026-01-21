@@ -10,35 +10,44 @@ import type {
 
 import { WideEventBuilder } from "./context";
 
-const isDev = process.env.NODE_ENV !== "production";
+/**
+ * Build pino options. Uses import.meta.env.DEV for compile-time elimination
+ * of pino-pretty transport in production builds.
+ */
+function buildPinoOptions(): pino.LoggerOptions {
+	const options: pino.LoggerOptions = {
+		level: process.env.LOG_LEVEL || "info",
+		base: {
+			service: "uppity",
+			version: process.env.npm_package_version || "0.0.1",
+			env: process.env.NODE_ENV || "development",
+		},
+		timestamp: pino.stdTimeFunctions.isoTime,
+	};
+
+	// import.meta.env.DEV is replaced at build time by Vite,
+	// so pino-pretty is tree-shaken from production bundles
+	if (import.meta.env.DEV) {
+		options.transport = {
+			target: "pino-pretty",
+			options: {
+				colorize: true,
+				translateTime: "SYS:HH:MM:ss",
+				ignore: "pid,hostname,service,version,env",
+				messageFormat: "{event_type} {msg}",
+			},
+		};
+	}
+
+	return options;
+}
 
 /**
  * Base Pino logger configuration.
  * - Pretty printing in development
  * - JSON output in production
  */
-const baseLogger = pino({
-	level: process.env.LOG_LEVEL || "info",
-	base: {
-		service: "uppity",
-		version: process.env.npm_package_version || "0.0.1",
-		env: process.env.NODE_ENV || "development",
-	},
-	timestamp: pino.stdTimeFunctions.isoTime,
-	...(isDev
-		? {
-				transport: {
-					target: "pino-pretty",
-					options: {
-						colorize: true,
-						translateTime: "SYS:HH:MM:ss",
-						ignore: "pid,hostname,service,version,env",
-						messageFormat: "{event_type} {msg}",
-					},
-				},
-			}
-		: {}),
-});
+const baseLogger = pino(buildPinoOptions());
 
 /**
  * Generate a unique request ID
