@@ -21,7 +21,7 @@ COPY . .
 # VITE_ prefixed vars are client-side and must be set at build time
 ARG VITE_BETTER_AUTH_URL="https://localhost:3000"
 ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
-RUN bun run prepare && bun run build:all
+RUN bun --bun run prepare && bun --bun run build:all
 
 # Stage 3: Production image
 FROM base AS runner
@@ -46,4 +46,4 @@ ENV PORT=3000
 
 # Default to web server, override for worker:
 # docker run ... [image] bun run ./build/worker.js
-CMD ["bun", "run", "./build/index.js"]
+CMD ["bun", "--bun", "run", "./build/index.js"]
