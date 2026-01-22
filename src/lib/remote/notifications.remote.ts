@@ -1,6 +1,16 @@
-import { command, getRequestEvent } from "$app/server";
+import { command, query, getRequestEvent } from "$app/server";
 import { notificationChannelService } from "$lib/server/services/notification-channel.service";
 import * as v from "valibot";
+
+// Query: List notification channels for the current organization
+export const getChannels = query(async () => {
+	const { locals } = getRequestEvent();
+	if (!locals.session?.activeOrganizationId) {
+		return [];
+	}
+
+	return notificationChannelService.findByOrganization(locals.session.activeOrganizationId);
+});
 
 const channelIdSchema = v.object({
 	channelId: v.pipe(v.string(), v.minLength(1)),

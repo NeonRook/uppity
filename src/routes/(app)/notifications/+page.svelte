@@ -1,18 +1,22 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Plus, Bell, Mail, MessageSquare, Webhook, Pencil, Trash2 } from '@lucide/svelte';
-	import type { NotificationChannel } from '$lib/server/db/schema';
-	import EmptyState from '$lib/components/empty-state.svelte';
+	import ChannelsListSkeleton from '$lib/components/channels-list-skeleton.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Switch } from '$lib/components/ui/switch';
 	import { m } from '$lib/paraglide/messages.js';
-	import { toggleChannel, deleteChannel } from '$lib/remote/notifications.remote';
+	import { getChannels, toggleChannel, deleteChannel } from '$lib/remote/notifications.remote';
+	import type { NotificationChannel } from '$lib/server/db/schema';
+	import { Bell, Mail, MessageSquare, Pencil, Plus, Trash2, Webhook } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
+	const channelsQuery = getChannels();
+
+	// Prefer query data (after refresh/mutation), fallback to preloaded data
+	const channels = $derived(channelsQuery.current ?? data.channels);
 
 	let deleteChannelId = $state<string | null>(null);
 	let togglingChannelId = $state<string | null>(null);
@@ -63,11 +67,14 @@
 		}
 	}
 
-	async function handleToggle(channelId: string) {
+	async function handleToggle(channelId: string, currentEnabled: boolean) {
 		togglingChannelId = channelId;
 		try {
-			await toggleChannel({ channelId });
-			await invalidateAll();
+			await toggleChannel({ channelId }).updates(
+				getChannels().withOverride((channels) =>
+					channels.map((ch) => (ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch))
+				)
+			);
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to toggle channel');
 		} finally {
@@ -76,8 +83,9 @@
 	}
 
 	async function handleDelete(channelId: string) {
-		await deleteChannel({ channelId });
-		await invalidateAll();
+		await deleteChannel({ channelId }).updates(
+			getChannels().withOverride((channels) => channels.filter((ch) => ch.id !== channelId))
+		);
 	}
 </script>
 
@@ -97,7 +105,15 @@
 		</Button>
 	</div>
 
-	{#if data.channels.length === 0}
+	{#if channelsQuery.loading && !channels}
+		<ChannelsListSkeleton />
+	{:else if channelsQuery.error}
+		<Card.Root>
+			<Card.Content class="p-6">
+				<p class="text-destructive">Failed to load channels: {channelsQuery.error.message}</p>
+			</Card.Content>
+		</Card.Root>
+	{:else if channels.length === 0}
 		<EmptyState
 			icon={Bell}
 			title={m.notifications_empty_title()}
@@ -107,7 +123,7 @@
 		/>
 	{:else}
 		<div class="grid gap-4">
-			{#each data.channels as channel (channel.id)}
+			{#each channels as channel (channel.id)}
 				{@const Icon = getChannelIcon(channel.type)}
 				<Card.Root>
 					<Card.Content class="flex items-center justify-between p-6">
@@ -131,7 +147,7 @@
 							<Switch
 								checked={channel.enabled}
 								disabled={togglingChannelId === channel.id}
-								onCheckedChange={() => handleToggle(channel.id)}
+								onCheckedChange={() => handleToggle(channel.id, channel.enabled)}
 							/>
 
 							<Button variant="ghost" size="icon" href="/notifications/{channel.id}">

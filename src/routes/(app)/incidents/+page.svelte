@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Plus, TriangleAlert, Trash2 } from '@lucide/svelte';
-	import { getStatusInfo, getImpactInfo, formatIncidentDate } from '$lib/incidents';
-	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { formatIncidentDate, getImpactInfo, getStatusInfo } from '$lib/incidents';
 	import { m } from '$lib/paraglide/messages.js';
-	import { deleteIncident } from '$lib/remote/incidents.remote';
+	import { deleteIncident, getIncidents } from '$lib/remote/incidents.remote';
+	import { Plus, Trash2, TriangleAlert } from '@lucide/svelte';
 
 	let { data } = $props();
 
@@ -32,8 +31,11 @@
 	}
 
 	async function handleDelete(incidentId: string) {
-		await deleteIncident({ incidentId });
-		await invalidateAll();
+		await deleteIncident({ incidentId }).updates(
+			getIncidents({ includeResolved: data.includeResolved }).withOverride((incidents) =>
+				incidents.filter((inc) => inc.id !== incidentId)
+			)
+		);
 	}
 </script>
 

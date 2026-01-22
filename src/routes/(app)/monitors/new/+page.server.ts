@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, "/settings");
 	}
 
-	const form = await superValidate(valibot(createMonitorSchema));
+	const form = await superValidate({ type: "http" }, valibot(createMonitorSchema));
 	return { form };
 };
 
