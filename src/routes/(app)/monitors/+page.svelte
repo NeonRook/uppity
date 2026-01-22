@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Badge } from '$lib/components/ui/badge';
@@ -9,21 +9,25 @@
 	import * as Table from '$lib/components/ui/table';
 	import { formatResponseTime } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
+	import { toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
 	import { getStatusBadge, getStatusColor } from '$lib/utils/status';
 	import {
 		Activity,
 		ExternalLink,
+		LoaderCircle,
 		MoreHorizontal,
 		Pause,
 		Play,
 		Plus,
 		Trash2
 	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 	import EmptyState from '$lib/components/empty-state.svelte';
 
 	let { data } = $props();
 
 	let deleteMonitorId = $state<string | null>(null);
+	let togglingMonitorId = $state<string | null>(null);
 
 	function formatUptime(percent: number | null) {
 		if (percent === null) return '-';
@@ -43,6 +47,23 @@
 			return `${mon.hostname}:${mon.port}`;
 		}
 		return '-';
+	}
+
+	async function handleToggle(monitorId: string) {
+		togglingMonitorId = monitorId;
+		try {
+			await toggleMonitor({ monitorId });
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to toggle monitor');
+		} finally {
+			togglingMonitorId = null;
+		}
+	}
+
+	async function handleDelete(monitorId: string) {
+		await deleteMonitor({ monitorId });
+		await invalidateAll();
 	}
 </script>
 
@@ -149,19 +170,18 @@
 											</a>
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
-										<DropdownMenu.Item>
-											<form method="POST" action="?/toggle" use:enhance class="contents">
-												<input type="hidden" name="monitorId" value={mon.id} />
-												<button type="submit" class="flex w-full items-center">
-													{#if mon.active}
-														<Pause class="mr-2 h-4 w-4" />
-														{m.monitors_pause()}
-													{:else}
-														<Play class="mr-2 h-4 w-4" />
-														{m.monitors_resume()}
-													{/if}
-												</button>
-											</form>
+										<DropdownMenu.Item
+											onclick={() => handleToggle(mon.id)}
+											disabled={togglingMonitorId === mon.id}
+										>
+											{#if togglingMonitorId === mon.id}
+												<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+											{:else if mon.active}
+												<Pause class="mr-2 h-4 w-4" />
+											{:else}
+												<Play class="mr-2 h-4 w-4" />
+											{/if}
+											{mon.active ? m.monitors_pause() : m.monitors_resume()}
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item
@@ -185,7 +205,7 @@
 <DeleteDialog
 	itemId={deleteMonitorId}
 	onOpenChange={() => (deleteMonitorId = null)}
+	onDelete={handleDelete}
 	title={m.monitors_delete_title()}
 	description={m.monitors_delete_desc()}
-	inputName="monitorId"
 />

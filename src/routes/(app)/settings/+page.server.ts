@@ -3,8 +3,6 @@ import {
 	updateOrganizationSchema,
 	createOrganizationSchema,
 	inviteMemberSchema,
-	cancelInvitationSchema,
-	removeMemberSchema,
 } from "$lib/schemas/settings";
 import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db";
@@ -211,56 +209,6 @@ export const actions: Actions = {
 			return { success: true, inviteSent: true };
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : "Failed to send invitation";
-			return fail(400, { error: errorMessage });
-		}
-	},
-
-	cancelInvitation: async ({ request }) => {
-		const form = await superValidate(request, valibot(cancelInvitationSchema));
-
-		if (!form.valid) {
-			return fail(400, { error: "Invitation ID is required" });
-		}
-
-		try {
-			await auth.api.cancelInvitation({
-				headers: request.headers,
-				body: {
-					invitationId: form.data.invitationId,
-				},
-			});
-			return { success: true, invitationCancelled: true };
-		} catch {
-			return fail(500, { error: "Failed to cancel invitation" });
-		}
-	},
-
-	removeMember: async ({ request, locals }) => {
-		if (!locals.user) {
-			return fail(401, { error: "Not authenticated" });
-		}
-
-		const form = await superValidate(request, valibot(removeMemberSchema));
-
-		if (!form.valid) {
-			return fail(400, { error: "Member ID is required" });
-		}
-
-		// Prevent removing yourself
-		if (form.data.memberId === locals.user.id) {
-			return fail(400, { error: "You cannot remove yourself from the organization" });
-		}
-
-		try {
-			await auth.api.removeMember({
-				headers: request.headers,
-				body: {
-					memberIdOrEmail: form.data.memberId,
-				},
-			});
-			return { success: true, memberRemoved: true };
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : "Failed to remove member";
 			return fail(400, { error: errorMessage });
 		}
 	},

@@ -112,20 +112,4 @@ export const actions: Actions = {
 
 		redirect(302, `/admin/users/${params.id}`);
 	},
-
-	delete: async ({ request, params }) => {
-		try {
-			await auth.api.removeUser({
-				headers: request.headers,
-				body: {
-					userId: params.id,
-				},
-			});
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to delete user";
-			return fail(400, { message });
-		}
-
-		redirect(302, "/admin/users");
-	},
 };

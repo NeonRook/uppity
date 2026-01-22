@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
@@ -21,6 +23,7 @@
 		CircleCheck
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
+	import { deleteStatusPage } from '$lib/remote/status-pages.remote';
 
 	let { data } = $props();
 
@@ -38,6 +41,11 @@
 	);
 
 	let showDeleteDialog = $state(false);
+
+	async function handleDelete() {
+		await deleteStatusPage({ statusPageId: data.statusPage.id });
+		goto(resolve('/status-pages'));
+	}
 	let newGroupName = $state('');
 
 	const availableMonitors = $derived(
@@ -345,7 +353,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.statusPage.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title="Delete status page?"
 	description="This will permanently delete &quot;{data.statusPage
 		.name}&quot;. The public URL will no longer be accessible."

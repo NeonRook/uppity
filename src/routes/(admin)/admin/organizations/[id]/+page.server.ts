@@ -87,15 +87,4 @@ export const actions: Actions = {
 
 		redirect(302, `/admin/organizations/${params.id}`);
 	},
-
-	delete: async ({ params }) => {
-		try {
-			await adminService.deleteOrganization(params.id);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to delete organization";
-			return fail(400, { message });
-		}
-
-		redirect(302, "/admin/organizations");
-	},
 };
