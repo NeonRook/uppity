@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -26,6 +28,7 @@
 		type IncidentImpact
 	} from '$lib/constants/status';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteIncident } from '$lib/remote/incidents.remote';
 
 	let { data } = $props();
 
@@ -82,6 +85,11 @@
 
 	const statusInfo = $derived(getStatusInfo(data.incident.status));
 	const impactInfo = $derived(getImpactInfo(data.incident.impact));
+
+	async function handleDelete() {
+		await deleteIncident({ incidentId: data.incident.id });
+		goto(resolve('/incidents'));
+	}
 </script>
 
 <svelte:head>
@@ -412,7 +420,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.incident.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title={m.incident_delete_confirm()}
 	description={m.incident_delete_desc({ title: data.incident.title })}
 />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -7,6 +8,7 @@
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteStatusPage } from '$lib/remote/status-pages.remote';
 
 	let { data } = $props();
 
@@ -17,6 +19,11 @@
 			return `https://${page.customDomain}`;
 		}
 		return `/status/${page.slug}`;
+	}
+
+	async function handleDelete(statusPageId: string) {
+		await deleteStatusPage({ statusPageId });
+		await invalidateAll();
 	}
 </script>
 
@@ -104,7 +111,7 @@
 <DeleteDialog
 	itemId={deletePageId}
 	onOpenChange={() => (deletePageId = null)}
+	onDelete={handleDelete}
 	title={m.status_pages_delete_title()}
 	description={m.status_pages_delete_desc()}
-	inputName="statusPageId"
 />

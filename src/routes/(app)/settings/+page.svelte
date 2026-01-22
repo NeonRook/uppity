@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -24,6 +25,8 @@
 	} from '@lucide/svelte';
 	import { organization } from '$lib/auth-client';
 	import { m } from '$lib/paraglide/messages.js';
+	import { cancelInvitation, removeMember } from '$lib/remote/settings.remote';
+	import { toast } from 'svelte-sonner';
 
 	let { data, form } = $props();
 
@@ -34,6 +37,8 @@
 	let memberToRemove = $state<{ id: string; name: string } | null>(null);
 	let inviteRole = $state('member');
 	let switchingOrg = $state(false);
+	let cancellingInvitationId = $state<string | null>(null);
+	let removingMember = $state(false);
 
 	async function switchOrganization(orgId: string) {
 		if (orgId === data.currentOrganization?.id) return;
@@ -56,6 +61,33 @@
 				return { icon: Shield, variant: 'secondary' as const, label: m.role_admin() };
 			default:
 				return { icon: User, variant: 'outline' as const, label: m.role_member() };
+		}
+	}
+
+	async function handleCancelInvitation(invitationId: string) {
+		cancellingInvitationId = invitationId;
+		try {
+			await cancelInvitation({ invitationId });
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to cancel invitation');
+		} finally {
+			cancellingInvitationId = null;
+		}
+	}
+
+	async function handleRemoveMember() {
+		if (!memberToRemove) return;
+		removingMember = true;
+		try {
+			await removeMember({ memberId: memberToRemove.id });
+			showRemoveMemberDialog = false;
+			memberToRemove = null;
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to remove member');
+		} finally {
+			removingMember = false;
 		}
 	}
 </script>
@@ -88,10 +120,6 @@
 					{m.settings_success_org_created()}
 				{:else if form.inviteSent}
 					{m.settings_success_invite()}
-				{:else if form.invitationCancelled}
-					{m.settings_success_invite_cancelled()}
-				{:else if form.memberRemoved}
-					{m.settings_success_member_removed()}
 				{:else}
 					{m.settings_success_default()}
 				{/if}
@@ -306,12 +334,18 @@
 										<Badge variant="outline" class="ml-2">{inv.role}</Badge>
 									</div>
 									{#if data.isAdmin}
-										<form method="POST" action="?/cancelInvitation" use:enhance>
-											<input type="hidden" name="invitationId" value={inv.id} />
-											<Button type="submit" variant="ghost" size="sm">
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={() => handleCancelInvitation(inv.id)}
+											disabled={cancellingInvitationId === inv.id}
+										>
+											{#if cancellingInvitationId === inv.id}
+												<LoaderCircle class="h-4 w-4 animate-spin" />
+											{:else}
 												<X class="h-4 w-4" />
-											</Button>
-										</form>
+											{/if}
+										</Button>
 									{/if}
 								</div>
 							{/each}
@@ -461,27 +495,12 @@
 			<AlertDialog.Cancel onclick={() => (memberToRemove = null)}
 				>{m.common_cancel()}</AlertDialog.Cancel
 			>
-			<form
-				method="POST"
-				action="?/removeMember"
-				use:enhance={() => {
-					loading = true;
-					return async ({ update }) => {
-						loading = false;
-						showRemoveMemberDialog = false;
-						memberToRemove = null;
-						await update();
-					};
-				}}
-			>
-				<input type="hidden" name="memberId" value={memberToRemove?.id} />
-				<Button type="submit" variant="destructive" disabled={loading}>
-					{#if loading}
-						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{/if}
-					{m.common_remove()}
-				</Button>
-			</form>
+			<Button onclick={handleRemoveMember} variant="destructive" disabled={removingMember}>
+				{#if removingMember}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{/if}
+				{m.common_remove()}
+			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

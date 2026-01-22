@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { superForm } from 'sveltekit-superforms';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -16,6 +17,7 @@
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateShort } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteOrganization } from '$lib/remote/admin.remote';
 
 	let { data } = $props();
 
@@ -32,6 +34,11 @@
 
 	let selectedUserId = $state<string>('');
 	let selectedRole = $state<string>('member');
+
+	async function handleDelete() {
+		await deleteOrganization({ organizationId: data.org.id });
+		goto(resolve('/admin/organizations'));
+	}
 
 	function getRoleBadgeVariant(role: string) {
 		switch (role) {
@@ -292,7 +299,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.org.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title={m.admin_orgs_delete()}
 	description={m.admin_orgs_delete_confirm({ name: data.org.name })}
 />

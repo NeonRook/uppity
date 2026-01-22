@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -20,11 +22,17 @@
 		Trash2
 	} from '@lucide/svelte';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteChannel } from '$lib/remote/notifications.remote';
 
 	let { data, form } = $props();
 
 	let loading = $state(false);
 	let showDeleteDialog = $state(false);
+
+	async function handleDelete() {
+		await deleteChannel({ channelId: data.channel.id });
+		goto(resolve('/notifications'));
+	}
 
 	const config = $derived(data.channel.config as Record<string, unknown>);
 	const type = $derived(data.channel.type);
@@ -290,7 +298,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.channel.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title={m.notifications_delete_title()}
 	description={m.notifications_delete_confirm({ name: data.channel.name })}
 />

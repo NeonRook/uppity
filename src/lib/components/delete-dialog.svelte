@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { m } from '$lib/paraglide/messages.js';
+	import { toast } from 'svelte-sonner';
 
 	interface Props {
 		/** Explicit open state (use this for detail pages) */
@@ -11,25 +11,15 @@
 		itemId?: string | null;
 		/** Callback when dialog open state changes */
 		onOpenChange: (open: boolean) => void;
+		/** Callback to perform the delete operation */
+		onDelete: (id: string) => Promise<void>;
 		/** Dialog title */
 		title: string;
 		/** Dialog description/warning message */
 		description: string;
-		/** The form action path, defaults to "?/delete" */
-		action?: string;
-		/** The name of the hidden input field for the ID (only needed with itemId) */
-		inputName?: string;
 	}
 
-	let {
-		open,
-		itemId,
-		onOpenChange,
-		title,
-		description,
-		action = '?/delete',
-		inputName
-	}: Props = $props();
+	let { open, itemId, onOpenChange, onDelete, title, description }: Props = $props();
 
 	let deleting = $state(false);
 
@@ -39,6 +29,23 @@
 	function handleOpenChange(openState: boolean) {
 		if (!openState) {
 			onOpenChange(false);
+		}
+	}
+
+	async function handleDelete() {
+		// Get the ID to delete - either from itemId or we're using explicit open mode
+		// In explicit open mode, the parent should pass itemId or handle the ID themselves
+		const id = itemId;
+		if (!id) return;
+
+		deleting = true;
+		try {
+			await onDelete(id);
+			onOpenChange(false);
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Delete failed');
+		} finally {
+			deleting = false;
 		}
 	}
 </script>
@@ -53,25 +60,9 @@
 			<AlertDialog.Cancel onclick={() => onOpenChange(false)}
 				>{m.common_cancel()}</AlertDialog.Cancel
 			>
-			<form
-				method="POST"
-				{action}
-				use:enhance={() => {
-					deleting = true;
-					return async ({ update }) => {
-						await update();
-						deleting = false;
-						onOpenChange(false);
-					};
-				}}
-			>
-				{#if itemId && inputName}
-					<input type="hidden" name={inputName} value={itemId} />
-				{/if}
-				<Button type="submit" variant="destructive" disabled={deleting}>
-					{deleting ? m.common_deleting() : m.common_delete()}
-				</Button>
-			</form>
+			<Button onclick={handleDelete} variant="destructive" disabled={deleting}>
+				{deleting ? m.common_deleting() : m.common_delete()}
+			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>

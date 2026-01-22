@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
@@ -9,11 +10,13 @@
 	import * as Table from '$lib/components/ui/table';
 	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
+	import { toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
 	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
 	import {
 		Check,
 		Copy,
 		ExternalLink,
+		LoaderCircle,
 		Pause,
 		Play,
 		Settings,
@@ -22,11 +25,13 @@
 		ShieldX,
 		Trash2
 	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 
 	let copied = $state(false);
 	let showDeleteDialog = $state(false);
+	let toggling = $state(false);
 
 	const pushUrl = $derived(
 		data.monitor.type === 'push' && data.monitor.pushToken
@@ -38,6 +43,23 @@
 		await navigator.clipboard.writeText(text);
 		copied = true;
 		setTimeout(() => (copied = false), 2000);
+	}
+
+	async function handleToggle() {
+		toggling = true;
+		try {
+			await toggleMonitor({ monitorId: data.monitor.id });
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to toggle monitor');
+		} finally {
+			toggling = false;
+		}
+	}
+
+	async function handleDelete() {
+		await deleteMonitor({ monitorId: data.monitor.id });
+		goto(resolve('/monitors'));
 	}
 
 	const statusInfo = $derived(
@@ -97,18 +119,22 @@
 		{/if}
 		{#snippet actions()}
 			<div class="flex gap-2">
-				<form method="POST" action="?/toggle" use:enhance>
-					<input type="hidden" name="monitorId" value={data.monitor.id} />
-					<Button type="submit" variant="outline" size="sm">
-						{#if data.monitor.active}
-							<Pause class="mr-2 h-4 w-4" />
-							{m.monitors_pause()}
-						{:else}
-							<Play class="mr-2 h-4 w-4" />
-							{m.monitors_resume()}
-						{/if}
-					</Button>
-				</form>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={handleToggle}
+					disabled={toggling}
+				>
+					{#if toggling}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{:else if data.monitor.active}
+						<Pause class="mr-2 h-4 w-4" />
+					{:else}
+						<Play class="mr-2 h-4 w-4" />
+					{/if}
+					{data.monitor.active ? m.monitors_pause() : m.monitors_resume()}
+				</Button>
 				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
 					<Settings class="mr-2 h-4 w-4" />
 					{m.common_edit()}
@@ -383,7 +409,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.monitor.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title={m.monitors_delete_title()}
 	description={m.monitors_delete_desc()}
 />

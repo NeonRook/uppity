@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -9,10 +9,13 @@
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { m } from '$lib/paraglide/messages.js';
+	import { toggleChannel, deleteChannel } from '$lib/remote/notifications.remote';
+	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 
 	let deleteChannelId = $state<string | null>(null);
+	let togglingChannelId = $state<string | null>(null);
 
 	function getChannelIcon(type: string) {
 		switch (type) {
@@ -58,6 +61,23 @@
 			default:
 				return '';
 		}
+	}
+
+	async function handleToggle(channelId: string) {
+		togglingChannelId = channelId;
+		try {
+			await toggleChannel({ channelId });
+			await invalidateAll();
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : 'Failed to toggle channel');
+		} finally {
+			togglingChannelId = null;
+		}
+	}
+
+	async function handleDelete(channelId: string) {
+		await deleteChannel({ channelId });
+		await invalidateAll();
 	}
 </script>
 
@@ -108,10 +128,11 @@
 						</div>
 
 						<div class="flex items-center gap-2">
-							<form method="POST" action="?/toggle" use:enhance>
-								<input type="hidden" name="channelId" value={channel.id} />
-								<Switch checked={channel.enabled} type="submit" />
-							</form>
+							<Switch
+								checked={channel.enabled}
+								disabled={togglingChannelId === channel.id}
+								onCheckedChange={() => handleToggle(channel.id)}
+							/>
 
 							<Button variant="ghost" size="icon" href="/notifications/{channel.id}">
 								<Pencil class="h-4 w-4" />
@@ -131,7 +152,7 @@
 <DeleteDialog
 	itemId={deleteChannelId}
 	onOpenChange={() => (deleteChannelId = null)}
+	onDelete={handleDelete}
 	title={m.notifications_delete_title()}
 	description={m.notifications_delete_desc()}
-	inputName="channelId"
 />

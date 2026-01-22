@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -7,6 +8,7 @@
 	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteIncident } from '$lib/remote/incidents.remote';
 
 	let { data } = $props();
 
@@ -27,6 +29,11 @@
 			return `${diffHours}h ${diffMins % 60}m`;
 		}
 		return `${diffMins}m`;
+	}
+
+	async function handleDelete(incidentId: string) {
+		await deleteIncident({ incidentId });
+		await invalidateAll();
 	}
 </script>
 
@@ -116,7 +123,7 @@
 <DeleteDialog
 	itemId={deleteIncidentId}
 	onOpenChange={() => (deleteIncidentId = null)}
+	onDelete={handleDelete}
 	title={m.incidents_delete_title()}
 	description={m.incidents_delete_desc()}
-	inputName="incidentId"
 />

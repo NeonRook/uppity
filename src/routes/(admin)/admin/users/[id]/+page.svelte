@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { superForm } from 'sveltekit-superforms';
 	import { untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -15,6 +17,7 @@
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateTimeShort } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
+	import { deleteUser } from '$lib/remote/admin.remote';
 
 	let { data } = $props();
 
@@ -28,6 +31,11 @@
 	let banReason = $state('');
 	let showDeleteDialog = $state(false);
 	let showBanDialog = $state(false);
+
+	async function handleDelete() {
+		await deleteUser({ userId: data.user.id });
+		goto(resolve('/admin/users'));
+	}
 
 	function getRoleLabel(role: string | undefined): string {
 		return role === 'admin' ? m.admin_role_admin() : m.admin_role_user();
@@ -209,7 +217,9 @@
 
 <DeleteDialog
 	open={showDeleteDialog}
+	itemId={data.user.id}
 	onOpenChange={(open) => (showDeleteDialog = open)}
+	onDelete={handleDelete}
 	title={m.admin_users_delete()}
 	description={m.admin_users_delete_confirm({ name: data.user.name })}
 />
