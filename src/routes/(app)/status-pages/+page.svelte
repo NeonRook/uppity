@@ -1,16 +1,20 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Plus, Globe, ExternalLink, Pencil, Trash2, Lock, Unlock } from '@lucide/svelte';
-	import type { StatusPage } from '$lib/server/db/schema';
-	import EmptyState from '$lib/components/empty-state.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import StatusPagesListSkeleton from '$lib/components/status-pages-list-skeleton.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import { m } from '$lib/paraglide/messages.js';
-	import { deleteStatusPage } from '$lib/remote/status-pages.remote';
+	import { deleteStatusPage, getStatusPages } from '$lib/remote/status-pages.remote';
+	import type { StatusPage } from '$lib/server/db/schema';
+	import { ExternalLink, Globe, Lock, Pencil, Plus, Trash2, Unlock } from '@lucide/svelte';
 
 	let { data } = $props();
+	const statusPagesQuery = getStatusPages();
+
+	// Prefer query data (after refresh/mutation), fallback to preloaded data
+	const statusPages = $derived(statusPagesQuery.current ?? data.statusPages);
 
 	let deletePageId = $state<string | null>(null);
 
@@ -22,8 +26,9 @@
 	}
 
 	async function handleDelete(statusPageId: string) {
-		await deleteStatusPage({ statusPageId });
-		await invalidateAll();
+		await deleteStatusPage({ statusPageId }).updates(
+			getStatusPages().withOverride((pages) => pages.filter((p) => p.id !== statusPageId))
+		);
 	}
 </script>
 
@@ -43,7 +48,17 @@
 		</Button>
 	</div>
 
-	{#if data.statusPages.length === 0}
+	{#if statusPagesQuery.loading && !statusPages}
+		<StatusPagesListSkeleton />
+	{:else if statusPagesQuery.error}
+		<Card.Root>
+			<Card.Content class="p-6">
+				<p class="text-destructive">
+					Failed to load status pages: {statusPagesQuery.error.message}
+				</p>
+			</Card.Content>
+		</Card.Root>
+	{:else if statusPages.length === 0}
 		<EmptyState
 			icon={Globe}
 			title={m.status_pages_empty_title()}
@@ -53,7 +68,7 @@
 		/>
 	{:else}
 		<div class="grid gap-4">
-			{#each data.statusPages as page (page.id)}
+			{#each statusPages as page (page.id)}
 				<Card.Root>
 					<Card.Content class="flex items-center justify-between p-6">
 						<div class="flex items-center gap-4">

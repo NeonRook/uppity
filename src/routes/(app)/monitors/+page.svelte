@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
+	import EmptyState from '$lib/components/empty-state.svelte';
+	import MonitorsListSkeleton from '$lib/components/monitors-list-skeleton.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -9,7 +10,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { formatResponseTime } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
-	import { toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
+	import { getMonitors, toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
 	import { getStatusBadge, getStatusColor } from '$lib/utils/status';
 	import {
 		Activity,
@@ -19,12 +20,18 @@
 		Pause,
 		Play,
 		Plus,
+		RefreshCw,
 		Trash2
 	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import EmptyState from '$lib/components/empty-state.svelte';
+
+	type MonitorWithStatus = Awaited<ReturnType<typeof getMonitors>>[number];
 
 	let { data } = $props();
+	const monitorsQuery = getMonitors();
+
+	// Prefer query data (after refresh/mutation), fallback to preloaded data
+	const monitors = $derived(monitorsQuery.current ?? data.monitors);
 
 	let deleteMonitorId = $state<string | null>(null);
 	let togglingMonitorId = $state<string | null>(null);
@@ -34,7 +41,7 @@
 		return `${percent.toFixed(2)}%`;
 	}
 
-	function getEndpoint(mon: (typeof data.monitors)[number]) {
+	function getEndpoint(mon: MonitorWithStatus) {
 		if (mon.type === 'http' && mon.url) {
 			try {
 				const url = new URL(mon.url);
@@ -49,11 +56,14 @@
 		return '-';
 	}
 
-	async function handleToggle(monitorId: string) {
+	async function handleToggle(monitorId: string, currentActive: boolean) {
 		togglingMonitorId = monitorId;
 		try {
-			await toggleMonitor({ monitorId });
-			await invalidateAll();
+			await toggleMonitor({ monitorId }).updates(
+				getMonitors().withOverride((monitors) =>
+					monitors.map((mon) => (mon.id === monitorId ? { ...mon, active: !currentActive } : mon))
+				)
+			);
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Failed to toggle monitor');
 		} finally {
@@ -62,8 +72,9 @@
 	}
 
 	async function handleDelete(monitorId: string) {
-		await deleteMonitor({ monitorId });
-		await invalidateAll();
+		await deleteMonitor({ monitorId }).updates(
+			getMonitors().withOverride((monitors) => monitors.filter((mon) => mon.id !== monitorId))
+		);
 	}
 </script>
 
@@ -77,13 +88,31 @@
 			<h1 class="text-3xl font-bold tracking-tight">{m.monitors_title()}</h1>
 			<p class="text-muted-foreground">{m.monitors_subtitle()}</p>
 		</div>
-		<Button href="/monitors/new">
-			<Plus class="mr-2 h-4 w-4" />
-			{m.monitors_add()}
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button
+				variant="outline"
+				size="icon"
+				onclick={() => monitorsQuery.refresh()}
+				disabled={monitorsQuery.loading}
+			>
+				<RefreshCw class={`h-4 w-4 ${monitorsQuery.loading ? 'animate-spin' : ''}`} />
+			</Button>
+			<Button href="/monitors/new">
+				<Plus class="mr-2 h-4 w-4" />
+				{m.monitors_add()}
+			</Button>
+		</div>
 	</div>
 
-	{#if data.monitors.length === 0}
+	{#if monitorsQuery.loading && !monitors}
+		<MonitorsListSkeleton />
+	{:else if monitorsQuery.error}
+		<Card.Root>
+			<Card.Content class="p-6">
+				<p class="text-destructive">Failed to load monitors: {monitorsQuery.error.message}</p>
+			</Card.Content>
+		</Card.Root>
+	{:else if monitors.length === 0}
 		<EmptyState
 			icon={Activity}
 			title={m.monitors_empty_title()}
@@ -106,7 +135,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each data.monitors as mon (mon.id)}
+					{#each monitors as mon (mon.id)}
 						{@const statusInfo = getStatusBadge(mon.status, mon.active)}
 						<Table.Row>
 							<Table.Cell>
@@ -171,7 +200,7 @@
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item
-											onclick={() => handleToggle(mon.id)}
+											onclick={() => handleToggle(mon.id, mon.active)}
 											disabled={togglingMonitorId === mon.id}
 										>
 											{#if togglingMonitorId === mon.id}

@@ -1,6 +1,16 @@
-import { command, getRequestEvent } from "$app/server";
+import { command, query, getRequestEvent } from "$app/server";
 import { statusPageService } from "$lib/server/services/status-page.service";
 import * as v from "valibot";
+
+// Query: List status pages for the current organization
+export const getStatusPages = query(async () => {
+	const { locals } = getRequestEvent();
+	if (!locals.session?.activeOrganizationId) {
+		return [];
+	}
+
+	return statusPageService.findByOrganization(locals.session.activeOrganizationId);
+});
 
 const statusPageIdSchema = v.object({
 	statusPageId: v.pipe(v.string(), v.minLength(1)),
