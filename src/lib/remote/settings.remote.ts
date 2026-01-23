@@ -53,3 +53,27 @@ export const removeMember = command(memberIdSchema, async ({ memberId }) => {
 		throw new Error(errorMessage, { cause: error });
 	}
 });
+
+const deleteOrganizationSchema = v.object({
+	organizationId: v.pipe(v.string(), v.minLength(1)),
+});
+
+export const deleteOrganization = command(deleteOrganizationSchema, async ({ organizationId }) => {
+	const { request, locals } = getRequestEvent();
+	if (!locals.user) {
+		throw new Error("Not authenticated");
+	}
+
+	try {
+		await auth.api.deleteOrganization({
+			headers: request.headers,
+			body: {
+				organizationId,
+			},
+		});
+		return { success: true };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : "Failed to delete organization";
+		throw new Error(errorMessage, { cause: error });
+	}
+});

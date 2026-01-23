@@ -130,11 +130,11 @@ export const auth = betterAuth({
 							slug: "enterprise",
 						},
 					].filter(Boolean) as { productId: string; slug: string }[],
-					successUrl: "/settings/billing?checkout=success",
-					returnUrl: "/settings/billing",
+					successUrl: `${baseURL}/settings/billing?checkout=success`,
+					returnUrl: `${baseURL}/settings/billing`,
 				}),
 				portal({
-					returnUrl: "/settings/billing",
+					returnUrl: `${baseURL}/settings/billing`,
 				}),
 				usage(),
 				webhooks({
