@@ -1,6 +1,7 @@
 import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db";
 import { member, organization } from "$lib/server/db/auth-schema";
+import { getUsageLimitsData } from "$lib/server/services/usage-limits";
 import { redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 
@@ -42,6 +43,9 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 	const activeOrgId = locals.session?.activeOrganizationId;
 	const activeOrg = userMemberships.find((m) => m.organizationId === activeOrgId);
 
+	// Get usage limits for the active organization
+	const usageLimits = activeOrgId ? await getUsageLimitsData(activeOrgId) : null;
+
 	return {
 		user: locals.user,
 		organizations: userMemberships.map((m) => ({
@@ -58,5 +62,6 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 					role: activeOrg.role,
 				}
 			: null,
+		usageLimits,
 	};
 };

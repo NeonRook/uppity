@@ -1,9 +1,13 @@
+import type { NotificationChannelType } from "$lib/types/plans";
+
 import { db } from "$lib/server/db";
 import {
 	notificationChannel,
 	monitorNotificationChannel,
 	type NotificationChannel,
 } from "$lib/server/db/schema";
+import { FeatureNotAvailableError } from "$lib/server/errors";
+import { subscriptionService } from "$lib/server/services/subscription.service";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -32,6 +36,18 @@ export interface LinkMonitorInput {
 
 export class NotificationChannelService {
 	async create(input: CreateChannelInput): Promise<NotificationChannel> {
+		// Check if this notification channel type is allowed
+		const channelCheck = await subscriptionService.isNotificationChannelAllowed(
+			input.organizationId,
+			input.type as NotificationChannelType,
+		);
+		if (!channelCheck.allowed) {
+			throw new FeatureNotAvailableError(
+				channelCheck.message ?? `${input.type} notifications not available`,
+				`notification:${input.type}`,
+			);
+		}
+
 		const id = nanoid();
 
 		const [newChannel] = await db

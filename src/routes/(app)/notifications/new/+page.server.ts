@@ -1,4 +1,5 @@
 import { notificationChannelSchema } from "$lib/schemas/notification-channel";
+import { FeatureNotAvailableError } from "$lib/server/errors";
 import { notificationChannelService } from "$lib/server/services/notification-channel.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate, message } from "sveltekit-superforms";
@@ -77,6 +78,9 @@ export const actions: Actions = {
 			});
 			locals.event.set("resource_id", channel.id);
 		} catch (error) {
+			if (error instanceof FeatureNotAvailableError) {
+				return message(form, error.message, { status: 403 });
+			}
 			locals.event.setError(error);
 			return message(form, "Failed to create notification channel", { status: 500 });
 		}

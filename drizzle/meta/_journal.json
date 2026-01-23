@@ -22,6 +22,13 @@
       "when": 1768937786599,
       "tag": "0002_neat_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769165607694,
+      "tag": "0003_plain_satana",
+      "breakpoints": true
     }
   ]
 }

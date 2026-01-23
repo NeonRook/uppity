@@ -1,4 +1,5 @@
 import { createStatusPageSchema } from "$lib/schemas/status-page";
+import { SubscriptionLimitError } from "$lib/server/errors";
 import { monitorService } from "$lib/server/services/monitor.service";
 import { statusPageService } from "$lib/server/services/status-page.service";
 import { fail, redirect } from "@sveltejs/kit";
@@ -63,6 +64,9 @@ export const actions: Actions = {
 				});
 			}
 		} catch (error) {
+			if (error instanceof SubscriptionLimitError) {
+				return message(form, error.message, { status: 403 });
+			}
 			if (error instanceof Error && error.message === "Slug already taken") {
 				return message(form, "This slug is already taken", { status: 400 });
 			}

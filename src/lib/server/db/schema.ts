@@ -360,13 +360,15 @@ export const notificationLog = pgTable(
 // RELATIONS (extends auth-schema relations for app tables)
 // ============================================================================
 
-export const organizationRelations = relations(organization, ({ many }) => ({
+export const organizationRelations = relations(organization, ({ one, many }) => ({
 	members: many(member),
 	invitations: many(invitation),
 	monitors: many(monitor),
 	incidents: many(incident),
 	statusPages: many(statusPage),
 	notificationChannels: many(notificationChannel),
+	subscription: one(subscription),
+	usageWarnings: many(usageWarning),
 }));
 
 export const monitorRelations = relations(monitor, ({ one, many }) => ({
@@ -523,6 +525,70 @@ export const maintenanceJob = pgTable("maintenance_job", {
 });
 
 // ============================================================================
+// SUBSCRIPTION TABLES
+// ============================================================================
+
+export const subscription = pgTable(
+	"subscription",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.unique()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		planId: text("plan_id").notNull().default("free"), // 'free' | 'pro' | 'enterprise'
+		status: text("status").notNull().default("active"), // 'active' | 'canceled' | 'past_due' | 'trialing'
+
+		// Billing period
+		currentPeriodStart: timestamp("current_period_start"),
+		currentPeriodEnd: timestamp("current_period_end"),
+
+		// Polar integration
+		polarCustomerId: text("polar_customer_id"),
+		polarSubscriptionId: text("polar_subscription_id"),
+
+		// Timestamps
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("subscription_org_idx").on(table.organizationId),
+		index("subscription_polar_customer_idx").on(table.polarCustomerId),
+	],
+);
+
+export const usageWarning = pgTable(
+	"usage_warning",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		resourceType: text("resource_type").notNull(), // 'monitors' | 'statusPages'
+		warningLevel: integer("warning_level").notNull(), // e.g., 80, 100
+		sentAt: timestamp("sent_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("usage_warning_org_idx").on(table.organizationId),
+		index("usage_warning_sent_at_idx").on(table.sentAt),
+	],
+);
+
+export const subscriptionRelations = relations(subscription, ({ one }) => ({
+	organization: one(organization, {
+		fields: [subscription.organizationId],
+		references: [organization.id],
+	}),
+}));
+
+export const usageWarningRelations = relations(usageWarning, ({ one }) => ({
+	organization: one(organization, {
+		fields: [usageWarning.organizationId],
+		references: [organization.id],
+	}),
+}));
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -561,3 +627,9 @@ export type NewNotificationLog = typeof notificationLog.$inferInsert;
 
 export type MaintenanceJob = typeof maintenanceJob.$inferSelect;
 export type NewMaintenanceJob = typeof maintenanceJob.$inferInsert;
+
+export type Subscription = typeof subscription.$inferSelect;
+export type NewSubscription = typeof subscription.$inferInsert;
+
+export type UsageWarning = typeof usageWarning.$inferSelect;
+export type NewUsageWarning = typeof usageWarning.$inferInsert;

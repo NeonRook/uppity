@@ -1,4 +1,5 @@
 import { createMonitorSchema } from "$lib/schemas/monitor";
+import { SubscriptionLimitError } from "$lib/server/errors";
 import { monitorService } from "$lib/server/services/monitor.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate, message } from "sveltekit-superforms";
@@ -75,6 +76,9 @@ export const actions: Actions = {
 			// Set resource_id after creation
 			locals.event.set("resource_id", monitor.id);
 		} catch (error) {
+			if (error instanceof SubscriptionLimitError) {
+				return message(form, error.message, { status: 403 });
+			}
 			locals.event.setError(error);
 			return message(form, "Failed to create monitor", { status: 500 });
 		}
