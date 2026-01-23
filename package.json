@@ -30,7 +30,7 @@
 		"i18n:generate": "bun x @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide"
 	},
 	"dependencies": {
-		"@lucide/svelte": "^0.562.0",
+		"@lucide/svelte": "^0.563.0",
 		"better-auth": "^1.4.17",
 		"clsx": "^2.1.1",
 		"cron-parser": "^5.5.0",
