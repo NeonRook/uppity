@@ -6,6 +6,7 @@ import type {
 	MaintenanceWideEvent,
 	NotificationWideEvent,
 	RequestWideEvent,
+	WebhookWideEvent,
 } from "./types";
 
 import { WideEventBuilder } from "./context";
@@ -118,6 +119,20 @@ export function createNotificationWideEvent(
 		"notification",
 		requestId,
 	);
+}
+
+/**
+ * Create a wide event builder for incoming webhooks.
+ */
+export function createWebhookWideEvent(source: string): WideEventBuilder<WebhookWideEvent> {
+	const requestId = generateRequestId("whk");
+	const builder = new WideEventBuilder<WebhookWideEvent>(
+		baseLogger.child({ context: "webhook" }),
+		"webhook",
+		requestId,
+	);
+	builder.set("webhook_source", source);
+	return builder;
 }
 
 // Export core types and classes

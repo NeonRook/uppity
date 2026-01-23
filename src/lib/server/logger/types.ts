@@ -7,7 +7,12 @@
  * - High dimensionality (many fields capturing full business context)
  */
 
-export type EventType = "http_request" | "monitor_check" | "maintenance_job" | "notification";
+export type EventType =
+	| "http_request"
+	| "monitor_check"
+	| "maintenance_job"
+	| "notification"
+	| "webhook";
 
 export type EventStatus = "success" | "error";
 
@@ -139,10 +144,30 @@ export interface NotificationWideEvent extends WideEventBase {
 }
 
 /**
+ * Webhook wide event - emitted once per incoming webhook
+ */
+export interface WebhookWideEvent extends WideEventBase {
+	event_type: "webhook";
+
+	// Webhook context
+	webhook_source: string;
+	webhook_event: string;
+
+	// Business context
+	org_id?: string;
+	subscription_id?: string;
+	polar_subscription_id?: string;
+	polar_customer_id?: string;
+	plan_id?: string;
+	subscription_status?: string;
+}
+
+/**
  * Union of all wide event types
  */
 export type WideEvent =
 	| RequestWideEvent
 	| CheckWideEvent
 	| MaintenanceWideEvent
-	| NotificationWideEvent;
+	| NotificationWideEvent
+	| WebhookWideEvent;
