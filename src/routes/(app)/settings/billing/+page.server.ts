@@ -38,6 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			planId: subscription.planId,
 			status: subscription.status,
 			currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+			hasCustomerAccount: !!subscription.polarCustomerId,
 		},
 		usage: {
 			monitors: {

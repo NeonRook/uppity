@@ -67,7 +67,7 @@
 
 			const { data: checkoutData, error } = await authClient.checkout({
 				slug,
-				metadata: { organizationId: data.organizationId }
+				referenceId: data.organizationId
 			});
 
 			if (error) {
@@ -184,12 +184,14 @@
 							{/if}
 						</div>
 					</div>
-					<Button variant="outline" onclick={openBillingPortal} disabled={loadingPortal}>
-						{#if loadingPortal}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						{/if}
-						{m.billing_manage_subscription()}
-					</Button>
+					{#if data.subscription.hasCustomerAccount}
+						<Button variant="outline" onclick={openBillingPortal} disabled={loadingPortal}>
+							{#if loadingPortal}
+								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+							{/if}
+							{m.billing_manage_subscription()}
+						</Button>
+					{/if}
 				</div>
 			</Card.Header>
 			{#if data.usage}

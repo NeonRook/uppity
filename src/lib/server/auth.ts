@@ -8,8 +8,11 @@ import {
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "$lib/constants/auth";
+import { DEFAULT_PLAN_ID } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
 import * as authSchema from "$lib/server/db/auth-schema";
+import { subscription } from "$lib/server/db/schema";
+import { createWebhookWideEvent } from "$lib/server/logger";
 import { subscriptionService } from "$lib/server/services/subscription.service";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
@@ -17,6 +20,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
+import { nanoid } from "nanoid";
 
 // $env/dynamic/private gets baked in at build time by svelte-adapter-bun
 // Note: svelte-adapter-bun presents requests as HTTPS, so defaults must use https://
@@ -109,10 +113,52 @@ export const auth = betterAuth({
 		expiresIn: SESSION_EXPIRES_IN_SECONDS,
 		updateAge: SESSION_UPDATE_AGE_SECONDS,
 	},
+	databaseHooks: {
+		user: {
+			create: {
+				after: async (user) => {
+					// Create a personal organization for new users
+					const orgId = nanoid();
+					const now = new Date();
+					const slug = `${user.name
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/(^-|-$)/g, "")}-${nanoid(6)}`;
+
+					// Create the organization
+					await db.insert(authSchema.organization).values({
+						id: orgId,
+						name: `${user.name}'s Organization`,
+						slug,
+						createdAt: now,
+					});
+
+					// Add user as owner
+					await db.insert(authSchema.member).values({
+						id: nanoid(),
+						organizationId: orgId,
+						userId: user.id,
+						role: ORGANIZATION_CREATOR_ROLE,
+						createdAt: now,
+					});
+
+					// Create free subscription for the organization
+					await db.insert(subscription).values({
+						id: nanoid(),
+						organizationId: orgId,
+						planId: DEFAULT_PLAN_ID,
+						status: "active",
+					});
+				},
+			},
+		},
+	},
 	plugins: [
 		polar({
 			client: polarClient,
-			createCustomerOnSignUp: true,
+			// Don't create Polar customer on signup - it fails for test emails (example.com)
+			// and blocks registration. Customers are created lazily on first checkout/portal access.
+			createCustomerOnSignUp: false,
 			use: [
 				checkout({
 					authenticatedUsersOnly: true,
@@ -140,61 +186,141 @@ export const auth = betterAuth({
 				webhooks({
 					secret: process.env.POLAR_WEBHOOK_SECRET ?? "",
 					onSubscriptionCreated: async ({ data: sub }) => {
-						// New subscription activated - upgrade the organization
-						// The subscription metadata should contain the organizationId
-						const orgId = (sub.metadata as Record<string, unknown> | null)?.organizationId as
-							| string
-							| undefined;
-						if (!orgId) return;
-
-						await subscriptionService.syncFromPolar(orgId, {
-							planId: getPlanFromSubscription(sub),
-							status: mapPolarStatus(sub.status),
-							polarCustomerId: sub.customerId,
-							polarSubscriptionId: sub.id,
-							currentPeriodStart: sub.currentPeriodStart
-								? new Date(sub.currentPeriodStart)
-								: undefined,
-							currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "subscription.created",
+							polar_subscription_id: sub.id,
+							polar_customer_id: sub.customerId,
+							plan_id: getPlanFromSubscription(sub),
+							subscription_status: sub.status,
 						});
+
+						try {
+							const orgId = sub.metadata?.referenceId as string | undefined;
+							if (!orgId) {
+								event.merge({ org_id: undefined });
+								event.setSuccess();
+								event.emitWarn("subscription created without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+							await subscriptionService.syncFromPolar(orgId, {
+								planId: getPlanFromSubscription(sub),
+								status: mapPolarStatus(sub.status),
+								polarCustomerId: sub.customerId,
+								polarSubscriptionId: sub.id,
+								currentPeriodStart: sub.currentPeriodStart
+									? new Date(sub.currentPeriodStart)
+									: undefined,
+								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+							});
+
+							event.setSuccess();
+							event.emit("subscription created");
+						} catch (error) {
+							event.setError(error);
+							event.emit("subscription created");
+							throw error;
+						}
 					},
 					onSubscriptionUpdated: async ({ data: sub }) => {
-						// Subscription changed (plan change, renewal, etc.)
-						const orgId = (sub.metadata as Record<string, unknown> | null)?.organizationId as
-							| string
-							| undefined;
-						if (!orgId) return;
-
-						await subscriptionService.syncFromPolar(orgId, {
-							planId: getPlanFromSubscription(sub),
-							status: mapPolarStatus(sub.status),
-							currentPeriodStart: sub.currentPeriodStart
-								? new Date(sub.currentPeriodStart)
-								: undefined,
-							currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "subscription.updated",
+							polar_subscription_id: sub.id,
+							polar_customer_id: sub.customerId,
+							plan_id: getPlanFromSubscription(sub),
+							subscription_status: sub.status,
 						});
+
+						try {
+							const orgId = sub.metadata?.referenceId as string | undefined;
+							if (!orgId) {
+								event.setSuccess();
+								event.emitWarn("subscription updated without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+							await subscriptionService.syncFromPolar(orgId, {
+								planId: getPlanFromSubscription(sub),
+								status: mapPolarStatus(sub.status),
+								currentPeriodStart: sub.currentPeriodStart
+									? new Date(sub.currentPeriodStart)
+									: undefined,
+								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+							});
+
+							event.setSuccess();
+							event.emit("subscription updated");
+						} catch (error) {
+							event.setError(error);
+							event.emit("subscription updated");
+							throw error;
+						}
 					},
 					onSubscriptionCanceled: async ({ data: sub }) => {
-						// Subscription canceled - will downgrade at period end
-						const orgId = (sub.metadata as Record<string, unknown> | null)?.organizationId as
-							| string
-							| undefined;
-						if (!orgId) return;
-
-						await subscriptionService.syncFromPolar(orgId, {
-							planId: getPlanFromSubscription(sub),
-							status: "canceled",
-							currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "subscription.canceled",
+							polar_subscription_id: sub.id,
+							polar_customer_id: sub.customerId,
+							plan_id: getPlanFromSubscription(sub),
+							subscription_status: "canceled",
 						});
+
+						try {
+							const orgId = sub.metadata?.referenceId as string | undefined;
+							if (!orgId) {
+								event.setSuccess();
+								event.emitWarn("subscription canceled without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+							await subscriptionService.syncFromPolar(orgId, {
+								planId: getPlanFromSubscription(sub),
+								status: "canceled",
+								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+							});
+
+							event.setSuccess();
+							event.emit("subscription canceled");
+						} catch (error) {
+							event.setError(error);
+							event.emit("subscription canceled");
+							throw error;
+						}
 					},
 					onSubscriptionRevoked: async ({ data: sub }) => {
-						// Subscription immediately revoked (failed payment) - downgrade now
-						const orgId = (sub.metadata as Record<string, unknown> | null)?.organizationId as
-							| string
-							| undefined;
-						if (!orgId) return;
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "subscription.revoked",
+							polar_subscription_id: sub.id,
+							polar_customer_id: sub.customerId,
+							subscription_status: "revoked",
+						});
 
-						await subscriptionService.downgradeToFree(orgId);
+						try {
+							const orgId = sub.metadata?.referenceId as string | undefined;
+							if (!orgId) {
+								event.setSuccess();
+								event.emitWarn("subscription revoked without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+							await subscriptionService.downgradeToFree(orgId);
+
+							event.set("plan_id", "free");
+							event.setSuccess();
+							event.emit("subscription revoked");
+						} catch (error) {
+							event.setError(error);
+							event.emit("subscription revoked");
+							throw error;
+						}
 					},
 				}),
 			],
