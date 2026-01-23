@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Switch } from '$lib/components/ui/switch';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
 	import { getChannels, toggleChannel, deleteChannel } from '$lib/remote/notifications.remote';
 	import type { NotificationChannel } from '$lib/server/db/schema';
@@ -17,6 +18,13 @@
 
 	// Prefer query data (after refresh/mutation), fallback to preloaded data
 	const channels = $derived(channelsQuery.current ?? data.channels);
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const availableChannelTypes = $derived(
+		usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook']
+	);
+	const hasAllChannelTypes = $derived(availableChannelTypes.length >= 4);
 
 	let deleteChannelId = $state<string | null>(null);
 	let togglingChannelId = $state<string | null>(null);
@@ -99,10 +107,24 @@
 			<h1 class="text-3xl font-bold tracking-tight">{m.notifications_title()}</h1>
 			<p class="text-muted-foreground">{m.notifications_subtitle()}</p>
 		</div>
-		<Button href="/notifications/new">
-			<Plus class="mr-2 h-4 w-4" />
-			{m.notifications_add()}
-		</Button>
+		<div class="flex items-center gap-2">
+			{#if !hasAllChannelTypes}
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Badge variant="outline" class="text-xs font-normal">
+							{availableChannelTypes.join(', ')} only
+						</Badge>
+					</Tooltip.Trigger>
+					<Tooltip.Content>
+						<p>Upgrade to unlock all notification types</p>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			{/if}
+			<Button href="/notifications/new">
+				<Plus class="mr-2 h-4 w-4" />
+				{m.notifications_add()}
+			</Button>
+		</div>
 	</div>
 
 	{#if channelsQuery.loading && !channels}

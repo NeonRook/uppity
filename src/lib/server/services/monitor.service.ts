@@ -12,6 +12,9 @@ import {
 import { CHECK_RETRY } from "$lib/constants/worker";
 import { db } from "$lib/server/db";
 import { monitor, monitorStatus, type Monitor } from "$lib/server/db/schema";
+import { SubscriptionLimitError } from "$lib/server/errors";
+import { meterService } from "$lib/server/services/meter.service";
+import { subscriptionService } from "$lib/server/services/subscription.service";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -43,6 +46,27 @@ export interface UpdateMonitorInput extends Partial<Omit<CreateMonitorInput, "or
 
 export class MonitorService {
 	async create(input: CreateMonitorInput): Promise<Monitor> {
+		// Check subscription limits before creating
+		const limitCheck = await subscriptionService.canAddMonitor(input.organizationId);
+		if (!limitCheck.allowed) {
+			throw new SubscriptionLimitError(limitCheck.message ?? "Monitor limit reached", {
+				limit: limitCheck.limit,
+				currentUsage: limitCheck.currentUsage,
+			});
+		}
+
+		// Check if the requested interval is allowed
+		const intervalSeconds = input.intervalSeconds || DEFAULT_INTERVAL_SECONDS;
+		const intervalCheck = await subscriptionService.isCheckIntervalAllowed(
+			input.organizationId,
+			intervalSeconds,
+		);
+		if (!intervalCheck.allowed) {
+			throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed", {
+				limit: intervalCheck.limit,
+			});
+		}
+
 		const id = nanoid();
 
 		const [newMonitor] = await db
@@ -79,6 +103,9 @@ export class MonitorService {
 			status: "unknown",
 			consecutiveFailures: 0,
 		});
+
+		// Report meter event (non-blocking)
+		void meterService.monitorCreated(input.organizationId, id, newMonitor.type);
 
 		return newMonitor;
 	}
@@ -121,6 +148,19 @@ export class MonitorService {
 			return null;
 		}
 
+		// Check if the new interval is allowed (if being changed)
+		if (input.intervalSeconds !== undefined) {
+			const intervalCheck = await subscriptionService.isCheckIntervalAllowed(
+				organizationId,
+				input.intervalSeconds,
+			);
+			if (!intervalCheck.allowed) {
+				throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed", {
+					limit: intervalCheck.limit,
+				});
+			}
+		}
+
 		// If activating or changing interval, reset the schedule
 		const shouldResetSchedule =
 			(input.active === true && !existingMonitor.active) ||
@@ -155,6 +195,9 @@ export class MonitorService {
 		await db
 			.delete(monitor)
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)));
+
+		// Report meter event (non-blocking)
+		void meterService.monitorDeleted(organizationId, id);
 
 		return true;
 	}

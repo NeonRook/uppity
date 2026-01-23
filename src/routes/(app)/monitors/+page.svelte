@@ -8,6 +8,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { formatResponseTime } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
 	import { getMonitors, toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
@@ -29,6 +30,15 @@
 
 	let { data } = $props();
 	const monitorsQuery = getMonitors();
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const canAddMonitor = $derived(usageLimits?.monitors.canAdd ?? true);
+	const monitorUsageText = $derived(
+		usageLimits
+			? `${usageLimits.monitors.current}/${usageLimits.monitors.limit === -1 ? '∞' : usageLimits.monitors.limit}`
+			: null
+	);
 
 	// Prefer query data (after refresh/mutation), fallback to preloaded data
 	const monitors = $derived(monitorsQuery.current ?? data.monitors);
@@ -97,10 +107,29 @@
 			>
 				<RefreshCw class={`h-4 w-4 ${monitorsQuery.loading ? 'animate-spin' : ''}`} />
 			</Button>
-			<Button href="/monitors/new">
-				<Plus class="mr-2 h-4 w-4" />
-				{m.monitors_add()}
-			</Button>
+			{#if monitorUsageText}
+				<Badge variant="outline" class="text-xs font-normal">
+					{monitorUsageText} monitors
+				</Badge>
+			{/if}
+			{#if canAddMonitor}
+				<Button href="/monitors/new">
+					<Plus class="mr-2 h-4 w-4" />
+					{m.monitors_add()}
+				</Button>
+			{:else}
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button disabled>
+							<Plus class="mr-2 h-4 w-4" />
+							{m.monitors_add()}
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>
+						<p>Monitor limit reached. Upgrade to add more.</p>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			{/if}
 		</div>
 	</div>
 
@@ -119,6 +148,8 @@
 			description={m.monitors_empty_desc()}
 			buttonText={m.monitors_create()}
 			buttonHref="/monitors/new"
+			buttonDisabled={!canAddMonitor}
+			buttonDisabledMessage="Monitor limit reached. Upgrade to add more."
 		/>
 	{:else}
 		<Card.Root>

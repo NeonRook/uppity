@@ -10,12 +10,16 @@
 	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
+	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from '@lucide/svelte';
 	import { generateSlug } from '$lib/format';
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const canAddStatusPage = $derived(usageLimits?.statusPages.canAdd ?? true);
 
 	let selectedMonitors = new SvelteSet<string>();
 
@@ -51,6 +55,16 @@
 	</div>
 
 	<form method="POST" use:enhance>
+		{#if !canAddStatusPage}
+			<Alert class="mb-6">
+				<AlertTriangle class="h-4 w-4" />
+				<AlertDescription>
+					You've reached your status page limit ({usageLimits?.statusPages.limit}). Upgrade your
+					plan to add more status pages.
+				</AlertDescription>
+			</Alert>
+		{/if}
+
 		{#if $message}
 			<Alert variant="destructive" class="mb-6">
 				<CircleAlert class="h-4 w-4" />
@@ -211,7 +225,7 @@
 
 		<div class="mt-6 flex justify-end gap-4">
 			<Button variant="outline" href="/status-pages" disabled={$delayed}>Cancel</Button>
-			<Button type="submit" disabled={$delayed}>
+			<Button type="submit" disabled={$delayed || !canAddStatusPage}>
 				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					Creating...

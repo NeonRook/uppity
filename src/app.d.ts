@@ -21,6 +21,17 @@ declare global {
 			// Database
 			DATABASE_URL: string;
 
+			// Self-hosted mode [Optional]
+			SELF_HOSTED?: string;
+
+			// Polar billing [Optional - required for SaaS mode]
+			POLAR_ACCESS_TOKEN?: string;
+			POLAR_WEBHOOK_SECRET?: string;
+			POLAR_PRODUCT_FREE?: string;
+			POLAR_PRODUCT_PRO_MONTHLY?: string;
+			POLAR_PRODUCT_PRO_ANNUAL?: string;
+			POLAR_PRODUCT_ENTERPRISE?: string;
+
 			// Authentication
 			BETTER_AUTH_SECRET: string;
 			BETTER_AUTH_URL: string;

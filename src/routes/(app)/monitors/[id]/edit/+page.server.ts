@@ -1,4 +1,5 @@
 import { createMonitorSchema } from "$lib/schemas/monitor";
+import { SubscriptionLimitError } from "$lib/server/errors";
 import { monitorService } from "$lib/server/services/monitor.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { message, superValidate } from "sveltekit-superforms";
@@ -130,6 +131,9 @@ export const actions: Actions = {
 				return message(form, "Monitor not found", { status: 404 });
 			}
 		} catch (err) {
+			if (err instanceof SubscriptionLimitError) {
+				return message(form, err.message, { status: 403 });
+			}
 			locals.event.setError(err);
 			return message(form, "Failed to update monitor", { status: 500 });
 		}

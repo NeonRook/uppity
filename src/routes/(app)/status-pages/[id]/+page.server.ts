@@ -5,6 +5,7 @@ import {
 	createGroupSchema,
 	deleteGroupSchema,
 } from "$lib/schemas/status-page";
+import { FeatureNotAvailableError } from "$lib/server/errors";
 import { monitorService } from "$lib/server/services/monitor.service";
 import { statusPageService } from "$lib/server/services/status-page.service";
 import { fail, redirect, error } from "@sveltejs/kit";
@@ -93,6 +94,9 @@ export const actions: Actions = {
 
 			return message(form, "Status page updated");
 		} catch (err) {
+			if (err instanceof FeatureNotAvailableError) {
+				return message(form, err.message, { status: 403 });
+			}
 			if (err instanceof Error && err.message === "Slug already taken") {
 				return message(form, "This slug is already taken", { status: 400 });
 			}

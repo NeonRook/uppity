@@ -14,6 +14,9 @@ import {
 	type StatusPageGroup,
 	type StatusPageMonitor,
 } from "$lib/server/db/schema";
+import { SubscriptionLimitError, FeatureNotAvailableError } from "$lib/server/errors";
+import { meterService } from "$lib/server/services/meter.service";
+import { subscriptionService } from "$lib/server/services/subscription.service";
 import { eq, and, desc, asc, gte, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -103,6 +106,15 @@ export interface PublicMonitorStatus {
 
 export class StatusPageService {
 	async create(input: CreateStatusPageInput): Promise<StatusPage> {
+		// Check subscription limits before creating
+		const limitCheck = await subscriptionService.canAddStatusPage(input.organizationId);
+		if (!limitCheck.allowed) {
+			throw new SubscriptionLimitError(limitCheck.message ?? "Status page limit reached", {
+				limit: limitCheck.limit,
+				currentUsage: limitCheck.currentUsage,
+			});
+		}
+
 		const id = nanoid();
 
 		// Check slug uniqueness
@@ -126,6 +138,9 @@ export class StatusPageService {
 				customCss: input.customCss,
 			})
 			.returning();
+
+		// Report meter event (non-blocking)
+		void meterService.statusPageCreated(input.organizationId, id);
 
 		return newPage;
 	}
@@ -170,6 +185,17 @@ export class StatusPageService {
 			return null;
 		}
 
+		// Check if custom domain is allowed when setting one
+		if (input.customDomain && input.customDomain !== existing.customDomain) {
+			const domainCheck = await subscriptionService.areCustomDomainsAllowed(organizationId);
+			if (!domainCheck.allowed) {
+				throw new FeatureNotAvailableError(
+					domainCheck.message ?? "Custom domains not available",
+					"customDomains",
+				);
+			}
+		}
+
 		// Check slug uniqueness if changing
 		if (input.slug && input.slug !== existing.slug) {
 			const slugExists = await this.findBySlug(input.slug);
@@ -199,6 +225,9 @@ export class StatusPageService {
 		await db
 			.delete(statusPage)
 			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)));
+
+		// Report meter event (non-blocking)
+		void meterService.statusPageDeleted(organizationId, id);
 
 		return true;
 	}

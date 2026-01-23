@@ -8,19 +8,31 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { Badge } from '$lib/components/ui/badge';
 	import {
 		CircleAlert,
 		ArrowLeft,
 		LoaderCircle,
 		Mail,
 		MessageSquare,
-		Webhook
+		Webhook,
+		Lock
 	} from '@lucide/svelte';
 	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const availableChannelTypes = $derived(
+		usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook']
+	);
+
+	function isChannelAvailable(type: string): boolean {
+		return availableChannelTypes.includes(type as (typeof availableChannelTypes)[number]);
+	}
 
 	function getChannelTypeLabel(type: string): string {
 		switch (type) {
@@ -109,20 +121,30 @@
 					<div class="grid grid-cols-2 gap-3">
 						{#each channelTypeValues as channelType (channelType)}
 							{@const Icon = channelTypeIcons[channelType]}
+							{@const available = isChannelAvailable(channelType)}
 							<button
 								type="button"
-								class="flex items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted {$form.type ===
-								channelType
+								class="relative flex items-start gap-3 rounded-lg border p-4 text-left transition-colors {available
+									? 'hover:bg-muted'
+									: 'cursor-not-allowed opacity-60'} {$form.type === channelType && available
 									? 'border-primary bg-primary/5'
 									: 'border-border'}"
-								onclick={() => ($form.type = channelType)}
-								disabled={$delayed}
+								onclick={() => available && ($form.type = channelType)}
+								disabled={$delayed || !available}
 							>
 								<Icon class="h-5 w-5 shrink-0" />
 								<div>
-									<div class="font-medium">{getChannelTypeLabel(channelType)}</div>
+									<div class="flex items-center gap-2 font-medium">
+										{getChannelTypeLabel(channelType)}
+										{#if !available}
+											<Lock class="h-3 w-3 text-muted-foreground" />
+										{/if}
+									</div>
 									<div class="text-xs text-muted-foreground">{getChannelTypeDesc(channelType)}</div>
 								</div>
+								{#if !available}
+									<Badge variant="outline" class="absolute top-2 right-2 text-[10px]">Pro</Badge>
+								{/if}
 							</button>
 						{/each}
 					</div>

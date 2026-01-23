@@ -8,13 +8,23 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
+	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from '@lucide/svelte';
 	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from '$lib/constants/monitor';
 	import { superForm } from 'sveltekit-superforms';
 	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const canAddMonitor = $derived(usageLimits?.monitors.canAdd ?? true);
+	const minCheckInterval = $derived(usageLimits?.features.minCheckIntervalSeconds ?? 60);
+
+	// Filter intervals based on plan
+	const availableIntervals = $derived(
+		CHECK_INTERVALS.filter((i) => Number(i.value) >= minCheckInterval)
+	);
 
 	function getMonitorTypeLabel(type: string): string {
 		switch (type) {
@@ -46,6 +56,16 @@
 	</div>
 
 	<form method="POST" use:enhance>
+		{#if !canAddMonitor}
+			<Alert class="mb-6">
+				<AlertTriangle class="h-4 w-4" />
+				<AlertDescription>
+					You've reached your monitor limit ({usageLimits?.monitors.limit}). Upgrade your plan to
+					add more monitors.
+				</AlertDescription>
+			</Alert>
+		{/if}
+
 		{#if $message}
 			<Alert variant="destructive" class="mb-6">
 				<CircleAlert class="h-4 w-4" />
@@ -236,7 +256,7 @@
 								{getIntervalLabel(String($form.intervalSeconds ?? 60))}
 							</Select.Trigger>
 							<Select.Content>
-								{#each CHECK_INTERVALS as interval (interval.value)}
+								{#each availableIntervals as interval (interval.value)}
 									<Select.Item value={interval.value}>{interval.label}</Select.Item>
 								{/each}
 							</Select.Content>
@@ -300,7 +320,7 @@
 
 		<div class="mt-6 flex justify-end gap-4">
 			<Button variant="outline" href="/monitors" disabled={$delayed}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={$delayed}>
+			<Button type="submit" disabled={$delayed || !canAddMonitor}>
 				{#if $delayed}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 					{m.monitor_creating()}

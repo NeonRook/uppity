@@ -5,6 +5,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { m } from '$lib/paraglide/messages.js';
 	import { deleteStatusPage, getStatusPages } from '$lib/remote/status-pages.remote';
 	import type { StatusPage } from '$lib/server/db/schema';
@@ -15,6 +16,15 @@
 
 	// Prefer query data (after refresh/mutation), fallback to preloaded data
 	const statusPages = $derived(statusPagesQuery.current ?? data.statusPages);
+
+	// Usage limits from parent layout
+	const usageLimits = $derived(data.usageLimits);
+	const canAddStatusPage = $derived(usageLimits?.statusPages.canAdd ?? true);
+	const statusPageUsageText = $derived(
+		usageLimits
+			? `${usageLimits.statusPages.current}/${usageLimits.statusPages.limit === -1 ? '∞' : usageLimits.statusPages.limit}`
+			: null
+	);
 
 	let deletePageId = $state<string | null>(null);
 
@@ -42,10 +52,31 @@
 			<h1 class="text-3xl font-bold tracking-tight">{m.status_pages_title()}</h1>
 			<p class="text-muted-foreground">{m.status_pages_subtitle()}</p>
 		</div>
-		<Button href="/status-pages/new">
-			<Plus class="mr-2 h-4 w-4" />
-			{m.status_pages_create()}
-		</Button>
+		<div class="flex items-center gap-2">
+			{#if statusPageUsageText}
+				<Badge variant="outline" class="text-xs font-normal">
+					{statusPageUsageText} pages
+				</Badge>
+			{/if}
+			{#if canAddStatusPage}
+				<Button href="/status-pages/new">
+					<Plus class="mr-2 h-4 w-4" />
+					{m.status_pages_create()}
+				</Button>
+			{:else}
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button disabled>
+							<Plus class="mr-2 h-4 w-4" />
+							{m.status_pages_create()}
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>
+						<p>Status page limit reached. Upgrade to add more.</p>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			{/if}
+		</div>
 	</div>
 
 	{#if statusPagesQuery.loading && !statusPages}
@@ -65,6 +96,8 @@
 			description={m.status_pages_empty_desc()}
 			buttonText={m.status_pages_create()}
 			buttonHref="/status-pages/new"
+			buttonDisabled={!canAddStatusPage}
+			buttonDisabledMessage="Status page limit reached. Upgrade to add more."
 		/>
 	{:else}
 		<div class="grid gap-4">
