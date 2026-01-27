@@ -1,5 +1,8 @@
 # Uppity
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-3.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
 A self-hosted monitoring and status page application built with SvelteKit 2 and Svelte 5.
 
 ## Features
@@ -167,6 +170,14 @@ See [`.env.example`](.env.example) for all available configuration options.
 - `UPPITY_DEFAULT_*` - Monitor default configurations
 - `UPPITY_CRON_*` - Background job schedules
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
-MIT
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+**Commercial licensing** is available for organizations that cannot use AGPL-licensed software. Contact us for details.
