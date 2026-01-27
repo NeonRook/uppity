@@ -44,7 +44,7 @@ export class MeterService {
 		if (!selfHosted && accessToken) {
 			this.client = new Polar({
 				accessToken,
-				server: process.env.NODE_ENV === "development" ? "sandbox" : "production",
+				server: import.meta.env.DEV ? "sandbox" : "production",
 			});
 			this.enabled = true;
 		}
