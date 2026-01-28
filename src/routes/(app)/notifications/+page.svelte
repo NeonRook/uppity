@@ -19,12 +19,14 @@
 	// Prefer query data (after refresh/mutation), fallback to preloaded data
 	const channels = $derived(channelsQuery.current ?? data.channels);
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has all features)
 	const usageLimits = $derived(data.usageLimits);
 	const availableChannelTypes = $derived(
-		usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook']
+		data.selfHosted
+			? ['email', 'slack', 'discord', 'webhook']
+			: (usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook'])
 	);
-	const hasAllChannelTypes = $derived(availableChannelTypes.length >= 4);
+	const hasAllChannelTypes = $derived(data.selfHosted || availableChannelTypes.length >= 4);
 
 	let deleteChannelId = $state<string | null>(null);
 	let togglingChannelId = $state<string | null>(null);
@@ -102,16 +104,16 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.notifications_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.notifications_title()}</h1>
 			<p class="text-muted-foreground">{m.notifications_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			{#if !hasAllChannelTypes}
 				<Tooltip.Root>
 					<Tooltip.Trigger>
-						<Badge variant="outline" class="text-xs font-normal">
+						<Badge variant="outline" class="hidden text-xs font-normal sm:inline-flex">
 							{availableChannelTypes.join(', ')} only
 						</Badge>
 					</Tooltip.Trigger>
@@ -148,37 +150,43 @@
 			{#each channels as channel (channel.id)}
 				{@const Icon = getChannelIcon(channel.type)}
 				<Card.Root>
-					<Card.Content class="flex items-center justify-between p-6">
-						<div class="flex items-center gap-4">
-							<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-								<Icon class="h-5 w-5" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="font-semibold">{channel.name}</h3>
-									<Badge variant="secondary">{getChannelTypeName(channel.type)}</Badge>
-									{#if !channel.enabled}
-										<Badge variant="outline">{m.common_disabled()}</Badge>
-									{/if}
+					<Card.Content class="p-4 sm:p-6">
+						<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+							<div class="flex items-center gap-4">
+								<div
+									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted"
+								>
+									<Icon class="h-5 w-5" />
 								</div>
-								<p class="text-sm text-muted-foreground">{getChannelDescription(channel)}</p>
+								<div class="min-w-0">
+									<div class="flex flex-wrap items-center gap-2">
+										<h3 class="font-semibold">{channel.name}</h3>
+										<Badge variant="secondary">{getChannelTypeName(channel.type)}</Badge>
+										{#if !channel.enabled}
+											<Badge variant="outline">{m.common_disabled()}</Badge>
+										{/if}
+									</div>
+									<p class="truncate text-sm text-muted-foreground">
+										{getChannelDescription(channel)}
+									</p>
+								</div>
 							</div>
-						</div>
 
-						<div class="flex items-center gap-2">
-							<Switch
-								checked={channel.enabled}
-								disabled={togglingChannelId === channel.id}
-								onCheckedChange={() => handleToggle(channel.id, channel.enabled)}
-							/>
+							<div class="flex items-center gap-2">
+								<Switch
+									checked={channel.enabled}
+									disabled={togglingChannelId === channel.id}
+									onCheckedChange={() => handleToggle(channel.id, channel.enabled)}
+								/>
 
-							<Button variant="ghost" size="icon" href="/notifications/{channel.id}">
-								<Pencil class="h-4 w-4" />
-							</Button>
+								<Button variant="ghost" size="icon" href="/notifications/{channel.id}">
+									<Pencil class="h-4 w-4" />
+								</Button>
 
-							<Button variant="ghost" size="icon" onclick={() => (deleteChannelId = channel.id)}>
-								<Trash2 class="h-4 w-4" />
-							</Button>
+								<Button variant="ghost" size="icon" onclick={() => (deleteChannelId = channel.id)}>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							</div>
 						</div>
 					</Card.Content>
 				</Card.Root>

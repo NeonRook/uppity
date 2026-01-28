@@ -56,9 +56,9 @@
 	<title>{m.settings_title()} - Uppity</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl space-y-6">
+<div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-0">
 	<div>
-		<h1 class="text-3xl font-bold tracking-tight">{m.settings_title()}</h1>
+		<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.settings_title()}</h1>
 		<p class="text-muted-foreground">{m.settings_subtitle()}</p>
 	</div>
 
@@ -127,7 +127,7 @@
 	<!-- Organization Section -->
 	<Card.Root>
 		<Card.Header>
-			<div class="flex items-center justify-between">
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					<Card.Title class="flex items-center gap-2">
 						<Building2 class="h-5 w-5" />

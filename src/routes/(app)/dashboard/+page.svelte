@@ -18,9 +18,9 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.dashboard_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.dashboard_title()}</h1>
 			<p class="text-muted-foreground">{m.dashboard_subtitle()}</p>
 		</div>
 		<Button href="/monitors/new">
@@ -30,7 +30,7 @@
 	</div>
 
 	<!-- Stats cards -->
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 		<StatCard
 			title={m.dashboard_total_monitors()}
 			value={data.stats.total}
@@ -83,31 +83,26 @@
 					{#each data.monitors as mon (mon.id)}
 						<a
 							href={resolve(`/monitors/${mon.id}`)}
-							class="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
+							class="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
 						>
-							<div class="flex items-center gap-4">
-								<div class={`h-3 w-3 rounded-full ${getStatusColor(mon.status, mon.active)}`}></div>
-								<div>
-									<div class="font-medium">{mon.name}</div>
-									<div class="flex items-center gap-2 text-sm text-muted-foreground">
-										<span class="text-xs uppercase">{mon.type}</span>
-										{#if mon.url}
-											<span>·</span>
-											<span class="max-w-[200px] truncate">{mon.url}</span>
-										{/if}
+							<div class="flex items-start justify-between gap-3">
+								<div class="flex min-w-0 items-center gap-3">
+									<div
+										class={`h-3 w-3 shrink-0 rounded-full ${getStatusColor(mon.status, mon.active)}`}
+									></div>
+									<div class="min-w-0">
+										<div class="truncate font-medium">{mon.name}</div>
+										<div class="flex items-center gap-2 text-sm text-muted-foreground">
+											<span class="text-xs uppercase">{mon.type}</span>
+											{#if mon.url}
+												<span class="hidden sm:inline">·</span>
+												<span class="hidden max-w-[200px] truncate sm:inline">{mon.url}</span>
+											{/if}
+										</div>
 									</div>
 								</div>
-							</div>
-							<div class="flex items-center gap-6 text-sm">
-								<div class="text-right">
-									<div class="font-mono">{formatUptime(mon.uptimePercent24h)}</div>
-									<div class="text-xs text-muted-foreground">{m.dashboard_uptime()}</div>
-								</div>
-								<div class="text-right">
-									<div class="font-mono">{formatResponseTime(mon.avgResponseTimeMs24h)}</div>
-									<div class="text-xs text-muted-foreground">{m.dashboard_response()}</div>
-								</div>
 								<Badge
+									class="shrink-0"
 									variant={mon.active && mon.status === 'up'
 										? 'default'
 										: mon.active && mon.status === 'down'
@@ -116,6 +111,16 @@
 								>
 									{getStatusLabel(mon.status, mon.active)}
 								</Badge>
+							</div>
+							<div class="mt-3 flex items-center gap-4 text-sm sm:mt-2 sm:ml-6 sm:gap-6">
+								<div>
+									<span class="font-mono">{formatUptime(mon.uptimePercent24h)}</span>
+									<span class="ml-1 text-xs text-muted-foreground">{m.dashboard_uptime()}</span>
+								</div>
+								<div>
+									<span class="font-mono">{formatResponseTime(mon.avgResponseTimeMs24h)}</span>
+									<span class="ml-1 text-xs text-muted-foreground">{m.dashboard_response()}</span>
+								</div>
 							</div>
 						</a>
 					{/each}

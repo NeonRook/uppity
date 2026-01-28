@@ -65,7 +65,12 @@
 				<Button size="lg" href={resolve('/register')}>
 					{m.landing_cta_get_started()}
 				</Button>
-				<Button variant="outline" size="lg" class="border-gray-300 text-gray-700" href={resolve('/login')}>
+				<Button
+					variant="outline"
+					size="lg"
+					class="border-gray-300 text-gray-700"
+					href={resolve('/login')}
+				>
 					{m.landing_cta_sign_in()}
 				</Button>
 			</div>

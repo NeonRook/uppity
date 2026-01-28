@@ -44,9 +44,9 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.incidents_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.incidents_title()}</h1>
 			<p class="text-muted-foreground">{m.incidents_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -79,10 +79,10 @@
 				{@const impactInfo = getImpactInfo(inc.impact)}
 				{@const StatusIcon = statusInfo.icon}
 				<Card.Root>
-					<Card.Content class="p-6">
-						<div class="flex items-start justify-between">
-							<div class="flex-1">
-								<div class="flex items-center gap-2">
+					<Card.Content class="p-4 sm:p-6">
+						<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-wrap items-center gap-2">
 									<h3 class="font-semibold">{inc.title}</h3>
 									<Badge variant={statusInfo.variant}>
 										<StatusIcon class="mr-1 h-3 w-3" />
@@ -93,7 +93,9 @@
 										<Badge variant="outline">{m.incidents_auto_created()}</Badge>
 									{/if}
 								</div>
-								<div class="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+								<div
+									class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground"
+								>
 									<span>{m.incidents_started({ date: formatIncidentDate(inc.startedAt) })}</span>
 									{#if inc.resolvedAt}
 										<span>{m.incidents_resolved({ date: formatIncidentDate(inc.resolvedAt) })}</span

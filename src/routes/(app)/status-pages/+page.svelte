@@ -17,11 +17,11 @@
 	// Prefer query data (after refresh/mutation), fallback to preloaded data
 	const statusPages = $derived(statusPagesQuery.current ?? data.statusPages);
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
-	const canAddStatusPage = $derived(usageLimits?.statusPages.canAdd ?? true);
+	const canAddStatusPage = $derived(data.selfHosted || (usageLimits?.statusPages.canAdd ?? true));
 	const statusPageUsageText = $derived(
-		usageLimits
+		!data.selfHosted && usageLimits
 			? `${usageLimits.statusPages.current}/${usageLimits.statusPages.limit === -1 ? '∞' : usageLimits.statusPages.limit}`
 			: null
 	);
@@ -47,14 +47,14 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.status_pages_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.status_pages_title()}</h1>
 			<p class="text-muted-foreground">{m.status_pages_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
 			{#if statusPageUsageText}
-				<Badge variant="outline" class="text-xs font-normal">
+				<Badge variant="outline" class="hidden text-xs font-normal sm:inline-flex">
 					{statusPageUsageText} pages
 				</Badge>
 			{/if}
@@ -103,51 +103,57 @@
 		<div class="grid gap-4">
 			{#each statusPages as page (page.id)}
 				<Card.Root>
-					<Card.Content class="flex items-center justify-between p-6">
-						<div class="flex items-center gap-4">
-							{#if page.logoUrl}
-								<img src={page.logoUrl} alt={page.name} class="h-10 w-10 rounded-lg object-cover" />
-							{:else}
-								<div
-									class="flex h-10 w-10 items-center justify-center rounded-lg"
-									style="background-color: {page.primaryColor}20"
-								>
-									<Globe class="h-5 w-5" style="color: {page.primaryColor}" />
+					<Card.Content class="p-4 sm:p-6">
+						<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+							<div class="flex items-center gap-4">
+								{#if page.logoUrl}
+									<img
+										src={page.logoUrl}
+										alt={page.name}
+										class="h-10 w-10 shrink-0 rounded-lg object-cover"
+									/>
+								{:else}
+									<div
+										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+										style="background-color: {page.primaryColor}20"
+									>
+										<Globe class="h-5 w-5" style="color: {page.primaryColor}" />
+									</div>
+								{/if}
+								<div class="min-w-0">
+									<div class="flex flex-wrap items-center gap-2">
+										<h3 class="font-semibold">{page.name}</h3>
+										{#if page.isPublic}
+											<Badge variant="secondary">
+												<Unlock class="mr-1 h-3 w-3" />
+												{m.status_pages_public()}
+											</Badge>
+										{:else}
+											<Badge variant="outline">
+												<Lock class="mr-1 h-3 w-3" />
+												{m.status_pages_private()}
+											</Badge>
+										{/if}
+									</div>
+									<p class="truncate text-sm text-muted-foreground">
+										{page.customDomain || `/status/${page.slug}`}
+									</p>
 								</div>
-							{/if}
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="font-semibold">{page.name}</h3>
-									{#if page.isPublic}
-										<Badge variant="secondary">
-											<Unlock class="mr-1 h-3 w-3" />
-											{m.status_pages_public()}
-										</Badge>
-									{:else}
-										<Badge variant="outline">
-											<Lock class="mr-1 h-3 w-3" />
-											{m.status_pages_private()}
-										</Badge>
-									{/if}
-								</div>
-								<p class="text-sm text-muted-foreground">
-									{page.customDomain || `/status/${page.slug}`}
-								</p>
 							</div>
-						</div>
 
-						<div class="flex items-center gap-2">
-							<Button variant="ghost" size="icon" href={getStatusPageUrl(page)} target="_blank">
-								<ExternalLink class="h-4 w-4" />
-							</Button>
+							<div class="flex items-center gap-2">
+								<Button variant="ghost" size="icon" href={getStatusPageUrl(page)} target="_blank">
+									<ExternalLink class="h-4 w-4" />
+								</Button>
 
-							<Button variant="ghost" size="icon" href="/status-pages/{page.id}">
-								<Pencil class="h-4 w-4" />
-							</Button>
+								<Button variant="ghost" size="icon" href="/status-pages/{page.id}">
+									<Pencil class="h-4 w-4" />
+								</Button>
 
-							<Button variant="ghost" size="icon" onclick={() => (deletePageId = page.id)}>
-								<Trash2 class="h-4 w-4" />
-							</Button>
+								<Button variant="ghost" size="icon" onclick={() => (deletePageId = page.id)}>
+									<Trash2 class="h-4 w-4" />
+								</Button>
+							</div>
 						</div>
 					</Card.Content>
 				</Card.Root>

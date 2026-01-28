@@ -96,10 +96,10 @@
 	<title>{data.incident.title} - Uppity</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl space-y-6">
+<div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-0">
 	<PageHeader backHref="/incidents">
-		<div class="flex items-center gap-2">
-			<h1 class="text-2xl font-bold tracking-tight">{data.incident.title}</h1>
+		<div class="flex flex-wrap items-center gap-2">
+			<h1 class="text-xl font-bold tracking-tight sm:text-2xl">{data.incident.title}</h1>
 			<Badge variant={statusInfo.variant}>{getStatusLabel(data.incident.status)}</Badge>
 			<Badge variant={impactInfo.variant}>
 				{m.incidents_impact({ impact: getImpactLabel(data.incident.impact) })}
