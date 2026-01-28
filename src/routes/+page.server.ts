@@ -5,7 +5,7 @@ import type { PageServerLoad } from "./$types";
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
 		redirect(302, "/dashboard");
-	} else {
-		redirect(302, "/login");
 	}
+	// Unauthenticated users see the landing page
+	return {};
 };
