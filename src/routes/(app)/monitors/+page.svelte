@@ -31,11 +31,11 @@
 	let { data } = $props();
 	const monitorsQuery = getMonitors();
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
-	const canAddMonitor = $derived(usageLimits?.monitors.canAdd ?? true);
+	const canAddMonitor = $derived(data.selfHosted || (usageLimits?.monitors.canAdd ?? true));
 	const monitorUsageText = $derived(
-		usageLimits
+		!data.selfHosted && usageLimits
 			? `${usageLimits.monitors.current}/${usageLimits.monitors.limit === -1 ? '∞' : usageLimits.monitors.limit}`
 			: null
 	);
@@ -93,9 +93,9 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.monitors_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.monitors_title()}</h1>
 			<p class="text-muted-foreground">{m.monitors_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -108,7 +108,7 @@
 				<RefreshCw class={`h-4 w-4 ${monitorsQuery.loading ? 'animate-spin' : ''}`} />
 			</Button>
 			{#if monitorUsageText}
-				<Badge variant="outline" class="text-xs font-normal">
+				<Badge variant="outline" class="hidden text-xs font-normal sm:inline-flex">
 					{monitorUsageText} monitors
 				</Badge>
 			{/if}
@@ -152,7 +152,87 @@
 			buttonDisabledMessage="Monitor limit reached. Upgrade to add more."
 		/>
 	{:else}
-		<Card.Root>
+		<!-- Mobile card view -->
+		<div class="space-y-3 md:hidden">
+			{#each monitors as mon (mon.id)}
+				{@const statusInfo = getStatusBadge(mon.status, mon.active)}
+				<Card.Root>
+					<Card.Content class="p-4">
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2">
+									<div
+										class={`h-2 w-2 shrink-0 rounded-full ${getStatusColor(mon.status, mon.active)}`}
+									></div>
+									<a
+										href={resolve(`/monitors/${mon.id}`)}
+										class="truncate font-medium hover:underline"
+									>
+										{mon.name}
+									</a>
+								</div>
+								<p class="mt-1 truncate text-sm text-muted-foreground">
+									<span class="text-xs uppercase">{mon.type}</span>
+									<span class="mx-1">·</span>
+									<span>{getEndpoint(mon)}</span>
+								</p>
+								<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+									<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+									<span class="font-mono text-muted-foreground">
+										{formatUptime(mon.uptimePercent24h)}
+									</span>
+									<span class="font-mono text-muted-foreground">
+										{formatResponseTime(mon.avgResponseTimeMs24h)}
+									</span>
+								</div>
+							</div>
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger class="shrink-0 rounded p-1 hover:bg-muted">
+									<MoreHorizontal class="h-4 w-4" />
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item>
+										<a href={resolve(`/monitors/${mon.id}`)} class="flex w-full items-center">
+											{m.monitors_view_details()}
+										</a>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item>
+										<a href={resolve(`/monitors/${mon.id}/edit`)} class="flex w-full items-center">
+											{m.common_edit()}
+										</a>
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										onclick={() => handleToggle(mon.id, mon.active)}
+										disabled={togglingMonitorId === mon.id}
+									>
+										{#if togglingMonitorId === mon.id}
+											<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+										{:else if mon.active}
+											<Pause class="mr-2 h-4 w-4" />
+										{:else}
+											<Play class="mr-2 h-4 w-4" />
+										{/if}
+										{mon.active ? m.monitors_pause() : m.monitors_resume()}
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<DropdownMenu.Item
+										variant="destructive"
+										onclick={() => (deleteMonitorId = mon.id)}
+									>
+										<Trash2 class="mr-2 h-4 w-4" />
+										{m.common_delete()}
+									</DropdownMenu.Item>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/each}
+		</div>
+
+		<!-- Desktop table view -->
+		<Card.Root class="hidden md:block">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
@@ -188,7 +268,7 @@
 								<div class="flex items-center gap-1 text-sm text-muted-foreground">
 									<span class="text-xs uppercase">{mon.type}</span>
 									<span class="mx-1">·</span>
-									<span>{getEndpoint(mon)}</span>
+									<span class="truncate">{getEndpoint(mon)}</span>
 									{#if mon.type === 'http' && mon.url}
 										<a
 											href={mon.url}

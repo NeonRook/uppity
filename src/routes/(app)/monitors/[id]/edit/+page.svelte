@@ -40,13 +40,13 @@
 	<title>{m.monitor_edit_title()} - {data.monitor.name} - Uppity</title>
 </svelte:head>
 
-<div class="mx-auto max-w-2xl space-y-6">
+<div class="mx-auto max-w-2xl space-y-6 px-4 sm:px-0">
 	<div class="flex items-center gap-4">
 		<Button variant="ghost" size="icon" href="/monitors/{data.monitor.id}">
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.monitor_edit_title()}</h1>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.monitor_edit_title()}</h1>
 			<p class="text-muted-foreground">{data.monitor.name}</p>
 		</div>
 	</div>
@@ -164,7 +164,7 @@
 					<Card.Title>{m.monitor_tcp_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<Field.Field>
 							<Field.Label for="hostname">{m.monitor_hostname()} *</Field.Label>
 							<Input
@@ -233,7 +233,7 @@
 				<Card.Title>{m.monitor_check_settings()}</Card.Title>
 			</Card.Header>
 			<Card.Content class="space-y-4">
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<Field.Field>
 						<Field.Label for="intervalSeconds">{m.monitor_interval()}</Field.Label>
 						<Select.Root
@@ -272,7 +272,7 @@
 					</Field.Field>
 				</div>
 
-				<div class="grid grid-cols-2 gap-4">
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<Field.Field>
 						<Field.Label for="retries">{m.monitor_retries()}</Field.Label>
 						<Input

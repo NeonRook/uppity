@@ -24,10 +24,12 @@
 
 	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has all features)
 	const usageLimits = $derived(data.usageLimits);
 	const availableChannelTypes = $derived(
-		usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook']
+		data.selfHosted
+			? ['email', 'slack', 'discord', 'webhook']
+			: (usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook'])
 	);
 
 	function isChannelAvailable(type: string): boolean {

@@ -148,7 +148,7 @@
 	</PageHeader>
 
 	<!-- Stats Cards -->
-	<div class="grid gap-4 md:grid-cols-4">
+	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 		<Card.Root>
 			<Card.Header class="pb-2">
 				<Card.Title class="text-sm font-medium text-muted-foreground"
@@ -368,7 +368,33 @@
 			{#if data.recentChecks.length === 0}
 				<p class="py-8 text-center text-muted-foreground">{m.monitor_no_checks()}</p>
 			{:else}
-				<Table.Root>
+				<!-- Mobile card view -->
+				<div class="space-y-2 md:hidden">
+					{#each data.recentChecks as check (check.id)}
+						{@const iconInfo = getCheckIcon(check.status)}
+						{@const CheckIcon = iconInfo.component}
+						<div class="flex items-start gap-3 rounded-lg border p-3">
+							<CheckIcon class="mt-0.5 h-4 w-4 shrink-0 {iconInfo.class}" />
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center justify-between gap-2">
+									<span class="font-mono text-sm">{formatDate(check.checkedAt)}</span>
+									<span class="font-mono text-sm">{formatResponseTime(check.responseTimeMs)}</span>
+								</div>
+								<div class="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+									<span>{m.monitor_table_status_code()}: {check.statusCode ?? '-'}</span>
+								</div>
+								{#if check.errorMessage}
+									<p class="mt-1 truncate text-sm text-muted-foreground">
+										{check.errorMessage}
+									</p>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Desktop table view -->
+				<Table.Root class="hidden md:table">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head class="w-10"></Table.Head>
@@ -395,7 +421,7 @@
 								<Table.Cell class="text-right font-mono text-sm">
 									{formatResponseTime(check.responseTimeMs)}
 								</Table.Cell>
-								<Table.Cell class="max-w-50 truncate text-sm text-muted-foreground">
+								<Table.Cell class="max-w-xs truncate text-sm text-muted-foreground">
 									{check.errorMessage || '-'}
 								</Table.Cell>
 							</Table.Row>

@@ -17,9 +17,9 @@
 
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
-	const canAddStatusPage = $derived(usageLimits?.statusPages.canAdd ?? true);
+	const canAddStatusPage = $derived(data.selfHosted || (usageLimits?.statusPages.canAdd ?? true));
 
 	let selectedMonitors = new SvelteSet<string>();
 

@@ -16,10 +16,12 @@
 	let { data } = $props();
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 
-	// Usage limits from parent layout
+	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
-	const canAddMonitor = $derived(usageLimits?.monitors.canAdd ?? true);
-	const minCheckInterval = $derived(usageLimits?.features.minCheckIntervalSeconds ?? 60);
+	const canAddMonitor = $derived(data.selfHosted || (usageLimits?.monitors.canAdd ?? true));
+	const minCheckInterval = $derived(
+		data.selfHosted ? 0 : (usageLimits?.features.minCheckIntervalSeconds ?? 60)
+	);
 
 	// Filter intervals based on plan
 	const availableIntervals = $derived(
