@@ -538,5 +538,19 @@
 	"billing_features_custom_domains": "Custom domains",
 	"billing_features_api_access": "Full API access",
 	"billing_features_sso": "SSO/SAML",
-	"billing_features_audit_logs": "Audit logs"
+	"billing_features_audit_logs": "Audit logs",
+
+	"landing_hero_title": "Simple uptime monitoring for solo builders",
+	"landing_hero_subtitle": "Know when your services go down before your users do. No complexity, no bloat—just reliable monitoring.",
+	"landing_cta_get_started": "Get Started Free",
+	"landing_cta_sign_in": "Sign In",
+	"landing_feature_monitoring_title": "Multi-Protocol Monitoring",
+	"landing_feature_monitoring_desc": "HTTP, TCP, and push-based health checks. Monitor any endpoint your way.",
+	"landing_feature_incidents_title": "Incident Tracking",
+	"landing_feature_incidents_desc": "Clear timeline for incidents with status updates and postmortems.",
+	"landing_feature_alerts_title": "Multi-Channel Alerts",
+	"landing_feature_alerts_desc": "Email, Slack, Discord, and webhooks. Get notified where you work.",
+	"landing_feature_status_title": "Public Status Pages",
+	"landing_feature_status_desc": "Customizable status pages to keep your customers informed.",
+	"landing_footer_open_source": "Open source under AGPL-3.0"
 }
