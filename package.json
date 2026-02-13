@@ -48,7 +48,7 @@
 		"drizzle-orm": "^0.45.0",
 		"mode-watcher": "^1.1.0",
 		"nanoid": "^5.1.6",
-		"nodemailer": "^7.0.12",
+		"nodemailer": "^8.0.0",
 		"pino": "^10.3.0",
 		"postgres": "^3.4.8",
 		"runed": "^0.37.1",
