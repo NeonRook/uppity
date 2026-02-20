@@ -1,10 +1,9 @@
-import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
-
 import {
 	DEFAULT_INCIDENT_STATUS,
 	DEFAULT_INCIDENT_IMPACT,
 	AUTO_RESOLVE_MESSAGE,
 } from "$lib/constants/defaults";
+import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
 import { db } from "$lib/server/db";
 import {
 	incident,

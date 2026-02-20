@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import pino, { type Logger } from "pino";
 
+import { WideEventBuilder } from "./context";
 import type {
 	CheckWideEvent,
 	MaintenanceWideEvent,
@@ -8,8 +9,6 @@ import type {
 	RequestWideEvent,
 	WebhookWideEvent,
 } from "./types";
-
-import { WideEventBuilder } from "./context";
 
 /**
  * Build pino options. Uses import.meta.env.DEV for compile-time elimination

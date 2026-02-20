@@ -1,5 +1,3 @@
-import type { Component } from "svelte";
-
 import { m } from "$lib/paraglide/messages.js";
 import {
 	Pause,
@@ -9,6 +7,7 @@ import {
 	TriangleAlert,
 	type IconProps,
 } from "@lucide/svelte";
+import type { Component } from "svelte";
 
 export type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
 export type IconComponent = Component<IconProps>;

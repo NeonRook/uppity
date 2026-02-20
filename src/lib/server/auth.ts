@@ -1,5 +1,3 @@
-import type { PlanId, SubscriptionStatus } from "$lib/types/plans";
-
 import { getRequestEvent } from "$app/server";
 import {
 	ORGANIZATION_CREATOR_ROLE,
@@ -14,6 +12,7 @@ import * as authSchema from "$lib/server/db/auth-schema";
 import { subscription } from "$lib/server/db/schema";
 import { createWebhookWideEvent } from "$lib/server/logger";
 import { subscriptionService } from "$lib/server/services/subscription.service";
+import type { PlanId, SubscriptionStatus } from "$lib/types/plans";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";

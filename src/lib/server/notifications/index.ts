@@ -11,11 +11,10 @@ import { logger } from "$lib/server/logger";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import type { NotificationPayload, NotificationProvider, NotificationType } from "./types";
-
 import { DiscordNotificationProvider } from "./discord";
 import { EmailNotificationProvider } from "./email";
 import { SlackNotificationProvider } from "./slack";
+import type { NotificationPayload, NotificationProvider, NotificationType } from "./types";
 import { WebhookNotificationProvider } from "./webhook";
 
 const notificationLogger = logger.child({ context: "notification" });

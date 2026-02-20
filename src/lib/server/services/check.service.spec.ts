@@ -1,5 +1,4 @@
 import type { Monitor } from "$lib/server/db/schema";
-
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 
 import { CheckService, type CheckResult } from "./check.service";
