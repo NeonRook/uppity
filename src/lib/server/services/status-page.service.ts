@@ -475,14 +475,14 @@ export class StatusPageService {
 		const ungroupedMonitors: PublicMonitorStatus[] = [];
 
 		for (const pm of pageMonitors) {
-			const monitorStatus = buildMonitorStatus(pm);
+			const status = buildMonitorStatus(pm);
 			if (pm.pageMonitor.groupId) {
 				if (!groupedMonitors.has(pm.pageMonitor.groupId)) {
 					groupedMonitors.set(pm.pageMonitor.groupId, []);
 				}
-				groupedMonitors.get(pm.pageMonitor.groupId)!.push(monitorStatus);
+				groupedMonitors.get(pm.pageMonitor.groupId)!.push(status);
 			} else {
-				ungroupedMonitors.push(monitorStatus);
+				ungroupedMonitors.push(status);
 			}
 		}
 

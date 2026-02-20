@@ -76,11 +76,8 @@ function mapPolarStatus(polarStatus: string): SubscriptionStatus {
  * Extracts plan ID from a Polar subscription.
  * Falls back to "pro" if product ID not mapped.
  */
-function getPlanFromSubscription(subscription: {
-	productId?: string;
-	product?: { id?: string };
-}): PlanId {
-	const productId = subscription.productId ?? subscription.product?.id;
+function getPlanFromSubscription(sub: { productId?: string; product?: { id?: string } }): PlanId {
+	const productId = sub.productId ?? sub.product?.id;
 	if (productId && POLAR_PRODUCT_TO_PLAN[productId]) {
 		return POLAR_PRODUCT_TO_PLAN[productId];
 	}

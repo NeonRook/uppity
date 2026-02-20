@@ -70,8 +70,8 @@
 		togglingMonitorId = monitorId;
 		try {
 			await toggleMonitor({ monitorId }).updates(
-				getMonitors().withOverride((monitors) =>
-					monitors.map((mon) => (mon.id === monitorId ? { ...mon, active: !currentActive } : mon))
+				getMonitors().withOverride((prev) =>
+					prev.map((mon) => (mon.id === monitorId ? { ...mon, active: !currentActive } : mon))
 				)
 			);
 		} catch (e) {
@@ -83,7 +83,7 @@
 
 	async function handleDelete(monitorId: string) {
 		await deleteMonitor({ monitorId }).updates(
-			getMonitors().withOverride((monitors) => monitors.filter((mon) => mon.id !== monitorId))
+			getMonitors().withOverride((prev) => prev.filter((mon) => mon.id !== monitorId))
 		);
 	}
 </script>
