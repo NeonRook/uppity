@@ -1,5 +1,3 @@
-import type { Component } from "svelte";
-
 import { m } from "$lib/paraglide/messages.js";
 import {
 	Search,
@@ -10,6 +8,7 @@ import {
 	FileText,
 	type IconProps,
 } from "@lucide/svelte";
+import type { Component } from "svelte";
 
 type IconComponent = Component<IconProps>;
 

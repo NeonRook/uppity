@@ -1,5 +1,4 @@
 import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
-
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,

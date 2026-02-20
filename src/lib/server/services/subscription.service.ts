@@ -1,3 +1,6 @@
+import { DEFAULT_PLAN_ID, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
+import { db } from "$lib/server/db";
+import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
 import type {
 	LimitCheckResult,
 	NotificationChannelType,
@@ -6,10 +9,6 @@ import type {
 	PlanLimits,
 	SubscriptionStatus,
 } from "$lib/types/plans";
-
-import { DEFAULT_PLAN_ID, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
-import { db } from "$lib/server/db";
-import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
 import { eq, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

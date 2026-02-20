@@ -1,5 +1,3 @@
-import type { NotificationChannelType } from "$lib/types/plans";
-
 import { db } from "$lib/server/db";
 import {
 	notificationChannel,
@@ -8,6 +6,7 @@ import {
 } from "$lib/server/db/schema";
 import { FeatureNotAvailableError } from "$lib/server/errors";
 import { subscriptionService } from "$lib/server/services/subscription.service";
+import type { NotificationChannelType } from "$lib/types/plans";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

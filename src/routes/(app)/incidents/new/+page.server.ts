@@ -1,5 +1,4 @@
 import type { IncidentStatus } from "$lib/constants/status";
-
 import { createIncidentSchema } from "$lib/schemas/incident";
 import { incidentService } from "$lib/server/services/incident.service";
 import { monitorService } from "$lib/server/services/monitor.service";

@@ -1,10 +1,6 @@
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-
 import { eq, desc } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
-
-import type * as schema from "../lib/server/db/schema";
-import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
 
 import {
 	DEFAULT_TIMEOUT_SECONDS,
@@ -21,6 +17,7 @@ import {
 	USER_AGENT,
 	DEFAULT_RETRIES,
 } from "../lib/constants/defaults";
+import type * as schema from "../lib/server/db/schema";
 import {
 	monitorCheck,
 	monitorStatus,
@@ -29,6 +26,7 @@ import {
 	incidentUpdate,
 	type Monitor,
 } from "../lib/server/db/schema";
+import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
