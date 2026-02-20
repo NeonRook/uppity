@@ -81,8 +81,8 @@
 		togglingChannelId = channelId;
 		try {
 			await toggleChannel({ channelId }).updates(
-				getChannels().withOverride((channels) =>
-					channels.map((ch) => (ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch))
+				getChannels().withOverride((prev) =>
+					prev.map((ch) => (ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch))
 				)
 			);
 		} catch (e) {
@@ -94,7 +94,7 @@
 
 	async function handleDelete(channelId: string) {
 		await deleteChannel({ channelId }).updates(
-			getChannels().withOverride((channels) => channels.filter((ch) => ch.id !== channelId))
+			getChannels().withOverride((prev) => prev.filter((ch) => ch.id !== channelId))
 		);
 	}
 </script>

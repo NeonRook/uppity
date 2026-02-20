@@ -181,6 +181,7 @@ const MAINTENANCE_CHECK_INTERVAL = 60;
 async function pollLoop() {
 	let maintenanceCheckCounter = 0;
 
+	// oxlint-disable-next-line no-unmodified-loop-condition -- modified by shutdown() signal handler
 	while (running) {
 		try {
 			const monitors = await claimDueMonitors();
