@@ -6,6 +6,7 @@ import {
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "$lib/constants/auth";
+import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "$lib/constants/defaults";
 import { DEFAULT_PLAN_ID } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
 import * as authSchema from "$lib/server/db/auth-schema";
@@ -20,6 +21,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
+import nodemailer from "nodemailer";
 
 // $env/dynamic/private gets baked in at build time by svelte-adapter-bun
 // Note: svelte-adapter-bun presents requests as HTTPS, so defaults must use https://
@@ -35,6 +37,8 @@ const polarClient = new Polar({
 });
 
 // Polar product IDs from environment (different for sandbox vs production)
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
+
 const {
 	POLAR_PRODUCT_FREE,
 	POLAR_PRODUCT_PRO_MONTHLY,
@@ -104,6 +108,35 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false,
+		async sendResetPassword({ user, url }) {
+			if (!SMTP_HOST || !SMTP_PORT) {
+				console.warn("[auth] SMTP not configured — skipping password reset email");
+				return;
+			}
+
+			const transporter = nodemailer.createTransport({
+				host: SMTP_HOST,
+				port: parseInt(SMTP_PORT, 10),
+				secure: SMTP_PORT === String(DEFAULT_SMTP_SECURE_PORT),
+				auth: SMTP_USER && SMTP_PASSWORD ? { user: SMTP_USER, pass: SMTP_PASSWORD } : undefined,
+			});
+
+			const from = SMTP_FROM || DEFAULT_EMAIL_FROM;
+
+			await transporter.sendMail({
+				from,
+				to: user.email,
+				subject: "Reset your password — Uppity",
+				html: `
+					<h2>Password Reset</h2>
+					<p>We received a request to reset your password. Click the button below to choose a new one.</p>
+					<p><a href="${url}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:6px;">Reset Password</a></p>
+					<p>If you didn't request this, you can safely ignore this email.</p>
+					<p style="color:#666;font-size:12px;">This link will expire shortly.</p>
+				`,
+				text: `Reset your password by visiting: ${url}\n\nIf you didn't request this, you can safely ignore this email.`,
+			});
+		},
 	},
 	session: {
 		expiresIn: SESSION_EXPIRES_IN_SECONDS,
