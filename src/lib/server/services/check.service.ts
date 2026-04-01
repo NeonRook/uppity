@@ -26,6 +26,8 @@ import { incidentService } from "$lib/server/services/incident.service";
 import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import { tcpConnect, type TcpSocket } from "$lib/server/tcp";
+
 export interface CheckResult {
 	status: "up" | "down" | "degraded";
 	statusCode?: number;
@@ -147,7 +149,7 @@ export class CheckService {
 
 		return new Promise((resolve) => {
 			let resolved = false;
-			let socket: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never;
+			let socket: TcpSocket;
 
 			const timer = setTimeout(() => {
 				if (!resolved) {
@@ -161,7 +163,7 @@ export class CheckService {
 				}
 			}, timeoutMs);
 
-			Bun.connect({
+			tcpConnect({
 				hostname: monitor.hostname!,
 				port: monitor.port!,
 				socket: {
@@ -233,7 +235,7 @@ export class CheckService {
 					}
 				}, SSL_INFO_TIMEOUT_MS);
 
-				Bun.connect({
+				tcpConnect({
 					hostname,
 					port,
 					tls: {

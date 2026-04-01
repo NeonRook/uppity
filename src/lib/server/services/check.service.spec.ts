@@ -1,4 +1,5 @@
 import type { Monitor } from "$lib/server/db/schema";
+import { tcpConnect } from "$lib/server/tcp";
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 
 import { CheckService, type CheckResult } from "./check.service";
@@ -29,6 +30,10 @@ vi.mock("$lib/server/services/incident.service", () => ({
 
 vi.mock("nanoid", () => ({
 	nanoid: () => "test-id-123",
+}));
+
+vi.mock("$lib/server/tcp", () => ({
+	tcpConnect: vi.fn(),
 }));
 
 function createMockMonitor(overrides: Partial<Monitor> = {}): Monitor {
@@ -68,18 +73,14 @@ function createMockMonitor(overrides: Partial<Monitor> = {}): Monitor {
 describe("CheckService", () => {
 	let checkService: CheckService;
 	let originalFetch: typeof global.fetch;
-	let originalBunConnect: typeof Bun.connect;
-
 	beforeEach(() => {
 		checkService = new CheckService();
 		originalFetch = global.fetch;
-		originalBunConnect = Bun.connect;
 		vi.clearAllMocks();
 	});
 
 	afterEach(() => {
 		global.fetch = originalFetch;
-		Bun.connect = originalBunConnect;
 		vi.restoreAllMocks();
 	});
 
@@ -349,7 +350,7 @@ describe("CheckService", () => {
 				port: 80,
 			});
 
-			(Bun.connect as Mock) = vi.fn().mockImplementation(async (options) => {
+			(tcpConnect as Mock) = vi.fn().mockImplementation(async (options) => {
 				const socket = { end: vi.fn() };
 				setTimeout(() => options.socket.open(socket), 0);
 				return socket;
@@ -367,7 +368,7 @@ describe("CheckService", () => {
 				port: 80,
 			});
 
-			(Bun.connect as Mock) = vi.fn().mockImplementation(async (options) => {
+			(tcpConnect as Mock) = vi.fn().mockImplementation(async (options) => {
 				setTimeout(() => options.socket.connectError(null, new Error("Connection refused")), 0);
 				return {};
 			});
@@ -385,7 +386,7 @@ describe("CheckService", () => {
 				port: 80,
 			});
 
-			(Bun.connect as Mock) = vi.fn().mockRejectedValue(new Error("DNS resolution failed"));
+			(tcpConnect as Mock) = vi.fn().mockRejectedValue(new Error("DNS resolution failed"));
 
 			const result = await checkService.performCheck(monitor);
 

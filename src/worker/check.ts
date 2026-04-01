@@ -26,6 +26,7 @@ import {
 	incidentUpdate,
 	type Monitor,
 } from "../lib/server/db/schema";
+import { tcpConnect, type TcpSocket } from "../lib/server/tcp";
 import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -122,7 +123,7 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 
 	return new Promise((resolve) => {
 		let resolved = false;
-		let socket: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never;
+		let socket: TcpSocket;
 
 		const timer = setTimeout(() => {
 			if (!resolved) {
@@ -136,7 +137,7 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 			}
 		}, timeoutMs);
 
-		Bun.connect({
+		tcpConnect({
 			hostname: m.hostname!,
 			port: m.port!,
 			socket: {
@@ -208,7 +209,7 @@ async function getSslInfo(url: string): Promise<{ sslExpiresAt?: Date; sslIssuer
 				}
 			}, SSL_INFO_TIMEOUT_MS);
 
-			Bun.connect({
+			tcpConnect({
 				hostname,
 				port,
 				tls: { rejectUnauthorized: false },
