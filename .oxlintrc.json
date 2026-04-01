@@ -222,7 +222,8 @@
 		{
 			"files": ["*.test.ts", "*.spec.ts"],
 			"rules": {
-				"@typescript-eslint/unbound-method": "off"
+				"@typescript-eslint/unbound-method": "off",
+				"require-mock-type-parameters": "off"
 			}
 		}
 	],
