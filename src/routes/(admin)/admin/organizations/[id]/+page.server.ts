@@ -66,7 +66,7 @@ export const actions: Actions = {
 			return fail(400, { addMemberForm: form, message });
 		}
 
-		redirect(302, `/admin/organizations/${params.id}`);
+		return redirect(302, `/admin/organizations/${params.id}`);
 	},
 
 	removeMember: async ({ request, params }) => {
@@ -85,6 +85,6 @@ export const actions: Actions = {
 			return fail(400, { message });
 		}
 
-		redirect(302, `/admin/organizations/${params.id}`);
+		return redirect(302, `/admin/organizations/${params.id}`);
 	},
 };

@@ -114,7 +114,7 @@ export const actions: Actions = {
 			return message(form, "Failed to update notification channel", { status: 500 });
 		}
 
-		redirect(302, "/notifications");
+		return redirect(302, "/notifications");
 	},
 
 	delete: async ({ params, locals }) => {
@@ -138,6 +138,6 @@ export const actions: Actions = {
 			return fail(404, { error: "Channel not found" });
 		}
 
-		redirect(302, "/notifications");
+		return redirect(302, "/notifications");
 	},
 };

@@ -20,7 +20,7 @@ bun run dev                 # Start dev server at localhost:5173
 bun run check               # Type check with svelte-check
 
 # Code Quality
-pnpm run fmt                # Format all files (oxfmt + prettier) - use pnpm, not bun
+bun run fmt                # Format all files (oxfmt + prettier)
 bun run lint                # Lint with auto-fix (oxlint + eslint)
 
 # Testing

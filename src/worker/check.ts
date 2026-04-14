@@ -26,8 +26,8 @@ import {
 	incidentUpdate,
 	type Monitor,
 } from "../lib/server/db/schema";
-import { tcpConnect, type TcpSocket } from "../lib/server/tcp";
 import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
+import { tcpConnect, type TcpSocket } from "../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

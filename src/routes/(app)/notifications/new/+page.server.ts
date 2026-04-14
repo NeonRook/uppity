@@ -85,6 +85,6 @@ export const actions: Actions = {
 			return message(form, "Failed to create notification channel", { status: 500 });
 		}
 
-		redirect(302, "/notifications");
+		return redirect(302, "/notifications");
 	},
 };

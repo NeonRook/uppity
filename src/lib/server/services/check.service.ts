@@ -23,10 +23,9 @@ import {
 } from "$lib/server/db/schema";
 import { notificationService } from "$lib/server/notifications";
 import { incidentService } from "$lib/server/services/incident.service";
+import { tcpConnect, type TcpSocket } from "$lib/server/tcp";
 import { eq, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
-
-import { tcpConnect, type TcpSocket } from "$lib/server/tcp";
 
 export interface CheckResult {
 	status: "up" | "down" | "degraded";

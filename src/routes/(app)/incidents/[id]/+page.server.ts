@@ -178,6 +178,6 @@ export const actions: Actions = {
 
 		await incidentService.delete(params.id, locals.session.activeOrganizationId);
 
-		redirect(302, "/incidents");
+		return redirect(302, "/incidents");
 	},
 };

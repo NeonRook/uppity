@@ -415,10 +415,10 @@ export class StatusPageService {
 				monitorHistoryMap.set(check.monitorId, new Map());
 			}
 			monitorHistoryMap.get(check.monitorId)!.set(check.date, {
-				up: Number(check.upChecks),
-				down: Number(check.downChecks),
-				degraded: Number(check.degradedChecks),
-				total: Number(check.totalChecks),
+				up: check.upChecks,
+				down: check.downChecks,
+				degraded: check.degradedChecks,
+				total: check.totalChecks,
 			});
 		}
 
