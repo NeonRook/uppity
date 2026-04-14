@@ -83,6 +83,6 @@ export const actions: Actions = {
 			return message(form, "Failed to create monitor", { status: 500 });
 		}
 
-		redirect(302, `/monitors/${monitor.id}`);
+		return redirect(302, `/monitors/${monitor.id}`);
 	},
 };

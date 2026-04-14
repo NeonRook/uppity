@@ -182,6 +182,6 @@ export const actions: Actions = {
 
 		await statusPageService.delete(params.id, locals.session.activeOrganizationId);
 
-		redirect(302, "/status-pages");
+		return redirect(302, "/status-pages");
 	},
 };

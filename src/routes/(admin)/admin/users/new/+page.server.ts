@@ -34,6 +34,6 @@ export const actions: Actions = {
 			return fail(400, { form, message });
 		}
 
-		redirect(302, "/admin/users");
+		return redirect(302, "/admin/users");
 	},
 };

@@ -1,4 +1,5 @@
 import type { Monitor } from "$lib/server/db/schema";
+// oxlint-disable-next-line no-unused-vars -- it is used below for mocks, false positive
 import { tcpConnect } from "$lib/server/tcp";
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 

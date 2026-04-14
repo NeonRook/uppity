@@ -138,6 +138,6 @@ export const actions: Actions = {
 			return message(form, "Failed to update monitor", { status: 500 });
 		}
 
-		redirect(302, `/monitors/${params.id}`);
+		return redirect(302, `/monitors/${params.id}`);
 	},
 };

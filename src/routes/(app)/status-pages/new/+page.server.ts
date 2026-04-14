@@ -74,6 +74,6 @@ export const actions: Actions = {
 			return message(form, "Failed to create status page", { status: 500 });
 		}
 
-		redirect(302, `/status-pages/${statusPage.id}`);
+		return redirect(302, `/status-pages/${statusPage.id}`);
 	},
 };

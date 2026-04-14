@@ -94,7 +94,7 @@ export const actions: Actions = {
 			return fail(400, { message });
 		}
 
-		redirect(302, `/admin/users/${params.id}`);
+		return redirect(302, `/admin/users/${params.id}`);
 	},
 
 	unban: async ({ request, params }) => {
@@ -110,6 +110,6 @@ export const actions: Actions = {
 			return fail(400, { message });
 		}
 
-		redirect(302, `/admin/users/${params.id}`);
+		return redirect(302, `/admin/users/${params.id}`);
 	},
 };
