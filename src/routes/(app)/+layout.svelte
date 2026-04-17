@@ -21,7 +21,8 @@
 		Check,
 		Sun,
 		Moon,
-		SunMoon
+		SunMoon,
+		ShieldCheck
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages.js';
@@ -211,6 +212,14 @@
 									{m.common_settings()}
 								</a>
 							</DropdownMenu.Item>
+							{#if data.user.role === 'admin'}
+								<DropdownMenu.Item>
+									<a href={resolve('/admin')} class="flex w-full items-center">
+										<ShieldCheck class="mr-2 h-4 w-4" />
+										{m.account_admin_panel()}
+									</a>
+								</DropdownMenu.Item>
+							{/if}
 							<DropdownMenu.Separator />
 							<DropdownMenu.Label class="text-xs font-normal text-muted-foreground">
 								{m.theme_theme()}
