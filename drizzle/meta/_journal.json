@@ -29,6 +29,13 @@
       "when": 1769165607694,
       "tag": "0003_plain_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776463958478,
+      "tag": "0004_solid_black_tarantula",
+      "breakpoints": true
     }
   ]
 }
