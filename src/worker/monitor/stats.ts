@@ -7,8 +7,8 @@ import {
 	monitorStatus,
 	monitor,
 	incidentMonitor,
-} from "../lib/server/db/schema";
-import { db } from "./db";
+} from "../../lib/server/db/schema";
+import { db } from "../shared/db";
 
 class StatsService {
 	/**
