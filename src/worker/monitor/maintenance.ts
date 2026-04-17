@@ -1,15 +1,15 @@
 import { CronExpressionParser } from "cron-parser";
 import { eq, lte, and } from "drizzle-orm";
 
-import { CHECK_RETENTION_DAYS } from "../lib/constants/scheduler";
-import { maintenanceJob } from "../lib/server/db/schema";
+import { CHECK_RETENTION_DAYS } from "../../lib/constants/scheduler";
+import { maintenanceJob } from "../../lib/server/db/schema";
 import {
 	createMaintenanceWideEvent,
 	createMaintenanceLogger,
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
-} from "../lib/server/logger";
-import { db } from "./db";
+} from "../../lib/server/logger";
+import { db } from "../shared/db";
 import { statsService } from "./stats";
 
 const maintenanceLogger = createMaintenanceLogger();
