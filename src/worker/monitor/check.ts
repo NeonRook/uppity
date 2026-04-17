@@ -16,8 +16,8 @@ import {
 	RETRY_DELAY_MS,
 	USER_AGENT,
 	DEFAULT_RETRIES,
-} from "../lib/constants/defaults";
-import type * as schema from "../lib/server/db/schema";
+} from "../../lib/constants/defaults";
+import type * as schema from "../../lib/server/db/schema";
 import {
 	monitorCheck,
 	monitorStatus,
@@ -25,9 +25,9 @@ import {
 	incidentMonitor,
 	incidentUpdate,
 	type Monitor,
-} from "../lib/server/db/schema";
-import type { CheckWideEvent, WideEventBuilder } from "../lib/server/logger";
-import { tcpConnect, type TcpSocket } from "../lib/server/tcp";
+} from "../../lib/server/db/schema";
+import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
+import { tcpConnect, type TcpSocket } from "../../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

@@ -5,11 +5,11 @@ import {
 	WORKER_BACKOFF,
 	CHECK_RETRY,
 	DEAD_LETTER_THRESHOLD_HOURS,
-} from "../lib/constants/worker";
-import { monitor } from "../lib/server/db/schema";
-import { createCheckWideEvent, createWorkerLogger } from "../lib/server/logger";
+} from "../../lib/constants/worker";
+import { monitor } from "../../lib/server/db/schema";
+import { createCheckWideEvent, createWorkerLogger } from "../../lib/server/logger";
 import { executeCheck } from "./check";
-import { db } from "./db";
+import { db } from "../shared/db";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 
 const workerLogger = createWorkerLogger();
