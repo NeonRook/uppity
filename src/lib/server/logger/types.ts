@@ -106,6 +106,11 @@ export interface CheckWideEvent extends WideEventBase {
 
 	// Notifications
 	notifications_triggered?: number;
+
+	// Outbox enqueue (NEO-5)
+	notification_event_enqueued?: boolean;
+	notification_event_id?: string;
+	notification_event_type?: string;
 }
 
 /**

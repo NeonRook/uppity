@@ -24,9 +24,14 @@ import {
 	incident,
 	incidentMonitor,
 	incidentUpdate,
+	notificationEvent,
 	type Monitor,
 } from "../../lib/server/db/schema";
 import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
+import type {
+	MonitorStatusEventPayload,
+	SslExpiryEventPayload,
+} from "../../lib/server/notifications/events";
 import { tcpConnect, type TcpSocket } from "../../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -329,7 +334,7 @@ async function performCheckWithRetries(m: Monitor, db: Db): Promise<CheckResult>
 	return lastResult!;
 }
 
-async function saveCheckResult(
+export async function saveCheckResult(
 	m: Monitor,
 	result: CheckResult,
 	db: Db,
@@ -385,9 +390,32 @@ async function saveCheckResult(
 		consecutive_failures: consecutiveFailures,
 	});
 
-	// Handle status change notifications and incidents
+	// Handle status change: enqueue notification events and manage incidents
 	if (statusChanged && previousStatus !== "unknown") {
 		if (result.status === "down" && consecutiveFailures >= m.alertAfterFailures) {
+			// Enqueue monitor_down event
+			const notifEventId = nanoid();
+			const payload: MonitorStatusEventPayload = {
+				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
+				newStatus: "down",
+				consecutiveFailures,
+				errorMessage: result.errorMessage,
+				checkId,
+			};
+			await db.insert(notificationEvent).values({
+				id: notifEventId,
+				organizationId: m.organizationId,
+				monitorId: m.id,
+				type: "monitor_down",
+				payload,
+				status: "pending",
+			});
+			event?.merge({
+				notification_event_enqueued: true,
+				notification_event_id: notifEventId,
+				notification_event_type: "monitor_down",
+			});
+
 			// Check for existing auto incident
 			const [existingIncident] = await db
 				.select({ id: incident.id })
@@ -431,6 +459,28 @@ async function saveCheckResult(
 				});
 			}
 		} else if (result.status === "up" && previousStatus === "down") {
+			// Enqueue monitor_up event
+			const notifEventId = nanoid();
+			const payload: MonitorStatusEventPayload = {
+				previousStatus: "down",
+				newStatus: "up",
+				consecutiveFailures,
+				checkId,
+			};
+			await db.insert(notificationEvent).values({
+				id: notifEventId,
+				organizationId: m.organizationId,
+				monitorId: m.id,
+				type: "monitor_up",
+				payload,
+				status: "pending",
+			});
+			event?.merge({
+				notification_event_enqueued: true,
+				notification_event_id: notifEventId,
+				notification_event_type: "monitor_up",
+			});
+
 			// Auto-resolve any active incident for this monitor
 			const [existingIncident] = await db
 				.select({ id: incident.id })
@@ -463,6 +513,28 @@ async function saveCheckResult(
 					incident_id: existingIncident.id,
 				});
 			}
+		} else if (result.status === "degraded") {
+			// Enqueue monitor_degraded event
+			const notifEventId = nanoid();
+			const payload: MonitorStatusEventPayload = {
+				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
+				newStatus: "degraded",
+				consecutiveFailures,
+				checkId,
+			};
+			await db.insert(notificationEvent).values({
+				id: notifEventId,
+				organizationId: m.organizationId,
+				monitorId: m.id,
+				type: "monitor_degraded",
+				payload,
+				status: "pending",
+			});
+			event?.merge({
+				notification_event_enqueued: true,
+				notification_event_id: notifEventId,
+				notification_event_type: "monitor_degraded",
+			});
 		}
 	}
 
@@ -480,6 +552,26 @@ async function saveCheckResult(
 
 		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
 			event?.set("ssl_expiry_warning", true);
+
+			const notifEventId = nanoid();
+			const payload: SslExpiryEventPayload = {
+				daysRemaining: daysUntilExpiry,
+				sslExpiresAt: result.sslExpiresAt.toISOString(),
+				sslIssuer: result.sslIssuer,
+			};
+			await db.insert(notificationEvent).values({
+				id: notifEventId,
+				organizationId: m.organizationId,
+				monitorId: m.id,
+				type: "ssl_expiry_warning",
+				payload,
+				status: "pending",
+			});
+			event?.merge({
+				notification_event_enqueued: true,
+				notification_event_id: notifEventId,
+				notification_event_type: "ssl_expiry_warning",
+			});
 		}
 	}
 }
