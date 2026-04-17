@@ -356,6 +356,52 @@ export const notificationLog = pgTable(
 	],
 );
 
+export const notificationEvent = pgTable(
+	"notification_event",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		monitorId: text("monitor_id").references(() => monitor.id, { onDelete: "cascade" }),
+		incidentId: text("incident_id").references(() => incident.id, { onDelete: "cascade" }),
+		type: text("type").notNull(),
+		// 'monitor_down' | 'monitor_up' | 'monitor_degraded' | 'ssl_expiry_warning'
+		// | 'incident_created' | 'incident_updated' | 'incident_resolved'
+		payload: jsonb("payload").notNull(),
+		status: text("status").notNull().default("pending"),
+		// 'pending' | 'processing' | 'processed' | 'suppressed' | 'failed' | 'sent'
+		claimedAt: timestamp("claimed_at"),
+		processedAt: timestamp("processed_at"),
+		errorMessage: text("error_message"),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("notification_event_status_created_idx").on(table.status, table.createdAt),
+		index("notification_event_monitor_type_idx").on(
+			table.monitorId,
+			table.type,
+			table.createdAt,
+		),
+		index("notification_event_org_idx").on(table.organizationId, table.createdAt),
+	],
+);
+
+export const notificationEventRelations = relations(notificationEvent, ({ one }) => ({
+	organization: one(organization, {
+		fields: [notificationEvent.organizationId],
+		references: [organization.id],
+	}),
+	monitor: one(monitor, {
+		fields: [notificationEvent.monitorId],
+		references: [monitor.id],
+	}),
+	incident: one(incident, {
+		fields: [notificationEvent.incidentId],
+		references: [incident.id],
+	}),
+}));
+
 // ============================================================================
 // RELATIONS (extends auth-schema relations for app tables)
 // ============================================================================
@@ -367,6 +413,7 @@ export const organizationRelations = relations(organization, ({ one, many }) => 
 	incidents: many(incident),
 	statusPages: many(statusPage),
 	notificationChannels: many(notificationChannel),
+	notificationEvents: many(notificationEvent),
 	subscription: one(subscription),
 	usageWarnings: many(usageWarning),
 }));
@@ -380,6 +427,7 @@ export const monitorRelations = relations(monitor, ({ one, many }) => ({
 	status: one(monitorStatus),
 	dailyStats: many(monitorDailyStats),
 	notificationChannels: many(monitorNotificationChannel),
+	notificationEvents: many(notificationEvent),
 	statusPageMonitors: many(statusPageMonitor),
 	incidentMonitors: many(incidentMonitor),
 }));
@@ -416,6 +464,7 @@ export const incidentRelations = relations(incident, ({ one, many }) => ({
 	}),
 	updates: many(incidentUpdate),
 	monitors: many(incidentMonitor),
+	notificationEvents: many(notificationEvent),
 }));
 
 export const incidentMonitorRelations = relations(incidentMonitor, ({ one }) => ({
