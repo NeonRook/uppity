@@ -6,6 +6,7 @@ import type {
 	CheckWideEvent,
 	MaintenanceWideEvent,
 	NotificationWideEvent,
+	NotifierWideEvent,
 	RequestWideEvent,
 	WebhookWideEvent,
 } from "./types";
@@ -116,6 +117,27 @@ export function createNotificationWideEvent(
 	return new WideEventBuilder<NotificationWideEvent>(
 		baseLogger.child({ context: "notification" }),
 		"notification",
+		requestId,
+	);
+}
+
+/**
+ * Create a logger instance for the notifier worker.
+ */
+export function createNotifierLogger(): Logger {
+	return baseLogger.child({ context: "notifier" });
+}
+
+/**
+ * Create a wide event builder for the notifier worker — one per claimed event row.
+ */
+export function createNotifierWideEvent(
+	eventId?: string,
+): WideEventBuilder<NotifierWideEvent> {
+	const requestId = eventId ?? generateRequestId("ntr");
+	return new WideEventBuilder<NotifierWideEvent>(
+		createNotifierLogger(),
+		"notifier",
 		requestId,
 	);
 }
