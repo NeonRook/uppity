@@ -11,11 +11,10 @@ export const CLAIM_BATCH_SIZE = 25;
 export const STUCK_ROW_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Claims up to CLAIM_BATCH_SIZE events and returns their IDs. Called by the
- * LISTEN handler (where row IDs may also be passed directly) and by the
- * periodic backlog sweep.
- *
- * Reclaims rows stuck in 'processing' state older than STUCK_ROW_THRESHOLD_MS.
+ * Claims up to CLAIM_BATCH_SIZE pending events (or rows stuck in 'processing'
+ * older than STUCK_ROW_THRESHOLD_MS) and returns their IDs. Called by the
+ * periodic backlog sweep; the LISTEN handler processes pg_notify payloads
+ * directly via processOne rather than claiming in batches.
  */
 export async function claimPendingEvents(db: Db): Promise<string[]> {
 	const claimed = await db.transaction(async (tx) => {
