@@ -5,7 +5,7 @@ dockerfilePath = "/Dockerfile"
 [deploy]
 runtime = "V2"
 numReplicas = 1
-startCommand = "bun run ./build/worker.js"
+startCommand = "bun run ./build/worker-monitor.js"
 sleepApplication = false
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
