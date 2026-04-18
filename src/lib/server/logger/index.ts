@@ -131,15 +131,9 @@ export function createNotifierLogger(): Logger {
 /**
  * Create a wide event builder for the notifier worker — one per claimed event row.
  */
-export function createNotifierWideEvent(
-	eventId?: string,
-): WideEventBuilder<NotifierWideEvent> {
+export function createNotifierWideEvent(eventId?: string): WideEventBuilder<NotifierWideEvent> {
 	const requestId = eventId ?? generateRequestId("ntr");
-	return new WideEventBuilder<NotifierWideEvent>(
-		createNotifierLogger(),
-		"notifier",
-		requestId,
-	);
+	return new WideEventBuilder<NotifierWideEvent>(createNotifierLogger(), "notifier", requestId);
 }
 
 /**
