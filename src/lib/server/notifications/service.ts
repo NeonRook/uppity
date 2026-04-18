@@ -8,19 +8,28 @@ import {
 	notificationChannel,
 	monitorNotificationChannel,
 	notificationLog,
+	monitor as monitorTable,
+	monitorStatus,
 	type NotificationChannel,
 	type Monitor,
 	type MonitorStatus,
+	type NotificationEvent,
 } from "../db/schema";
 import { logger as defaultLogger } from "../logger";
-
 import { DiscordNotificationProvider } from "./discord";
 import { EmailNotificationProvider } from "./email";
+import { parseEventPayload, type NotificationEventType } from "./events";
 import { SlackNotificationProvider } from "./slack";
 import type { NotificationPayload, NotificationProvider, NotificationType } from "./types";
 import { WebhookNotificationProvider } from "./webhook";
 
 type Db = PostgresJsDatabase<typeof schema>;
+
+export type DispatchResult =
+	| { status: "sent" }
+	| { status: "failed"; errorMessage: string }
+	| { status: "partial"; errorMessage: string }
+	| { status: "suppressed"; errorMessage: string };
 
 export class NotificationService {
 	private db: Db;
@@ -173,6 +182,113 @@ export class NotificationService {
 			default:
 				return true;
 		}
+	}
+
+	async dispatchEvent(row: NotificationEvent): Promise<DispatchResult> {
+		try {
+			parseEventPayload(row.type as NotificationEventType, row.payload);
+		} catch (err) {
+			return {
+				status: "failed",
+				errorMessage: `invalid payload: ${err instanceof Error ? err.message : String(err)}`,
+			};
+		}
+
+		if (!row.monitorId) {
+			return { status: "suppressed", errorMessage: "event has no monitor_id" };
+		}
+
+		const [monitor] = await this.db
+			.select()
+			.from(monitorTable)
+			.where(eq(monitorTable.id, row.monitorId))
+			.limit(1);
+		if (!monitor) {
+			return { status: "suppressed", errorMessage: "monitor not found" };
+		}
+
+		const [status] = await this.db
+			.select()
+			.from(monitorStatus)
+			.where(eq(monitorStatus.monitorId, row.monitorId))
+			.limit(1);
+		if (!status) {
+			return { status: "suppressed", errorMessage: "monitor has no status yet" };
+		}
+
+		const links = await this.db
+			.select({ channel: notificationChannel, link: monitorNotificationChannel })
+			.from(monitorNotificationChannel)
+			.innerJoin(
+				notificationChannel,
+				eq(monitorNotificationChannel.channelId, notificationChannel.id),
+			)
+			.where(
+				and(
+					eq(monitorNotificationChannel.monitorId, row.monitorId),
+					eq(notificationChannel.enabled, true),
+				),
+			);
+
+		const type = row.type as NotificationType;
+		const eligible = links.filter(({ link }) => this.shouldNotify(type, link));
+		if (eligible.length === 0) {
+			return {
+				status: "suppressed",
+				errorMessage:
+					links.length === 0
+						? "no channels configured"
+						: "no channels subscribed to this event type",
+			};
+		}
+
+		const payload = this.buildNotificationPayload(row, monitor, status);
+
+		const failures: string[] = [];
+		let successes = 0;
+		for (const { channel } of eligible) {
+			try {
+				await this.sendToChannel(channel, payload, row.monitorId, row.incidentId ?? undefined);
+				successes += 1;
+			} catch (err) {
+				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
+			}
+		}
+
+		if (failures.length === 0) return { status: "sent" };
+
+		const summary = this.summarizeFailures(successes + failures.length, failures);
+		if (successes === 0) return { status: "failed", errorMessage: summary };
+		return { status: "partial", errorMessage: summary };
+	}
+
+	private buildNotificationPayload(
+		row: NotificationEvent,
+		monitor: Monitor,
+		status: MonitorStatus,
+	): NotificationPayload {
+		const p = row.payload as Record<string, unknown>;
+		const type = row.type as NotificationType;
+		const base: NotificationPayload = {
+			type,
+			monitor,
+			status,
+			timestamp: new Date(),
+		};
+		if (type === "ssl_expiry_warning") {
+			return { ...base, sslDaysRemaining: p.daysRemaining as number };
+		}
+		return {
+			...base,
+			previousStatus: p.previousStatus as string | undefined,
+			errorMessage: p.errorMessage as string | undefined,
+		};
+	}
+
+	private summarizeFailures(total: number, failures: string[]): string {
+		const head = failures.slice(0, 3).join("; ");
+		const suffix = failures.length > 3 ? `; +${failures.length - 3} more` : "";
+		return `${failures.length}/${total} channels failed: ${head}${suffix}`;
 	}
 
 	async sendSslExpiryWarning(
