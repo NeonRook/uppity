@@ -12,14 +12,21 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
  */
 const handleLogging: Handle = async ({ event, resolve }) => {
 	const reqEvent = createRequestWideEvent();
+	let client_ip: string | undefined;
+	try {
+		client_ip = event.getClientAddress();
+	} catch (error) {
+		// best effort, this may fail with no recovery method
+		console.debug("Failed to determined client IP address, ignoring", error);
+	}
 
 	// Set initial HTTP context
 	reqEvent.merge({
 		http_method: event.request.method,
 		http_path: event.url.pathname,
 		http_route: event.route.id ?? undefined,
-		client_ip: event.getClientAddress?.() ?? undefined,
 		user_agent: event.request.headers.get("user-agent") ?? undefined,
+		client_ip,
 	});
 
 	// Store in locals for enrichment by other handlers/services
