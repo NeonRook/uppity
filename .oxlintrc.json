@@ -225,6 +225,12 @@
 				"@typescript-eslint/unbound-method": "off",
 				"require-mock-type-parameters": "off"
 			}
+		},
+		{
+			"files": ["src/lib/server/test/fixture.ts"],
+			"rules": {
+				"no-empty-pattern": "off"
+			}
 		}
 	],
 	"settings": {
