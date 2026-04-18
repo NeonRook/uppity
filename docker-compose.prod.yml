@@ -27,7 +27,7 @@ services:
       retries: 3
       start_period: 10s
 
-  worker:
+  worker-monitor:
     image: ghcr.io/neonrook/uppity:latest
     # Or build locally:
     # build: .
@@ -35,12 +35,26 @@ services:
     environment:
       DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
       UPPITY_WORKER_BATCH_SIZE: "${UPPITY_WORKER_BATCH_SIZE:-10}"
-    command: ["bun", "run", "./build/worker.js"]
+    command: ["bun", "run", "./build/worker-monitor.js"]
     depends_on:
       db:
         condition: service_healthy
     deploy:
       replicas: 1 # Scale up for horizontal scaling
+
+  worker-notifier:
+    image: ghcr.io/neonrook/uppity:latest
+    # Or build locally:
+    # build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+    command: ["bun", "run", "./build/worker-notifier.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      replicas: 1 # Scale up once NEO-29 lands and LISTEN-path race is fixed
 
   db:
     image: postgres:18-alpine

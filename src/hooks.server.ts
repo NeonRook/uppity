@@ -17,7 +17,7 @@ const handleLogging: Handle = async ({ event, resolve }) => {
 		client_ip = event.getClientAddress();
 	} catch (error) {
 		// best effort, this may fail with no recovery method
-		console.debug("Failed to determined client IP address, ignoring", error);
+		console.debug("Failed to determine client IP address, ignoring", error);
 	}
 
 	// Set initial HTTP context

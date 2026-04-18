@@ -44,6 +44,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# Default to web server, override for worker:
-# docker run ... [image] bun run ./build/worker.js
+# Default to web server, override for workers:
+#   docker run ... [image] bun run ./build/worker-monitor.js
+#   docker run ... [image] bun run ./build/worker-notifier.js
 CMD ["bun", "--bun", "run", "./build/index.js"]
