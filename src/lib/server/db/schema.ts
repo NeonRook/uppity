@@ -378,11 +378,7 @@ export const notificationEvent = pgTable(
 	},
 	(table) => [
 		index("notification_event_status_created_idx").on(table.status, table.createdAt),
-		index("notification_event_monitor_type_idx").on(
-			table.monitorId,
-			table.type,
-			table.createdAt,
-		),
+		index("notification_event_monitor_type_idx").on(table.monitorId, table.type, table.createdAt),
 		index("notification_event_org_idx").on(table.organizationId, table.createdAt),
 	],
 );

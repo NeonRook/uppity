@@ -27,10 +27,7 @@ export async function claimPendingEvents(db: Db): Promise<string[]> {
 			.where(
 				or(
 					eq(notificationEvent.status, "pending"),
-					and(
-						eq(notificationEvent.status, "processing"),
-						lt(notificationEvent.claimedAt, cutoff),
-					),
+					and(eq(notificationEvent.status, "processing"), lt(notificationEvent.claimedAt, cutoff)),
 				),
 			)
 			.orderBy(notificationEvent.createdAt)
@@ -84,9 +81,7 @@ export async function processOne(
 		monitor_id: row.monitorId ?? undefined,
 		incident_id: row.incidentId ?? undefined,
 		organization_id: row.organizationId,
-		claim_latency_ms: row.claimedAt
-			? row.claimedAt.getTime() - row.createdAt.getTime()
-			: undefined,
+		claim_latency_ms: row.claimedAt ? row.claimedAt.getTime() - row.createdAt.getTime() : undefined,
 	});
 
 	// NEO-5: log-only. NEO-29 replaces this with provider dispatch.

@@ -8,8 +8,8 @@ import {
 } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
 import { createCheckWideEvent, createWorkerLogger } from "../../lib/server/logger";
-import { executeCheck } from "./check";
 import { db } from "../shared/db";
+import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 
 const workerLogger = createWorkerLogger();

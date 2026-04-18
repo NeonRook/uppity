@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 import postgres from "postgres";
 import { describe, it, expect } from "vitest";
@@ -9,7 +9,7 @@ import * as schema from "../../lib/server/db/schema";
 import { notificationEvent } from "../../lib/server/db/schema";
 import { processBacklog } from "./processor";
 
-const {TEST_DATABASE_URL} = process.env;
+const { TEST_DATABASE_URL } = process.env;
 
 describe.skipIf(!TEST_DATABASE_URL)("notifier integration (real Postgres)", () => {
 	it("processes a pending event end-to-end via backlog sweep", async () => {
@@ -20,9 +20,7 @@ describe.skipIf(!TEST_DATABASE_URL)("notifier integration (real Postgres)", () =
 		const [org] = await db.select({ id: organization.id }).from(organization).limit(1);
 		if (!org) {
 			await client.end();
-			throw new Error(
-				"TEST_DATABASE_URL has no organization rows — seed one first",
-			);
+			throw new Error("TEST_DATABASE_URL has no organization rows — seed one first");
 		}
 
 		const eventId = `test-${nanoid()}`;
@@ -39,15 +37,18 @@ describe.skipIf(!TEST_DATABASE_URL)("notifier integration (real Postgres)", () =
 			status: "pending",
 		});
 
-		const processed = await processBacklog(db, "startup", () =>
-			// Minimal builder stub — we don't care about wide events here
-			({
-				set: () => {},
-				merge: () => {},
-				emit: () => {},
-				setSuccess: () => {},
-				setError: () => {},
-			}) as never,
+		const processed = await processBacklog(
+			db,
+			"startup",
+			() =>
+				// Minimal builder stub — we don't care about wide events here
+				({
+					set: () => {},
+					merge: () => {},
+					emit: () => {},
+					setSuccess: () => {},
+					setError: () => {},
+				}) as never,
 		);
 
 		expect(processed).toBeGreaterThanOrEqual(1);
