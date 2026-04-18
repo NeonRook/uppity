@@ -50,27 +50,37 @@ export async function claimPendingEvents(db: Db): Promise<string[]> {
 }
 
 /**
- * Processes a single event. In NEO-5 this is log-only. NEO-29 replaces the
- * body with real provider dispatch.
+ * Atomically claims and processes a single event. Uses a conditional UPDATE
+ * with RETURNING to eliminate the SELECT→check→UPDATE race where two workers
+ * could both read a pending row and both proceed to dispatch.
+ *
+ * If RETURNING yields 0 rows, another worker claimed the event first (or it
+ * reached a terminal state); we return silently. If RETURNING yields 1 row,
+ * we own it and proceed.
  */
 export async function processOne(
 	db: Db,
 	id: string,
 	event?: WideEventBuilder<NotifierWideEvent>,
 ): Promise<void> {
-	const [row] = await db
-		.select()
-		.from(notificationEvent)
-		.where(eq(notificationEvent.id, id))
-		.limit(1);
+	const claimed = await db
+		.update(notificationEvent)
+		.set({ status: "processing", claimedAt: new Date() })
+		.where(and(eq(notificationEvent.id, id), eq(notificationEvent.status, "pending")))
+		.returning({
+			id: notificationEvent.id,
+			organizationId: notificationEvent.organizationId,
+			monitorId: notificationEvent.monitorId,
+			incidentId: notificationEvent.incidentId,
+			type: notificationEvent.type,
+			payload: notificationEvent.payload,
+			claimedAt: notificationEvent.claimedAt,
+			createdAt: notificationEvent.createdAt,
+		});
 
+	const [row] = claimed;
 	if (!row) {
-		event?.set("skip_reason", "not_found");
-		return;
-	}
-
-	if (row.status !== "pending" && row.status !== "processing") {
-		event?.set("skip_reason", `terminal_${row.status}`);
+		event?.set("skip_reason", "not_claimed");
 		return;
 	}
 
@@ -83,7 +93,7 @@ export async function processOne(
 		claim_latency_ms: row.claimedAt ? row.claimedAt.getTime() - row.createdAt.getTime() : undefined,
 	});
 
-	// NEO-5: log-only. NEO-29 replaces this with provider dispatch.
+	// Task 4 swaps this log-only transition for real dispatch.
 	await db
 		.update(notificationEvent)
 		.set({ status: "processed", processedAt: new Date() })
