@@ -1,6 +1,6 @@
-import type { Monitor } from "../../lib/server/db/schema";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 
+import type { Monitor } from "../../lib/server/db/schema";
 import { saveCheckResult } from "./check";
 
 vi.mock("../shared/db", () => ({
@@ -57,9 +57,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -105,9 +103,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 
 		const event = insertedValues.find(
 			(v): v is { type: string; organizationId: string; payload: unknown } =>
-				typeof v === "object" &&
-				v !== null &&
-				(v as { type?: string }).type === "monitor_down",
+				typeof v === "object" && v !== null && (v as { type?: string }).type === "monitor_down",
 		);
 
 		expect(event).toBeDefined();
@@ -139,9 +135,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "down", consecutiveFailures: 5 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "down", consecutiveFailures: 5 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -164,9 +158,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 
 		const event = insertedValues.find(
 			(v): v is { type: string; payload: unknown } =>
-				typeof v === "object" &&
-				v !== null &&
-				(v as { type?: string }).type === "monitor_up",
+				typeof v === "object" && v !== null && (v as { type?: string }).type === "monitor_up",
 		);
 
 		expect(event).toBeDefined();
@@ -197,9 +189,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -217,9 +207,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 
 		const event = insertedValues.find(
 			(v): v is { type: string } =>
-				typeof v === "object" &&
-				v !== null &&
-				(v as { type?: string }).type === "monitor_degraded",
+				typeof v === "object" && v !== null && (v as { type?: string }).type === "monitor_degraded",
 		);
 		expect(event).toBeDefined();
 	});
@@ -238,9 +226,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -293,9 +279,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -335,9 +319,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "unknown", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "unknown", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -378,9 +360,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 		(db.select as Mock).mockReturnValue({
 			from: vi.fn().mockReturnValue({
 				where: vi.fn().mockReturnValue({
-					limit: vi
-						.fn()
-						.mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
+					limit: vi.fn().mockResolvedValue([{ status: "up", consecutiveFailures: 0 }]),
 				}),
 				innerJoin: vi.fn().mockReturnValue({
 					where: vi.fn().mockReturnValue({
@@ -398,9 +378,7 @@ describe("monitor worker saveCheckResult — outbox enqueue", () => {
 
 		const event = insertedValues.find(
 			(v): v is { type: string } =>
-				typeof v === "object" &&
-				v !== null &&
-				(v as { type?: string }).type === "monitor_down",
+				typeof v === "object" && v !== null && (v as { type?: string }).type === "monitor_down",
 		);
 		expect(event).toBeUndefined();
 	});
