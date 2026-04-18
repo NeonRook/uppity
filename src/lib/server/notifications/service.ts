@@ -20,7 +20,12 @@ import { DiscordNotificationProvider } from "./discord";
 import { EmailNotificationProvider } from "./email";
 import { parseEventPayload, type NotificationEventType } from "./events";
 import { SlackNotificationProvider } from "./slack";
-import type { NotificationPayload, NotificationProvider, NotificationType } from "./types";
+import type {
+	NotificationPayload,
+	NotificationProvider,
+	NotificationResult,
+	NotificationType,
+} from "./types";
 import { WebhookNotificationProvider } from "./webhook";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -125,14 +130,25 @@ export class NotificationService {
 		payload: NotificationPayload,
 		monitorId?: string,
 		incidentId?: string,
-	): Promise<void> {
+	): Promise<NotificationResult> {
 		const provider = this.createProvider(channel);
 		if (!provider) {
+			const errorMessage = `No provider configured for channel type: ${channel.type}`;
 			this.logger.error(
 				{ channel_id: channel.id, channel_type: channel.type },
 				"No provider for channel type",
 			);
-			return;
+			await this.db.insert(notificationLog).values({
+				id: nanoid(),
+				channelId: channel.id,
+				monitorId,
+				incidentId,
+				type: payload.type,
+				status: "failed",
+				errorMessage,
+				sentAt: new Date(),
+			});
+			return { success: false, errorMessage };
 		}
 
 		const result = await provider.send(payload);
@@ -159,6 +175,8 @@ export class NotificationService {
 				"Failed to send notification",
 			);
 		}
+
+		return result;
 	}
 
 	private shouldNotify(
@@ -248,8 +266,17 @@ export class NotificationService {
 		let successes = 0;
 		for (const { channel } of eligible) {
 			try {
-				await this.sendToChannel(channel, payload, row.monitorId, row.incidentId ?? undefined);
-				successes += 1;
+				const result = await this.sendToChannel(
+					channel,
+					payload,
+					row.monitorId,
+					row.incidentId ?? undefined,
+				);
+				if (result.success) {
+					successes += 1;
+				} else {
+					failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
+				}
 			} catch (err) {
 				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
 			}
