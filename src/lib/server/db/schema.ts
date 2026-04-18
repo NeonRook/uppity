@@ -670,6 +670,9 @@ export type NewNotificationChannel = typeof notificationChannel.$inferInsert;
 export type NotificationLog = typeof notificationLog.$inferSelect;
 export type NewNotificationLog = typeof notificationLog.$inferInsert;
 
+export type NotificationEvent = typeof notificationEvent.$inferSelect;
+export type NewNotificationEvent = typeof notificationEvent.$inferInsert;
+
 export type MaintenanceJob = typeof maintenanceJob.$inferSelect;
 export type NewMaintenanceJob = typeof maintenanceJob.$inferInsert;
 
