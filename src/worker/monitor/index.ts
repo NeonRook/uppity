@@ -7,12 +7,12 @@ import {
 	DEAD_LETTER_THRESHOLD_HOURS,
 } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
-import { createCheckWideEvent, createWorkerLogger } from "../../lib/server/logger";
+import { createCheckWideEvent, createSchedulerLogger } from "../../lib/server/logger";
 import { db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 
-const workerLogger = createWorkerLogger();
+const schedulerLogger = createSchedulerLogger();
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -65,7 +65,7 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
 
 	if (newRetryCount >= CHECK_RETRY.MAX_ATTEMPTS) {
 		// Max retries exceeded - mark as dead letter
-		workerLogger.error(
+		schedulerLogger.error(
 			{
 				monitor_id: m.id,
 				monitor_name: m.name,
@@ -96,7 +96,7 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
 		CHECK_RETRY.MAX_BACKOFF_MS,
 	);
 
-	workerLogger.warn(
+	schedulerLogger.warn(
 		{
 			monitor_id: m.id,
 			monitor_name: m.name,
@@ -190,7 +190,7 @@ async function pollLoop() {
 				// Reset backoff on successful claim
 				currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
 
-				workerLogger.debug({ count: monitors.length }, "Claimed monitors for checking");
+				schedulerLogger.debug({ count: monitors.length }, "Claimed monitors for checking");
 
 				// Process batch concurrently
 				await Promise.all(monitors.map(processMonitor));
@@ -213,7 +213,7 @@ async function pollLoop() {
 				maintenanceCheckCounter = 0;
 			}
 		} catch (error) {
-			workerLogger.error({ error }, "Poll loop error");
+			schedulerLogger.error({ error }, "Poll loop error");
 			await sleep(WORKER_BACKOFF.MAX_MS);
 		}
 	}
@@ -221,7 +221,7 @@ async function pollLoop() {
 
 // Graceful shutdown
 function shutdown(signal: string): void {
-	workerLogger.info({ signal }, "Received shutdown signal");
+	schedulerLogger.info({ signal }, "Received shutdown signal");
 	running = false;
 	interruptSleep();
 }
@@ -231,7 +231,7 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Start worker
 async function start() {
-	workerLogger.info(
+	schedulerLogger.info(
 		{
 			batch_size: WORKER_POLL_BATCH_SIZE,
 			backoff_initial_ms: WORKER_BACKOFF.INITIAL_MS,
@@ -246,11 +246,11 @@ async function start() {
 	// Start the main polling loop
 	await pollLoop();
 
-	workerLogger.info("Shutdown complete");
+	schedulerLogger.info("Shutdown complete");
 	process.exit(0);
 }
 
 start().catch((error) => {
-	workerLogger.fatal({ error }, "Fatal error");
+	schedulerLogger.fatal({ error }, "Fatal error");
 	process.exit(1);
 });

@@ -19,7 +19,7 @@ function buildPinoOptions(): pino.LoggerOptions {
 	const options: pino.LoggerOptions = {
 		level: process.env.LOG_LEVEL || "info",
 		base: {
-			service: "uppity",
+			service: process.env.SERVICE_NAME || "uppity",
 			version: process.env.npm_package_version || "0.0.1",
 			env: process.env.NODE_ENV || "development",
 		},
@@ -66,10 +66,10 @@ export function createRequestLogger(): Logger {
 }
 
 /**
- * Create a logger instance for the worker process.
+ * Create a logger instance for the monitor scheduler subsystem.
  */
-export function createWorkerLogger(): Logger {
-	return baseLogger.child({ context: "worker" });
+export function createSchedulerLogger(): Logger {
+	return baseLogger.child({ context: "scheduler" });
 }
 
 /**
@@ -92,7 +92,7 @@ export function createRequestWideEvent(requestId?: string): WideEventBuilder<Req
  */
 export function createCheckWideEvent(_monitorId: string): WideEventBuilder<CheckWideEvent> {
 	const requestId = generateRequestId("chk");
-	return new WideEventBuilder<CheckWideEvent>(createWorkerLogger(), "monitor_check", requestId);
+	return new WideEventBuilder<CheckWideEvent>(createSchedulerLogger(), "monitor_check", requestId);
 }
 
 /**
@@ -122,10 +122,10 @@ export function createNotificationWideEvent(
 }
 
 /**
- * Create a logger instance for the notifier worker.
+ * Create a logger instance for the notifier consumer subsystem.
  */
-export function createNotifierLogger(): Logger {
-	return baseLogger.child({ context: "notifier" });
+export function createConsumerLogger(): Logger {
+	return baseLogger.child({ context: "consumer" });
 }
 
 /**
@@ -133,7 +133,7 @@ export function createNotifierLogger(): Logger {
  */
 export function createNotifierWideEvent(eventId?: string): WideEventBuilder<NotifierWideEvent> {
 	const requestId = eventId ?? generateRequestId("ntr");
-	return new WideEventBuilder<NotifierWideEvent>(createNotifierLogger(), "notifier", requestId);
+	return new WideEventBuilder<NotifierWideEvent>(createConsumerLogger(), "notifier", requestId);
 }
 
 /**

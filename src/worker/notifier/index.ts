@@ -1,10 +1,10 @@
-import { createNotifierLogger, createNotifierWideEvent } from "../../lib/server/logger";
+import { createConsumerLogger, createNotifierWideEvent } from "../../lib/server/logger";
 import { client, db } from "../shared/db";
 import { processBacklog, processOne } from "./processor";
 
 const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-const notifierLogger = createNotifierLogger();
+const consumerLogger = createConsumerLogger();
 
 let running = true;
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
@@ -17,7 +17,7 @@ async function handleNotification(eventId: string): Promise<void> {
 		await processOne(db, eventId, event);
 		event.setSuccess();
 	} catch (err) {
-		notifierLogger.error({ event_id: eventId, error: err }, "Failed to process event");
+		consumerLogger.error({ event_id: eventId, error: err }, "Failed to process event");
 		event.setError(err);
 	} finally {
 		event.emit("notifier");
@@ -27,9 +27,9 @@ async function handleNotification(eventId: string): Promise<void> {
 async function runStartupBacklog(): Promise<void> {
 	try {
 		const processed = await processBacklog(db, "startup", () => createNotifierWideEvent());
-		notifierLogger.info({ processed }, "Startup backlog sweep complete");
+		consumerLogger.info({ processed }, "Startup backlog sweep complete");
 	} catch (err) {
-		notifierLogger.error({ error: err }, "Startup backlog sweep failed");
+		consumerLogger.error({ error: err }, "Startup backlog sweep failed");
 	}
 }
 
@@ -37,15 +37,15 @@ async function runPeriodicSweep(): Promise<void> {
 	try {
 		const processed = await processBacklog(db, "sweep", () => createNotifierWideEvent());
 		if (processed > 0) {
-			notifierLogger.info({ processed }, "Periodic sweep processed events");
+			consumerLogger.info({ processed }, "Periodic sweep processed events");
 		}
 	} catch (err) {
-		notifierLogger.error({ error: err }, "Periodic sweep failed");
+		consumerLogger.error({ error: err }, "Periodic sweep failed");
 	}
 }
 
 function shutdown(signal: string): void {
-	notifierLogger.info({ signal }, "Received shutdown signal");
+	consumerLogger.info({ signal }, "Received shutdown signal");
 	running = false;
 	if (sweepTimer) clearInterval(sweepTimer);
 	if (unlisten) void unlisten();
@@ -55,7 +55,7 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
 async function start(): Promise<void> {
-	notifierLogger.info(
+	consumerLogger.info(
 		{ sweep_interval_ms: BACKLOG_SWEEP_INTERVAL_MS },
 		"Starting notification worker",
 	);
@@ -69,7 +69,7 @@ async function start(): Promise<void> {
 	});
 	unlisten = subscription.unlisten.bind(subscription);
 
-	notifierLogger.info("Listening on channel notification_event");
+	consumerLogger.info("Listening on channel notification_event");
 
 	sweepTimer = setInterval(() => {
 		if (running) void runPeriodicSweep();
@@ -85,11 +85,11 @@ async function start(): Promise<void> {
 		}, 1000);
 	});
 
-	notifierLogger.info("Shutdown complete");
+	consumerLogger.info("Shutdown complete");
 	process.exit(0);
 }
 
 start().catch((error) => {
-	notifierLogger.fatal({ error }, "Fatal error");
+	consumerLogger.fatal({ error }, "Fatal error");
 	process.exit(1);
 });
