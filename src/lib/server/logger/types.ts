@@ -12,6 +12,7 @@ export type EventType =
 	| "monitor_check"
 	| "maintenance_job"
 	| "notification"
+	| "notifier"
 	| "webhook";
 
 export type EventStatus = "success" | "error";
@@ -149,6 +150,30 @@ export interface NotificationWideEvent extends WideEventBase {
 }
 
 /**
+ * Notifier wide event - emitted once per outbox row processed by the notifier worker.
+ * Distinct from NotificationWideEvent (which is per-send to a channel).
+ */
+export interface NotifierWideEvent extends WideEventBase {
+	event_type: "notifier";
+
+	// Event row context
+	event_id?: string;
+	notification_event_type?: string;
+	monitor_id?: string;
+	incident_id?: string;
+	organization_id?: string;
+
+	// Processing context
+	trigger_source?: "listen" | "sweep" | "startup";
+	claim_latency_ms?: number;
+	process_latency_ms?: number;
+	skip_reason?: string;
+	// Row-status terminal state (distinct from WideEventBase.status which is success/error).
+	// Uses a separate field name to avoid clashing with the base status.
+	row_status?: string;
+}
+
+/**
  * Webhook wide event - emitted once per incoming webhook
  */
 export interface WebhookWideEvent extends WideEventBase {
@@ -175,4 +200,5 @@ export type WideEvent =
 	| CheckWideEvent
 	| MaintenanceWideEvent
 	| NotificationWideEvent
+	| NotifierWideEvent
 	| WebhookWideEvent;
