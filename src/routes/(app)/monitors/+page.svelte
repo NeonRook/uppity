@@ -17,7 +17,7 @@
 		Activity,
 		ExternalLink,
 		LoaderCircle,
-		MoreHorizontal,
+		Ellipsis,
 		Pause,
 		Play,
 		Plus,
@@ -188,7 +188,7 @@
 							</div>
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger class="shrink-0 rounded p-1 hover:bg-muted">
-									<MoreHorizontal class="h-4 w-4" />
+									<Ellipsis class="h-4 w-4" />
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
 									<DropdownMenu.Item>
@@ -236,13 +236,13 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-[40px]"></Table.Head>
+						<Table.Head class="w-10"></Table.Head>
 						<Table.Head>{m.monitors_table_name()}</Table.Head>
 						<Table.Head>{m.monitors_table_endpoint()}</Table.Head>
 						<Table.Head>{m.monitors_table_status()}</Table.Head>
 						<Table.Head class="text-right">{m.monitors_table_uptime()}</Table.Head>
 						<Table.Head class="text-right">{m.monitors_table_avg_response()}</Table.Head>
-						<Table.Head class="w-[50px]"></Table.Head>
+						<Table.Head class="w-12.5"></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -293,7 +293,7 @@
 							<Table.Cell>
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger class="rounded p-1 hover:bg-muted">
-										<MoreHorizontal class="h-4 w-4" />
+										<Ellipsis class="h-4 w-4" />
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
 										<DropdownMenu.Item>
