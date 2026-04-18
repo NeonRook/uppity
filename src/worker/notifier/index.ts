@@ -1,10 +1,12 @@
 import { createConsumerLogger, createNotifierWideEvent } from "../../lib/server/logger";
+import { NotificationService } from "../../lib/server/notifications/service";
 import { client, db } from "../shared/db";
 import { processBacklog, processOne } from "./processor";
 
 const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const consumerLogger = createConsumerLogger();
+const notificationService = new NotificationService(db, consumerLogger);
 
 let running = true;
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
@@ -14,7 +16,7 @@ async function handleNotification(eventId: string): Promise<void> {
 	const event = createNotifierWideEvent(eventId);
 	event.set("trigger_source", "listen");
 	try {
-		await processOne(db, eventId, event);
+		await processOne(db, eventId, event, notificationService);
 		event.setSuccess();
 	} catch (err) {
 		consumerLogger.error({ event_id: eventId, error: err }, "Failed to process event");
@@ -26,7 +28,12 @@ async function handleNotification(eventId: string): Promise<void> {
 
 async function runStartupBacklog(): Promise<void> {
 	try {
-		const processed = await processBacklog(db, "startup", () => createNotifierWideEvent());
+		const processed = await processBacklog(
+			db,
+			"startup",
+			() => createNotifierWideEvent(),
+			notificationService,
+		);
 		consumerLogger.info({ processed }, "Startup backlog sweep complete");
 	} catch (err) {
 		consumerLogger.error({ error: err }, "Startup backlog sweep failed");
@@ -35,7 +42,12 @@ async function runStartupBacklog(): Promise<void> {
 
 async function runPeriodicSweep(): Promise<void> {
 	try {
-		const processed = await processBacklog(db, "sweep", () => createNotifierWideEvent());
+		const processed = await processBacklog(
+			db,
+			"sweep",
+			() => createNotifierWideEvent(),
+			notificationService,
+		);
 		if (processed > 0) {
 			consumerLogger.info({ processed }, "Periodic sweep processed events");
 		}
