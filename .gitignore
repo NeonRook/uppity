@@ -9,6 +9,9 @@ node_modules
 /.svelte-kit
 /build
 
+# Local planning artifacts
+docs/superpowers/
+
 # OS
 .DS_Store
 Thumbs.db
