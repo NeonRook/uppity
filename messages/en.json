@@ -90,7 +90,7 @@
 	"org_no_org_message": "No organization selected. Create or join an organization to continue.",
 
 	"account_my_account": "My Account",
-	"account_admin_panel": "Admin panel",
+	"account_admin_panel": "Admin Panel",
 	"account_sign_out": "Sign out",
 
 	"theme_theme": "Theme",
@@ -412,7 +412,7 @@
 	"org_delete": "Delete Organization",
 	"org_delete_desc": "Permanently delete this organization and all its data",
 	"org_delete_confirm": "Type \"{name}\" to confirm deletion",
-	"org_manage": "Manage Organization",
+	"org_configure": "Manage Organization",
 
 	"admin_dashboard": "Dashboard",
 	"admin_total_users": "Total Users",

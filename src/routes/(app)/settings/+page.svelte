@@ -185,7 +185,7 @@
 					</div>
 					<Button variant="outline" size="sm" href="/settings/organisation">
 						<Settings class="mr-2 h-4 w-4" />
-						{m.org_manage()}
+						{m.org_configure()}
 					</Button>
 				</div>
 			{/if}
