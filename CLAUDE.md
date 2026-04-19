@@ -25,7 +25,7 @@ bun run lint                # Lint with auto-fix (oxlint + eslint)
 
 # Testing
 bun run test:unit           # Run all unit tests
-bun run test:unit -- --run src/lib/server/services/check.service.spec.ts  # Run single test file
+bun run test:unit run src/lib/format.spec.ts  # Run single test file
 
 # Database (requires DATABASE_URL in .env)
 bun run db:push             # Push schema changes to database

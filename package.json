@@ -33,7 +33,7 @@
 		"lint": "oxlint --type-aware --fix --fix-suggestions && eslint --fix .",
 		"lint:ci": "prettier --check **/*.svelte && oxfmt --check && oxlint --type-aware && eslint .",
 		"test:unit": "vitest",
-		"test": "bun run test:unit -- --run && bun run test:e2e",
+		"test": "bun run test:unit run && bun run test:e2e",
 		"test:e2e": "playwright test",
 		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
