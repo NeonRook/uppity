@@ -81,7 +81,7 @@ jobs:
         run: bun --bun run i18n:generate
 
       - name: Run unit tests
-        run: bun run test:unit -- --run
+        run: bun run test:unit run
 
   build:
     name: Build
