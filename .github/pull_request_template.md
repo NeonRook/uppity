@@ -22,7 +22,7 @@
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md)
 - [ ] My code follows the project's code style
 - [ ] I have added tests that prove my fix/feature works
-- [ ] All new and existing tests pass (`bun run test:unit -- --run`)
+- [ ] All new and existing tests pass (`bun run test:unit run`)
 - [ ] Linting passes (`bun run lint`)
 - [ ] Type checking passes (`bun run check`)
 - [ ] I have updated documentation if needed

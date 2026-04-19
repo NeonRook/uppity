@@ -79,7 +79,7 @@ CLA Assistant.
 
 1. Create a new branch from `main`
 2. Make your changes
-3. Ensure tests pass: `bun run test:unit -- --run`
+3. Ensure tests pass: `bun run test:unit run`
 4. Ensure linting passes: `bun run lint`
 5. Ensure type checking passes: `bun run check`
 6. Format your code: `pnpm run fmt`
@@ -141,10 +141,10 @@ bun run check
 bun run test:unit
 
 # Run specific test file
-bun run test:unit -- --run src/lib/server/services/check.service.spec.ts
+bun run test:unit run src/lib/format.spec.ts
 
 # Run tests in watch mode
-bun run test:unit -- --watch
+bun run test:unit --watch
 ```
 
 ### E2E Tests
