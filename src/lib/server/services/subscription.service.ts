@@ -1,5 +1,6 @@
 import { DEFAULT_PLAN_ID, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
+import * as schema from "$lib/server/db/schema";
 import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
 import type {
 	LimitCheckResult,
@@ -10,7 +11,10 @@ import type {
 	SubscriptionStatus,
 } from "$lib/types/plans";
 import { eq, count } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
+
+type Db = PostgresJsDatabase<typeof schema>;
 
 /**
  * Checks if the application is running in self-hosted mode.
@@ -35,6 +39,12 @@ export function getPlanById(planId: PlanId): Plan | undefined {
 }
 
 export class SubscriptionService {
+	private db: Db;
+
+	constructor(database: Db) {
+		this.db = database;
+	}
+
 	/**
 	 * Gets or creates a subscription for an organization.
 	 * New organizations start on the free plan.
@@ -46,7 +56,7 @@ export class SubscriptionService {
 		}
 
 		// Create a new free subscription
-		const [newSubscription] = await db
+		const [newSubscription] = await this.db
 			.insert(subscription)
 			.values({
 				id: nanoid(),
@@ -63,7 +73,7 @@ export class SubscriptionService {
 	 * Gets the subscription for an organization.
 	 */
 	async getSubscription(organizationId: string): Promise<Subscription | null> {
-		const [result] = await db
+		const [result] = await this.db
 			.select()
 			.from(subscription)
 			.where(eq(subscription.organizationId, organizationId))
@@ -116,12 +126,12 @@ export class SubscriptionService {
 		monitors: number;
 		statusPages: number;
 	}> {
-		const [monitorCount] = await db
+		const [monitorCount] = await this.db
 			.select({ count: count() })
 			.from(monitor)
 			.where(eq(monitor.organizationId, organizationId));
 
-		const [statusPageCount] = await db
+		const [statusPageCount] = await this.db
 			.select({ count: count() })
 			.from(statusPage)
 			.where(eq(statusPage.organizationId, organizationId));
@@ -249,7 +259,7 @@ export class SubscriptionService {
 		const existing = await this.getSubscription(organizationId);
 
 		if (existing) {
-			const [updated] = await db
+			const [updated] = await this.db
 				.update(subscription)
 				.set({
 					planId: data.planId,
@@ -267,7 +277,7 @@ export class SubscriptionService {
 		}
 
 		// Create new subscription record
-		const [newSub] = await db
+		const [newSub] = await this.db
 			.insert(subscription)
 			.values({
 				id: nanoid(),
@@ -296,4 +306,4 @@ export class SubscriptionService {
 	}
 }
 
-export const subscriptionService = new SubscriptionService();
+export const subscriptionService = new SubscriptionService(db);
