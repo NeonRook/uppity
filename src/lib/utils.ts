@@ -6,8 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
+type EnvVar = keyof NodeJS.ProcessEnv;
+
 /** Reads an integer from environment variables, returning the default if missing or invalid. */
-export function envInt(key: string, defaultValue: number): number {
+export function envInt(key: EnvVar, defaultValue: number): number {
 	const value = process.env[key];
 	if (!value) return defaultValue;
 	const parsed = parseInt(value, 10);
@@ -15,7 +17,7 @@ export function envInt(key: string, defaultValue: number): number {
 }
 
 /** Reads a string from environment variables, returning the default if missing. */
-export function envString(key: string, defaultValue: string): string {
+export function envString(key: EnvVar, defaultValue: string): string {
 	return process.env[key] || defaultValue;
 }
 

@@ -223,13 +223,16 @@
 			"files": ["*.test.ts", "*.spec.ts"],
 			"rules": {
 				"@typescript-eslint/unbound-method": "off",
-				"require-mock-type-parameters": "off"
+				"require-mock-type-parameters": "off",
+				"jest/no-standalone-expect": ["error", { "additionalTestBlockFunctions": ["test"] }]
 			}
 		},
 		{
 			"files": ["src/lib/server/test/fixture.ts"],
 			"rules": {
-				"no-empty-pattern": "off"
+				"no-empty-pattern": "off",
+				"jest/expect-expect": "off",
+				"jest/no-disabled-tests": "off"
 			}
 		}
 	],
