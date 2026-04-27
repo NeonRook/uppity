@@ -11,6 +11,19 @@ import type {
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
 const SMTP_SECURE_PORT = String(DEFAULT_SMTP_SECURE_PORT);
 
+// updateMessage carries unbounded user-authored prose from the incident-update
+// form. Other interpolated fields (title, status, impact) are bounded inputs
+// (form-validated title, enum status/impact) and historically rendered raw —
+// hardening those is out of scope here.
+function escapeHtml(input: string): string {
+	return input
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
 export class EmailNotificationProvider implements NotificationProvider {
 	private transporter: nodemailer.Transporter | null = null;
 	private config: EmailConfig;
@@ -143,7 +156,7 @@ export class EmailNotificationProvider implements NotificationProvider {
 						<p><strong>Status:</strong> ${payload.incident?.status}</p>
 						<p><strong>Impact:</strong> ${payload.incident?.impact}</p>
 						<p><strong>Time:</strong> ${timestamp}</p>
-						${payload.updateMessage ? `<p><strong>Update:</strong> ${payload.updateMessage}</p>` : ""}
+						${payload.updateMessage ? `<p><strong>Update:</strong> ${escapeHtml(payload.updateMessage)}</p>` : ""}
 					`,
 					text: `Incident Update: ${payload.incident?.title}\n\nStatus: ${payload.incident?.status}\nImpact: ${payload.incident?.impact}\nTime: ${timestamp}${payload.updateMessage ? `\n\nUpdate: ${payload.updateMessage}` : ""}`,
 				};
