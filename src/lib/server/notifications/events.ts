@@ -22,6 +22,14 @@ export const SslExpiryEventPayload = v.object({
 });
 export type SslExpiryEventPayload = v.InferOutput<typeof SslExpiryEventPayload>;
 
+export const IncidentEventPayload = v.object({
+	// For incident_updated only: the specific update entry's id and message body.
+	// For incident_created and incident_resolved: omitted.
+	updateId: v.optional(v.string()),
+	updateMessage: v.optional(v.string()),
+});
+export type IncidentEventPayload = v.InferOutput<typeof IncidentEventPayload>;
+
 export type NotificationEventType =
 	| "monitor_down"
 	| "monitor_up"
@@ -39,7 +47,10 @@ export type NotificationEventPayload =
 	| { type: "monitor_down"; payload: MonitorStatusEventPayload }
 	| { type: "monitor_up"; payload: MonitorStatusEventPayload }
 	| { type: "monitor_degraded"; payload: MonitorStatusEventPayload }
-	| { type: "ssl_expiry_warning"; payload: SslExpiryEventPayload };
+	| { type: "ssl_expiry_warning"; payload: SslExpiryEventPayload }
+	| { type: "incident_created"; payload: IncidentEventPayload }
+	| { type: "incident_updated"; payload: IncidentEventPayload }
+	| { type: "incident_resolved"; payload: IncidentEventPayload };
 
 /**
  * Validates that a payload matches the schema for the given event type.
@@ -48,12 +59,16 @@ export type NotificationEventPayload =
 export function parseEventPayload(
 	type: NotificationEventType,
 	payload: unknown,
-): MonitorStatusEventPayload | SslExpiryEventPayload {
+): MonitorStatusEventPayload | SslExpiryEventPayload | IncidentEventPayload {
 	if (type === "monitor_down" || type === "monitor_up" || type === "monitor_degraded") {
 		return v.parse(MonitorStatusEventPayload, payload);
 	}
 	if (type === "ssl_expiry_warning") {
 		return v.parse(SslExpiryEventPayload, payload);
 	}
-	throw new Error(`Event type ${type} not yet implemented (NEO-6)`);
+	if (type === "incident_created" || type === "incident_updated" || type === "incident_resolved") {
+		return v.parse(IncidentEventPayload, payload);
+	}
+	const exhaustiveCheck: never = type;
+	throw new Error(`Unknown event type: ${String(exhaustiveCheck)}`);
 }

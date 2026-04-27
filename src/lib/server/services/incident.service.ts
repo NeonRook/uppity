@@ -5,16 +5,22 @@ import {
 } from "$lib/constants/defaults";
 import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
 import { db } from "$lib/server/db";
+import * as schema from "$lib/server/db/schema";
 import {
 	incident,
 	incidentMonitor,
 	incidentUpdate,
 	monitor,
+	notificationEvent,
 	type Incident,
 	type IncidentUpdate,
 } from "$lib/server/db/schema";
+import type { IncidentEventPayload } from "$lib/server/notifications/events";
 import { eq, and, desc, inArray, ne } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
+
+type Db = PostgresJsDatabase<typeof schema>;
 
 export interface CreateIncidentInput {
 	organizationId: string;
@@ -38,6 +44,7 @@ export interface AddUpdateInput {
 	status: IncidentStatus;
 	message: string;
 	createdBy?: string;
+	suppressNotification?: boolean;
 }
 
 export interface IncidentWithDetails extends Incident {
@@ -50,10 +57,35 @@ export interface IncidentWithDetails extends Incident {
 }
 
 export class IncidentService {
+	private db: Db;
+
+	constructor(database: Db) {
+		this.db = database;
+	}
+
+	private async enqueueIncidentEvent(
+		type: "incident_created" | "incident_updated" | "incident_resolved",
+		incidentRow: { id: string; organizationId: string },
+		updatePayload?: { updateId: string; updateMessage: string },
+	): Promise<void> {
+		const payload: IncidentEventPayload = updatePayload
+			? { updateId: updatePayload.updateId, updateMessage: updatePayload.updateMessage }
+			: {};
+		await this.db.insert(notificationEvent).values({
+			id: nanoid(),
+			organizationId: incidentRow.organizationId,
+			monitorId: null,
+			incidentId: incidentRow.id,
+			type,
+			payload,
+			status: "pending",
+		});
+	}
+
 	async create(input: CreateIncidentInput): Promise<Incident> {
 		const id = nanoid();
 
-		const [newIncident] = await db
+		const [newIncident] = await this.db
 			.insert(incident)
 			.values({
 				id,
@@ -69,7 +101,7 @@ export class IncidentService {
 
 		// Link monitors
 		if (input.monitorIds && input.monitorIds.length > 0) {
-			await db.insert(incidentMonitor).values(
+			await this.db.insert(incidentMonitor).values(
 				input.monitorIds.map((monitorId) => ({
 					incidentId: id,
 					monitorId,
@@ -78,7 +110,7 @@ export class IncidentService {
 		}
 
 		// Add initial update
-		await db.insert(incidentUpdate).values({
+		await this.db.insert(incidentUpdate).values({
 			id: nanoid(),
 			incidentId: id,
 			status: input.status || DEFAULT_INCIDENT_STATUS,
@@ -86,17 +118,19 @@ export class IncidentService {
 			createdBy: input.createdBy,
 		});
 
+		await this.enqueueIncidentEvent("incident_created", newIncident);
+
 		return newIncident;
 	}
 
 	async findById(id: string): Promise<Incident | null> {
-		const [result] = await db.select().from(incident).where(eq(incident.id, id)).limit(1);
+		const [result] = await this.db.select().from(incident).where(eq(incident.id, id)).limit(1);
 
 		return result || null;
 	}
 
 	async findByIdAndOrg(id: string, organizationId: string): Promise<Incident | null> {
-		const [result] = await db
+		const [result] = await this.db
 			.select()
 			.from(incident)
 			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
@@ -115,7 +149,7 @@ export class IncidentService {
 			conditions.push(ne(incident.status, "resolved"));
 		}
 
-		return db
+		return this.db
 			.select()
 			.from(incident)
 			.where(and(...conditions))
@@ -129,14 +163,14 @@ export class IncidentService {
 		}
 
 		// Get updates
-		const updates = await db
+		const updates = await this.db
 			.select()
 			.from(incidentUpdate)
 			.where(eq(incidentUpdate.incidentId, id))
 			.orderBy(desc(incidentUpdate.createdAt));
 
 		// Get affected monitors
-		const affectedMonitorLinks = await db
+		const affectedMonitorLinks = await this.db
 			.select({
 				id: monitor.id,
 				name: monitor.name,
@@ -168,16 +202,21 @@ export class IncidentService {
 			updatedAt: new Date(),
 		};
 
-		// If resolving, set resolvedAt
-		if (input.status === "resolved" && existing.status !== "resolved") {
+		const isFlippingToResolved = input.status === "resolved" && existing.status !== "resolved";
+
+		if (isFlippingToResolved) {
 			updateData.resolvedAt = new Date();
 		}
 
-		const [updated] = await db
+		const [updated] = await this.db
 			.update(incident)
 			.set(updateData)
 			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
 			.returning();
+
+		if (updated && isFlippingToResolved) {
+			await this.enqueueIncidentEvent("incident_resolved", updated);
+		}
 
 		return updated || null;
 	}
@@ -185,7 +224,7 @@ export class IncidentService {
 	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate> {
 		const id = nanoid();
 
-		const [update] = await db
+		const [update] = await this.db
 			.insert(incidentUpdate)
 			.values({
 				id,
@@ -196,7 +235,6 @@ export class IncidentService {
 			})
 			.returning();
 
-		// Update incident status
 		const updateData: Record<string, unknown> = {
 			status: input.status,
 			updatedAt: new Date(),
@@ -206,13 +244,30 @@ export class IncidentService {
 			updateData.resolvedAt = new Date();
 		}
 
-		await db.update(incident).set(updateData).where(eq(incident.id, input.incidentId));
+		await this.db.update(incident).set(updateData).where(eq(incident.id, input.incidentId));
+
+		// Enqueue notification unless explicitly suppressed (autoResolveIncident path)
+		// or this is a postmortem (post-resolution writing, not paging-worthy).
+		if (!input.suppressNotification && input.status !== "postmortem") {
+			const [parent] = await this.db
+				.select({ id: incident.id, organizationId: incident.organizationId })
+				.from(incident)
+				.where(eq(incident.id, input.incidentId))
+				.limit(1);
+			if (parent) {
+				const type = input.status === "resolved" ? "incident_resolved" : "incident_updated";
+				await this.enqueueIncidentEvent(type, parent, {
+					updateId: id,
+					updateMessage: input.message,
+				});
+			}
+		}
 
 		return update;
 	}
 
 	async getUpdates(incidentId: string): Promise<IncidentUpdate[]> {
-		return db
+		return this.db
 			.select()
 			.from(incidentUpdate)
 			.where(eq(incidentUpdate.incidentId, incidentId))
@@ -220,7 +275,7 @@ export class IncidentService {
 	}
 
 	async updateIncidentUpdate(updateId: string, message: string): Promise<IncidentUpdate | null> {
-		const [updated] = await db
+		const [updated] = await this.db
 			.update(incidentUpdate)
 			.set({ message })
 			.where(eq(incidentUpdate.id, updateId))
@@ -232,7 +287,7 @@ export class IncidentService {
 	async linkMonitors(incidentId: string, monitorIds: string[]): Promise<void> {
 		if (monitorIds.length === 0) return;
 
-		await db
+		await this.db
 			.insert(incidentMonitor)
 			.values(
 				monitorIds.map((monitorId) => ({
@@ -244,7 +299,7 @@ export class IncidentService {
 	}
 
 	async unlinkMonitor(incidentId: string, monitorId: string): Promise<void> {
-		await db
+		await this.db
 			.delete(incidentMonitor)
 			.where(
 				and(eq(incidentMonitor.incidentId, incidentId), eq(incidentMonitor.monitorId, monitorId)),
@@ -258,7 +313,7 @@ export class IncidentService {
 			type: string;
 		}>
 	> {
-		return db
+		return this.db
 			.select({
 				id: monitor.id,
 				name: monitor.name,
@@ -275,7 +330,7 @@ export class IncidentService {
 			return false;
 		}
 
-		await db
+		await this.db
 			.delete(incident)
 			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)));
 
@@ -286,14 +341,14 @@ export class IncidentService {
 	async getActiveIncidentsForMonitors(monitorIds: string[]): Promise<Incident[]> {
 		if (monitorIds.length === 0) return [];
 
-		const incidentIds = await db
+		const incidentIds = await this.db
 			.selectDistinct({ incidentId: incidentMonitor.incidentId })
 			.from(incidentMonitor)
 			.where(inArray(incidentMonitor.monitorId, monitorIds));
 
 		if (incidentIds.length === 0) return [];
 
-		return db
+		return this.db
 			.select()
 			.from(incident)
 			.where(
@@ -310,14 +365,14 @@ export class IncidentService {
 
 	// Get active auto-created incident for a specific monitor
 	async getActiveAutoIncidentForMonitor(monitorId: string): Promise<Incident | null> {
-		const incidentIds = await db
+		const incidentIds = await this.db
 			.select({ incidentId: incidentMonitor.incidentId })
 			.from(incidentMonitor)
 			.where(eq(incidentMonitor.monitorId, monitorId));
 
 		if (incidentIds.length === 0) return null;
 
-		const [result] = await db
+		const [result] = await this.db
 			.select()
 			.from(incident)
 			.where(
@@ -342,8 +397,9 @@ export class IncidentService {
 			incidentId,
 			status: "resolved",
 			message: AUTO_RESOLVE_MESSAGE,
+			suppressNotification: true,
 		});
 	}
 }
 
-export const incidentService = new IncidentService();
+export const incidentService = new IncidentService(db);
