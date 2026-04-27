@@ -189,6 +189,38 @@ export class DiscordNotificationProvider implements NotificationProvider {
 					],
 				};
 
+			case "incident_updated":
+				return {
+					embeds: [
+						{
+							title: `📝 Incident Update: ${payload.incident?.title}`,
+							color: 0xf59e0b,
+							fields: [
+								{
+									name: "Status",
+									value: payload.incident?.status || "Unknown",
+									inline: true,
+								},
+								{
+									name: "Impact",
+									value: payload.incident?.impact || "Unknown",
+									inline: true,
+								},
+								...(payload.updateMessage
+									? [
+											{
+												name: "Update",
+												value: payload.updateMessage,
+												inline: false,
+											},
+										]
+									: []),
+							],
+							timestamp,
+						},
+					],
+				};
+
 			case "incident_resolved":
 				return {
 					embeds: [
