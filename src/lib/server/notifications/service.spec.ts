@@ -239,5 +239,42 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 		const result = await service.dispatchEvent(row);
 
 		expect(result.status).toBe("failed");
+		expect((result as { status: "failed"; errorMessage: string }).errorMessage).toMatch(
+			/invalid payload/,
+		);
+	});
+
+	test("incident with linked monitors but no channels suppresses with explicit reason", async ({
+		db,
+	}) => {
+		// Distinct from the org-wide fallback: the user explicitly scoped the incident
+		// to a monitor that happens to have zero channels wired up. Falling back to
+		// every org channel here would silently widen blast radius for a misconfigured
+		// monitor, so we suppress with a message that points at the actual problem.
+		const { db: drizzleDb } = db;
+		const service = new NotificationService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const m1 = await seedMonitor(drizzleDb, orgId);
+		// Seed an enabled org channel that is NOT linked to m1 — the test proves it
+		// doesn't get used.
+		await seedWebhookChannel(drizzleDb, orgId, "https://example.test/unrelated");
+
+		const incidentId = await seedIncident(drizzleDb, orgId, [m1]);
+		const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_created");
+		const row = await fetchEvent(drizzleDb, eventId);
+
+		const result = await service.dispatchEvent(row);
+
+		expect(result.status).toBe("suppressed");
+		expect((result as { status: "suppressed"; errorMessage: string }).errorMessage).toMatch(
+			/linked monitors have no channels configured/,
+		);
+
+		// Belt-and-suspenders: no notificationLog row was written.
+		const logs = await drizzleDb
+			.select()
+			.from(notificationLog)
+			.where(eq(notificationLog.incidentId, incidentId));
+		expect(logs).toHaveLength(0);
 	});
 });

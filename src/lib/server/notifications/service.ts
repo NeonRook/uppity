@@ -20,7 +20,7 @@ import {
 import { logger as defaultLogger } from "../logger";
 import { DiscordNotificationProvider } from "./discord";
 import { EmailNotificationProvider } from "./email";
-import { parseEventPayload, type NotificationEventType } from "./events";
+import { parseEventPayload, type IncidentEventPayload, type NotificationEventType } from "./events";
 import { SlackNotificationProvider } from "./slack";
 import type {
 	NotificationPayload,
@@ -205,8 +205,9 @@ export class NotificationService {
 	}
 
 	async dispatchEvent(row: NotificationEvent): Promise<DispatchResult> {
+		let parsed: ReturnType<typeof parseEventPayload>;
 		try {
-			parseEventPayload(row.type as NotificationEventType, row.payload);
+			parsed = parseEventPayload(row.type as NotificationEventType, row.payload);
 		} catch (err) {
 			return {
 				status: "failed",
@@ -219,7 +220,8 @@ export class NotificationService {
 			row.type === "incident_updated" ||
 			row.type === "incident_resolved"
 		) {
-			return this.dispatchIncidentEvent(row);
+			// parseEventPayload validated against IncidentEventPayload for these types.
+			return this.dispatchIncidentEvent(row, parsed as IncidentEventPayload);
 		}
 
 		if (!row.monitorId) {
@@ -299,7 +301,10 @@ export class NotificationService {
 		return { status: "partial", errorMessage: summary };
 	}
 
-	private async dispatchIncidentEvent(row: NotificationEvent): Promise<DispatchResult> {
+	private async dispatchIncidentEvent(
+		row: NotificationEvent,
+		parsed: IncidentEventPayload,
+	): Promise<DispatchResult> {
 		if (!row.incidentId) {
 			return { status: "suppressed", errorMessage: "event has no incident_id" };
 		}
@@ -332,8 +337,24 @@ export class NotificationService {
 
 		let channels: NotificationChannel[] = linked.map((r) => r.channel);
 
-		// Fallback: incident has no linked monitors → notify all enabled org channels.
 		if (channels.length === 0) {
+			// Distinguish two cases:
+			//   (a) incident has no linked monitors → component-less broadcast → fall back to all org channels
+			//   (b) incident has linked monitors but none have enabled channels → suppress with explicit reason
+			// Conflating (b) into (a) would silently widen blast radius for a misconfigured monitor.
+			const [hasMonitor] = await this.db
+				.select({ monitorId: incidentMonitor.monitorId })
+				.from(incidentMonitor)
+				.where(eq(incidentMonitor.incidentId, row.incidentId))
+				.limit(1);
+
+			if (hasMonitor) {
+				return {
+					status: "suppressed",
+					errorMessage: "linked monitors have no channels configured",
+				};
+			}
+
 			channels = await this.db
 				.select()
 				.from(notificationChannel)
@@ -349,12 +370,11 @@ export class NotificationService {
 			return { status: "suppressed", errorMessage: "no channels configured" };
 		}
 
-		const p = row.payload as { updateId?: string; updateMessage?: string };
 		const payload: NotificationPayload = {
 			type: row.type as NotificationType,
 			incident: incidentRow,
 			timestamp: new Date(),
-			updateMessage: p.updateMessage,
+			updateMessage: parsed.updateMessage,
 		};
 
 		const failures: string[] = [];
