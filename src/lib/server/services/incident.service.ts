@@ -244,23 +244,20 @@ export class IncidentService {
 			updateData.resolvedAt = new Date();
 		}
 
-		await this.db.update(incident).set(updateData).where(eq(incident.id, input.incidentId));
+		const [updatedIncident] = await this.db
+			.update(incident)
+			.set(updateData)
+			.where(eq(incident.id, input.incidentId))
+			.returning({ id: incident.id, organizationId: incident.organizationId });
 
 		// Enqueue notification unless explicitly suppressed (autoResolveIncident path)
 		// or this is a postmortem (post-resolution writing, not paging-worthy).
-		if (!input.suppressNotification && input.status !== "postmortem") {
-			const [parent] = await this.db
-				.select({ id: incident.id, organizationId: incident.organizationId })
-				.from(incident)
-				.where(eq(incident.id, input.incidentId))
-				.limit(1);
-			if (parent) {
-				const type = input.status === "resolved" ? "incident_resolved" : "incident_updated";
-				await this.enqueueIncidentEvent(type, parent, {
-					updateId: id,
-					updateMessage: input.message,
-				});
-			}
+		if (updatedIncident && !input.suppressNotification && input.status !== "postmortem") {
+			const type = input.status === "resolved" ? "incident_resolved" : "incident_updated";
+			await this.enqueueIncidentEvent(type, updatedIncident, {
+				updateId: id,
+				updateMessage: input.message,
+			});
 		}
 
 		return update;

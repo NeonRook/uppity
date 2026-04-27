@@ -1,2 +1,12 @@
 [tools]
 bun = "latest"
+
+[tasks.test]
+description = "Run unit tests with DATABASE_URL loaded from .env"
+run = '''
+#!/usr/bin/env bash
+set -a
+source .env
+set +a
+bun run test:unit run "$@"
+'''
