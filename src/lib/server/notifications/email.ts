@@ -135,6 +135,19 @@ export class EmailNotificationProvider implements NotificationProvider {
 					text: `New Incident: ${payload.incident?.title}\n\nImpact: ${payload.incident?.impact}\nTime: ${timestamp}`,
 				};
 
+			case "incident_updated":
+				return {
+					subject: `📝 Incident Update: ${payload.incident?.title || "Incident"}`,
+					html: `
+						<h2>Incident Update: ${payload.incident?.title}</h2>
+						<p><strong>Status:</strong> ${payload.incident?.status}</p>
+						<p><strong>Impact:</strong> ${payload.incident?.impact}</p>
+						<p><strong>Time:</strong> ${timestamp}</p>
+						${payload.updateMessage ? `<p><strong>Update:</strong> ${payload.updateMessage}</p>` : ""}
+					`,
+					text: `Incident Update: ${payload.incident?.title}\n\nStatus: ${payload.incident?.status}\nImpact: ${payload.incident?.impact}\nTime: ${timestamp}${payload.updateMessage ? `\n\nUpdate: ${payload.updateMessage}` : ""}`,
+				};
+
 			case "incident_resolved":
 				return {
 					subject: `✅ Incident Resolved: ${payload.incident?.title || "Incident"}`,

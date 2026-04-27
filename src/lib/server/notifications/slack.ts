@@ -248,6 +248,50 @@ export class SlackNotificationProvider implements NotificationProvider {
 					],
 				};
 
+			case "incident_updated":
+				return {
+					channel: this.config.channel,
+					attachments: [
+						{
+							color: "#f59e0b",
+							blocks: [
+								{
+									type: "header",
+									text: {
+										type: "plain_text",
+										text: `📝 Incident Update: ${payload.incident?.title}`,
+										emoji: true,
+									},
+								},
+								{
+									type: "section",
+									fields: [
+										{
+											type: "mrkdwn",
+											text: `*Status:*\n${payload.incident?.status}`,
+										},
+										{
+											type: "mrkdwn",
+											text: `*Impact:*\n${payload.incident?.impact}`,
+										},
+									],
+								},
+								...(payload.updateMessage
+									? [
+											{
+												type: "section",
+												text: {
+													type: "mrkdwn",
+													text: `*Update:*\n${payload.updateMessage}`,
+												},
+											},
+										]
+									: []),
+							],
+						},
+					],
+				};
+
 			case "incident_resolved":
 				return {
 					channel: this.config.channel,
