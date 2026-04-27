@@ -32,3 +32,4 @@ project.inlang/cache/
 
 # SQLite
 *.db
+.worktrees/
