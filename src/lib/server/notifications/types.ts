@@ -17,6 +17,7 @@ export interface NotificationPayload {
 	previousStatus?: string;
 	sslDaysRemaining?: number;
 	errorMessage?: string;
+	updateMessage?: string;
 	timestamp: Date;
 }
 
