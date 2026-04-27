@@ -84,6 +84,7 @@ export class WebhookNotificationProvider implements NotificationProvider {
 				: null,
 			previousStatus: payload.previousStatus,
 			errorMessage: payload.errorMessage,
+			updateMessage: payload.updateMessage,
 			sslDaysRemaining: payload.sslDaysRemaining,
 		};
 	}
@@ -98,6 +99,7 @@ export class WebhookNotificationProvider implements NotificationProvider {
 				.replace(/\{\{status\}\}/g, payload.status?.status || "")
 				.replace(/\{\{timestamp\}\}/g, payload.timestamp.toISOString())
 				.replace(/\{\{errorMessage\}\}/g, payload.errorMessage || "")
+				.replace(/\{\{updateMessage\}\}/g, payload.updateMessage || "")
 				.replace(/\{\{previousStatus\}\}/g, payload.previousStatus || "")
 				.replace(/\{\{sslDaysRemaining\}\}/g, String(payload.sslDaysRemaining || ""))
 				.replace(/\{\{incident\.title\}\}/g, payload.incident?.title || "")
