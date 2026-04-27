@@ -235,6 +235,17 @@ export class IncidentService {
 			})
 			.returning();
 
+		// Read prior status before the UPDATE so we can tell a real "resolved"
+		// transition from re-resolving an already-resolved incident — the latter
+		// would otherwise enqueue duplicate incident_resolved events on repeat
+		// submission.
+		const [previous] = await this.db
+			.select({ status: incident.status })
+			.from(incident)
+			.where(eq(incident.id, input.incidentId))
+			.limit(1);
+		const wasAlreadyResolved = previous?.status === "resolved";
+
 		const updateData: Record<string, unknown> = {
 			status: input.status,
 			updatedAt: new Date(),
@@ -253,11 +264,20 @@ export class IncidentService {
 		// Enqueue notification unless explicitly suppressed (autoResolveIncident path)
 		// or this is a postmortem (post-resolution writing, not paging-worthy).
 		if (updatedIncident && !input.suppressNotification && input.status !== "postmortem") {
-			const type = input.status === "resolved" ? "incident_resolved" : "incident_updated";
-			await this.enqueueIncidentEvent(type, updatedIncident, {
-				updateId: id,
-				updateMessage: input.message,
-			});
+			if (input.status === "resolved") {
+				if (!wasAlreadyResolved) {
+					await this.enqueueIncidentEvent("incident_resolved", updatedIncident, {
+						updateId: id,
+						updateMessage: input.message,
+					});
+				}
+				// Re-resolving an already-resolved incident → no notification fires.
+			} else {
+				await this.enqueueIncidentEvent("incident_updated", updatedIncident, {
+					updateId: id,
+					updateMessage: input.message,
+				});
+			}
 		}
 
 		return update;

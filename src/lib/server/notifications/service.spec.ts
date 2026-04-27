@@ -45,7 +45,9 @@ async function seedMonitor(drizzleDb: TestDb["db"], orgId: string): Promise<stri
 async function seedWebhookChannel(
 	drizzleDb: TestDb["db"],
 	orgId: string,
-	url = "https://example.test/hook",
+	// 127.0.0.1:1 refuses the connection immediately — deterministic fast failure
+	// without DNS resolution or network egress (matches the integration spec pattern).
+	url = "http://127.0.0.1:1/hook",
 ): Promise<string> {
 	const id = `chan-${nanoid()}`;
 	await drizzleDb.insert(notificationChannel).values({
@@ -144,8 +146,8 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 			.where(eq(notificationLog.incidentId, incidentId));
 		expect(logs).toHaveLength(1);
 		expect(logs[0].channelId).toBe(channelId);
-		// Either sent or failed depending on network; not suppressed.
-		expect(["sent", "failed", "partial"]).toContain(result.status);
+		// One unreachable webhook → all attempts fail → terminal status is "failed".
+		expect(result.status).toBe("failed");
 	});
 
 	test("incident with zero linked monitors falls back to all enabled org channels", async ({
@@ -155,7 +157,7 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 		const service = new NotificationService(drizzleDb);
 		const orgId = await seedOrg(drizzleDb);
 		const channelA = await seedWebhookChannel(drizzleDb, orgId);
-		const channelB = await seedWebhookChannel(drizzleDb, orgId, "https://example.test/b");
+		const channelB = await seedWebhookChannel(drizzleDb, orgId, "http://127.0.0.1:1/b");
 
 		const incidentId = await seedIncident(drizzleDb, orgId, []);
 		const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_created");

@@ -173,6 +173,34 @@ describe("IncidentService notification enqueue", () => {
 		expect(events[0].type).toBe("incident_created");
 	});
 
+	test("addUpdate with status='resolved' on an already-resolved incident enqueues nothing", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+
+		const created = await service.create({
+			organizationId: orgId,
+			title: "X is down",
+			message: "initial",
+		});
+		await service.addUpdate({
+			incidentId: created.id,
+			status: "resolved",
+			message: "Fixed",
+		});
+		await service.addUpdate({
+			incidentId: created.id,
+			status: "resolved",
+			message: "Re-resolved by accident",
+		});
+
+		const events = await fetchEvents(drizzleDb, created.id);
+		// One create + exactly one resolve, not two.
+		expect(events.filter((e) => e.type === "incident_resolved")).toHaveLength(1);
+	});
+
 	test("autoResolveIncident enqueues nothing (passes suppressNotification through)", async ({
 		db,
 	}) => {
