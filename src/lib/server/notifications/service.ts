@@ -5,6 +5,8 @@ import type { Logger } from "pino";
 
 import * as schema from "../db/schema";
 import {
+	incident,
+	incidentMonitor,
 	notificationChannel,
 	monitorNotificationChannel,
 	notificationLog,
@@ -212,6 +214,14 @@ export class NotificationService {
 			};
 		}
 
+		if (
+			row.type === "incident_created" ||
+			row.type === "incident_updated" ||
+			row.type === "incident_resolved"
+		) {
+			return this.dispatchIncidentEvent(row);
+		}
+
 		if (!row.monitorId) {
 			return { status: "suppressed", errorMessage: "event has no monitor_id" };
 		}
@@ -284,6 +294,82 @@ export class NotificationService {
 
 		if (failures.length === 0) return { status: "sent" };
 
+		const summary = this.summarizeFailures(successes + failures.length, failures);
+		if (successes === 0) return { status: "failed", errorMessage: summary };
+		return { status: "partial", errorMessage: summary };
+	}
+
+	private async dispatchIncidentEvent(row: NotificationEvent): Promise<DispatchResult> {
+		if (!row.incidentId) {
+			return { status: "suppressed", errorMessage: "event has no incident_id" };
+		}
+
+		const [incidentRow] = await this.db
+			.select()
+			.from(incident)
+			.where(eq(incident.id, row.incidentId))
+			.limit(1);
+		if (!incidentRow) {
+			return { status: "suppressed", errorMessage: "incident not found" };
+		}
+
+		// Fan-out: union of channels linked to any affected monitor, deduplicated.
+		const linked = await this.db
+			.selectDistinct({ channel: notificationChannel })
+			.from(incidentMonitor)
+			.innerJoin(
+				monitorNotificationChannel,
+				eq(monitorNotificationChannel.monitorId, incidentMonitor.monitorId),
+			)
+			.innerJoin(
+				notificationChannel,
+				and(
+					eq(notificationChannel.id, monitorNotificationChannel.channelId),
+					eq(notificationChannel.enabled, true),
+				),
+			)
+			.where(eq(incidentMonitor.incidentId, row.incidentId));
+
+		let channels: NotificationChannel[] = linked.map((r) => r.channel);
+
+		// Fallback: incident has no linked monitors → notify all enabled org channels.
+		if (channels.length === 0) {
+			channels = await this.db
+				.select()
+				.from(notificationChannel)
+				.where(
+					and(
+						eq(notificationChannel.organizationId, incidentRow.organizationId),
+						eq(notificationChannel.enabled, true),
+					),
+				);
+		}
+
+		if (channels.length === 0) {
+			return { status: "suppressed", errorMessage: "no channels configured" };
+		}
+
+		const p = row.payload as { updateId?: string; updateMessage?: string };
+		const payload: NotificationPayload = {
+			type: row.type as NotificationType,
+			incident: incidentRow,
+			timestamp: new Date(),
+			updateMessage: p.updateMessage,
+		};
+
+		const failures: string[] = [];
+		let successes = 0;
+		for (const channel of channels) {
+			try {
+				const result = await this.sendToChannel(channel, payload, undefined, row.incidentId);
+				if (result.success) successes += 1;
+				else failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
+			} catch (err) {
+				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
+			}
+		}
+
+		if (failures.length === 0) return { status: "sent" };
 		const summary = this.summarizeFailures(successes + failures.length, failures);
 		if (successes === 0) return { status: "failed", errorMessage: summary };
 		return { status: "partial", errorMessage: summary };
