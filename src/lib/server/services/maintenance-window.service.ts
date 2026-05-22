@@ -26,7 +26,7 @@ export interface CreateMaintenanceWindowInput {
 
 export interface UpdateMaintenanceWindowInput {
 	name?: string;
-	description?: string | null;
+	description?: string;
 	startsAt?: Date;
 	endsAt?: Date;
 	monitorIds?: string[];
@@ -100,54 +100,64 @@ export class MaintenanceWindowService {
 		orgId: string,
 		input: UpdateMaintenanceWindowInput,
 	): Promise<MaintenanceWindow> {
-		const [existing] = await this.db
-			.select()
-			.from(maintenanceWindow)
-			.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
-			.limit(1);
-		if (!existing) {
-			throw new Error("Maintenance window not found");
-		}
-
-		const resolvedStart = input.startsAt ?? existing.startsAt;
-		const resolvedEnd = input.endsAt ?? existing.endsAt;
-		if (resolvedEnd <= resolvedStart) {
-			throw new Error("End time must be after start time");
-		}
-
-		if (input.name !== undefined && input.name.trim().length < 1) {
-			throw new Error("Name is required");
-		}
-
-		if (input.monitorIds !== undefined) {
-			if (input.monitorIds.length < 1) {
-				throw new Error("Select at least one monitor");
+		return await this.db.transaction(async (tx) => {
+			const [existing] = await tx
+				.select()
+				.from(maintenanceWindow)
+				.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
+				.limit(1);
+			if (!existing) {
+				throw new Error("Maintenance window not found");
 			}
-			await this.assertMonitorsBelongToOrg(orgId, input.monitorIds);
-		}
 
-		const updateData: Record<string, unknown> = { updatedAt: new Date() };
-		if (input.name !== undefined) updateData.name = input.name.trim();
-		if (input.description !== undefined) updateData.description = input.description;
-		if (input.startsAt !== undefined) updateData.startsAt = input.startsAt;
-		if (input.endsAt !== undefined) updateData.endsAt = input.endsAt;
+			const resolvedStart = input.startsAt ?? existing.startsAt;
+			const resolvedEnd = input.endsAt ?? existing.endsAt;
+			if (resolvedEnd <= resolvedStart) {
+				throw new Error("End time must be after start time");
+			}
 
-		const [updated] = await this.db
-			.update(maintenanceWindow)
-			.set(updateData)
-			.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
-			.returning();
+			if (input.name !== undefined && input.name.trim().length < 1) {
+				throw new Error("Name is required");
+			}
 
-		if (input.monitorIds !== undefined) {
-			await this.db
-				.delete(maintenanceWindowMonitor)
-				.where(eq(maintenanceWindowMonitor.windowId, id));
-			await this.db
-				.insert(maintenanceWindowMonitor)
-				.values(input.monitorIds.map((monitorId) => ({ windowId: id, monitorId })));
-		}
+			if (input.monitorIds !== undefined) {
+				if (input.monitorIds.length < 1) {
+					throw new Error("Select at least one monitor");
+				}
+				const found = await tx
+					.select({ id: monitor.id })
+					.from(monitor)
+					.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, input.monitorIds)));
+				if (found.length !== input.monitorIds.length) {
+					throw new Error("Monitor not found");
+				}
+			}
 
-		return updated;
+			const updateData: Partial<typeof maintenanceWindow.$inferInsert> = {
+				updatedAt: new Date(),
+			};
+			if (input.name !== undefined) updateData.name = input.name.trim();
+			if (input.description !== undefined) updateData.description = input.description;
+			if (input.startsAt !== undefined) updateData.startsAt = input.startsAt;
+			if (input.endsAt !== undefined) updateData.endsAt = input.endsAt;
+
+			const [updated] = await tx
+				.update(maintenanceWindow)
+				.set(updateData)
+				.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
+				.returning();
+
+			if (input.monitorIds !== undefined) {
+				await tx
+					.delete(maintenanceWindowMonitor)
+					.where(eq(maintenanceWindowMonitor.windowId, id));
+				await tx
+					.insert(maintenanceWindowMonitor)
+					.values(input.monitorIds.map((monitorId) => ({ windowId: id, monitorId })));
+			}
+
+			return updated;
+		});
 	}
 
 	async cancel(id: string, orgId: string): Promise<MaintenanceWindow> {
@@ -219,7 +229,7 @@ export class MaintenanceWindowService {
 			.groupBy(maintenanceWindow.id)
 			.orderBy(desc(maintenanceWindow.startsAt));
 
-		return rows.map((r) => Object.assign(r.window, { monitorCount: r.monitorCount }));
+		return rows.map((r) => (Object.assign(r.window, { monitorCount: r.monitorCount })));
 	}
 
 	async findActiveForMonitor(monitorId: string, at?: Date): Promise<MaintenanceWindow | null> {
