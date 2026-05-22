@@ -33,7 +33,7 @@ import type {
 	MonitorStatusEventPayload,
 	SslExpiryEventPayload,
 } from "../../lib/server/notifications/events";
-import { maintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
+import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { tcpConnect, type TcpSocket } from "../../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -396,7 +396,7 @@ export async function saveCheckResult(
 	// change block (notifications, auto-incident create + auto-resolve). monitor_check
 	// row + monitor_status update above this gate still happen, so uptime data is
 	// preserved per NEO-13. Public uptime aggregation excludes window-covered rows.
-	const activeWindow = await maintenanceWindowService.findActiveForMonitor(m.id, undefined, db);
+	const activeWindow = await new MaintenanceWindowService(db).findActiveForMonitor(m.id);
 	if (activeWindow) {
 		event?.merge({
 			maintenance_active: true,
