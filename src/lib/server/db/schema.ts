@@ -410,6 +410,7 @@ export const organizationRelations = relations(organization, ({ one, many }) => 
 	statusPages: many(statusPage),
 	notificationChannels: many(notificationChannel),
 	notificationEvents: many(notificationEvent),
+	maintenanceWindows: many(maintenanceWindow),
 	subscription: one(subscription),
 	usageWarnings: many(usageWarning),
 }));
@@ -426,6 +427,7 @@ export const monitorRelations = relations(monitor, ({ one, many }) => ({
 	notificationEvents: many(notificationEvent),
 	statusPageMonitors: many(statusPageMonitor),
 	incidentMonitors: many(incidentMonitor),
+	maintenanceWindows: many(maintenanceWindowMonitor),
 }));
 
 export const monitorCheckRelations = relations(monitorCheck, ({ one }) => ({
@@ -570,6 +572,79 @@ export const maintenanceJob = pgTable("maintenance_job", {
 });
 
 // ============================================================================
+// MAINTENANCE WINDOWS (scheduled maintenance, NEO-10)
+// ============================================================================
+
+export const maintenanceWindow = pgTable(
+	"maintenance_window",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		description: text("description"),
+		status: text("status").notNull().default("scheduled"),
+		// 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+		startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+		endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+		createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("maint_window_org_idx").on(table.organizationId),
+		index("maint_window_status_starts_idx").on(table.status, table.startsAt),
+		index("maint_window_status_ends_idx").on(table.status, table.endsAt),
+	],
+);
+
+export const maintenanceWindowMonitor = pgTable(
+	"maintenance_window_monitor",
+	{
+		windowId: text("window_id").notNull(),
+		monitorId: text("monitor_id").notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.windowId, table.monitorId] }),
+		foreignKey({
+			columns: [table.windowId],
+			foreignColumns: [maintenanceWindow.id],
+			name: "mwm_window_fk",
+		}).onDelete("cascade"),
+		foreignKey({
+			columns: [table.monitorId],
+			foreignColumns: [monitor.id],
+			name: "mwm_monitor_fk",
+		}).onDelete("cascade"),
+		index("mwm_monitor_idx").on(table.monitorId),
+	],
+);
+
+export const maintenanceWindowRelations = relations(maintenanceWindow, ({ one, many }) => ({
+	organization: one(organization, {
+		fields: [maintenanceWindow.organizationId],
+		references: [organization.id],
+	}),
+	createdByUser: one(user, {
+		fields: [maintenanceWindow.createdBy],
+		references: [user.id],
+	}),
+	monitors: many(maintenanceWindowMonitor),
+}));
+
+export const maintenanceWindowMonitorRelations = relations(maintenanceWindowMonitor, ({ one }) => ({
+	window: one(maintenanceWindow, {
+		fields: [maintenanceWindowMonitor.windowId],
+		references: [maintenanceWindow.id],
+	}),
+	monitor: one(monitor, {
+		fields: [maintenanceWindowMonitor.monitorId],
+		references: [monitor.id],
+	}),
+}));
+
+// ============================================================================
 // SUBSCRIPTION TABLES
 // ============================================================================
 
@@ -681,3 +756,8 @@ export type NewSubscription = typeof subscription.$inferInsert;
 
 export type UsageWarning = typeof usageWarning.$inferSelect;
 export type NewUsageWarning = typeof usageWarning.$inferInsert;
+
+export type MaintenanceWindow = typeof maintenanceWindow.$inferSelect;
+export type NewMaintenanceWindow = typeof maintenanceWindow.$inferInsert;
+export type MaintenanceWindowMonitor = typeof maintenanceWindowMonitor.$inferSelect;
+export type NewMaintenanceWindowMonitor = typeof maintenanceWindowMonitor.$inferInsert;
