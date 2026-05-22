@@ -42,6 +42,10 @@ declare global {
 			PORT?: string;
 			HOST?: string;
 
+			// Logging [Optional]
+			LOG_LEVEL?: string;
+			SERVICE_NAME?: string;
+
 			// Email Notifications [Optional]
 			SMTP_HOST?: string;
 			SMTP_PORT?: string;
