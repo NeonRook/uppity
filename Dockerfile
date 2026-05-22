@@ -44,6 +44,13 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
+# Image-level healthcheck — runs inside the container, no curl/wget required.
+# Workers run the same image but override CMD and don't serve HTTP, so this
+# probe will fail for them — disable the healthcheck on worker containers in
+# your deployment config.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD bun -e 'fetch("http://127.0.0.1:3000/api/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))'
+
 # Default to web server, override for workers:
 #   docker run ... [image] bun run ./build/worker-monitor.js
 #   docker run ... [image] bun run ./build/worker-notifier.js
