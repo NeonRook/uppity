@@ -63,6 +63,7 @@ declare global {
 			UPPITY_DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS?: string;
 			UPPITY_DEGRADED_RESPONSE_TIME_MS?: string;
 			UPPITY_SSL_INFO_TIMEOUT_MS?: string;
+			UPPITY_SSL_WARNING_COOLDOWN_HOURS?: string;
 			UPPITY_RETRY_DELAY_MS?: string;
 
 			// Status Page [Optional]
@@ -73,12 +74,19 @@ declare global {
 			UPPITY_MAX_INTERVAL_SECONDS?: string;
 			UPPITY_WORKER_BATCH_SIZE?: string;
 			UPPITY_WORKER_POLL_INTERVAL_MS?: string;
+			UPPITY_QUEUE_POLL_INTERVAL_MS?: string;
 			UPPITY_WORKER_BACKOFF_INITIAL_MS?: string;
 			UPPITY_WORKER_BACKOFF_MAX_MS?: string;
 			UPPITY_CHECK_MAX_RETRIES?: string;
 			UPPITY_CHECK_BACKOFF_INITIAL_MS?: string;
 			UPPITY_CHECK_BACKOFF_MAX_MS?: string;
 			UPPITY_DEAD_LETTER_HOURS?: string;
+
+			// Background Jobs [Optional]
+			UPPITY_CRON_DAILY_STATS?: string;
+			UPPITY_CRON_ROLLING_STATS?: string;
+			UPPITY_CRON_CLEANUP?: string;
+			UPPITY_CHECK_RETENTION_DAYS?: string;
 
 			// Session & Organization [Optional]
 			UPPITY_SESSION_EXPIRES_IN_SECONDS?: string;
