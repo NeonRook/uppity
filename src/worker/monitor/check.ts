@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -481,12 +481,19 @@ export async function saveCheckResult(
 				notification_event_type: "monitor_up",
 			});
 
-			// Auto-resolve any active incident for this monitor
+			// Auto-resolve the active auto-incident for this monitor.
+			// Manual incidents (isAutoCreated=false) are only resolved by humans.
 			const [existingIncident] = await db
 				.select({ id: incident.id })
 				.from(incident)
 				.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-				.where(eq(incidentMonitor.monitorId, m.id))
+				.where(
+					and(
+						eq(incidentMonitor.monitorId, m.id),
+						eq(incident.isAutoCreated, true),
+						ne(incident.status, "resolved"),
+					),
+				)
 				.limit(1);
 
 			if (existingIncident) {

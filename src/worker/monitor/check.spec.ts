@@ -260,6 +260,54 @@ describe("saveCheckResult", () => {
 		expect(updates[0]?.status).toBe("resolved");
 	});
 
+	test("down → up does not resolve a manual incident, only enqueues monitor_up", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "down",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 3,
+		});
+
+		const incidentId = `inc-${nanoid()}`;
+		await drizzleDb.insert(incident).values({
+			id: incidentId,
+			organizationId: orgId,
+			title: "Manually filed incident",
+			status: "investigating",
+			impact: "major",
+			isAutoCreated: false,
+			startedAt: new Date(),
+		});
+		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId: monitor.id });
+
+		await saveCheckResult(monitor, { status: "up", responseTimeMs: 120 }, drizzleDb);
+
+		const [event] = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		expect(event?.type).toBe("monitor_up");
+
+		const [stillOpen] = await drizzleDb
+			.select()
+			.from(incident)
+			.where(eq(incident.id, incidentId));
+		expect(stillOpen?.status).toBe("investigating");
+		expect(stillOpen?.resolvedAt).toBeNull();
+
+		const updates = await drizzleDb
+			.select()
+			.from(incidentUpdate)
+			.where(eq(incidentUpdate.incidentId, incidentId));
+		expect(updates).toHaveLength(0);
+	});
+
 	test("SSL expiry inside the threshold enqueues ssl_expiry_warning with daysRemaining", async ({
 		db,
 	}) => {
