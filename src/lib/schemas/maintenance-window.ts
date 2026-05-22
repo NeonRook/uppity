@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 const baseFields = {
 	name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name is required"), v.maxLength(200)),
-	description: v.optional(v.pipe(v.string(), v.maxLength(2000))),
+	description: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000))),
 	startsAt: v.date(),
 	endsAt: v.date(),
 	monitorIds: v.pipe(v.array(v.string()), v.minLength(1, "Select at least one monitor")),
