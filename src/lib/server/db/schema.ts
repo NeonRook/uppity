@@ -180,7 +180,7 @@ export const incidentMonitor = pgTable(
 		monitorId: text("monitor_id").notNull(),
 	},
 	(table) => [
-		primaryKey({ columns: [table.incidentId, table.monitorId] }),
+		primaryKey({ columns: [table.incidentId, table.monitorId], name: "im_pk" }),
 		foreignKey({
 			columns: [table.incidentId],
 			foreignColumns: [incident.id],
@@ -322,7 +322,7 @@ export const monitorNotificationChannel = pgTable(
 		notifyOnSslExpiry: boolean("notify_on_ssl_expiry").notNull().default(true),
 	},
 	(table) => [
-		primaryKey({ columns: [table.monitorId, table.channelId] }),
+		primaryKey({ columns: [table.monitorId, table.channelId], name: "mnc_pk" }),
 		foreignKey({
 			columns: [table.monitorId],
 			foreignColumns: [monitor.id],
@@ -606,7 +606,7 @@ export const maintenanceWindowMonitor = pgTable(
 		monitorId: text("monitor_id").notNull(),
 	},
 	(table) => [
-		primaryKey({ columns: [table.windowId, table.monitorId] }),
+		primaryKey({ columns: [table.windowId, table.monitorId], name: "mwm_pk" }),
 		foreignKey({
 			columns: [table.windowId],
 			foreignColumns: [maintenanceWindow.id],
