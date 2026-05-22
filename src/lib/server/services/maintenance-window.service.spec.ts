@@ -360,6 +360,28 @@ describe("MaintenanceWindowService.update", () => {
 		expect(links[0].monitorId).toBe(m3);
 	});
 
+	test("update with partial overlap of monitorIds preserves the intersection", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new MaintenanceWindowService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const m1 = await seedMonitor(drizzleDb, orgId);
+		const m2 = await seedMonitor(drizzleDb, orgId);
+		const m3 = await seedMonitor(drizzleDb, orgId);
+
+		const created = await service.create({
+			organizationId: orgId,
+			name: "Partial",
+			startsAt: new Date(Date.now() + 60_000),
+			endsAt: new Date(Date.now() + 120_000),
+			monitorIds: [m1, m2],
+		});
+
+		await service.update(created.id, orgId, { monitorIds: [m2, m3] });
+
+		const fetched = await service.findById(created.id, orgId);
+		expect(fetched!.monitorIds.toSorted()).toEqual([m2, m3].toSorted());
+	});
+
 	test("rejects when end before start", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new MaintenanceWindowService(drizzleDb);
