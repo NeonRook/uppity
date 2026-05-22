@@ -235,11 +235,9 @@ export class MaintenanceWindowService {
 	async findActiveForMonitor(
 		monitorId: string,
 		at?: Date,
-		dbOverride?: Db,
 	): Promise<MaintenanceWindow | null> {
 		const now = at ?? new Date();
-		const database = dbOverride ?? this.db;
-		const [row] = await database
+		const [row] = await this.db
 			.select({ window: maintenanceWindow })
 			.from(maintenanceWindow)
 			.innerJoin(
