@@ -44,7 +44,7 @@ CLA Assistant.
 3. Start PostgreSQL
 
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose.dev.yml up -d
    ```
 
 4. Configure environment

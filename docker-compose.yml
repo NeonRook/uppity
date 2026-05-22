@@ -1,13 +1,72 @@
 services:
+  app:
+    image: ghcr.io/neonrook/uppity:latest
+    # Or build locally:
+    # build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
+      BETTER_AUTH_URL: "${BETTER_AUTH_URL:-https://localhost:3000}"
+      BETTER_AUTH_TRUSTED_ORIGINS: "${BETTER_AUTH_TRUSTED_ORIGINS:-https://localhost:3000}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+    command: ["sh", "-c", "bun run db:migrate && bun run ./build/index.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  worker-monitor:
+    image: ghcr.io/neonrook/uppity:latest
+    # Or build locally:
+    # build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+      UPPITY_WORKER_BATCH_SIZE: "${UPPITY_WORKER_BATCH_SIZE:-10}"
+    command: ["bun", "run", "./build/worker-monitor.js"]
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      replicas: 1 # Scale up for horizontal scaling
+
+  worker-notifier:
+    image: ghcr.io/neonrook/uppity:latest
+    # Or build locally:
+    # build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+    command: ["bun", "run", "./build/worker-notifier.js"]
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      replicas: 1 # Scale up once NEO-29 lands and LISTEN-path race is fixed
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: uppity
-      POSTGRES_PASSWORD: uppity
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-uppity}
       POSTGRES_DB: uppity
-    ports:
-      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:

@@ -49,7 +49,7 @@ A self-hosted monitoring and status page application built with SvelteKit 2 and 
 3. **Start PostgreSQL** (using Docker)
 
    ```bash
-   docker compose up -d
+   docker compose -f docker-compose.dev.yml up -d
    ```
 
 4. **Configure environment**
@@ -142,8 +142,8 @@ export BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 export BETTER_AUTH_URL=https://your-domain.com
 export BETTER_AUTH_TRUSTED_ORIGINS=https://your-domain.com
 
-# Start with production compose file
-docker compose -f docker-compose.prod.yml up -d
+# Start the full stack
+docker compose up -d
 ```
 
 Or build the image manually:
