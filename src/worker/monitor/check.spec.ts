@@ -7,6 +7,8 @@ import {
 	incident,
 	incidentMonitor,
 	incidentUpdate,
+	maintenanceWindow,
+	maintenanceWindowMonitor,
 	monitor as monitorTable,
 	monitorCheck,
 	monitorStatus,
@@ -48,6 +50,24 @@ async function seedMonitor(
 	const [row] = await drizzleDb.select().from(monitorTable).where(eq(monitorTable.id, monitorId));
 	if (!row) throw new Error("failed to seed monitor");
 	return row;
+}
+
+async function seedActiveMaintenanceWindow(
+	drizzleDb: TestDb["db"],
+	orgId: string,
+	monitorId: string,
+): Promise<string> {
+	const id = `mw-${nanoid()}`;
+	await drizzleDb.insert(maintenanceWindow).values({
+		id,
+		organizationId: orgId,
+		name: "Active window",
+		status: "in_progress",
+		startsAt: new Date(Date.now() - 60_000),
+		endsAt: new Date(Date.now() + 60_000),
+	});
+	await drizzleDb.insert(maintenanceWindowMonitor).values({ windowId: id, monitorId });
+	return id;
 }
 
 async function waitForNotify(received: string[], expectedId: string, timeoutMs = 2000) {
@@ -442,5 +462,144 @@ describe("saveCheckResult", () => {
 			.where(eq(notificationEvent.monitorId, monitor.id));
 		const sslEvents = events.filter((e) => e.type === "ssl_expiry_warning");
 		expect(sslEvents).toHaveLength(2);
+	});
+
+	test("monitor_down during active maintenance does NOT enqueue an event or create an incident", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
+
+		await saveCheckResult(
+			monitor,
+			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
+			drizzleDb,
+		);
+
+		const events = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		expect(events).toHaveLength(0);
+
+		const incidents = await drizzleDb
+			.select()
+			.from(incident)
+			.where(eq(incident.organizationId, orgId));
+		expect(incidents).toHaveLength(0);
+	});
+
+	test("monitor recovery during active maintenance does NOT enqueue monitor_up or auto-resolve", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "down",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 3,
+		});
+
+		const incidentId = `inc-${nanoid()}`;
+		await drizzleDb.insert(incident).values({
+			id: incidentId,
+			organizationId: orgId,
+			title: "Test Monitor is down",
+			status: "investigating",
+			impact: "major",
+			isAutoCreated: true,
+			startedAt: new Date(),
+		});
+		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId: monitor.id });
+
+		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
+
+		await saveCheckResult(
+			monitor,
+			{ status: "up", responseTimeMs: 120 },
+			drizzleDb,
+		);
+
+		const events = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		expect(events).toHaveLength(0);
+
+		const [stillOpen] = await drizzleDb
+			.select()
+			.from(incident)
+			.where(eq(incident.id, incidentId));
+		expect(stillOpen?.status).toBe("investigating");
+		expect(stillOpen?.resolvedAt).toBeNull();
+	});
+
+	test("monitor_check row is still recorded during active maintenance", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
+
+		await saveCheckResult(
+			monitor,
+			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
+			drizzleDb,
+		);
+
+		const checks = await drizzleDb
+			.select()
+			.from(monitorCheck)
+			.where(eq(monitorCheck.monitorId, monitor.id));
+		expect(checks).toHaveLength(1);
+		expect(checks[0]?.status).toBe("down");
+	});
+
+	test("monitor_status is still updated during active maintenance", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
+
+		await saveCheckResult(
+			monitor,
+			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
+			drizzleDb,
+		);
+
+		const [status] = await drizzleDb
+			.select()
+			.from(monitorStatus)
+			.where(eq(monitorStatus.monitorId, monitor.id));
+		expect(status?.status).toBe("down");
+		expect(status?.consecutiveFailures).toBe(1);
 	});
 });

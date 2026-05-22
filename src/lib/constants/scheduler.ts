@@ -9,6 +9,12 @@ export const CRON_ROLLING_STATS = envString("UPPITY_CRON_ROLLING_STATS", "*/5 * 
 /** Cron schedule for deleting check records older than the retention period. */
 export const CRON_CLEANUP = envString("UPPITY_CRON_CLEANUP", "0 2 * * *");
 
+/** Cron schedule for advancing maintenance window status transitions. */
+export const CRON_MAINTENANCE_WINDOW_TRANSITIONS = envString(
+	"UPPITY_CRON_MAINTENANCE_WINDOW_TRANSITIONS",
+	"* * * * *",
+);
+
 /** Number of days to keep individual check records before cleanup deletes them. */
 export const CHECK_RETENTION_DAYS = envInt("UPPITY_CHECK_RETENTION_DAYS", 30);
 

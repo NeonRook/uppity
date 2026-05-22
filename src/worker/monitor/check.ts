@@ -33,6 +33,7 @@ import type {
 	MonitorStatusEventPayload,
 	SslExpiryEventPayload,
 } from "../../lib/server/notifications/events";
+import { maintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { tcpConnect, type TcpSocket } from "../../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -390,6 +391,20 @@ export async function saveCheckResult(
 		previous_status: previousStatus,
 		consecutive_failures: consecutiveFailures,
 	});
+
+	// Suppression gate: during an active maintenance window, skip the entire status-
+	// change block (notifications, auto-incident create + auto-resolve). monitor_check
+	// row + monitor_status update above this gate still happen, so uptime data is
+	// preserved per NEO-13. Public uptime aggregation excludes window-covered rows.
+	const activeWindow = await maintenanceWindowService.findActiveForMonitor(m.id, undefined, db);
+	if (activeWindow) {
+		event?.merge({
+			maintenance_active: true,
+			maintenance_window_id: activeWindow.id,
+			maintenance_window_name: activeWindow.name,
+		});
+		return;
+	}
 
 	// Handle status change: enqueue notification events and manage incidents
 	if (statusChanged && previousStatus !== "unknown") {

@@ -232,9 +232,14 @@ export class MaintenanceWindowService {
 		return rows.map((r) => (Object.assign(r.window, { monitorCount: r.monitorCount })));
 	}
 
-	async findActiveForMonitor(monitorId: string, at?: Date): Promise<MaintenanceWindow | null> {
+	async findActiveForMonitor(
+		monitorId: string,
+		at?: Date,
+		dbOverride?: Db,
+	): Promise<MaintenanceWindow | null> {
 		const now = at ?? new Date();
-		const [row] = await this.db
+		const database = dbOverride ?? this.db;
+		const [row] = await database
 			.select({ window: maintenanceWindow })
 			.from(maintenanceWindow)
 			.innerJoin(

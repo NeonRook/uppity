@@ -87,6 +87,7 @@ declare global {
 			UPPITY_CRON_ROLLING_STATS?: string;
 			UPPITY_CRON_CLEANUP?: string;
 			UPPITY_CHECK_RETENTION_DAYS?: string;
+			UPPITY_CRON_MAINTENANCE_WINDOW_TRANSITIONS?: string;
 
 			// Session & Organization [Optional]
 			UPPITY_SESSION_EXPIRES_IN_SECONDS?: string;
