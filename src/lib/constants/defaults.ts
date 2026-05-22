@@ -34,6 +34,13 @@ export const DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS = envInt(
 	14,
 );
 
+/**
+ * Cooldown between SSL expiry warning notifications for the same monitor.
+ * Without this, a monitor checking every 60s would enqueue 1,440 warnings/day
+ * while the cert is inside the threshold.
+ */
+export const SSL_WARNING_COOLDOWN_HOURS = envInt("UPPITY_SSL_WARNING_COOLDOWN_HOURS", 24);
+
 /** HTTP method used when creating a new HTTP monitor. */
 export const DEFAULT_HTTP_METHOD = "GET" as const;
 

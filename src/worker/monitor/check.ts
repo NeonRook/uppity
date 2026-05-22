@@ -1,4 +1,4 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, gte, ne } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -7,6 +7,7 @@ import {
 	DEFAULT_INTERVAL_SECONDS,
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 	DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
+	SSL_WARNING_COOLDOWN_HOURS,
 	DEFAULT_HTTP_METHOD,
 	DEFAULT_EXPECTED_STATUS_CODES,
 	DEFAULT_HTTPS_PORT,
@@ -560,25 +561,44 @@ export async function saveCheckResult(
 		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
 			event?.set("ssl_expiry_warning", true);
 
-			const notifEventId = nanoid();
-			const payload: SslExpiryEventPayload = {
-				daysRemaining: daysUntilExpiry,
-				sslExpiresAt: result.sslExpiresAt.toISOString(),
-				sslIssuer: result.sslIssuer,
-			};
-			await db.insert(notificationEvent).values({
-				id: notifEventId,
-				organizationId: m.organizationId,
-				monitorId: m.id,
-				type: "ssl_expiry_warning",
-				payload,
-				status: "pending",
-			});
-			event?.merge({
-				notification_event_enqueued: true,
-				notification_event_id: notifEventId,
-				notification_event_type: "ssl_expiry_warning",
-			});
+			// Skip enqueueing if a warning was already enqueued for this monitor inside the
+			// cooldown window. Hits the (monitorId, type, createdAt) index on notification_event.
+			const cooldownStart = new Date(
+				Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000,
+			);
+			const [recentWarning] = await db
+				.select({ id: notificationEvent.id })
+				.from(notificationEvent)
+				.where(
+					and(
+						eq(notificationEvent.monitorId, m.id),
+						eq(notificationEvent.type, "ssl_expiry_warning"),
+						gte(notificationEvent.createdAt, cooldownStart),
+					),
+				)
+				.limit(1);
+
+			if (!recentWarning) {
+				const notifEventId = nanoid();
+				const payload: SslExpiryEventPayload = {
+					daysRemaining: daysUntilExpiry,
+					sslExpiresAt: result.sslExpiresAt.toISOString(),
+					sslIssuer: result.sslIssuer,
+				};
+				await db.insert(notificationEvent).values({
+					id: notifEventId,
+					organizationId: m.organizationId,
+					monitorId: m.id,
+					type: "ssl_expiry_warning",
+					payload,
+					status: "pending",
+				});
+				event?.merge({
+					notification_event_enqueued: true,
+					notification_event_id: notifEventId,
+					notification_event_type: "ssl_expiry_warning",
+				});
+			}
 		}
 	}
 }

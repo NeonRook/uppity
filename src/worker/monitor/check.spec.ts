@@ -356,4 +356,91 @@ describe("saveCheckResult", () => {
 		expect(payload.sslIssuer).toBe("Let's Encrypt");
 		expect(new Date(payload.sslExpiresAt).getTime()).toBe(sevenDaysOut.getTime());
 	});
+
+	test("SSL warning is suppressed when a prior warning is inside the cooldown window", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, {
+			sslCheckEnabled: true,
+			sslExpiryThresholdDays: 14,
+		});
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		// Seed a recent ssl_expiry_warning event for this monitor (6h ago, well inside 24h cooldown).
+		const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+		await drizzleDb.insert(notificationEvent).values({
+			id: `notif-${nanoid()}`,
+			organizationId: orgId,
+			monitorId: monitor.id,
+			type: "ssl_expiry_warning",
+			payload: { daysRemaining: 8, sslExpiresAt: new Date().toISOString() },
+			status: "sent",
+			createdAt: sixHoursAgo,
+		});
+
+		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
+		await saveCheckResult(
+			monitor,
+			{ status: "up", responseTimeMs: 120, sslExpiresAt: sevenDaysOut },
+			drizzleDb,
+		);
+
+		const events = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		const sslEvents = events.filter((e) => e.type === "ssl_expiry_warning");
+		// Still just the one we seeded — the new check should have been suppressed by cooldown.
+		expect(sslEvents).toHaveLength(1);
+	});
+
+	test("SSL warning fires again after the cooldown window has elapsed", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, {
+			sslCheckEnabled: true,
+			sslExpiryThresholdDays: 14,
+		});
+
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		// Prior warning is older than the 24h cooldown — should not suppress.
+		const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+		await drizzleDb.insert(notificationEvent).values({
+			id: `notif-${nanoid()}`,
+			organizationId: orgId,
+			monitorId: monitor.id,
+			type: "ssl_expiry_warning",
+			payload: { daysRemaining: 9, sslExpiresAt: new Date().toISOString() },
+			status: "sent",
+			createdAt: twoDaysAgo,
+		});
+
+		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
+		await saveCheckResult(
+			monitor,
+			{ status: "up", responseTimeMs: 120, sslExpiresAt: sevenDaysOut },
+			drizzleDb,
+		);
+
+		const events = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		const sslEvents = events.filter((e) => e.type === "ssl_expiry_warning");
+		expect(sslEvents).toHaveLength(2);
+	});
 });
