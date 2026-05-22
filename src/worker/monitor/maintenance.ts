@@ -1,7 +1,13 @@
 import { CronExpressionParser } from "cron-parser";
 import { eq, lte, and } from "drizzle-orm";
 
-import { CHECK_RETENTION_DAYS } from "../../lib/constants/scheduler";
+import {
+	CHECK_RETENTION_DAYS,
+	CRON_CLEANUP,
+	CRON_DAILY_STATS,
+	CRON_MAINTENANCE_WINDOW_TRANSITIONS,
+	CRON_ROLLING_STATS,
+} from "../../lib/constants/scheduler";
 import { maintenanceJob } from "../../lib/server/db/schema";
 import {
 	createMaintenanceWideEvent,
@@ -9,6 +15,7 @@ import {
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
 } from "../../lib/server/logger";
+import { maintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
 
@@ -28,6 +35,11 @@ const jobHandlers: Record<string, JobHandler> = {
 	cleanup: async (event) => {
 		const deleted = await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS);
 		event.set("records_deleted", deleted);
+	},
+	"maintenance-window-transitions": async (event) => {
+		const result = await maintenanceWindowService.runStatusTransitions();
+		event.set("windows_started", result.started);
+		event.set("windows_completed", result.completed);
 	},
 };
 
@@ -49,20 +61,26 @@ export async function initializeMaintenanceJobs(): Promise<void> {
 		{
 			id: "daily-stats",
 			name: "Daily Stats Aggregation",
-			cronExpression: "0 1 * * *", // 1:00 AM daily
-			nextRunAt: calculateNextRun("0 1 * * *", now),
+			cronExpression: CRON_DAILY_STATS,
+			nextRunAt: calculateNextRun(CRON_DAILY_STATS, now),
 		},
 		{
 			id: "rolling-stats",
 			name: "Rolling Stats Update",
-			cronExpression: "*/5 * * * *", // Every 5 minutes
-			nextRunAt: calculateNextRun("*/5 * * * *", now),
+			cronExpression: CRON_ROLLING_STATS,
+			nextRunAt: calculateNextRun(CRON_ROLLING_STATS, now),
 		},
 		{
 			id: "cleanup",
 			name: "Old Check Cleanup",
-			cronExpression: "0 2 * * *", // 2:00 AM daily
-			nextRunAt: calculateNextRun("0 2 * * *", now),
+			cronExpression: CRON_CLEANUP,
+			nextRunAt: calculateNextRun(CRON_CLEANUP, now),
+		},
+		{
+			id: "maintenance-window-transitions",
+			name: "Maintenance Window Transitions",
+			cronExpression: CRON_MAINTENANCE_WINDOW_TRANSITIONS,
+			nextRunAt: calculateNextRun(CRON_MAINTENANCE_WINDOW_TRANSITIONS, now),
 		},
 	];
 

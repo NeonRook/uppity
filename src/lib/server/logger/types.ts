@@ -112,6 +112,11 @@ export interface CheckWideEvent extends WideEventBase {
 	notification_event_enqueued?: boolean;
 	notification_event_id?: string;
 	notification_event_type?: string;
+
+	// Maintenance window suppression (NEO-13)
+	maintenance_active?: boolean;
+	maintenance_window_id?: string;
+	maintenance_window_name?: string;
 }
 
 /**
@@ -127,6 +132,8 @@ export interface MaintenanceWideEvent extends WideEventBase {
 	// Execution results
 	records_processed?: number;
 	records_deleted?: number;
+	windows_started?: number;
+	windows_completed?: number;
 	next_run_at?: Date;
 }
 
