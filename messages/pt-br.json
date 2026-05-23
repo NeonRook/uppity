@@ -39,6 +39,7 @@
 	"nav_monitors": "Monitores",
 	"nav_incidents": "Incidentes",
 	"nav_status_pages": "Páginas de Status",
+	"nav_maintenance": "Manutenção",
 	"nav_notifications": "Notificações",
 	"nav_settings": "Configurações",
 
@@ -516,6 +517,13 @@
 	"public_status_legend_partial": "Interrupção Parcial",
 	"public_status_legend_down": "Fora do ar",
 	"public_status_legend_no_data": "Sem Dados",
+	"public_status_under_maintenance": "Em manutenção",
+	"public_status_maintenance_active": "Manutenção em andamento: {name}",
+	"public_status_maintenance_scheduled": "Manutenção agendada: {name}",
+	"public_status_maintenance_ends": "Termina {time}",
+	"public_status_maintenance_window": "{startTime} → {endTime}",
+	"public_status_legend_maintenance": "Manutenção",
+	"status_under_maintenance": "Em manutenção",
 	"public_status_footer": "Desenvolvido por Uppity",
 
 	"billing_title": "Cobrança e Planos",
