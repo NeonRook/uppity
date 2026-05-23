@@ -518,6 +518,8 @@
 	"public_status_legend_down": "Ausgefallen",
 	"public_status_legend_no_data": "Keine Daten",
 	"public_status_under_maintenance": "Wartung läuft",
+	"public_status_active_maintenance": "Aktive Wartung",
+	"public_status_upcoming_maintenance": "Bevorstehende Wartung",
 	"public_status_maintenance_active": "Wartung läuft: {name}",
 	"public_status_maintenance_scheduled": "Geplante Wartung: {name}",
 	"public_status_maintenance_ends": "Endet {time}",
