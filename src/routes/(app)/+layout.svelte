@@ -22,7 +22,8 @@
 		Sun,
 		Moon,
 		SunMoon,
-		ShieldCheck
+		ShieldCheck,
+		Wrench
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages.js';
@@ -69,6 +70,7 @@
 		{ name: m.nav_monitors(), href: '/monitors', icon: Monitor },
 		{ name: m.nav_incidents(), href: '/incidents', icon: TriangleAlert },
 		{ name: m.nav_status_pages(), href: '/status-pages', icon: Globe },
+		{ name: m.nav_maintenance(), href: '/maintenance', icon: Wrench },
 		{ name: m.nav_notifications(), href: '/notifications', icon: Bell },
 		{ name: m.nav_settings(), href: '/settings', icon: Settings }
 	];

@@ -39,6 +39,7 @@
 	"nav_monitors": "Monitors",
 	"nav_incidents": "Incidents",
 	"nav_status_pages": "Status Pages",
+	"nav_maintenance": "Maintenance",
 	"nav_notifications": "Notifications",
 	"nav_settings": "Settings",
 
@@ -516,6 +517,13 @@
 	"public_status_legend_partial": "Partial Outage",
 	"public_status_legend_down": "Down",
 	"public_status_legend_no_data": "No Data",
+	"public_status_under_maintenance": "Under maintenance",
+	"public_status_maintenance_active": "Maintenance in progress: {name}",
+	"public_status_maintenance_scheduled": "Scheduled maintenance: {name}",
+	"public_status_maintenance_ends": "Ends {time}",
+	"public_status_maintenance_window": "{startTime} → {endTime}",
+	"public_status_legend_maintenance": "Maintenance",
+	"status_under_maintenance": "Under maintenance",
 	"public_status_footer": "Powered by Uppity",
 
 	"billing_title": "Billing & Plans",
