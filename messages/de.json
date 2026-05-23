@@ -39,6 +39,7 @@
 	"nav_monitors": "Monitore",
 	"nav_incidents": "Vorfälle",
 	"nav_status_pages": "Statusseiten",
+	"nav_maintenance": "Wartung",
 	"nav_notifications": "Benachrichtigungen",
 	"nav_settings": "Einstellungen",
 
@@ -516,6 +517,13 @@
 	"public_status_legend_partial": "Teilweiser Ausfall",
 	"public_status_legend_down": "Ausgefallen",
 	"public_status_legend_no_data": "Keine Daten",
+	"public_status_under_maintenance": "Wartung läuft",
+	"public_status_maintenance_active": "Wartung läuft: {name}",
+	"public_status_maintenance_scheduled": "Geplante Wartung: {name}",
+	"public_status_maintenance_ends": "Endet {time}",
+	"public_status_maintenance_window": "{startTime} → {endTime}",
+	"public_status_legend_maintenance": "Wartung",
+	"status_under_maintenance": "In Wartung",
 	"public_status_footer": "Unterstützt von Uppity",
 
 	"billing_title": "Abrechnung & Tarife",
