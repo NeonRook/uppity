@@ -525,7 +525,6 @@
 	"public_status_maintenance_ends": "Termina {time}",
 	"public_status_maintenance_window": "{startTime} → {endTime}",
 	"public_status_legend_maintenance": "Manutenção",
-	"status_under_maintenance": "Em manutenção",
 	"public_status_footer": "Desenvolvido por Uppity",
 
 	"billing_title": "Cobrança e Planos",
