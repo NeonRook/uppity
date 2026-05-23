@@ -5,7 +5,9 @@
 		CircleX,
 		CircleMinus,
 		ChevronRight,
-		History
+		History,
+		Wrench,
+		Clock
 	} from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
@@ -15,8 +17,16 @@
 
 	let { data } = $props();
 
-	const { page, groups, ungroupedMonitors, overallStatus, activeIncidents, resolvedIncidents } =
-		$derived(data.statusData);
+	const {
+		page,
+		groups,
+		ungroupedMonitors,
+		overallStatus,
+		activeIncidents,
+		resolvedIncidents,
+		activeMaintenance,
+		upcomingMaintenance
+	} = $derived(data.statusData);
 
 	function getOverallStatusInfo() {
 		switch (overallStatus) {
@@ -47,6 +57,13 @@
 					icon: CircleX,
 					bgColor: 'bg-red-500',
 					textColor: 'text-red-500'
+				};
+			case 'under_maintenance':
+				return {
+					label: m.public_status_under_maintenance(),
+					icon: Wrench,
+					bgColor: 'bg-blue-500',
+					textColor: 'text-blue-500'
 				};
 			default:
 				return {
@@ -94,6 +111,57 @@
 				<span class="text-2xl font-semibold">{statusInfo.label}</span>
 			</div>
 		</div>
+
+		<!-- Active Maintenance -->
+		{#if activeMaintenance.length > 0}
+			<section class="mb-8 space-y-3">
+				{#each activeMaintenance as w (w.id)}
+					<div class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4">
+						<Wrench class="mt-0.5 h-5 w-5 text-blue-500" />
+						<div class="flex-1">
+							<div class="font-medium text-gray-900">
+								{m.public_status_maintenance_active({ name: w.name })}
+							</div>
+							{#if w.description}
+								<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+							{/if}
+							<p class="mt-1 text-xs text-gray-500">
+								{m.public_status_maintenance_ends({
+									time: new Date(w.endsAt).toLocaleString()
+								})}
+							</p>
+						</div>
+					</div>
+				{/each}
+			</section>
+		{/if}
+
+		<!-- Upcoming Maintenance -->
+		{#if upcomingMaintenance.length > 0}
+			<section class="mb-8 space-y-3">
+				{#each upcomingMaintenance as w (w.id)}
+					<div
+						class="flex items-start gap-3 rounded-lg border border-blue-300/40 bg-blue-50/60 p-4"
+					>
+						<Clock class="mt-0.5 h-5 w-5 text-blue-400" />
+						<div class="flex-1">
+							<div class="font-medium text-gray-900">
+								{m.public_status_maintenance_scheduled({ name: w.name })}
+							</div>
+							{#if w.description}
+								<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+							{/if}
+							<p class="mt-1 text-xs text-gray-500">
+								{m.public_status_maintenance_window({
+									startTime: new Date(w.startsAt).toLocaleString(),
+									endTime: new Date(w.endsAt).toLocaleString()
+								})}
+							</p>
+						</div>
+					</div>
+				{/each}
+			</section>
+		{/if}
 
 		<!-- Active Incidents -->
 		{#if activeIncidents.length > 0}
@@ -322,6 +390,10 @@
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-red-500"></div>
 					<span class="text-gray-600">{m.public_status_legend_down()}</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<div class="h-3 w-3 rounded-full bg-blue-500"></div>
+					<span class="text-gray-600">{m.public_status_legend_maintenance()}</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="h-3 w-3 rounded-full bg-gray-400"></div>
