@@ -14,9 +14,12 @@
 
 	let { data } = $props();
 
-	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form), {
-		dataType: 'json'
-	});
+	const { form, errors, enhance, delayed, message } = superForm(
+		untrack(() => data.form),
+		{
+			dataType: 'json'
+		}
+	);
 
 	function dateToLocalInput(d: Date | string | undefined | null): string {
 		if (!d) return '';
