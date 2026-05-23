@@ -97,7 +97,6 @@
 					<Input
 						id="name"
 						name="name"
-						placeholder="Database upgrade"
 						bind:value={$form.name}
 						disabled={$delayed}
 						aria-invalid={$errors.name ? 'true' : undefined}

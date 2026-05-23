@@ -525,7 +525,6 @@
 	"public_status_maintenance_ends": "Ends {time}",
 	"public_status_maintenance_window": "{startTime} → {endTime}",
 	"public_status_legend_maintenance": "Maintenance",
-	"status_under_maintenance": "Under maintenance",
 	"public_status_footer": "Powered by Uppity",
 
 	"billing_title": "Billing & Plans",
