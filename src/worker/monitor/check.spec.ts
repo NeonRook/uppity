@@ -575,18 +575,18 @@ describe("saveCheckResult", () => {
 		expect(checks[0]?.status).toBe("down");
 	});
 
-	test("monitor_status is still updated during active maintenance", async ({ db }) => {
+	test("monitor_status is NOT updated during active maintenance (frozen for post-window detection)", async ({
+		db,
+	}) => {
 		const { db: drizzleDb } = db;
 		const orgId = await seedOrganization(drizzleDb);
 		const monitor = await seedMonitor(drizzleDb, orgId);
-
 		await drizzleDb.insert(monitorStatus).values({
 			monitorId: monitor.id,
 			status: "up",
 			lastCheckAt: new Date(),
 			consecutiveFailures: 0,
 		});
-
 		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
 
 		await saveCheckResult(
@@ -599,8 +599,62 @@ describe("saveCheckResult", () => {
 			.select()
 			.from(monitorStatus)
 			.where(eq(monitorStatus.monitorId, monitor.id));
-		expect(status?.status).toBe("down");
-		expect(status?.consecutiveFailures).toBe(1);
+		// monitor_status remains frozen at its pre-window state so the next
+		// post-window check can detect the transition.
+		expect(status?.status).toBe("up");
+		expect(status?.consecutiveFailures).toBe(0);
+	});
+
+	test("monitor down during maintenance and still down after creates an incident on first post-window check", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+
+		// 1) seed an ALREADY-EXPIRED window — startsAt past, endsAt past
+		// The window represents "monitoring was paused for the last hour, just resumed."
+		const wId = `mw-${nanoid()}`;
+		await drizzleDb.insert(maintenanceWindow).values({
+			id: wId,
+			organizationId: orgId,
+			name: "Past window",
+			status: "completed",
+			startsAt: new Date(Date.now() - 3_600_000),
+			endsAt: new Date(Date.now() - 60_000),
+		});
+		await drizzleDb.insert(maintenanceWindowMonitor).values({
+			windowId: wId,
+			monitorId: monitor.id,
+		});
+
+		// 2) Now a check comes in showing the monitor went down.
+		// The gate should NOT fire (window status is 'completed', not 'in_progress').
+		// monitor_status moves up→down. statusChanged=true. Incident created.
+		await saveCheckResult(
+			monitor,
+			{ status: "down", responseTimeMs: 500, errorMessage: "timeout" },
+			drizzleDb,
+		);
+
+		const incidents = await drizzleDb
+			.select()
+			.from(incident)
+			.where(eq(incident.organizationId, orgId));
+		expect(incidents).toHaveLength(1);
+		expect(incidents[0].isAutoCreated).toBe(true);
+
+		const events = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(eq(notificationEvent.monitorId, monitor.id));
+		expect(events.some((e) => e.type === "monitor_down")).toBe(true);
 	});
 
 	test("SSL expiry warnings still fire during active maintenance", async ({ db }) => {

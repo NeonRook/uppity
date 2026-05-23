@@ -122,6 +122,7 @@
 						<Field.Label for="startsAt">{m.maintenance_form_starts_at()} *</Field.Label>
 						<Input
 							id="startsAt"
+							name="startsAt"
 							type="datetime-local"
 							bind:value={startsAtStr}
 							disabled={$delayed}
@@ -133,6 +134,7 @@
 						<Field.Label for="endsAt">{m.maintenance_form_ends_at()} *</Field.Label>
 						<Input
 							id="endsAt"
+							name="endsAt"
 							type="datetime-local"
 							bind:value={endsAtStr}
 							disabled={$delayed}
