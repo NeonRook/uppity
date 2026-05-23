@@ -92,7 +92,7 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<Activity class="h-4 w-4" />
-				Active
+				Active ({data.active.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
@@ -104,7 +104,7 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<Clock class="h-4 w-4" />
-				Upcoming
+				Upcoming ({data.upcoming.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
@@ -116,7 +116,7 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<CheckCircle2 class="h-4 w-4" />
-				Past
+				Past ({data.past.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
