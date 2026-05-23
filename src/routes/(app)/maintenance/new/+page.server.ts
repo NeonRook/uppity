@@ -1,7 +1,7 @@
 import { createMaintenanceWindowSchema } from "$lib/schemas/maintenance-window";
 import { db } from "$lib/server/db";
 import { monitor } from "$lib/server/db/schema";
-import { maintenanceWindowService } from "$lib/server/services/maintenance-window.service";
+import { MaintenanceWindowService } from "$lib/server/services/maintenance-window.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import { message, superValidate } from "sveltekit-superforms";
@@ -32,7 +32,7 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 		let created;
 		try {
-			created = await maintenanceWindowService.create({
+			created = await new MaintenanceWindowService(db).create({
 				organizationId: locals.session.activeOrganizationId,
 				createdBy: locals.user?.id,
 				name: form.data.name,
