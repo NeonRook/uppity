@@ -3,27 +3,12 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
+	import { getMaintenanceStatusBadge } from '$lib/maintenance';
+	import { m } from '$lib/paraglide/messages.js';
 	import { Activity, CheckCircle2, Clock, Plus, Wrench } from '@lucide/svelte';
 	import type { MaintenanceWindowSummary } from '$lib/server/services/maintenance-window.service';
 
 	let { data } = $props();
-
-	type BadgeVariant = 'default' | 'secondary' | 'outline' | 'destructive';
-
-	function statusBadge(status: string): { label: string; variant: BadgeVariant } {
-		switch (status) {
-			case 'scheduled':
-				return { label: 'Scheduled', variant: 'secondary' };
-			case 'in_progress':
-				return { label: 'Active', variant: 'default' };
-			case 'completed':
-				return { label: 'Completed', variant: 'outline' };
-			case 'cancelled':
-				return { label: 'Cancelled', variant: 'destructive' };
-			default:
-				return { label: status, variant: 'outline' };
-		}
-	}
 
 	function formatRange(start: Date, end: Date): string {
 		const fmt = new Intl.DateTimeFormat(undefined, {
@@ -41,18 +26,18 @@
 </script>
 
 <svelte:head>
-	<title>Maintenance - Uppity</title>
+	<title>{m.maintenance_page_title()} - Uppity</title>
 </svelte:head>
 
 <div class="space-y-6">
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">Maintenance</h1>
-			<p class="text-muted-foreground">Schedule maintenance windows to suppress alerts</p>
+			<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{m.maintenance_page_title()}</h1>
+			<p class="text-muted-foreground">{m.maintenance_page_description()}</p>
 		</div>
 		<Button href="/maintenance/new">
 			<Plus class="mr-2 h-4 w-4" />
-			New maintenance window
+			{m.maintenance_new_button()}
 		</Button>
 	</div>
 
@@ -62,7 +47,7 @@
 		{:else}
 			<ul class="divide-y">
 				{#each items as w (w.id)}
-					{@const sb = statusBadge(w.status)}
+					{@const sb = getMaintenanceStatusBadge(w.status)}
 					<li>
 						<button
 							type="button"
@@ -79,7 +64,7 @@
 								</div>
 							</div>
 							<Badge variant="outline">
-								{w.monitorCount} monitor{w.monitorCount === 1 ? '' : 's'}
+								{m.maintenance_monitor_count({ count: w.monitorCount })}
 							</Badge>
 						</button>
 					</li>
@@ -92,11 +77,11 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<Activity class="h-4 w-4" />
-				Active ({data.active.length})
+				{m.maintenance_section_active()} ({data.active.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
-			{@render rows(data.active, 'No active maintenance.')}
+			{@render rows(data.active, m.maintenance_empty_active())}
 		</Card.Content>
 	</Card.Root>
 
@@ -104,11 +89,11 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<Clock class="h-4 w-4" />
-				Upcoming ({data.upcoming.length})
+				{m.maintenance_section_upcoming()} ({data.upcoming.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
-			{@render rows(data.upcoming, 'No upcoming maintenance.')}
+			{@render rows(data.upcoming, m.maintenance_empty_upcoming())}
 		</Card.Content>
 	</Card.Root>
 
@@ -116,18 +101,18 @@
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<CheckCircle2 class="h-4 w-4" />
-				Past ({data.past.length})
+				{m.maintenance_section_past()} ({data.past.length})
 			</Card.Title>
 		</Card.Header>
 		<Card.Content class="px-0">
-			{@render rows(data.past, 'No past maintenance.')}
+			{@render rows(data.past, m.maintenance_empty_past())}
 		</Card.Content>
 	</Card.Root>
 
 	{#if data.active.length === 0 && data.upcoming.length === 0 && data.past.length === 0}
 		<div class="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
 			<Wrench class="h-8 w-8" />
-			<p>No maintenance windows yet.</p>
+			<p>{m.maintenance_empty_global()}</p>
 		</div>
 	{/if}
 </div>

@@ -44,10 +44,10 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 		try {
 			await maintenanceWindowService.update(params.id, orgId, form.data);
-			return message(form, "Maintenance window updated");
+			return message(form, { type: "success" as const });
 		} catch (err) {
 			if (err instanceof Error) {
-				return message(form, err.message, { status: 400 });
+				return message(form, { type: "error" as const, text: err.message }, { status: 400 });
 			}
 			throw err;
 		}
