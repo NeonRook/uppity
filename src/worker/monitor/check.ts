@@ -357,7 +357,7 @@ export async function saveCheckResult(
 		checkedAt: new Date(),
 	});
 
-	// Update monitor status
+	// Read current monitor status to compute transition signal
 	const [currentStatus] = await db
 		.select()
 		.from(monitorStatus)
@@ -369,17 +369,6 @@ export async function saveCheckResult(
 		result.status === "down" ? (currentStatus?.consecutiveFailures || 0) + 1 : 0;
 
 	const statusChanged = previousStatus !== result.status;
-
-	await db
-		.update(monitorStatus)
-		.set({
-			status: result.status,
-			lastCheckAt: new Date(),
-			lastStatusChange: statusChanged ? new Date() : currentStatus?.lastStatusChange,
-			consecutiveFailures,
-			updatedAt: new Date(),
-		})
-		.where(eq(monitorStatus.monitorId, m.id));
 
 	// Enrich wide event with check result
 	event?.merge({
@@ -450,10 +439,12 @@ export async function saveCheckResult(
 		}
 	}
 
-	// Suppression gate: during an active maintenance window, skip the status-change
-	// block below (notifications, auto-incident create + auto-resolve). monitor_check
-	// row, monitor_status update, and SSL expiry warning all happen ABOVE this gate
-	// so uptime data and cert hygiene are preserved per NEO-13.
+	// Suppression gate: during an active maintenance window, skip BOTH the
+	// monitor_status update and the status-change block (notifications, auto-
+	// incidents). Freezing monitor_status preserves the pre-window state so the
+	// next post-window check correctly detects any transitions that happened
+	// during the window. monitor_check rows and SSL warnings still fire above
+	// this gate.
 	//
 	// Per-check service instantiation propagates the worker's db argument naturally;
 	// the singleton uses the production db, which would break tests that inject a
@@ -467,6 +458,19 @@ export async function saveCheckResult(
 		});
 		return;
 	}
+
+	// Update monitor status — only happens when NOT in maintenance, so the
+	// previous status is preserved across the window for post-window detection.
+	await db
+		.update(monitorStatus)
+		.set({
+			status: result.status,
+			lastCheckAt: new Date(),
+			lastStatusChange: statusChanged ? new Date() : currentStatus?.lastStatusChange,
+			consecutiveFailures,
+			updatedAt: new Date(),
+		})
+		.where(eq(monitorStatus.monitorId, m.id));
 
 	// Handle status change: enqueue notification events and manage incidents
 	if (statusChanged && previousStatus !== "unknown") {
