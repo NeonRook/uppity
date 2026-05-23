@@ -1,5 +1,6 @@
 import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
-import { db } from "$lib/server/db";
+import { db as defaultDb } from "$lib/server/db";
+import * as schema from "$lib/server/db/schema";
 import {
 	statusPage,
 	statusPageGroup,
@@ -10,6 +11,8 @@ import {
 	incident,
 	incidentMonitor,
 	incidentUpdate,
+	maintenanceWindow,
+	maintenanceWindowMonitor,
 	type StatusPage,
 	type StatusPageGroup,
 	type StatusPageMonitor,
@@ -17,8 +20,11 @@ import {
 import { SubscriptionLimitError, FeatureNotAvailableError } from "$lib/server/errors";
 import { meterService } from "$lib/server/services/meter.service";
 import { subscriptionService } from "$lib/server/services/subscription.service";
-import { eq, and, desc, asc, gte, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
+
+type Db = PostgresJsDatabase<typeof schema>;
 
 export interface CreateStatusPageInput {
 	organizationId: string;
@@ -86,25 +92,47 @@ export interface PublicStatusPageData {
 		monitors: PublicMonitorStatus[];
 	}>;
 	ungroupedMonitors: PublicMonitorStatus[];
-	overallStatus: "operational" | "degraded" | "partial_outage" | "major_outage";
+	overallStatus:
+		| "operational"
+		| "degraded"
+		| "partial_outage"
+		| "major_outage"
+		| "under_maintenance";
 	activeIncidents: PublicIncidentData[];
 	resolvedIncidents: PublicIncidentData[];
+	activeMaintenance: PublicMaintenanceView[];
+	upcomingMaintenance: PublicMaintenanceView[];
 }
 
 export interface PublicMonitorStatus {
 	id: string;
 	name: string;
 	description: string | null;
-	status: "up" | "down" | "degraded" | "unknown";
+	status: "up" | "down" | "degraded" | "unknown" | "maintenance";
 	uptimePercent90d: number;
 	dailyHistory: Array<{
 		date: string;
-		status: "up" | "down" | "degraded" | "partial";
+		status: "up" | "down" | "degraded" | "partial" | "maintenance";
 		uptimePercent: number;
 	}>;
 }
 
+export interface PublicMaintenanceView {
+	id: string;
+	name: string;
+	description: string | null;
+	startsAt: Date;
+	endsAt: Date;
+	affectedMonitorIds: string[];
+}
+
 export class StatusPageService {
+	private db: Db;
+
+	constructor(database: Db = defaultDb) {
+		this.db = database;
+	}
+
 	async create(input: CreateStatusPageInput): Promise<StatusPage> {
 		// Check subscription limits before creating
 		const limitCheck = await subscriptionService.canAddStatusPage(input.organizationId);
@@ -123,7 +151,7 @@ export class StatusPageService {
 			throw new Error("Slug already taken");
 		}
 
-		const [newPage] = await db
+		const [newPage] = await this.db
 			.insert(statusPage)
 			.values({
 				id,
@@ -146,19 +174,23 @@ export class StatusPageService {
 	}
 
 	async findById(id: string): Promise<StatusPage | null> {
-		const [result] = await db.select().from(statusPage).where(eq(statusPage.id, id)).limit(1);
+		const [result] = await this.db.select().from(statusPage).where(eq(statusPage.id, id)).limit(1);
 
 		return result || null;
 	}
 
 	async findBySlug(slug: string): Promise<StatusPage | null> {
-		const [result] = await db.select().from(statusPage).where(eq(statusPage.slug, slug)).limit(1);
+		const [result] = await this.db
+			.select()
+			.from(statusPage)
+			.where(eq(statusPage.slug, slug))
+			.limit(1);
 
 		return result || null;
 	}
 
 	async findByIdAndOrg(id: string, organizationId: string): Promise<StatusPage | null> {
-		const [result] = await db
+		const [result] = await this.db
 			.select()
 			.from(statusPage)
 			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)))
@@ -168,7 +200,7 @@ export class StatusPageService {
 	}
 
 	async findByOrganization(organizationId: string): Promise<StatusPage[]> {
-		return db
+		return this.db
 			.select()
 			.from(statusPage)
 			.where(eq(statusPage.organizationId, organizationId))
@@ -204,7 +236,7 @@ export class StatusPageService {
 			}
 		}
 
-		const [updated] = await db
+		const [updated] = await this.db
 			.update(statusPage)
 			.set({
 				...input,
@@ -222,7 +254,7 @@ export class StatusPageService {
 			return false;
 		}
 
-		await db
+		await this.db
 			.delete(statusPage)
 			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)));
 
@@ -236,7 +268,7 @@ export class StatusPageService {
 	async createGroup(input: CreateGroupInput): Promise<StatusPageGroup> {
 		const id = nanoid();
 
-		const [group] = await db
+		const [group] = await this.db
 			.insert(statusPageGroup)
 			.values({
 				id,
@@ -252,7 +284,7 @@ export class StatusPageService {
 	}
 
 	async getGroups(statusPageId: string): Promise<StatusPageGroup[]> {
-		return db
+		return this.db
 			.select()
 			.from(statusPageGroup)
 			.where(eq(statusPageGroup.statusPageId, statusPageId))
@@ -263,7 +295,7 @@ export class StatusPageService {
 		id: string,
 		input: Partial<Pick<StatusPageGroup, "name" | "description" | "order" | "isCollapsed">>,
 	): Promise<StatusPageGroup | null> {
-		const [updated] = await db
+		const [updated] = await this.db
 			.update(statusPageGroup)
 			.set(input)
 			.where(eq(statusPageGroup.id, id))
@@ -273,14 +305,14 @@ export class StatusPageService {
 	}
 
 	async deleteGroup(id: string): Promise<void> {
-		await db.delete(statusPageGroup).where(eq(statusPageGroup.id, id));
+		await this.db.delete(statusPageGroup).where(eq(statusPageGroup.id, id));
 	}
 
 	// Monitor management
 	async addMonitor(input: AddMonitorInput): Promise<StatusPageMonitor> {
 		const id = nanoid();
 
-		const [pageMonitor] = await db
+		const [pageMonitor] = await this.db
 			.insert(statusPageMonitor)
 			.values({
 				id,
@@ -319,7 +351,7 @@ export class StatusPageService {
 			} | null;
 		}>
 	> {
-		const results = await db
+		const results = await this.db
 			.select({
 				pageMonitor: statusPageMonitor,
 				monitor: {
@@ -344,7 +376,7 @@ export class StatusPageService {
 	}
 
 	async removeMonitor(statusPageId: string, monitorId: string): Promise<void> {
-		await db
+		await this.db
 			.delete(statusPageMonitor)
 			.where(
 				and(
@@ -352,6 +384,100 @@ export class StatusPageService {
 					eq(statusPageMonitor.monitorId, monitorId),
 				),
 			);
+	}
+
+	async getActiveMaintenanceForMonitors(
+		monitorIds: string[],
+		at: Date = new Date(),
+	): Promise<PublicMaintenanceView[]> {
+		if (monitorIds.length === 0) return [];
+
+		const rows = await this.db
+			.select({
+				window: maintenanceWindow,
+				monitorId: maintenanceWindowMonitor.monitorId,
+			})
+			.from(maintenanceWindow)
+			.innerJoin(
+				maintenanceWindowMonitor,
+				eq(maintenanceWindowMonitor.windowId, maintenanceWindow.id),
+			)
+			.where(
+				and(
+					inArray(maintenanceWindowMonitor.monitorId, monitorIds),
+					eq(maintenanceWindow.status, "in_progress"),
+					lte(maintenanceWindow.startsAt, at),
+					gte(maintenanceWindow.endsAt, at),
+				),
+			);
+
+		const byWindow = new Map<string, PublicMaintenanceView>();
+		for (const r of rows) {
+			const existing = byWindow.get(r.window.id);
+			if (existing) {
+				existing.affectedMonitorIds.push(r.monitorId);
+			} else {
+				byWindow.set(r.window.id, {
+					id: r.window.id,
+					name: r.window.name,
+					description: r.window.description,
+					startsAt: r.window.startsAt,
+					endsAt: r.window.endsAt,
+					affectedMonitorIds: [r.monitorId],
+				});
+			}
+		}
+		return Array.from(byWindow.values()).toSorted(
+			(a, b) => a.endsAt.getTime() - b.endsAt.getTime(),
+		);
+	}
+
+	async getUpcomingMaintenanceForMonitors(
+		monitorIds: string[],
+		withinDays: number,
+		at: Date = new Date(),
+	): Promise<PublicMaintenanceView[]> {
+		if (monitorIds.length === 0) return [];
+
+		const horizon = new Date(at.getTime() + withinDays * 24 * 60 * 60 * 1000);
+		const rows = await this.db
+			.select({
+				window: maintenanceWindow,
+				monitorId: maintenanceWindowMonitor.monitorId,
+			})
+			.from(maintenanceWindow)
+			.innerJoin(
+				maintenanceWindowMonitor,
+				eq(maintenanceWindowMonitor.windowId, maintenanceWindow.id),
+			)
+			.where(
+				and(
+					inArray(maintenanceWindowMonitor.monitorId, monitorIds),
+					eq(maintenanceWindow.status, "scheduled"),
+					gte(maintenanceWindow.startsAt, at),
+					lte(maintenanceWindow.startsAt, horizon),
+				),
+			);
+
+		const byWindow = new Map<string, PublicMaintenanceView>();
+		for (const r of rows) {
+			const existing = byWindow.get(r.window.id);
+			if (existing) {
+				existing.affectedMonitorIds.push(r.monitorId);
+			} else {
+				byWindow.set(r.window.id, {
+					id: r.window.id,
+					name: r.window.name,
+					description: r.window.description,
+					startsAt: r.window.startsAt,
+					endsAt: r.window.endsAt,
+					affectedMonitorIds: [r.monitorId],
+				});
+			}
+		}
+		return Array.from(byWindow.values()).toSorted(
+			(a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
+		);
 	}
 
 	// Public status page data
@@ -373,10 +499,19 @@ export class StatusPageService {
 
 		const monitorIds = pageMonitors.map((pm) => pm.monitor.id);
 
-		// Get daily stats (we'll compute them from checks)
+		const [activeMaintenance, upcomingMaintenance] = await Promise.all([
+			this.getActiveMaintenanceForMonitors(monitorIds),
+			this.getUpcomingMaintenanceForMonitors(monitorIds, 7),
+		]);
+		const activeMonitorIdSet = new Set(activeMaintenance.flatMap((w) => w.affectedMonitorIds));
+
+		// Get daily stats (we'll compute them from checks). Checks captured during
+		// a window that ran (in_progress or completed) are excluded so maintenance
+		// doesn't drag uptime down. Cancelled windows do NOT trigger exclusion —
+		// if a window was cancelled, any checks during its planned slot were real.
 		const checksData =
 			monitorIds.length > 0
-				? await db
+				? await this.db
 						.select({
 							monitorId: monitorCheck.monitorId,
 							date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
@@ -399,6 +534,14 @@ export class StatusPageService {
 							and(
 								inArray(monitorCheck.monitorId, monitorIds),
 								gte(monitorCheck.checkedAt, historyDaysAgo),
+								sql`NOT EXISTS (
+									SELECT 1 FROM ${maintenanceWindowMonitor} mwm
+									JOIN ${maintenanceWindow} mw ON mw.id = mwm.window_id
+									WHERE mwm.monitor_id = ${monitorCheck.monitorId}
+									  AND mw.status IN ('in_progress', 'completed')
+									  AND ${monitorCheck.checkedAt} >= mw.starts_at
+									  AND ${monitorCheck.checkedAt} <= mw.ends_at
+								)`,
 							),
 						)
 						.groupBy(monitorCheck.monitorId, sql`DATE(${monitorCheck.checkedAt})`)
@@ -460,11 +603,15 @@ export class StatusPageService {
 			}
 			const uptimePercentHistory = totalChecks > 0 ? (upChecks / totalChecks) * 100 : 100;
 
+			const status: PublicMonitorStatus["status"] = activeMonitorIdSet.has(pm.monitor.id)
+				? "maintenance"
+				: (pm.status?.status as "up" | "down" | "degraded") || "unknown";
+
 			return {
 				id: pm.pageMonitor.id,
 				name: pm.pageMonitor.displayName || pm.monitor.name,
 				description: pm.monitor.description,
-				status: (pm.status?.status as "up" | "down" | "degraded") || "unknown",
+				status,
 				uptimePercent90d: uptimePercentHistory,
 				dailyHistory,
 			};
@@ -496,21 +643,26 @@ export class StatusPageService {
 		}));
 
 		// Calculate overall status
-		const allMonitorStatuses = pageMonitors.map((pm) => pm.status?.status || "unknown");
+		const allMonitorStatuses = pageMonitors.map((pm) =>
+			activeMonitorIdSet.has(pm.monitor.id) ? "maintenance" : pm.status?.status || "unknown",
+		);
 		let overallStatus: PublicStatusPageData["overallStatus"] = "operational";
 		const downCount = allMonitorStatuses.filter((s) => s === "down").length;
 		const degradedCount = allMonitorStatuses.filter((s) => s === "degraded").length;
+		const maintenanceCount = allMonitorStatuses.filter((s) => s === "maintenance").length;
 
-		if (downCount === allMonitorStatuses.length && allMonitorStatuses.length > 0) {
+		if (allMonitorStatuses.length > 0 && downCount === allMonitorStatuses.length) {
 			overallStatus = "major_outage";
 		} else if (downCount > 0) {
 			overallStatus = "partial_outage";
 		} else if (degradedCount > 0) {
 			overallStatus = "degraded";
+		} else if (maintenanceCount > 0 && maintenanceCount === allMonitorStatuses.length) {
+			overallStatus = "under_maintenance";
 		}
 
 		// Get active incidents
-		const activeIncidentsRaw = await db
+		const activeIncidentsRaw = await this.db
 			.select({
 				incident: incident,
 				updates: sql<string>`COALESCE(
@@ -540,7 +692,7 @@ export class StatusPageService {
 		const activeIncidents = activeIncidentsRaw.map(this.formatIncidentData);
 
 		// Get resolved incidents (within history period)
-		const resolvedIncidentsRaw = await db
+		const resolvedIncidentsRaw = await this.db
 			.select({
 				incident: incident,
 				updates: sql<string>`COALESCE(
@@ -577,6 +729,8 @@ export class StatusPageService {
 			overallStatus,
 			activeIncidents,
 			resolvedIncidents,
+			activeMaintenance,
+			upcomingMaintenance,
 		};
 	}
 
@@ -638,7 +792,7 @@ export class StatusPageService {
 		}
 
 		// Check if incident affects any of the page's monitors
-		const incidentMonitorLinks = await db
+		const incidentMonitorLinks = await this.db
 			.select({ monitorId: incidentMonitor.monitorId })
 			.from(incidentMonitor)
 			.where(
@@ -653,7 +807,7 @@ export class StatusPageService {
 		}
 
 		// Get incident with all updates
-		const incidentResult = await db
+		const incidentResult = await this.db
 			.select({
 				incident: incident,
 				updates: sql<string>`COALESCE(
