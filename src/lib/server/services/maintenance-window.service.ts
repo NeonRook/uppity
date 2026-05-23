@@ -1,4 +1,3 @@
-import { db } from "$lib/server/db";
 import * as schema from "$lib/server/db/schema";
 import {
 	maintenanceWindow,
@@ -288,5 +287,3 @@ export class MaintenanceWindowService {
 		});
 	}
 }
-
-export const maintenanceWindowService = new MaintenanceWindowService(db);
