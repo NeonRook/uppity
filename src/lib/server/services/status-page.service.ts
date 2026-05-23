@@ -1,5 +1,5 @@
 import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
-import { db as defaultDb } from "$lib/server/db";
+import { db } from "$lib/server/db";
 import * as schema from "$lib/server/db/schema";
 import {
 	statusPage,
@@ -110,9 +110,12 @@ export interface PublicMonitorStatus {
 	description: string | null;
 	status: "up" | "down" | "degraded" | "unknown" | "maintenance";
 	uptimePercent90d: number;
+	// Days fully covered by a maintenance window render as "up" via the no-data
+	// branch (their checks are excluded from aggregation). A future improvement
+	// would propagate per-day window coverage and emit a "maintenance" bar.
 	dailyHistory: Array<{
 		date: string;
-		status: "up" | "down" | "degraded" | "partial" | "maintenance";
+		status: "up" | "down" | "degraded" | "partial";
 		uptimePercent: number;
 	}>;
 }
@@ -129,7 +132,7 @@ export interface PublicMaintenanceView {
 export class StatusPageService {
 	private db: Db;
 
-	constructor(database: Db = defaultDb) {
+	constructor(database: Db) {
 		this.db = database;
 	}
 
@@ -873,4 +876,4 @@ export class StatusPageService {
 	}
 }
 
-export const statusPageService = new StatusPageService();
+export const statusPageService = new StatusPageService(db);

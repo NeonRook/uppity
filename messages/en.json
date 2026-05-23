@@ -518,6 +518,8 @@
 	"public_status_legend_down": "Down",
 	"public_status_legend_no_data": "No Data",
 	"public_status_under_maintenance": "Under maintenance",
+	"public_status_active_maintenance": "Active maintenance",
+	"public_status_upcoming_maintenance": "Upcoming maintenance",
 	"public_status_maintenance_active": "Maintenance in progress: {name}",
 	"public_status_maintenance_scheduled": "Scheduled maintenance: {name}",
 	"public_status_maintenance_ends": "Ends {time}",

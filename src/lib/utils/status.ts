@@ -141,8 +141,6 @@ export function getDayStatusColor(status: string): string {
 			return "bg-yellow-500 hover:bg-yellow-400";
 		case "partial":
 			return "bg-orange-500 hover:bg-orange-400";
-		case "maintenance":
-			return "bg-blue-500 hover:bg-blue-400";
 		default:
 			return "bg-gray-300 hover:bg-gray-200";
 	}

@@ -114,52 +114,64 @@
 
 		<!-- Active Maintenance -->
 		{#if activeMaintenance.length > 0}
-			<section class="mb-8 space-y-3">
-				{#each activeMaintenance as w (w.id)}
-					<div class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4">
-						<Wrench class="mt-0.5 h-5 w-5 text-blue-500" />
-						<div class="flex-1">
-							<div class="font-medium text-gray-900">
-								{m.public_status_maintenance_active({ name: w.name })}
+			<section class="mb-8">
+				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+					{m.public_status_active_maintenance()}
+				</h2>
+				<div class="space-y-3">
+					{#each activeMaintenance as w (w.id)}
+						<div
+							class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4"
+						>
+							<Wrench class="mt-0.5 h-5 w-5 text-blue-500" />
+							<div class="flex-1">
+								<div class="font-medium text-gray-900">
+									{m.public_status_maintenance_active({ name: w.name })}
+								</div>
+								{#if w.description}
+									<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+								{/if}
+								<p class="mt-1 text-xs text-gray-500">
+									{m.public_status_maintenance_ends({
+										time: new Date(w.endsAt).toLocaleString()
+									})}
+								</p>
 							</div>
-							{#if w.description}
-								<p class="mt-1 text-sm text-gray-600">{w.description}</p>
-							{/if}
-							<p class="mt-1 text-xs text-gray-500">
-								{m.public_status_maintenance_ends({
-									time: new Date(w.endsAt).toLocaleString()
-								})}
-							</p>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			</section>
 		{/if}
 
 		<!-- Upcoming Maintenance -->
 		{#if upcomingMaintenance.length > 0}
-			<section class="mb-8 space-y-3">
-				{#each upcomingMaintenance as w (w.id)}
-					<div
-						class="flex items-start gap-3 rounded-lg border border-blue-300/40 bg-blue-50/60 p-4"
-					>
-						<Clock class="mt-0.5 h-5 w-5 text-blue-400" />
-						<div class="flex-1">
-							<div class="font-medium text-gray-900">
-								{m.public_status_maintenance_scheduled({ name: w.name })}
+			<section class="mb-8">
+				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+					{m.public_status_upcoming_maintenance()}
+				</h2>
+				<div class="space-y-3">
+					{#each upcomingMaintenance as w (w.id)}
+						<div
+							class="flex items-start gap-3 rounded-lg border border-blue-300/40 bg-blue-50/60 p-4"
+						>
+							<Clock class="mt-0.5 h-5 w-5 text-blue-400" />
+							<div class="flex-1">
+								<div class="font-medium text-gray-900">
+									{m.public_status_maintenance_scheduled({ name: w.name })}
+								</div>
+								{#if w.description}
+									<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+								{/if}
+								<p class="mt-1 text-xs text-gray-500">
+									{m.public_status_maintenance_window({
+										startTime: new Date(w.startsAt).toLocaleString(),
+										endTime: new Date(w.endsAt).toLocaleString()
+									})}
+								</p>
 							</div>
-							{#if w.description}
-								<p class="mt-1 text-sm text-gray-600">{w.description}</p>
-							{/if}
-							<p class="mt-1 text-xs text-gray-500">
-								{m.public_status_maintenance_window({
-									startTime: new Date(w.startsAt).toLocaleString(),
-									endTime: new Date(w.endsAt).toLocaleString()
-								})}
-							</p>
 						</div>
-					</div>
-				{/each}
+					{/each}
+				</div>
 			</section>
 		{/if}
 
