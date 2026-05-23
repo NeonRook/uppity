@@ -400,9 +400,7 @@ export async function saveCheckResult(
 
 			// Skip enqueueing if a warning was already enqueued for this monitor inside the
 			// cooldown window. Hits the (monitorId, type, createdAt) index on notification_event.
-			const cooldownStart = new Date(
-				Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000,
-			);
+			const cooldownStart = new Date(Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000);
 			const [recentWarning] = await db
 				.select({ id: notificationEvent.id })
 				.from(notificationEvent)
@@ -626,7 +624,6 @@ export async function saveCheckResult(
 			});
 		}
 	}
-
 }
 
 /**

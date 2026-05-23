@@ -152,9 +152,7 @@ export class MaintenanceWindowService {
 				.returning();
 
 			if (uniqueMonitorIds !== undefined) {
-				await tx
-					.delete(maintenanceWindowMonitor)
-					.where(eq(maintenanceWindowMonitor.windowId, id));
+				await tx.delete(maintenanceWindowMonitor).where(eq(maintenanceWindowMonitor.windowId, id));
 				await tx
 					.insert(maintenanceWindowMonitor)
 					.values(uniqueMonitorIds.map((monitorId) => ({ windowId: id, monitorId })));
@@ -233,13 +231,10 @@ export class MaintenanceWindowService {
 			.groupBy(maintenanceWindow.id)
 			.orderBy(desc(maintenanceWindow.startsAt));
 
-		return rows.map((r) => (Object.assign(r.window, { monitorCount: r.monitorCount })));
+		return rows.map((r) => Object.assign(r.window, { monitorCount: r.monitorCount }));
 	}
 
-	async findActiveForMonitor(
-		monitorId: string,
-		at?: Date,
-	): Promise<MaintenanceWindow | null> {
+	async findActiveForMonitor(monitorId: string, at?: Date): Promise<MaintenanceWindow | null> {
 		const now = at ?? new Date();
 		const [row] = await this.db
 			.select({ window: maintenanceWindow })

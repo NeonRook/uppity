@@ -280,9 +280,7 @@ describe("saveCheckResult", () => {
 		expect(updates[0]?.status).toBe("resolved");
 	});
 
-	test("down → up does not resolve a manual incident, only enqueues monitor_up", async ({
-		db,
-	}) => {
+	test("down → up does not resolve a manual incident, only enqueues monitor_up", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const orgId = await seedOrganization(drizzleDb);
 		const monitor = await seedMonitor(drizzleDb, orgId);
@@ -314,10 +312,7 @@ describe("saveCheckResult", () => {
 			.where(eq(notificationEvent.monitorId, monitor.id));
 		expect(event?.type).toBe("monitor_up");
 
-		const [stillOpen] = await drizzleDb
-			.select()
-			.from(incident)
-			.where(eq(incident.id, incidentId));
+		const [stillOpen] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
 		expect(stillOpen?.status).toBe("investigating");
 		expect(stillOpen?.resolvedAt).toBeNull();
 
@@ -527,11 +522,7 @@ describe("saveCheckResult", () => {
 
 		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
 
-		await saveCheckResult(
-			monitor,
-			{ status: "up", responseTimeMs: 120 },
-			drizzleDb,
-		);
+		await saveCheckResult(monitor, { status: "up", responseTimeMs: 120 }, drizzleDb);
 
 		const events = await drizzleDb
 			.select()
@@ -539,10 +530,7 @@ describe("saveCheckResult", () => {
 			.where(eq(notificationEvent.monitorId, monitor.id));
 		expect(events).toHaveLength(0);
 
-		const [stillOpen] = await drizzleDb
-			.select()
-			.from(incident)
-			.where(eq(incident.id, incidentId));
+		const [stillOpen] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
 		expect(stillOpen?.status).toBe("investigating");
 		expect(stillOpen?.resolvedAt).toBeNull();
 	});

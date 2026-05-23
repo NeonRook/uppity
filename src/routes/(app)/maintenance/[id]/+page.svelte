@@ -99,10 +99,7 @@
 
 	<form method="POST" action="?/update" use:enhance>
 		{#if $message}
-			<Alert
-				variant={$message.type === 'success' ? 'default' : 'destructive'}
-				class="mb-6"
-			>
+			<Alert variant={$message.type === 'success' ? 'default' : 'destructive'} class="mb-6">
 				<CircleAlert class="h-4 w-4" />
 				<AlertDescription>
 					{$message.type === 'success' ? m.maintenance_edit_updated() : ($message.text ?? '')}

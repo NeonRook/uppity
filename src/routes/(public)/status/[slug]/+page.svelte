@@ -120,9 +120,7 @@
 				</h2>
 				<div class="space-y-3">
 					{#each activeMaintenance as w (w.id)}
-						<div
-							class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4"
-						>
+						<div class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4">
 							<Wrench class="mt-0.5 h-5 w-5 text-blue-500" />
 							<div class="flex-1">
 								<div class="font-medium text-gray-900">
