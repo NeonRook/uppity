@@ -392,10 +392,72 @@ export async function saveCheckResult(
 		consecutive_failures: consecutiveFailures,
 	});
 
-	// Suppression gate: during an active maintenance window, skip the entire status-
-	// change block (notifications, auto-incident create + auto-resolve). monitor_check
-	// row + monitor_status update above this gate still happen, so uptime data is
-	// preserved per NEO-13. Public uptime aggregation excludes window-covered rows.
+	// Handle SSL expiry warnings — cert hygiene is independent of status-change
+	// alerting, so this block must NOT be gated by the maintenance suppression
+	// below. NEO-13 only suppresses status-change notifications and auto-incidents.
+	if (result.sslExpiresAt && m.sslCheckEnabled) {
+		const daysUntilExpiry = Math.floor(
+			(result.sslExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+		);
+		const threshold = m.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
+
+		event?.merge({
+			ssl_expires_at: result.sslExpiresAt,
+			ssl_days_remaining: daysUntilExpiry,
+		});
+
+		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
+			event?.set("ssl_expiry_warning", true);
+
+			// Skip enqueueing if a warning was already enqueued for this monitor inside the
+			// cooldown window. Hits the (monitorId, type, createdAt) index on notification_event.
+			const cooldownStart = new Date(
+				Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000,
+			);
+			const [recentWarning] = await db
+				.select({ id: notificationEvent.id })
+				.from(notificationEvent)
+				.where(
+					and(
+						eq(notificationEvent.monitorId, m.id),
+						eq(notificationEvent.type, "ssl_expiry_warning"),
+						gte(notificationEvent.createdAt, cooldownStart),
+					),
+				)
+				.limit(1);
+
+			if (!recentWarning) {
+				const notifEventId = nanoid();
+				const payload: SslExpiryEventPayload = {
+					daysRemaining: daysUntilExpiry,
+					sslExpiresAt: result.sslExpiresAt.toISOString(),
+					sslIssuer: result.sslIssuer,
+				};
+				await db.insert(notificationEvent).values({
+					id: notifEventId,
+					organizationId: m.organizationId,
+					monitorId: m.id,
+					type: "ssl_expiry_warning",
+					payload,
+					status: "pending",
+				});
+				event?.merge({
+					notification_event_enqueued: true,
+					notification_event_id: notifEventId,
+					notification_event_type: "ssl_expiry_warning",
+				});
+			}
+		}
+	}
+
+	// Suppression gate: during an active maintenance window, skip the status-change
+	// block below (notifications, auto-incident create + auto-resolve). monitor_check
+	// row, monitor_status update, and SSL expiry warning all happen ABOVE this gate
+	// so uptime data and cert hygiene are preserved per NEO-13.
+	//
+	// Per-check service instantiation propagates the worker's db argument naturally;
+	// the singleton uses the production db, which would break tests that inject a
+	// fixture db through saveCheckResult.
 	const activeWindow = await new MaintenanceWindowService(db).findActiveForMonitor(m.id);
 	if (activeWindow) {
 		event?.merge({
@@ -561,61 +623,6 @@ export async function saveCheckResult(
 		}
 	}
 
-	// Handle SSL expiry warnings
-	if (result.sslExpiresAt && m.sslCheckEnabled) {
-		const daysUntilExpiry = Math.floor(
-			(result.sslExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-		);
-		const threshold = m.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
-
-		event?.merge({
-			ssl_expires_at: result.sslExpiresAt,
-			ssl_days_remaining: daysUntilExpiry,
-		});
-
-		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
-			event?.set("ssl_expiry_warning", true);
-
-			// Skip enqueueing if a warning was already enqueued for this monitor inside the
-			// cooldown window. Hits the (monitorId, type, createdAt) index on notification_event.
-			const cooldownStart = new Date(
-				Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000,
-			);
-			const [recentWarning] = await db
-				.select({ id: notificationEvent.id })
-				.from(notificationEvent)
-				.where(
-					and(
-						eq(notificationEvent.monitorId, m.id),
-						eq(notificationEvent.type, "ssl_expiry_warning"),
-						gte(notificationEvent.createdAt, cooldownStart),
-					),
-				)
-				.limit(1);
-
-			if (!recentWarning) {
-				const notifEventId = nanoid();
-				const payload: SslExpiryEventPayload = {
-					daysRemaining: daysUntilExpiry,
-					sslExpiresAt: result.sslExpiresAt.toISOString(),
-					sslIssuer: result.sslIssuer,
-				};
-				await db.insert(notificationEvent).values({
-					id: notifEventId,
-					organizationId: m.organizationId,
-					monitorId: m.id,
-					type: "ssl_expiry_warning",
-					payload,
-					status: "pending",
-				});
-				event?.merge({
-					notification_event_enqueued: true,
-					notification_event_id: notifEventId,
-					notification_event_type: "ssl_expiry_warning",
-				});
-			}
-		}
-	}
 }
 
 /**

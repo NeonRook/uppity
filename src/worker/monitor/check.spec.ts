@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
@@ -601,5 +601,45 @@ describe("saveCheckResult", () => {
 			.where(eq(monitorStatus.monitorId, monitor.id));
 		expect(status?.status).toBe("down");
 		expect(status?.consecutiveFailures).toBe(1);
+	});
+
+	test("SSL expiry warnings still fire during active maintenance", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, {
+			sslCheckEnabled: true,
+			sslExpiryThresholdDays: 14,
+		});
+		await drizzleDb.insert(monitorStatus).values({
+			monitorId: monitor.id,
+			status: "up",
+			lastCheckAt: new Date(),
+			consecutiveFailures: 0,
+		});
+		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
+
+		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
+
+		await saveCheckResult(
+			monitor,
+			{
+				status: "up",
+				responseTimeMs: 120,
+				sslExpiresAt: sevenDaysOut,
+				sslIssuer: "Let's Encrypt",
+			},
+			drizzleDb,
+		);
+
+		const sslEvents = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(
+				and(
+					eq(notificationEvent.monitorId, monitor.id),
+					eq(notificationEvent.type, "ssl_expiry_warning"),
+				),
+			);
+		expect(sslEvents).toHaveLength(1);
 	});
 });
