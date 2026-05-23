@@ -614,7 +614,7 @@
 	"maintenance_edit_updated": "Janela de manutenção atualizada.",
 	"maintenance_cancel_button": "Cancelar manutenção",
 	"maintenance_cancel_dialog_title": "Cancelar esta janela de manutenção?",
-	"maintenance_cancel_dialog_description": "O alertas dos monitores afetados serão retomados imediatamente. Isso não pode ser desfeito.",
+	"maintenance_cancel_dialog_description": "Os alertas dos monitores afetados serão retomados imediatamente. Isso não pode ser desfeito.",
 	"maintenance_cancel_dialog_keep": "Manter janela",
 	"maintenance_cancel_dialog_confirm": "Cancelar janela"
 }

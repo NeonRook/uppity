@@ -15,7 +15,7 @@ import {
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
 } from "../../lib/server/logger";
-import { maintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
+import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
 
@@ -37,7 +37,7 @@ const jobHandlers: Record<string, JobHandler> = {
 		event.set("records_deleted", deleted);
 	},
 	"maintenance-window-transitions": async (event) => {
-		const result = await maintenanceWindowService.runStatusTransitions();
+		const result = await new MaintenanceWindowService(db).runStatusTransitions();
 		event.set("windows_started", result.started);
 		event.set("windows_completed", result.completed);
 	},

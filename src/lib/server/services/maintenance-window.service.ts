@@ -48,11 +48,12 @@ export class MaintenanceWindowService {
 	}
 
 	private async assertMonitorsBelongToOrg(orgId: string, monitorIds: string[]): Promise<void> {
+		const uniqueMonitorIds = Array.from(new Set(monitorIds));
 		const found = await this.db
 			.select({ id: monitor.id })
 			.from(monitor)
-			.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, monitorIds)));
-		if (found.length !== monitorIds.length) {
+			.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
+		if (found.length !== uniqueMonitorIds.length) {
 			throw new Error("Monitor not found");
 		}
 	}
@@ -71,7 +72,8 @@ export class MaintenanceWindowService {
 			throw new Error("Select at least one monitor");
 		}
 
-		await this.assertMonitorsBelongToOrg(input.organizationId, input.monitorIds);
+		const uniqueMonitorIds = Array.from(new Set(input.monitorIds));
+		await this.assertMonitorsBelongToOrg(input.organizationId, uniqueMonitorIds);
 
 		const id = nanoid();
 		const [created] = await this.db
@@ -90,7 +92,7 @@ export class MaintenanceWindowService {
 
 		await this.db
 			.insert(maintenanceWindowMonitor)
-			.values(input.monitorIds.map((monitorId) => ({ windowId: id, monitorId })));
+			.values(uniqueMonitorIds.map((monitorId) => ({ windowId: id, monitorId })));
 
 		return created;
 	}
@@ -120,15 +122,17 @@ export class MaintenanceWindowService {
 				throw new Error("Name is required");
 			}
 
+			let uniqueMonitorIds: string[] | undefined;
 			if (input.monitorIds !== undefined) {
 				if (input.monitorIds.length < 1) {
 					throw new Error("Select at least one monitor");
 				}
+				uniqueMonitorIds = Array.from(new Set(input.monitorIds));
 				const found = await tx
 					.select({ id: monitor.id })
 					.from(monitor)
-					.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, input.monitorIds)));
-				if (found.length !== input.monitorIds.length) {
+					.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
+				if (found.length !== uniqueMonitorIds.length) {
 					throw new Error("Monitor not found");
 				}
 			}
@@ -147,13 +151,13 @@ export class MaintenanceWindowService {
 				.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
 				.returning();
 
-			if (input.monitorIds !== undefined) {
+			if (uniqueMonitorIds !== undefined) {
 				await tx
 					.delete(maintenanceWindowMonitor)
 					.where(eq(maintenanceWindowMonitor.windowId, id));
 				await tx
 					.insert(maintenanceWindowMonitor)
-					.values(input.monitorIds.map((monitorId) => ({ windowId: id, monitorId })));
+					.values(uniqueMonitorIds.map((monitorId) => ({ windowId: id, monitorId })));
 			}
 
 			return updated;
