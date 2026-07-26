@@ -6,7 +6,6 @@ import {
 } from "$lib/server/db/schema";
 import { FeatureNotAvailableError } from "$lib/server/errors";
 import { subscriptionService } from "$lib/server/services/subscription.service";
-import type { NotificationChannelType } from "$lib/types/plans";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -38,7 +37,7 @@ export class NotificationChannelService {
 		// Check if this notification channel type is allowed
 		const channelCheck = await subscriptionService.isNotificationChannelAllowed(
 			input.organizationId,
-			input.type as NotificationChannelType,
+			input.type,
 		);
 		if (!channelCheck.allowed) {
 			throw new FeatureNotAvailableError(

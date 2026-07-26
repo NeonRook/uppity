@@ -1,4 +1,3 @@
-import type { IncidentStatus } from "$lib/constants/status";
 import { createIncidentSchema } from "$lib/schemas/incident";
 import { incidentService } from "$lib/server/services/incident.service";
 import { monitorService } from "$lib/server/services/monitor.service";
@@ -44,7 +43,7 @@ export const actions: Actions = {
 			incident = await incidentService.create({
 				organizationId: locals.session.activeOrganizationId,
 				title: data.title,
-				status: data.status as IncidentStatus,
+				status: data.status,
 				impact: data.impact,
 				message: data.message,
 				monitorIds: data.monitors ?? [],

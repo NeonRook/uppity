@@ -1,4 +1,4 @@
-import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
+import type { IncidentImpact } from "$lib/constants/status";
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,
@@ -78,7 +78,7 @@ export const actions: Actions = {
 
 		await incidentService.addUpdate({
 			incidentId: params.id,
-			status: form.data.status as IncidentStatus,
+			status: form.data.status,
 			message: form.data.message,
 			createdBy: locals.user?.id,
 		});

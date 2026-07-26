@@ -102,3 +102,4 @@ jobs:
         env:
           # Required build-time env vars (non-sensitive defaults for CI)
           VITE_BETTER_AUTH_URL: http://localhost:5173
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
