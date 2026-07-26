@@ -12,11 +12,6 @@ const config = {
 		experimental: {
 			remoteFunctions: true,
 		},
-		typescript: {
-			config: (cfg) => {
-				cfg.compilerOptions.types.push("bun");
-			},
-		},
 	},
 
 	compilerOptions: {
