@@ -7,20 +7,29 @@ WORKDIR /usr/src/app
 FROM base AS install
 RUN mkdir -p /temp/dev
 COPY package.json bun.lock /temp/dev/
-RUN cd /temp/dev && bun install --frozen-lockfile
+WORKDIR /temp/dev
+RUN bun install --frozen-lockfile
 
 # install with --production (exclude devDependencies)
 RUN mkdir -p /temp/prod
 COPY package.json bun.lock /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production
+WORKDIR /temp/prod
+RUN bun install --frozen-lockfile --production
 
 # Stage 2: Build application
 FROM base AS builder
+WORKDIR /usr/src/app
 COPY --from=install /temp/dev/node_modules node_modules
 COPY . .
 # VITE_ prefixed vars are client-side and must be set at build time
 ARG VITE_BETTER_AUTH_URL="https://localhost:3000"
 ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
+# Railway has no docker build-secret support, so the real secret lands in this stage's build cache
+# and logs. It does not reach the runtime image (the runner stage is separate) and is not baked
+# into the bundle — auth.ts reads process.env at runtime.
+# Track: https://station.railway.com/feedback/support-docker-build-secrets-0b8787b2
+ARG BETTER_AUTH_SECRET
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 RUN bun --bun run prepare && bun --bun run build:all
 
 # Stage 3: Production image

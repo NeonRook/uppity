@@ -25,7 +25,6 @@ import nodemailer from "nodemailer";
 
 // $env/dynamic/private gets baked in at build time by svelte-adapter-bun
 // Note: svelte-adapter-bun presents requests as HTTPS, so defaults must use https://
-const secret = process.env.BETTER_AUTH_SECRET;
 const baseURL = process.env.BETTER_AUTH_URL || "https://localhost:3000";
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
 	"https://localhost:3000",
@@ -102,7 +101,6 @@ export const auth = betterAuth({
 			invitation: authSchema.invitation,
 		},
 	}),
-	secret: secret,
 	baseURL: baseURL,
 	trustedOrigins: trustedOrigins,
 	emailAndPassword: {
