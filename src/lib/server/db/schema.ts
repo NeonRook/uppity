@@ -709,8 +709,48 @@ export const usageWarningRelations = relations(usageWarning, ({ one }) => ({
 }));
 
 // ============================================================================
+// AUDIT TABLES
+// ============================================================================
+
+export const auditLog = pgTable(
+	"audit_log",
+	{
+		id: text("id").primaryKey(),
+		actorId: text("actor_id").references(() => user.id, { onDelete: "set null" }),
+		// Denormalized: an audit row for `user.delete` or `org.delete` must stay
+		// readable after its subject is gone. The FK is for referential integrity,
+		// this copy is for meaning.
+		actorEmail: text("actor_email").notNull(),
+		action: text("action").notNull(),
+		targetType: text("target_type"),
+		targetId: text("target_id"),
+		targetLabel: text("target_label"),
+		metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+		ipAddress: text("ip_address"),
+		userAgent: text("user_agent"),
+		createdAt: timestamp("created_at").notNull().defaultNow(),
+	},
+	(table) => [
+		index("audit_actor_idx").on(table.actorId),
+		index("audit_target_idx").on(table.targetType, table.targetId),
+		index("audit_created_idx").on(table.createdAt),
+		index("audit_action_idx").on(table.action),
+	],
+);
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+	actor: one(user, {
+		fields: [auditLog.actorId],
+		references: [user.id],
+	}),
+}));
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
+
+export type AuditLog = typeof auditLog.$inferSelect;
+export type NewAuditLog = typeof auditLog.$inferInsert;
 
 export type Monitor = typeof monitor.$inferSelect;
 export type NewMonitor = typeof monitor.$inferInsert;
