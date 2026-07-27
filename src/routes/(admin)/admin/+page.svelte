@@ -5,6 +5,7 @@
 	import { Users, Building2, Monitor, TriangleAlert } from '@lucide/svelte';
 	import { formatDateShort } from '$lib/format';
 	import StatCard from '$lib/components/stat-card.svelte';
+	import AuditHistory from '$lib/components/audit-history.svelte';
 	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
@@ -113,4 +114,6 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
+
+	<AuditHistory entries={data.recentActivity} title={m.admin_audit_recent()} />
 </div>

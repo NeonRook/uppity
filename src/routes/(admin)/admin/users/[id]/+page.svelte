@@ -12,6 +12,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import AuditHistory from '$lib/components/audit-history.svelte';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck, UserCheck } from '@lucide/svelte';
@@ -256,6 +257,8 @@
 			</form>
 		</Card.Content>
 	</Card.Root>
+
+	<AuditHistory entries={data.history} title={m.admin_audit_history()} />
 
 	<!-- Danger Zone -->
 	<Card.Root class="border-destructive">

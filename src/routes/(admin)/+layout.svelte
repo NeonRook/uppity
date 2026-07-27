@@ -13,7 +13,8 @@
 		ChevronDown,
 		Menu,
 		X,
-		ShieldCheck
+		ShieldCheck,
+		ScrollText
 	} from '@lucide/svelte';
 
 	let { data, children } = $props();
@@ -24,7 +25,8 @@
 	const navigation = [
 		{ name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
 		{ name: 'Users', href: '/admin/users', icon: Users },
-		{ name: 'Organizations', href: '/admin/organizations', icon: Building2 }
+		{ name: 'Organizations', href: '/admin/organizations', icon: Building2 },
+		{ name: 'Audit Log', href: '/admin/audit', icon: ScrollText }
 	];
 
 	function isActive(href: string): boolean {

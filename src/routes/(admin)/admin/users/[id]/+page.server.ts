@@ -1,3 +1,4 @@
+import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
 import { updateUserSchema } from "$lib/schemas/admin";
 import { getActor } from "$lib/server/audit-actor";
 import { auth } from "$lib/server/auth";
@@ -54,7 +55,15 @@ export const load: PageServerLoad = async ({ params, request }) => {
 	// there are no sessions when we simply could not read them.
 	const sessions = await adminService.listUserSessions(request.headers, params.id);
 
-	return { user: foundUser, form, sessions };
+	// Free: audit_target_idx covers (target_type, target_id), so this is an
+	// index lookup rather than a scan.
+	const { entries: history } = await auditService.list({
+		targetType: "user",
+		targetId: params.id,
+		limit: AUDIT_PANEL_LIMIT,
+	});
+
+	return { user: foundUser, form, sessions, history };
 };
 
 export const actions: Actions = {
