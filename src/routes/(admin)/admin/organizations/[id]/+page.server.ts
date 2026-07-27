@@ -1,3 +1,4 @@
+import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
 import { updateOrganizationSchema, addMemberSchema } from "$lib/schemas/admin";
 import { getActor } from "$lib/server/audit-actor";
 import { getPlanFromSubscription, mapPolarStatus } from "$lib/server/auth";
@@ -69,11 +70,18 @@ export const load: PageServerLoad = async ({ params }) => {
 		subscriptionService.getEffectiveLimits(params.id),
 	]);
 
+	const { entries: history } = await auditService.list({
+		targetType: "organization",
+		targetId: params.id,
+		limit: AUDIT_PANEL_LIMIT,
+	});
+
 	return {
 		org,
 		form,
 		addMemberForm,
 		availableUsers,
+		history,
 		billing: { selfHosted, subscription, plan, usage, limits },
 	};
 };
