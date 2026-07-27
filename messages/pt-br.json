@@ -616,5 +616,18 @@
 	"maintenance_cancel_dialog_title": "Cancelar esta janela de manutenção?",
 	"maintenance_cancel_dialog_description": "Os alertas dos monitores afetados serão retomados imediatamente. Isso não pode ser desfeito.",
 	"maintenance_cancel_dialog_keep": "Manter janela",
-	"maintenance_cancel_dialog_confirm": "Cancelar janela"
+	"maintenance_cancel_dialog_confirm": "Cancelar janela",
+	"admin_users_sessions": "Sessões",
+	"admin_users_sessions_desc": "Sessões ativas deste usuário.",
+	"admin_users_sessions_empty": "Nenhuma sessão ativa.",
+	"admin_users_sessions_ip": "Endereço IP",
+	"admin_users_sessions_agent": "User agent",
+	"admin_users_sessions_expires": "Expira em",
+	"admin_users_sessions_revoke": "Revogar",
+	"admin_users_sessions_revoke_all": "Revogar todas",
+	"admin_users_sessions_impersonated": "Personificado",
+	"admin_users_impersonate": "Personificar",
+	"admin_users_impersonate_desc": "Entrar como este usuário. Todas as páginas mostram um aviso até você parar.",
+	"impersonation_banner": "Visualizando como {name}",
+	"impersonation_stop": "Parar"
 }

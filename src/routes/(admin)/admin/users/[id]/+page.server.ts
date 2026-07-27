@@ -49,7 +49,12 @@ export const load: PageServerLoad = async ({ params, request }) => {
 		valibot(updateUserSchema),
 	);
 
-	return { user: foundUser, form };
+	// A user with no sessions still returns an empty array, so a throw here means
+	// a real failure — let it propagate rather than render a card that claims
+	// there are no sessions when we simply could not read them.
+	const sessions = await adminService.listUserSessions(request.headers, params.id);
+
+	return { user: foundUser, form, sessions };
 };
 
 export const actions: Actions = {
@@ -141,5 +146,64 @@ export const actions: Actions = {
 		}
 
 		return redirect(302, `/admin/users/${params.id}`);
+	},
+
+	revokeSession: async (event) => {
+		const { request, params } = event;
+		const formData = await request.formData();
+		const tokenValue = formData.get("sessionToken");
+		const sessionToken = typeof tokenValue === "string" ? tokenValue : "";
+		const ipValue = formData.get("ipAddress");
+		const ipAddress = typeof ipValue === "string" && ipValue ? ipValue : null;
+
+		if (!sessionToken) {
+			return fail(400, { message: "Session token is required" });
+		}
+
+		try {
+			const actor = await getActor(event);
+			await adminService.revokeUserSession(
+				actor,
+				request.headers,
+				sessionToken,
+				params.id,
+				ipAddress,
+			);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Failed to revoke session";
+			return fail(400, { message });
+		}
+
+		return redirect(302, `/admin/users/${params.id}`);
+	},
+
+	revokeAllSessions: async (event) => {
+		const { request, params } = event;
+
+		try {
+			const actor = await getActor(event);
+			const label = await userLabel(params.id);
+			await adminService.revokeAllUserSessions(actor, request.headers, params.id, label);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Failed to revoke sessions";
+			return fail(400, { message });
+		}
+
+		return redirect(302, `/admin/users/${params.id}`);
+	},
+
+	impersonate: async (event) => {
+		const { request, params } = event;
+
+		try {
+			const actor = await getActor(event);
+			const label = await userLabel(params.id);
+			await adminService.impersonateUser(actor, request.headers, params.id, label);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Failed to impersonate user";
+			return fail(400, { message });
+		}
+
+		return redirect(302, "/dashboard");
 	},
 };

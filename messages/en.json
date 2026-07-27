@@ -616,5 +616,18 @@
 	"maintenance_cancel_dialog_title": "Cancel this maintenance window?",
 	"maintenance_cancel_dialog_description": "Alerting on affected monitors will resume immediately. This cannot be undone.",
 	"maintenance_cancel_dialog_keep": "Keep window",
-	"maintenance_cancel_dialog_confirm": "Cancel window"
+	"maintenance_cancel_dialog_confirm": "Cancel window",
+	"admin_users_sessions": "Sessions",
+	"admin_users_sessions_desc": "Active sessions for this user.",
+	"admin_users_sessions_empty": "No active sessions.",
+	"admin_users_sessions_ip": "IP address",
+	"admin_users_sessions_agent": "User agent",
+	"admin_users_sessions_expires": "Expires",
+	"admin_users_sessions_revoke": "Revoke",
+	"admin_users_sessions_revoke_all": "Revoke all",
+	"admin_users_sessions_impersonated": "Impersonated",
+	"admin_users_impersonate": "Impersonate",
+	"admin_users_impersonate_desc": "Sign in as this user. Every page shows a banner until you stop.",
+	"impersonation_banner": "Viewing as {name}",
+	"impersonation_stop": "Stop"
 }

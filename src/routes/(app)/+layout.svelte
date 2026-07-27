@@ -99,7 +99,21 @@
 </script>
 
 <Tooltip.Provider>
-	<div class="h-screen overflow-hidden">
+	{#if data.impersonating}
+		<div
+			class="text-destructive-foreground fixed inset-x-0 top-0 z-60 flex items-center justify-center gap-3 bg-destructive px-4 py-2 text-sm font-medium"
+		>
+			<TriangleAlert class="h-4 w-4 shrink-0" />
+			<span>{m.impersonation_banner({ name: data.impersonating.name })}</span>
+			<form method="POST" action="/impersonation/stop">
+				<button type="submit" class="underline underline-offset-2 hover:no-underline">
+					{m.impersonation_stop()}
+				</button>
+			</form>
+		</div>
+	{/if}
+
+	<div class="h-screen overflow-hidden {data.impersonating ? 'pt-10' : ''}">
 		{#if sidebarOpen}
 			<div
 				class="fixed inset-0 z-40 bg-black/50 lg:hidden"
