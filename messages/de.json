@@ -616,5 +616,18 @@
 	"maintenance_cancel_dialog_title": "Dieses Wartungsfenster abbrechen?",
 	"maintenance_cancel_dialog_description": "Die Alarmierung der betroffenen Monitore wird sofort wieder aufgenommen. Dies kann nicht rückgängig gemacht werden.",
 	"maintenance_cancel_dialog_keep": "Fenster behalten",
-	"maintenance_cancel_dialog_confirm": "Fenster abbrechen"
+	"maintenance_cancel_dialog_confirm": "Fenster abbrechen",
+	"admin_users_sessions": "Sitzungen",
+	"admin_users_sessions_desc": "Aktive Sitzungen dieses Benutzers.",
+	"admin_users_sessions_empty": "Keine aktiven Sitzungen.",
+	"admin_users_sessions_ip": "IP-Adresse",
+	"admin_users_sessions_agent": "User-Agent",
+	"admin_users_sessions_expires": "Läuft ab",
+	"admin_users_sessions_revoke": "Widerrufen",
+	"admin_users_sessions_revoke_all": "Alle widerrufen",
+	"admin_users_sessions_impersonated": "Identität übernommen",
+	"admin_users_impersonate": "Identität übernehmen",
+	"admin_users_impersonate_desc": "Als dieser Benutzer anmelden. Bis zum Beenden zeigt jede Seite einen Hinweis.",
+	"impersonation_banner": "Angezeigt als {name}",
+	"impersonation_stop": "Beenden"
 }

@@ -47,8 +47,15 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 	// Get usage limits for the active organization
 	const usageLimits = activeOrgId ? await getUsageLimitsData(activeOrgId) : null;
 
+	// During impersonation locals.user is the impersonated user; the banner names
+	// them so the operator always knows whose view they are looking at.
+	const impersonating = locals.session?.impersonatedBy
+		? { userId: locals.user.id, name: locals.user.name }
+		: null;
+
 	return {
 		user: locals.user,
+		impersonating,
 		organizations: userMemberships.map((m) => ({
 			id: m.organizationId,
 			name: m.name,

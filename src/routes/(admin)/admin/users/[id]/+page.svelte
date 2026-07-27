@@ -10,10 +10,11 @@
 	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck } from '@lucide/svelte';
+	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck, UserCheck } from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateTimeShort } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
@@ -168,6 +169,91 @@
 					{m.admin_users_ban()}
 				</Button>
 			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Sessions -->
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<Card.Title>{m.admin_users_sessions()}</Card.Title>
+					<Card.Description>{m.admin_users_sessions_desc()}</Card.Description>
+				</div>
+				{#if data.sessions.length > 0}
+					<form method="POST" action="?/revokeAllSessions">
+						<Button type="submit" variant="outline" size="sm">
+							{m.admin_users_sessions_revoke_all()}
+						</Button>
+					</form>
+				{/if}
+			</div>
+		</Card.Header>
+		<Card.Content>
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>{m.admin_users_sessions_ip()}</Table.Head>
+						<Table.Head>{m.admin_users_sessions_agent()}</Table.Head>
+						<Table.Head>{m.common_created()}</Table.Head>
+						<Table.Head>{m.admin_users_sessions_expires()}</Table.Head>
+						<Table.Head class="text-right">{m.common_actions()}</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each data.sessions as session (session.id)}
+						<Table.Row>
+							<Table.Cell class="font-mono text-xs">{session.ipAddress ?? '—'}</Table.Cell>
+							<Table.Cell class="max-w-[16rem] truncate text-xs text-muted-foreground">
+								{session.userAgent ?? '—'}
+								{#if session.impersonatedBy}
+									<Badge variant="destructive" class="ml-2">
+										{m.admin_users_sessions_impersonated()}
+									</Badge>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground">
+								{formatDateTimeShort(session.createdAt)}
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground">
+								{formatDateTimeShort(session.expiresAt)}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<form method="POST" action="?/revokeSession">
+									<input type="hidden" name="sessionToken" value={session.token} />
+									<input type="hidden" name="ipAddress" value={session.ipAddress ?? ''} />
+									<Button type="submit" variant="ghost" size="sm">
+										{m.admin_users_sessions_revoke()}
+									</Button>
+								</form>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+					{#if data.sessions.length === 0}
+						<Table.Row>
+							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+								{m.admin_users_sessions_empty()}
+							</Table.Cell>
+						</Table.Row>
+					{/if}
+				</Table.Body>
+			</Table.Root>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Impersonation -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.admin_users_impersonate()}</Card.Title>
+			<Card.Description>{m.admin_users_impersonate_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<form method="POST" action="?/impersonate">
+				<Button type="submit" variant="outline">
+					<UserCheck class="mr-2 h-4 w-4" />
+					{m.admin_users_impersonate()}
+				</Button>
+			</form>
 		</Card.Content>
 	</Card.Root>
 
