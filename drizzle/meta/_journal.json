@@ -64,6 +64,13 @@
       "when": 1785130185283,
       "tag": "0008_ancient_lord_hawal",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785178925248,
+      "tag": "0009_stiff_impossible_man",
+      "breakpoints": true
     }
   ]
 }

@@ -54,9 +54,6 @@
 		children,
 		...restProps
 	}: ButtonProps = $props();
-
-	// oxlint-disable-next-line no-explicit-any -- href can be any valid route string
-	const resolvedHref = $derived(href ? resolve(href as any) : undefined);
 </script>
 
 {#if href}
@@ -65,7 +62,7 @@
 		bind:this={ref}
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : resolvedHref}
+		href={disabled ? undefined : href}
 		aria-disabled={disabled}
 		role={disabled ? 'link' : undefined}
 		tabindex={disabled ? -1 : undefined}
