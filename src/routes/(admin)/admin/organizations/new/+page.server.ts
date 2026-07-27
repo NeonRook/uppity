@@ -1,4 +1,5 @@
 import { createOrganizationSchema } from "$lib/schemas/admin";
+import { getActor } from "$lib/server/audit-actor";
 import { adminService } from "$lib/server/services/admin.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
@@ -12,7 +13,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async (event) => {
+		const { request } = event;
 		const form = await superValidate(request, valibot(createOrganizationSchema));
 
 		if (!form.valid) {
@@ -20,7 +22,8 @@ export const actions: Actions = {
 		}
 
 		try {
-			await adminService.createOrganization({
+			const actor = await getActor(event);
+			await adminService.createOrganization(actor, {
 				name: form.data.name,
 				slug: form.data.slug,
 				logo: form.data.logo || null,

@@ -1,4 +1,5 @@
 import { updateOrganizationSchema, addMemberSchema } from "$lib/schemas/admin";
+import { getActor } from "$lib/server/audit-actor";
 import { adminService } from "$lib/server/services/admin.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
@@ -31,7 +32,8 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	update: async ({ request, params }) => {
+	update: async (event) => {
+		const { request, params } = event;
 		const form = await superValidate(request, valibot(updateOrganizationSchema));
 
 		if (!form.valid) {
@@ -39,7 +41,8 @@ export const actions: Actions = {
 		}
 
 		try {
-			await adminService.updateOrganization(params.id, {
+			const actor = await getActor(event);
+			await adminService.updateOrganization(actor, params.id, {
 				name: form.data.name,
 				slug: form.data.slug,
 				logo: form.data.logo,
@@ -52,7 +55,8 @@ export const actions: Actions = {
 		}
 	},
 
-	addMember: async ({ request, params }) => {
+	addMember: async (event) => {
+		const { request, params } = event;
 		const form = await superValidate(request, valibot(addMemberSchema));
 
 		if (!form.valid) {
@@ -60,7 +64,13 @@ export const actions: Actions = {
 		}
 
 		try {
-			await adminService.addMemberToOrg(params.id, form.data.userId, form.data.role || "member");
+			const actor = await getActor(event);
+			await adminService.addMemberToOrg(
+				actor,
+				params.id,
+				form.data.userId,
+				form.data.role || "member",
+			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to add member";
 			return fail(400, { addMemberForm: form, message });
@@ -69,7 +79,8 @@ export const actions: Actions = {
 		return redirect(302, `/admin/organizations/${params.id}`);
 	},
 
-	removeMember: async ({ request, params }) => {
+	removeMember: async (event) => {
+		const { request, params } = event;
 		const formData = await request.formData();
 		const memberIdValue = formData.get("memberId");
 		const memberId = typeof memberIdValue === "string" ? memberIdValue : "";
@@ -79,7 +90,8 @@ export const actions: Actions = {
 		}
 
 		try {
-			await adminService.removeMemberFromOrg(memberId);
+			const actor = await getActor(event);
+			await adminService.removeMemberFromOrg(actor, memberId);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to remove member";
 			return fail(400, { message });
