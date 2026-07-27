@@ -629,5 +629,16 @@
 	"admin_users_impersonate": "Impersonate",
 	"admin_users_impersonate_desc": "Sign in as this user. Every page shows a banner until you stop.",
 	"impersonation_banner": "Viewing as {name}",
-	"impersonation_stop": "Stop"
+	"impersonation_stop": "Stop",
+	"admin_org_subscription": "Subscription",
+	"admin_org_subscription_desc": "Plan and billing state for this organization.",
+	"admin_org_period": "Current period",
+	"admin_org_polar_customer": "Polar customer",
+	"admin_org_polar_subscription": "Polar subscription",
+	"admin_org_usage": "Usage",
+	"admin_org_usage_monitors": "Monitors",
+	"admin_org_usage_status_pages": "Status pages",
+	"admin_org_resync": "Resync from Polar",
+	"admin_org_self_hosted": "Self-hosted — unlimited",
+	"admin_org_no_subscription": "No subscription record."
 }
