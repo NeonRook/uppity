@@ -1,13 +1,26 @@
 import { updateUserSchema } from "$lib/schemas/admin";
+import { getActor } from "$lib/server/audit-actor";
 import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db";
 import { user } from "$lib/server/db/auth-schema";
+import { adminService } from "$lib/server/services/admin.service";
+import { auditService } from "$lib/server/services/audit.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import type { Actions, PageServerLoad } from "./$types";
+
+/** Email is the human-readable handle for a user in the audit log. */
+async function userLabel(userId: string): Promise<string> {
+	const [row] = await db
+		.select({ email: user.email })
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
+	return row?.email ?? userId;
+}
 
 export const load: PageServerLoad = async ({ params, request }) => {
 	// Get all users and find the one with matching ID
@@ -40,7 +53,8 @@ export const load: PageServerLoad = async ({ params, request }) => {
 };
 
 export const actions: Actions = {
-	update: async ({ request, params }) => {
+	update: async (event) => {
+		const { request, params } = event;
 		const form = await superValidate(request, valibot(updateUserSchema));
 
 		if (!form.valid) {
@@ -48,24 +62,44 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Update user info via direct DB query (admin updateUser doesn't support userId)
+			const actor = await getActor(event);
+
+			const [existing] = await db
+				.select({ role: user.role, email: user.email })
+				.from(user)
+				.where(eq(user.id, params.id))
+				.limit(1);
+
+			if (!existing) {
+				return fail(404, { form, message: "User not found" });
+			}
+
+			// Name and email go through Drizzle: better-auth's admin updateUser
+			// endpoint does not accept a target userId.
 			const updateData: Partial<typeof user.$inferInsert> = {};
 			if (form.data.name) updateData.name = form.data.name;
 			if (form.data.email) updateData.email = form.data.email;
 
 			if (Object.keys(updateData).length > 0) {
 				await db.update(user).set(updateData).where(eq(user.id, params.id));
+				await auditService.record(db, actor, {
+					action: "user.update",
+					targetType: "user",
+					targetId: params.id,
+					targetLabel: form.data.email ?? existing.email,
+					metadata: { changed: Object.keys(updateData) },
+				});
 			}
 
-			// Update role if changed
-			if (form.data.role) {
-				await auth.api.setRole({
-					headers: request.headers,
-					body: {
-						userId: params.id,
-						role: form.data.role,
-					},
-				});
+			if (form.data.role && form.data.role !== existing.role) {
+				await adminService.setUserRole(
+					actor,
+					request.headers,
+					params.id,
+					form.data.role,
+					existing.role ?? "user",
+					form.data.email ?? existing.email,
+				);
 			}
 
 			return { form, success: true };
@@ -75,20 +109,17 @@ export const actions: Actions = {
 		}
 	},
 
-	ban: async ({ request, params }) => {
+	ban: async (event) => {
+		const { request, params } = event;
 		const formData = await request.formData();
 		const banReasonValue = formData.get("banReason");
 		const reason =
 			typeof banReasonValue === "string" && banReasonValue ? banReasonValue : undefined;
 
 		try {
-			await auth.api.banUser({
-				headers: request.headers,
-				body: {
-					userId: params.id,
-					...(reason && { banReason: reason }),
-				},
-			});
+			const actor = await getActor(event);
+			const label = await userLabel(params.id);
+			await adminService.banUser(actor, request.headers, params.id, label, reason);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to ban user";
 			return fail(400, { message });
@@ -97,14 +128,13 @@ export const actions: Actions = {
 		return redirect(302, `/admin/users/${params.id}`);
 	},
 
-	unban: async ({ request, params }) => {
+	unban: async (event) => {
+		const { request, params } = event;
+
 		try {
-			await auth.api.unbanUser({
-				headers: request.headers,
-				body: {
-					userId: params.id,
-				},
-			});
+			const actor = await getActor(event);
+			const label = await userLabel(params.id);
+			await adminService.unbanUser(actor, request.headers, params.id, label);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Failed to unban user";
 			return fail(400, { message });
