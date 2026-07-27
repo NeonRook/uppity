@@ -38,6 +38,16 @@ export function getPlanById(planId: PlanId): Plan | undefined {
 	return PLANS[planId];
 }
 
+/** A subscription as read live from the Polar API, normalized to our plan ids. */
+export interface PolarSubscriptionSnapshot {
+	planId: PlanId;
+	status: SubscriptionStatus;
+	polarCustomerId?: string;
+	polarSubscriptionId?: string;
+	currentPeriodStart?: Date;
+	currentPeriodEnd?: Date;
+}
+
 export class SubscriptionService {
 	private db: Db;
 
@@ -292,6 +302,23 @@ export class SubscriptionService {
 			.returning();
 
 		return newSub;
+	}
+
+	/**
+	 * Re-applies a snapshot pulled live from Polar, repairing drift left by a
+	 * webhook that never landed.
+	 *
+	 * Takes an already-fetched snapshot rather than reaching for the Polar SDK
+	 * itself: the client and the product-id-to-plan mapping live in auth.ts, and
+	 * pulling them in here would drag Polar configuration into a class that is
+	 * otherwise pure Drizzle. Polar stays the single source of truth — there is
+	 * deliberately no manual plan override.
+	 */
+	async resyncFromPolar(
+		organizationId: string,
+		snapshot: PolarSubscriptionSnapshot,
+	): Promise<Subscription> {
+		return this.syncFromPolar(organizationId, snapshot);
 	}
 
 	/**

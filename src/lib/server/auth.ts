@@ -59,7 +59,7 @@ const POLAR_PRODUCT_TO_PLAN: Record<string, PlanId> = {
 /**
  * Maps Polar subscription status to our internal status.
  */
-function mapPolarStatus(polarStatus: string): SubscriptionStatus {
+export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
 	switch (polarStatus) {
 		case "active":
 			return "active";
@@ -79,7 +79,10 @@ function mapPolarStatus(polarStatus: string): SubscriptionStatus {
  * Extracts plan ID from a Polar subscription.
  * Falls back to "pro" if product ID not mapped.
  */
-function getPlanFromSubscription(sub: { productId?: string; product?: { id?: string } }): PlanId {
+export function getPlanFromSubscription(sub: {
+	productId?: string;
+	product?: { id?: string };
+}): PlanId {
 	const productId = sub.productId ?? sub.product?.id;
 	if (productId && POLAR_PRODUCT_TO_PLAN[productId]) {
 		return POLAR_PRODUCT_TO_PLAN[productId];

@@ -629,5 +629,16 @@
 	"admin_users_impersonate": "Identität übernehmen",
 	"admin_users_impersonate_desc": "Als dieser Benutzer anmelden. Bis zum Beenden zeigt jede Seite einen Hinweis.",
 	"impersonation_banner": "Angezeigt als {name}",
-	"impersonation_stop": "Beenden"
+	"impersonation_stop": "Beenden",
+	"admin_org_subscription": "Abonnement",
+	"admin_org_subscription_desc": "Tarif und Abrechnungsstatus dieser Organisation.",
+	"admin_org_period": "Aktueller Zeitraum",
+	"admin_org_polar_customer": "Polar-Kunde",
+	"admin_org_polar_subscription": "Polar-Abonnement",
+	"admin_org_usage": "Nutzung",
+	"admin_org_usage_monitors": "Monitore",
+	"admin_org_usage_status_pages": "Statusseiten",
+	"admin_org_resync": "Mit Polar abgleichen",
+	"admin_org_self_hosted": "Selbst gehostet — unbegrenzt",
+	"admin_org_no_subscription": "Kein Abonnement vorhanden."
 }

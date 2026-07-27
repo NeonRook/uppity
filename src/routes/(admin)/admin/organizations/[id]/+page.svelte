@@ -13,7 +13,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import DeleteDialog from '$lib/components/delete-dialog.svelte';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, Trash2, UserPlus } from '@lucide/svelte';
+	import { CircleAlert, LoaderCircle, Trash2, UserPlus, RefreshCw } from '@lucide/svelte';
 	import PageHeader from '$lib/components/page-header.svelte';
 	import { formatDateShort } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
@@ -136,6 +136,94 @@
 					</Button>
 				</div>
 			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Subscription -->
+	{#snippet usageBar(label: string, used: number, limit: number)}
+		<div class="space-y-1">
+			<div class="flex justify-between text-xs text-muted-foreground">
+				<span>{label}</span>
+				<span>{used} / {limit === -1 ? '∞' : limit}</span>
+			</div>
+			<div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+				<!-- -1 means unlimited, so there is no meaningful bar to fill. -->
+				<div
+					class="h-full bg-primary"
+					style="width: {limit === -1 ? 0 : Math.min(100, (used / Math.max(limit, 1)) * 100)}%"
+				></div>
+			</div>
+		</div>
+	{/snippet}
+
+	<Card.Root>
+		<Card.Header>
+			<div class="flex items-start justify-between gap-4">
+				<div>
+					<Card.Title>{m.admin_org_subscription()}</Card.Title>
+					<Card.Description>{m.admin_org_subscription_desc()}</Card.Description>
+				</div>
+				{#if !data.billing.selfHosted && data.billing.subscription?.polarSubscriptionId}
+					<form method="POST" action="?/resyncSubscription">
+						<Button type="submit" variant="outline" size="sm">
+							<RefreshCw class="mr-2 h-4 w-4" />
+							{m.admin_org_resync()}
+						</Button>
+					</form>
+				{/if}
+			</div>
+		</Card.Header>
+		<Card.Content class="space-y-4">
+			{#if data.billing.selfHosted}
+				<Badge variant="secondary">{m.admin_org_self_hosted()}</Badge>
+			{:else if !data.billing.subscription}
+				<p class="text-sm text-muted-foreground">{m.admin_org_no_subscription()}</p>
+			{:else}
+				<div class="flex items-center gap-2">
+					<Badge>{data.billing.plan.name}</Badge>
+					<Badge
+						variant={data.billing.subscription.status === 'active' ? 'outline' : 'destructive'}
+					>
+						{data.billing.subscription.status}
+					</Badge>
+				</div>
+
+				<div class="grid gap-2 text-sm sm:grid-cols-2">
+					<div class="text-muted-foreground">
+						{m.admin_org_period()}:
+						{formatDateShort(data.billing.subscription.currentPeriodStart)} —
+						{formatDateShort(data.billing.subscription.currentPeriodEnd)}
+					</div>
+					{#if data.billing.subscription.polarCustomerId}
+						<div class="truncate text-muted-foreground">
+							{m.admin_org_polar_customer()}:
+							<a
+								class="font-mono text-xs hover:underline"
+								href="https://polar.sh/dashboard/customers/{data.billing.subscription
+									.polarCustomerId}"
+								target="_blank"
+								rel="noreferrer noopener"
+							>
+								{data.billing.subscription.polarCustomerId}
+							</a>
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="space-y-2">
+				<p class="text-sm font-medium">{m.admin_org_usage()}</p>
+				{@render usageBar(
+					m.admin_org_usage_monitors(),
+					data.billing.usage.monitors,
+					data.billing.limits.monitors
+				)}
+				{@render usageBar(
+					m.admin_org_usage_status_pages(),
+					data.billing.usage.statusPages,
+					data.billing.limits.statusPages
+				)}
+			</div>
 		</Card.Content>
 	</Card.Root>
 

@@ -259,4 +259,39 @@ describe("SubscriptionService", () => {
 			expect(row?.id).toBe(result.id);
 		});
 	});
+
+	describe("resyncFromPolar", () => {
+		test("overwrites local drift with the Polar snapshot", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
+
+			const updated = await service.resyncFromPolar(orgId, {
+				planId: "pro",
+				status: "active",
+				polarCustomerId: "cus_1",
+				polarSubscriptionId: "sub_1",
+				currentPeriodStart: new Date("2026-07-01T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-08-01T00:00:00Z"),
+			});
+
+			expect(updated.planId).toBe("pro");
+			expect(updated.polarSubscriptionId).toBe("sub_1");
+		});
+
+		test("leaves before-state observable for auditing", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
+
+			const before = await service.getSubscription(orgId);
+			const after = await service.resyncFromPolar(orgId, { planId: "pro", status: "past_due" });
+
+			expect(before?.planId).toBe("free");
+			expect(after.planId).toBe("pro");
+			expect(after.status).toBe("past_due");
+		});
+	});
 });

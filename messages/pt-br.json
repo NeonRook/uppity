@@ -629,5 +629,16 @@
 	"admin_users_impersonate": "Personificar",
 	"admin_users_impersonate_desc": "Entrar como este usuário. Todas as páginas mostram um aviso até você parar.",
 	"impersonation_banner": "Visualizando como {name}",
-	"impersonation_stop": "Parar"
+	"impersonation_stop": "Parar",
+	"admin_org_subscription": "Assinatura",
+	"admin_org_subscription_desc": "Plano e situação de cobrança desta organização.",
+	"admin_org_period": "Período atual",
+	"admin_org_polar_customer": "Cliente Polar",
+	"admin_org_polar_subscription": "Assinatura Polar",
+	"admin_org_usage": "Uso",
+	"admin_org_usage_monitors": "Monitores",
+	"admin_org_usage_status_pages": "Páginas de status",
+	"admin_org_resync": "Ressincronizar com a Polar",
+	"admin_org_self_hosted": "Auto-hospedado — ilimitado",
+	"admin_org_no_subscription": "Nenhum registro de assinatura."
 }
