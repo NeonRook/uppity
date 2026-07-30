@@ -33,3 +33,6 @@ project.inlang/cache/
 # SQLite
 *.db
 .worktrees/
+
+# Subagent-driven development scratch (ledger, briefs, review packages)
+.superpowers/
