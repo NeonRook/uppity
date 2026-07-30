@@ -222,20 +222,20 @@
 				<div class="flex items-center gap-2 rounded-lg bg-muted p-1">
 					<button
 						type="button"
-						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
+						class="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'monthly'
-							? 'bg-background'
-							: 'text-muted-foreground hover:text-foreground'}"
+							? 'border-input bg-background'
+							: 'border-transparent text-muted-foreground hover:text-foreground'}"
 						onclick={() => (billingPeriod = 'monthly')}
 					>
 						{m.billing_monthly()}
 					</button>
 					<button
 						type="button"
-						class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
+						class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'annual'
-							? 'bg-background'
-							: 'text-muted-foreground hover:text-foreground'}"
+							? 'border-input bg-background'
+							: 'border-transparent text-muted-foreground hover:text-foreground'}"
 						onclick={() => (billingPeriod = 'annual')}
 					>
 						{m.billing_annual()}
