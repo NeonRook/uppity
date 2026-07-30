@@ -99,48 +99,48 @@ export function getStatusInfo(status: string): StatusInfo {
 				label: m.incident_status_investigating(),
 				icon: Search,
 				variant: "destructive",
-				color: "text-red-600",
-				bg: "bg-red-100",
+				color: "text-status-down-ink",
+				bg: "bg-status-down-surface",
 			};
 		case "identified":
 			return {
 				label: m.incident_status_identified(),
 				icon: Eye,
 				variant: "destructive",
-				color: "text-orange-600",
-				bg: "bg-orange-100",
+				color: "text-status-partial-ink",
+				bg: "bg-status-partial-surface",
 			};
 		case "monitoring":
 			return {
 				label: m.incident_status_monitoring(),
 				icon: Clock,
 				variant: "secondary",
-				color: "text-yellow-600",
-				bg: "bg-yellow-100",
+				color: "text-status-degraded-ink",
+				bg: "bg-status-degraded-surface",
 			};
 		case "resolved":
 			return {
 				label: m.incident_status_resolved(),
 				icon: CircleCheckBig,
 				variant: "outline",
-				color: "text-green-600",
-				bg: "bg-green-100",
+				color: "text-status-up-ink",
+				bg: "bg-status-up-surface",
 			};
 		case "postmortem":
 			return {
 				label: m.incident_status_postmortem(),
 				icon: FileText,
 				variant: "outline",
-				color: "text-blue-600",
-				bg: "bg-blue-100",
+				color: "text-status-maintenance-ink",
+				bg: "bg-status-maintenance-surface",
 			};
 		default:
 			return {
 				label: status,
 				icon: TriangleAlert,
 				variant: "secondary",
-				color: "text-gray-600",
-				bg: "bg-gray-100",
+				color: "text-status-unknown-ink",
+				bg: "bg-status-unknown-surface",
 			};
 	}
 }
@@ -151,36 +151,36 @@ export function getImpactInfo(impact: string): ImpactInfo {
 			return {
 				label: m.incident_impact_none(),
 				variant: "outline",
-				color: "text-gray-600",
-				bg: "bg-gray-100",
+				color: "text-status-unknown-ink",
+				bg: "bg-status-unknown-surface",
 			};
 		case "minor":
 			return {
 				label: m.incident_impact_minor(),
 				variant: "secondary",
-				color: "text-yellow-700",
-				bg: "bg-yellow-100",
+				color: "text-status-degraded-ink",
+				bg: "bg-status-degraded-surface",
 			};
 		case "major":
 			return {
 				label: m.incident_impact_major(),
 				variant: "destructive",
-				color: "text-orange-700",
-				bg: "bg-orange-100",
+				color: "text-status-partial-ink",
+				bg: "bg-status-partial-surface",
 			};
 		case "critical":
 			return {
 				label: m.incident_impact_critical(),
 				variant: "destructive",
-				color: "text-red-700",
-				bg: "bg-red-100",
+				color: "text-status-down-ink",
+				bg: "bg-status-down-surface",
 			};
 		default:
 			return {
 				label: impact,
 				variant: "secondary",
-				color: "text-gray-600",
-				bg: "bg-gray-100",
+				color: "text-status-unknown-ink",
+				bg: "bg-status-unknown-surface",
 			};
 	}
 }
