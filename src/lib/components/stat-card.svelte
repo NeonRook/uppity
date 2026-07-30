@@ -8,7 +8,7 @@
 		value: string | number;
 		description?: string;
 		icon: Component<IconProps>;
-		/** Optional color class for the icon (e.g., "text-green-500") */
+		/** Optional signal token class for the icon (e.g., "text-status-up") */
 		iconClass?: string;
 	}
 
