@@ -16,16 +16,16 @@ export type IconComponent = Component<IconProps>;
  * Get the background color class for a monitor status indicator
  */
 export function getStatusColor(status: string | null, active: boolean): string {
-	if (!active) return "bg-muted";
+	if (!active) return "bg-status-unknown";
 	switch (status) {
 		case "up":
-			return "bg-green-500";
+			return "bg-status-up";
 		case "degraded":
-			return "bg-yellow-500";
+			return "bg-status-degraded";
 		case "down":
-			return "bg-red-500";
+			return "bg-status-down";
 		default:
-			return "bg-muted";
+			return "bg-status-unknown";
 	}
 }
 
@@ -99,13 +99,13 @@ export function getCheckIcon(status: string): {
 } {
 	switch (status) {
 		case "up":
-			return { component: CircleCheckBig, class: "text-green-500" };
+			return { component: CircleCheckBig, class: "text-status-up" };
 		case "degraded":
-			return { component: TriangleAlert, class: "text-yellow-500" };
+			return { component: TriangleAlert, class: "text-status-degraded" };
 		case "down":
-			return { component: CircleX, class: "text-red-500" };
+			return { component: CircleX, class: "text-status-down" };
 		default:
-			return { component: Clock, class: "text-muted-foreground" };
+			return { component: Clock, class: "text-status-unknown" };
 	}
 }
 
@@ -116,32 +116,34 @@ export function getCheckIcon(status: string): {
 export function getMonitorStatusColor(status: string): string {
 	switch (status) {
 		case "up":
-			return "bg-green-500";
+			return "bg-status-up";
 		case "down":
-			return "bg-red-500";
+			return "bg-status-down";
 		case "degraded":
-			return "bg-yellow-500";
+			return "bg-status-degraded";
 		case "maintenance":
-			return "bg-blue-500";
+			return "bg-status-maintenance";
 		default:
-			return "bg-gray-400";
+			return "bg-status-unknown";
 	}
 }
 
 /**
- * Get the background color with hover state for uptime bar days
+ * Background token for a single day cell in the 90-day uptime bar.
+ * The hover treatment lives on the element (`hover:brightness-125`) so the
+ * lighten-one-step behaviour works identically in both themes.
  */
 export function getDayStatusColor(status: string): string {
 	switch (status) {
 		case "up":
-			return "bg-green-500 hover:bg-green-400";
+			return "bg-status-up";
 		case "down":
-			return "bg-red-500 hover:bg-red-400";
+			return "bg-status-down";
 		case "degraded":
-			return "bg-yellow-500 hover:bg-yellow-400";
+			return "bg-status-degraded";
 		case "partial":
-			return "bg-orange-500 hover:bg-orange-400";
+			return "bg-status-partial";
 		default:
-			return "bg-gray-300 hover:bg-gray-200";
+			return "bg-status-unknown";
 	}
 }

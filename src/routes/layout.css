@@ -29,6 +29,35 @@
 	--border: oklch(0.922 0 0);
 	--input: oklch(0.922 0 0);
 	--ring: oklch(0.696 0.17 162.48);
+
+	/* Signal family — the only saturated color in the product. See DESIGN.md.
+	   Each signal has a solid (the dot, the bar, the banner fill), a foreground
+	   (text on that solid), a surface (the pale pill/chip tint), and an ink
+	   (text on that surface). */
+	--status-up: var(--primary);
+	--status-up-foreground: oklch(0.985 0 0);
+	--status-up-surface: oklch(0.95 0.052 163.051);
+	--status-up-ink: oklch(0.378 0.077 168.94);
+	--status-degraded: oklch(0.769 0.188 70.08);
+	--status-degraded-foreground: oklch(0.2 0.06 70.08);
+	--status-degraded-surface: oklch(0.95 0.05 70.08);
+	--status-degraded-ink: oklch(0.4 0.1 70.08);
+	--status-partial: oklch(0.705 0.213 47.604);
+	--status-partial-foreground: oklch(0.985 0 0);
+	--status-partial-surface: oklch(0.95 0.05 47.604);
+	--status-partial-ink: oklch(0.4 0.12 47.604);
+	--status-down: var(--destructive);
+	--status-down-foreground: oklch(0.985 0 0);
+	--status-down-surface: oklch(0.95 0.04 27.325);
+	--status-down-ink: oklch(0.4 0.16 27.325);
+	--status-maintenance: oklch(0.623 0.214 259.815);
+	--status-maintenance-foreground: oklch(0.985 0 0);
+	--status-maintenance-surface: oklch(0.95 0.04 259.815);
+	--status-maintenance-ink: oklch(0.4 0.14 259.815);
+	--status-unknown: oklch(0.708 0 0);
+	--status-unknown-foreground: oklch(0.145 0 0);
+	--status-unknown-surface: oklch(0.95 0 0);
+	--status-unknown-ink: oklch(0.4 0 0);
 	--chart-1: oklch(0.696 0.17 162.48);
 	--chart-2: oklch(0.6 0.118 184.704);
 	--chart-3: oklch(0.398 0.07 227.392);
@@ -63,6 +92,27 @@
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.696 0.17 162.48);
+
+	/* Signal family — solids lift where legibility against Ward Night demands
+	   it; up stays put because the emerald is theme-invariant. */
+	--status-up-foreground: oklch(0.985 0 0);
+	--status-up-surface: oklch(0.269 0.03 165);
+	--status-up-ink: oklch(0.845 0.143 164.978);
+	--status-degraded: oklch(0.828 0.189 84.429);
+	--status-degraded-surface: oklch(0.27 0.04 70.08);
+	--status-degraded-ink: oklch(0.85 0.13 84.429);
+	--status-partial: oklch(0.75 0.183 55.934);
+	--status-partial-surface: oklch(0.27 0.05 47.604);
+	--status-partial-ink: oklch(0.83 0.12 55.934);
+	--status-down-surface: oklch(0.27 0.06 27.325);
+	--status-down-ink: oklch(0.82 0.11 22.216);
+	--status-maintenance: oklch(0.707 0.165 254.624);
+	--status-maintenance-surface: oklch(0.27 0.05 259.815);
+	--status-maintenance-ink: oklch(0.85 0.1 254.624);
+	--status-unknown: oklch(0.556 0 0);
+	--status-unknown-foreground: oklch(0.985 0 0);
+	--status-unknown-surface: oklch(0.269 0 0);
+	--status-unknown-ink: oklch(0.8 0 0);
 	--chart-1: oklch(0.696 0.17 162.48);
 	--chart-2: oklch(0.765 0.177 163.223);
 	--chart-3: oklch(0.769 0.188 70.08);
@@ -107,6 +157,30 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
+	--color-status-up: var(--status-up);
+	--color-status-up-foreground: var(--status-up-foreground);
+	--color-status-up-surface: var(--status-up-surface);
+	--color-status-up-ink: var(--status-up-ink);
+	--color-status-degraded: var(--status-degraded);
+	--color-status-degraded-foreground: var(--status-degraded-foreground);
+	--color-status-degraded-surface: var(--status-degraded-surface);
+	--color-status-degraded-ink: var(--status-degraded-ink);
+	--color-status-partial: var(--status-partial);
+	--color-status-partial-foreground: var(--status-partial-foreground);
+	--color-status-partial-surface: var(--status-partial-surface);
+	--color-status-partial-ink: var(--status-partial-ink);
+	--color-status-down: var(--status-down);
+	--color-status-down-foreground: var(--status-down-foreground);
+	--color-status-down-surface: var(--status-down-surface);
+	--color-status-down-ink: var(--status-down-ink);
+	--color-status-maintenance: var(--status-maintenance);
+	--color-status-maintenance-foreground: var(--status-maintenance-foreground);
+	--color-status-maintenance-surface: var(--status-maintenance-surface);
+	--color-status-maintenance-ink: var(--status-maintenance-ink);
+	--color-status-unknown: var(--status-unknown);
+	--color-status-unknown-foreground: var(--status-unknown-foreground);
+	--color-status-unknown-surface: var(--status-unknown-surface);
+	--color-status-unknown-ink: var(--status-unknown-ink);
 	--color-chart-1: var(--chart-1);
 	--color-chart-2: var(--chart-2);
 	--color-chart-3: var(--chart-3);
