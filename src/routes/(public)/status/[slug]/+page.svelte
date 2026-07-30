@@ -34,43 +34,43 @@
 				return {
 					label: m.public_status_all_operational(),
 					icon: CircleCheckBig,
-					bgColor: 'bg-green-500',
-					textColor: 'text-green-500'
+					bgColor: 'bg-status-up',
+					textColor: 'text-status-up-foreground'
 				};
 			case 'degraded':
 				return {
 					label: m.public_status_degraded(),
 					icon: TriangleAlert,
-					bgColor: 'bg-yellow-500',
-					textColor: 'text-yellow-500'
+					bgColor: 'bg-status-degraded',
+					textColor: 'text-status-degraded-foreground'
 				};
 			case 'partial_outage':
 				return {
 					label: m.public_status_partial(),
 					icon: CircleMinus,
-					bgColor: 'bg-orange-500',
-					textColor: 'text-orange-500'
+					bgColor: 'bg-status-partial',
+					textColor: 'text-status-partial-foreground'
 				};
 			case 'major_outage':
 				return {
 					label: m.public_status_major(),
 					icon: CircleX,
-					bgColor: 'bg-red-500',
-					textColor: 'text-red-500'
+					bgColor: 'bg-status-down',
+					textColor: 'text-status-down-foreground'
 				};
 			case 'under_maintenance':
 				return {
 					label: m.public_status_under_maintenance(),
 					icon: Wrench,
-					bgColor: 'bg-blue-500',
-					textColor: 'text-blue-500'
+					bgColor: 'bg-status-maintenance',
+					textColor: 'text-status-maintenance-foreground'
 				};
 			default:
 				return {
 					label: m.public_status_unknown(),
 					icon: CircleMinus,
-					bgColor: 'bg-gray-500',
-					textColor: 'text-gray-500'
+					bgColor: 'bg-status-unknown',
+					textColor: 'text-status-unknown-foreground'
 				};
 		}
 	}
@@ -85,18 +85,18 @@
 	{/if}
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-background">
 	<!-- Header -->
-	<header class="border-b bg-white">
+	<header class="border-b bg-card">
 		<div class="mx-auto max-w-4xl px-4 py-6">
 			<div class="flex items-center gap-4">
 				{#if page.logoUrl}
 					<img src={page.logoUrl} alt={page.name} class="h-10 w-auto" />
 				{/if}
 				<div>
-					<h1 class="text-2xl font-bold text-gray-900">{page.name}</h1>
+					<h1 class="text-2xl font-bold text-foreground">{page.name}</h1>
 					{#if page.description}
-						<p class="text-sm text-gray-600">{page.description}</p>
+						<p class="text-sm text-muted-foreground">{page.description}</p>
 					{/if}
 				</div>
 			</div>
@@ -105,7 +105,7 @@
 
 	<main class="mx-auto max-w-4xl px-4 py-8">
 		<!-- Overall Status Banner -->
-		<div class="mb-8 rounded-lg {statusInfo.bgColor} p-6 text-white">
+		<div class="mb-8 rounded-lg {statusInfo.bgColor} {statusInfo.textColor} p-6">
 			<div class="flex items-center gap-3">
 				<statusInfo.icon class="h-8 w-8" />
 				<span class="text-2xl font-semibold">{statusInfo.label}</span>
@@ -115,21 +115,23 @@
 		<!-- Active Maintenance -->
 		{#if activeMaintenance.length > 0}
 			<section class="mb-8">
-				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+				<h2 class="mb-4 text-lg font-semibold text-foreground">
 					{m.public_status_active_maintenance()}
 				</h2>
 				<div class="space-y-3">
 					{#each activeMaintenance as w (w.id)}
-						<div class="flex items-start gap-3 rounded-lg border border-blue-500/40 bg-blue-50 p-4">
-							<Wrench class="mt-0.5 h-5 w-5 text-blue-500" />
+						<div
+							class="flex items-start gap-3 rounded-lg border border-status-maintenance/40 bg-status-maintenance-surface p-4"
+						>
+							<Wrench class="mt-0.5 h-5 w-5 text-status-maintenance" />
 							<div class="flex-1">
-								<div class="font-medium text-gray-900">
+								<div class="font-medium text-foreground">
 									{m.public_status_maintenance_active({ name: w.name })}
 								</div>
 								{#if w.description}
-									<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+									<p class="mt-1 text-sm text-muted-foreground">{w.description}</p>
 								{/if}
-								<p class="mt-1 text-xs text-gray-500">
+								<p class="mt-1 text-xs text-muted-foreground">
 									{m.public_status_maintenance_ends({
 										time: new Date(w.endsAt).toLocaleString()
 									})}
@@ -144,23 +146,23 @@
 		<!-- Upcoming Maintenance -->
 		{#if upcomingMaintenance.length > 0}
 			<section class="mb-8">
-				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+				<h2 class="mb-4 text-lg font-semibold text-foreground">
 					{m.public_status_upcoming_maintenance()}
 				</h2>
 				<div class="space-y-3">
 					{#each upcomingMaintenance as w (w.id)}
 						<div
-							class="flex items-start gap-3 rounded-lg border border-blue-300/40 bg-blue-50/60 p-4"
+							class="flex items-start gap-3 rounded-lg border border-status-maintenance/25 bg-status-maintenance-surface/60 p-4"
 						>
-							<Clock class="mt-0.5 h-5 w-5 text-blue-400" />
+							<Clock class="mt-0.5 h-5 w-5 text-status-maintenance/70" />
 							<div class="flex-1">
-								<div class="font-medium text-gray-900">
+								<div class="font-medium text-foreground">
 									{m.public_status_maintenance_scheduled({ name: w.name })}
 								</div>
 								{#if w.description}
-									<p class="mt-1 text-sm text-gray-600">{w.description}</p>
+									<p class="mt-1 text-sm text-muted-foreground">{w.description}</p>
 								{/if}
-								<p class="mt-1 text-xs text-gray-500">
+								<p class="mt-1 text-xs text-muted-foreground">
 									{m.public_status_maintenance_window({
 										startTime: new Date(w.startsAt).toLocaleString(),
 										endTime: new Date(w.endsAt).toLocaleString()
@@ -176,7 +178,7 @@
 		<!-- Active Incidents -->
 		{#if activeIncidents.length > 0}
 			<section class="mb-8">
-				<h2 class="mb-4 text-lg font-semibold text-gray-900">
+				<h2 class="mb-4 text-lg font-semibold text-foreground">
 					{m.public_status_active_incidents()}
 				</h2>
 				<div class="space-y-4">
@@ -186,12 +188,12 @@
 						{@const timelineUpdates = incident.updates.filter((u) => u.status !== 'postmortem')}
 						<a
 							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
-							class="block rounded-lg border bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+							class="block rounded-lg border bg-card p-5 transition-colors hover:bg-muted/50"
 						>
 							<!-- Incident Header -->
 							<div class="mb-4 flex items-start justify-between">
 								<div class="flex-1">
-									<h3 class="text-lg font-semibold text-gray-900">{incident.title}</h3>
+									<h3 class="text-lg font-semibold text-foreground">{incident.title}</h3>
 									<div class="mt-1 flex flex-wrap items-center gap-2">
 										<span
 											class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {incidentStatusInfo.bg} {incidentStatusInfo.color}"
@@ -204,26 +206,26 @@
 										>
 											{m.incidents_impact({ impact: impactInfo.label })}
 										</span>
-										<span class="text-xs text-gray-500">
+										<span class="text-xs text-muted-foreground">
 											{m.public_status_started({
 												date: formatIncidentDateTime(incident.startedAt)
 											})}
 										</span>
 									</div>
 								</div>
-								<ChevronRight class="h-5 w-5 shrink-0 text-gray-400" />
+								<ChevronRight class="h-5 w-5 shrink-0 text-muted-foreground" />
 							</div>
 
 							<!-- Timeline (excluding postmortem) -->
 							{#if timelineUpdates.length > 0}
-								<div class="relative mt-4 space-y-4 border-t border-gray-100 pt-4">
+								<div class="relative mt-4 space-y-4 border-t border-border pt-4">
 									{#each timelineUpdates.slice(0, 3) as update, i (update.id)}
 										{@const updateStatusInfo = getStatusInfo(update.status)}
 										{@const UpdateIcon = updateStatusInfo.icon}
 										<div class="relative flex gap-4">
 											<!-- Connector line -->
 											{#if i < Math.min(timelineUpdates.length, 3) - 1}
-												<div class="absolute top-8 left-3.75 h-full w-0.5 bg-gray-200"></div>
+												<div class="absolute top-8 left-3.75 h-full w-0.5 bg-border"></div>
 											{/if}
 											<!-- Icon -->
 											<div
@@ -239,16 +241,16 @@
 													>
 														{updateStatusInfo.label}
 													</span>
-													<span class="text-xs text-gray-500">
+													<span class="text-xs text-muted-foreground">
 														{formatIncidentDateTime(update.createdAt)}
 													</span>
 												</div>
-												<p class="mt-1 text-sm text-gray-700">{update.message}</p>
+												<p class="mt-1 text-sm text-foreground">{update.message}</p>
 											</div>
 										</div>
 									{/each}
 									{#if timelineUpdates.length > 3}
-										<p class="pl-12 text-xs text-gray-500">
+										<p class="pl-12 text-xs text-muted-foreground">
 											{m.public_status_more_updates({ count: timelineUpdates.length - 3 })}
 										</p>
 									{/if}
@@ -265,13 +267,13 @@
 			<section class="mb-8">
 				<div class="space-y-4">
 					{#each ungroupedMonitors as monitor (monitor.id)}
-						<div class="rounded-lg border bg-white p-4">
+						<div class="rounded-lg border bg-card p-4">
 							<div class="mb-3 flex items-center justify-between">
 								<div class="flex items-center gap-2">
 									<div class="h-3 w-3 rounded-full {getMonitorStatusColor(monitor.status)}"></div>
-									<span class="font-medium text-gray-900">{monitor.name}</span>
+									<span class="font-medium text-foreground">{monitor.name}</span>
 								</div>
-								<span class="text-sm text-gray-500">
+								<span class="text-sm text-muted-foreground">
 									{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 								</span>
 							</div>
@@ -279,12 +281,14 @@
 							<div class="flex gap-0.5">
 								{#each monitor.dailyHistory as day (day.date)}
 									<div
-										class="h-8 flex-1 rounded-sm transition-colors {getDayStatusColor(day.status)}"
+										class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
+											day.status
+										)}"
 										title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
 									></div>
 								{/each}
 							</div>
-							<div class="mt-1 flex justify-between text-xs text-gray-400">
+							<div class="mt-1 flex justify-between text-xs text-muted-foreground">
 								<span>{m.public_status_days_ago()}</span>
 								<span>{m.public_status_today()}</span>
 							</div>
@@ -298,19 +302,19 @@
 		{#each groups as group (group.id)}
 			{#if group.monitors.length > 0}
 				<section class="mb-8">
-					<h2 class="mb-4 text-lg font-semibold text-gray-900">{group.name}</h2>
+					<h2 class="mb-4 text-lg font-semibold text-foreground">{group.name}</h2>
 					{#if group.description}
-						<p class="mb-4 text-sm text-gray-600">{group.description}</p>
+						<p class="mb-4 text-sm text-muted-foreground">{group.description}</p>
 					{/if}
 					<div class="space-y-4">
 						{#each group.monitors as monitor (monitor.id)}
-							<div class="rounded-lg border bg-white p-4">
+							<div class="rounded-lg border bg-card p-4">
 								<div class="mb-3 flex items-center justify-between">
 									<div class="flex items-center gap-2">
 										<div class="h-3 w-3 rounded-full {getMonitorStatusColor(monitor.status)}"></div>
-										<span class="font-medium text-gray-900">{monitor.name}</span>
+										<span class="font-medium text-foreground">{monitor.name}</span>
 									</div>
-									<span class="text-sm text-gray-500">
+									<span class="text-sm text-muted-foreground">
 										{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 									</span>
 								</div>
@@ -318,14 +322,14 @@
 								<div class="flex gap-0.5">
 									{#each monitor.dailyHistory as day (day.date)}
 										<div
-											class="h-8 flex-1 rounded-sm transition-colors {getDayStatusColor(
+											class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
 												day.status
 											)}"
 											title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
 										></div>
 									{/each}
 								</div>
-								<div class="mt-1 flex justify-between text-xs text-gray-400">
+								<div class="mt-1 flex justify-between text-xs text-muted-foreground">
 									<span>{m.public_status_days_ago()}</span>
 									<span>{m.public_status_today()}</span>
 								</div>
@@ -338,8 +342,8 @@
 
 		<!-- Incident History -->
 		<section class="mb-8">
-			<h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-				<History class="h-5 w-5 text-gray-500" />
+			<h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+				<History class="h-5 w-5 text-muted-foreground" />
 				{m.public_status_incident_history()}
 			</h2>
 			{#if resolvedIncidents.length > 0}
@@ -348,18 +352,18 @@
 						{@const impactInfo = getImpactInfo(incident.impact)}
 						<a
 							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
-							class="flex items-center justify-between rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+							class="flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50"
 						>
 							<div class="flex-1">
 								<div class="flex flex-wrap items-center gap-2">
-									<h3 class="font-medium text-gray-900">{incident.title}</h3>
+									<h3 class="font-medium text-foreground">{incident.title}</h3>
 									<span
 										class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {impactInfo.bg} {impactInfo.color}"
 									>
 										{impactInfo.label}
 									</span>
 								</div>
-								<div class="mt-1 flex flex-wrap gap-3 text-xs text-gray-500">
+								<div class="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
 									<span>{formatIncidentDateTime(incident.startedAt)}</span>
 									{#if incident.resolvedAt}
 										<span
@@ -370,12 +374,12 @@
 									{/if}
 								</div>
 							</div>
-							<ChevronRight class="h-5 w-5 shrink-0 text-gray-400" />
+							<ChevronRight class="h-5 w-5 shrink-0 text-muted-foreground" />
 						</a>
 					{/each}
 				</div>
 			{:else}
-				<div class="rounded-lg border bg-white p-6 text-center text-gray-500">
+				<div class="rounded-lg border bg-card p-6 text-center text-muted-foreground">
 					{m.public_status_no_incidents()}
 				</div>
 			{/if}
@@ -383,39 +387,39 @@
 
 		<!-- Legend -->
 		<section class="mt-12 border-t pt-6">
-			<h3 class="mb-3 text-sm font-medium text-gray-700">{m.public_status_legend()}</h3>
+			<h3 class="mb-3 text-sm font-medium text-foreground">{m.public_status_legend()}</h3>
 			<div class="flex flex-wrap gap-4 text-sm">
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-green-500"></div>
-					<span class="text-gray-600">{m.public_status_legend_operational()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-up"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_operational()}</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
-					<span class="text-gray-600">{m.public_status_legend_degraded()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-degraded"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_degraded()}</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-orange-500"></div>
-					<span class="text-gray-600">{m.public_status_legend_partial()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-partial"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_partial()}</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-red-500"></div>
-					<span class="text-gray-600">{m.public_status_legend_down()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-down"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_down()}</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-blue-500"></div>
-					<span class="text-gray-600">{m.public_status_legend_maintenance()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-maintenance"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_maintenance()}</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<div class="h-3 w-3 rounded-full bg-gray-400"></div>
-					<span class="text-gray-600">{m.public_status_legend_no_data()}</span>
+					<div class="h-3 w-3 rounded-full bg-status-unknown"></div>
+					<span class="text-muted-foreground">{m.public_status_legend_no_data()}</span>
 				</div>
 			</div>
 		</section>
 	</main>
 
 	<!-- Footer -->
-	<footer class="border-t bg-white py-6">
-		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500">
+	<footer class="border-t bg-card py-6">
+		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-muted-foreground">
 			{m.public_status_footer()}
 		</div>
 	</footer>
