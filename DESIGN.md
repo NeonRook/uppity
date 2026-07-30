@@ -28,31 +28,31 @@ colors:
   status-unknown: "oklch(0.708 0 0)"
 typography:
   display:
-    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(2.25rem, 5vw, 3rem)"
     fontWeight: 300
     lineHeight: 1.05
     letterSpacing: "-0.02em"
   headline:
-    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "normal"
   body:
-    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "normal"
   label:
-    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -199,8 +199,8 @@ Values below are the **light-theme** (`:root`) definitions in `src/routes/layout
 
 ### Primary
 
-- **Vital Emerald** — the brand and the pulse, in one color. It marks the product (primary buttons, active navigation, focus rings, the org and account avatars) *and* it marks a healthy service. Those two meanings are deliberately unified: what Uppity is and what "up" looks like are the same green. Theme-invariant — identical in light and dark, unlike every other token.
-- **Emerald Breath** (`accent`) — the palest possible wash of the primary hue, at 0.052 chroma. This is the hover surface for outline and ghost buttons, dropdown items, and sidebar accents. It is the only way emerald appears as a *background* outside of a committed action.
+- **Vital Emerald** — the brand and the pulse, in one color. It marks the product (primary buttons, active navigation, focus rings, the org and account avatars) _and_ it marks a healthy service. Those two meanings are deliberately unified: what Uppity is and what "up" looks like are the same green. Theme-invariant — identical in light and dark, unlike every other token.
+- **Emerald Breath** (`accent`) — the palest possible wash of the primary hue, at 0.052 chroma. This is the hover surface for outline and ghost buttons, dropdown items, and sidebar accents. It is the only way emerald appears as a _background_ outside of a committed action.
 
 ### Tertiary — The Signal Family
 
@@ -208,7 +208,7 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 - **Vital Emerald** (`status-up`) — operational. Resolves to the same value as `primary`.
 - **Ward Amber** (`status-degraded`) — responding, but slower than its degraded-response-time threshold allows. Warning without alarm.
-- **Ward Ember** (`status-partial`) — a partial outage: some monitors in a group are down. Sits deliberately between amber and scarlet in hue so a partial outage reads as *closer to down than to degraded*.
+- **Ward Ember** (`status-partial`) — a partial outage: some monitors in a group are down. Sits deliberately between amber and scarlet in hue so a partial outage reads as _closer to down than to degraded_.
 - **Alarm Scarlet** (`status-down`) — down. Resolves to the same value as `destructive`, because a failed check and a destructive action carry the same weight of attention. Rare and total.
 - **Ward Blue** (`status-maintenance`) — a scheduled maintenance window is active. The only cool signal, because planned downtime is categorically different from failure and must never be mistaken for it.
 - **Ward Slate** (`status-unknown`) — no data, never checked, or paused. Achromatic on purpose: the absence of a reading is not a reading.
@@ -235,8 +235,8 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ## Typography
 
-**Display Font:** IBM Plex Sans (with `ui-sans-serif`, `system-ui`, `sans-serif`)
-**Body Font:** IBM Plex Sans (same stack)
+**Display Font:** IBM Plex Sans Variable (with `ui-sans-serif`, `system-ui`, `sans-serif`)
+**Body Font:** IBM Plex Sans Variable (same stack)
 **Label/Mono Font:** IBM Plex Mono (with `ui-monospace`, `SFMono-Regular`, `Menlo`, `monospace`)
 
 **Character:** Plex is a humanist grotesque with slightly open apertures and a faintly mechanical spine — engineered but not cold, which is exactly the register a monitoring tool that runs on a schedule should speak in. Its mono companion shares the same skeleton, so a response time set in Plex Mono sits beside a label set in Plex Sans without the visual seam a mismatched pairing creates. Weights stay low: 300 for display, 400 for body, 500–600 for emphasis. Nothing is set in 700.
@@ -252,11 +252,9 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ### Named Rules
 
-**The Measured-Value Rule.** If a number came from a check, a clock, or the database, it is set in mono. Uptime percentages, response times, timestamps, durations, IP addresses, monitor URLs, session IDs, audit-log record IDs. If a number was typed by a human or is a simple count ("4 monitors"), it is set in sans. Mono is what distinguishes a *reading* from a *word*.
+**The Measured-Value Rule.** If a number came from a check, a clock, or the database, it is set in mono. Uptime percentages, response times, timestamps, durations, IP addresses, monitor URLs, session IDs, audit-log record IDs. If a number was typed by a human or is a simple count ("4 monitors"), it is set in sans. Mono is what distinguishes a _reading_ from a _word_.
 
 **The No-Bold Rule.** The heaviest weight in the system is 600. Emphasis comes from size, color, and spacing before it comes from weight. A page where three things are bold has nothing emphasized.
-
-> **Pending implementation.** No webfont is loaded today; the product currently runs entirely on Tailwind's default `ui-sans-serif` / `ui-monospace` stacks. Adopting Plex means adding `--font-sans` and `--font-mono` overrides in the `@theme` block of `src/routes/layout.css` and self-hosting the two families. The role hierarchy above is already what the code expresses in Tailwind step terms (`text-2xl` → headline, `text-sm` → body, `text-xs` → label, `font-mono` → readout).
 
 ## Layout
 
@@ -276,7 +274,7 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ## Elevation & Depth
 
-**This system has no resting shadows.** Depth is expressed entirely through surface lightness and hairline borders. `card` and `popover` sit at pure white against a `sidebar`/`muted` plane at 0.985–0.97, and in dark mode the relationship inverts: `background` drops to 0.145 while `card` and `sidebar` *lift* to 0.205. Nothing in the page hovers above anything else. Elements are stacked planes, not floating panels — which is why an incident banner appearing genuinely reads as an event rather than as more of the same furniture.
+**This system has no resting shadows.** Depth is expressed entirely through surface lightness and hairline borders. `card` and `popover` sit at pure white against a `sidebar`/`muted` plane at 0.985–0.97, and in dark mode the relationship inverts: `background` drops to 0.145 while `card` and `sidebar` _lift_ to 0.205. Nothing in the page hovers above anything else. Elements are stacked planes, not floating panels — which is why an incident banner appearing genuinely reads as an event rather than as more of the same furniture.
 
 Shadow is reserved for elements that have genuinely left the page: dialogs, popovers, dropdown menus, sheets, tooltips. Those are the only places a shadow is correct, because they are the only places something is actually in front of the document.
 
@@ -357,7 +355,7 @@ The signature component: ninety day-cells in a row, each `flex-1` with a 6px rad
 
 ### The Status Banner
 
-The full-width overall-state block at the top of a public status page: 10px radius, 24px padding, a solid fill of the current state color, a 32px icon, and a 24px semibold label in white. It is the only element in the entire system that fills a large area with saturated color, and that is precisely why it works — nothing else competes with it, so its color *is* the message. It has six states, one per signal token plus unknown.
+The full-width overall-state block at the top of a public status page: 10px radius, 24px padding, a solid fill of the current state color, a 32px icon, and a 24px semibold label in white. It is the only element in the entire system that fills a large area with saturated color, and that is precisely why it works — nothing else competes with it, so its color _is_ the message. It has six states, one per signal token plus unknown.
 
 ### The Incident Timeline
 
