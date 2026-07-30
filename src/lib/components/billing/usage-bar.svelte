@@ -12,9 +12,9 @@
 	const isUnlimited = $derived(limit === -1);
 	const percentage = $derived(isUnlimited ? 0 : Math.min((current / limit) * 100, 100));
 	const barColor = $derived.by(() => {
-		if (percentage >= 100) return 'bg-destructive';
-		if (percentage >= 80) return 'bg-yellow-500';
-		return 'bg-primary';
+		if (percentage >= 100) return 'bg-status-down';
+		if (percentage >= 80) return 'bg-status-degraded';
+		return 'bg-status-up';
 	});
 
 	const labelText = $derived(
