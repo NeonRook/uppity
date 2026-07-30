@@ -526,6 +526,13 @@
 	"public_status_maintenance_window": "{startTime} → {endTime}",
 	"public_status_legend_maintenance": "Maintenance",
 	"public_status_footer": "Powered by Uppity",
+	"public_incident_back": "Back to status",
+	"public_incident_resolved": "Resolved {date}",
+	"public_incident_ongoing": "(ongoing)",
+	"public_incident_affected_services": "Affected Services",
+	"public_incident_timeline": "Incident Timeline",
+	"public_incident_no_updates": "No updates available.",
+	"landing_page_title": "Uppity - Simple Uptime Monitoring",
 
 	"billing_title": "Billing & Plans",
 	"billing_subtitle": "Manage your subscription and view usage",

@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-	<title>Uppity - Simple Uptime Monitoring</title>
+	<title>{m.landing_page_title()}</title>
 </svelte:head>
 
 <div class="min-h-screen bg-background">
