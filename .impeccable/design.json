@@ -54,8 +54,9 @@
 			"background": {
 				"role": "neutral",
 				"displayName": "Ward Paper",
-				"canonical": "oklch(1 0 0)",
+				"canonical": "oklch(0.985 0 0)",
 				"dark": "oklch(0.145 0 0)",
+				"note": "The recessed plane. Card and sidebar lift above it in both themes.",
 				"tonalRamp": [
 					"oklch(0.145 0 0)",
 					"oklch(0.205 0 0)",
@@ -78,7 +79,7 @@
 				"displayName": "Ward Paper (raised)",
 				"canonical": "oklch(1 0 0)",
 				"dark": "oklch(0.205 0 0)",
-				"note": "In light it matches background; in dark it lifts above it. Depth inverts between themes."
+				"note": "The lifted plane. Sits above background in both themes — pure white in light, 0.205 in dark."
 			},
 			"card-foreground": {
 				"role": "neutral",
@@ -95,7 +96,7 @@
 			"sidebar": {
 				"role": "neutral",
 				"displayName": "Ward Ash",
-				"canonical": "oklch(0.985 0 0)",
+				"canonical": "oklch(1 0 0)",
 				"dark": "oklch(0.205 0 0)"
 			},
 			"muted": {
@@ -503,7 +504,7 @@
 			"Do design the empty and unknown states deliberately. A monitor that has never been checked is a real, common state, and it is gray."
 		],
 		"donts": [
-			"Don't hardcode a hex, an rgb(), or a Tailwind palette literal. bg-gray-50, bg-white, text-gray-900, and bg-green-500 are all prohibited. The public status page and the landing page are currently full of them; that is known drift being migrated, not a pattern to copy.",
+			"Don't hardcode a hex, an rgb(), or a Tailwind palette literal. bg-gray-50, bg-white, text-gray-900, and bg-green-500 are all prohibited. The unit specs for status.ts and incidents.ts fail on any palette literal escaping those helpers; keep it that way.",
 			"Don't introduce a second green. There is one, it is primary, and every other green in the codebase is legacy.",
 			"Don't put a shadow on anything that has not left the page. Cards, rows, panels, and sidebars are flat at rest.",
 			"Don't use saturated color for anything that is not reporting the state of a monitored thing. No colored headings, no decorative accents, no category tints.",
