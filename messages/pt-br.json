@@ -526,6 +526,13 @@
 	"public_status_maintenance_window": "{startTime} → {endTime}",
 	"public_status_legend_maintenance": "Manutenção",
 	"public_status_footer": "Desenvolvido por Uppity",
+	"public_incident_back": "Voltar ao status",
+	"public_incident_resolved": "Resolvido {date}",
+	"public_incident_ongoing": "(em andamento)",
+	"public_incident_affected_services": "Serviços Afetados",
+	"public_incident_timeline": "Linha do Tempo do Incidente",
+	"public_incident_no_updates": "Nenhuma atualização disponível.",
+	"landing_page_title": "Uppity - Monitoramento de Uptime Simples",
 
 	"billing_title": "Cobrança e Planos",
 	"billing_subtitle": "Gerencie sua assinatura e visualize seu uso",

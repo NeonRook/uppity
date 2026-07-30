@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
 	import { formatDuration } from '$lib/format';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
 
@@ -47,7 +48,7 @@
 			class="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
 		>
 			<ArrowLeft class="h-4 w-4" />
-			Back to Status
+			{m.public_incident_back()}
 		</a>
 
 		<!-- Incident Header -->
@@ -64,7 +65,7 @@
 					<span
 						class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium {impactInfo.bg} {impactInfo.color}"
 					>
-						{impactInfo.label} Impact
+						{m.incidents_impact({ impact: impactInfo.label })}
 					</span>
 				</div>
 			</div>
@@ -73,19 +74,28 @@
 			<div class="flex flex-wrap gap-6 border-t border-border pt-4 text-sm text-muted-foreground">
 				<div class="flex items-center gap-2">
 					<Clock class="h-4 w-4 text-muted-foreground" />
-					<span>Started {formatIncidentDateTime(incident.startedAt)}</span>
+					<span
+						>{m.public_status_started({ date: formatIncidentDateTime(incident.startedAt) })}</span
+					>
 				</div>
 				{#if incident.resolvedAt}
 					<div class="flex items-center gap-2">
 						<Clock class="h-4 w-4 text-muted-foreground" />
-						<span>Resolved {formatIncidentDateTime(incident.resolvedAt)}</span>
+						<span
+							>{m.public_incident_resolved({
+								date: formatIncidentDateTime(incident.resolvedAt)
+							})}</span
+						>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
-					<span class="font-medium text-foreground">Duration:</span>
-					<span>{formatDuration(incident.startedAt, incident.resolvedAt)}</span>
+					<span
+						>{m.public_status_duration({
+							duration: formatDuration(incident.startedAt, incident.resolvedAt)
+						})}</span
+					>
 					{#if !incident.resolvedAt}
-						<span class="text-muted-foreground">(ongoing)</span>
+						<span class="text-muted-foreground">{m.public_incident_ongoing()}</span>
 					{/if}
 				</div>
 			</div>
@@ -96,7 +106,7 @@
 			<div class="mb-8 rounded-lg border bg-card p-6">
 				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
 					<Server class="h-5 w-5 text-muted-foreground" />
-					Affected Services
+					{m.public_incident_affected_services()}
 				</h3>
 				<div class="flex flex-wrap gap-2">
 					{#each affectedMonitors as monitor (monitor.id)}
@@ -115,20 +125,22 @@
 			>
 				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
 					<FileText class="h-5 w-5 text-status-maintenance-ink" />
-					Postmortem
+					{m.incident_status_postmortem()}
 				</h3>
 				<div class="prose prose-sm max-w-none text-foreground">
 					<p class="whitespace-pre-wrap">{postmortemUpdate.message}</p>
 				</div>
 				<p class="mt-4 text-xs text-muted-foreground">
-					Published {formatIncidentDateTime(postmortemUpdate.createdAt)}
+					{m.incident_postmortem_published({
+						date: formatIncidentDateTime(postmortemUpdate.createdAt)
+					})}
 				</p>
 			</div>
 		{/if}
 
 		<!-- Timeline -->
 		<div class="rounded-lg border bg-card p-6">
-			<h3 class="mb-6 text-lg font-semibold text-foreground">Incident Timeline</h3>
+			<h3 class="mb-6 text-lg font-semibold text-foreground">{m.public_incident_timeline()}</h3>
 
 			{#if timelineUpdates.length > 0}
 				<div class="relative space-y-6">
@@ -164,7 +176,7 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="text-muted-foreground">No updates available.</p>
+				<p class="text-muted-foreground">{m.public_incident_no_updates()}</p>
 			{/if}
 		</div>
 	</main>
@@ -172,7 +184,7 @@
 	<!-- Footer -->
 	<footer class="border-t bg-card py-6">
 		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-muted-foreground">
-			Powered by Uppity
+			{m.public_status_footer()}
 		</div>
 	</footer>
 </div>
