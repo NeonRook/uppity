@@ -273,7 +273,7 @@
 									<div class="h-3 w-3 rounded-full {getMonitorStatusColor(monitor.status)}"></div>
 									<span class="font-medium text-foreground">{monitor.name}</span>
 								</div>
-								<span class="text-sm text-muted-foreground">
+								<span class="font-mono text-sm text-muted-foreground">
 									{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 								</span>
 							</div>
@@ -314,7 +314,7 @@
 										<div class="h-3 w-3 rounded-full {getMonitorStatusColor(monitor.status)}"></div>
 										<span class="font-medium text-foreground">{monitor.name}</span>
 									</div>
-									<span class="text-sm text-muted-foreground">
+									<span class="font-mono text-sm text-muted-foreground">
 										{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
 									</span>
 								</div>
