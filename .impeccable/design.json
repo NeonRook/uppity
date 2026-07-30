@@ -1,517 +1,517 @@
 {
-  "schemaVersion": 2,
-  "generatedAt": "2026-07-30T19:39:00Z",
-  "title": "Design System: Uppity",
-  "extensions": {
-    "colorMeta": {
-      "primary": {
-        "role": "primary",
-        "displayName": "Vital Emerald",
-        "canonical": "oklch(0.696 0.17 162.48)",
-        "dark": "oklch(0.696 0.17 162.48)",
-        "note": "Theme-invariant. The only token whose light and dark values are identical.",
-        "tonalRamp": [
-          "oklch(0.15 0.05 162.48)",
-          "oklch(0.26 0.08 162.48)",
-          "oklch(0.37 0.11 162.48)",
-          "oklch(0.48 0.14 162.48)",
-          "oklch(0.59 0.16 162.48)",
-          "oklch(0.696 0.17 162.48)",
-          "oklch(0.8 0.14 162.48)",
-          "oklch(0.95 0.052 162.48)"
-        ]
-      },
-      "primary-foreground": {
-        "role": "primary",
-        "displayName": "Ward Paper on Emerald",
-        "canonical": "oklch(0.985 0 0)",
-        "dark": "oklch(0.262 0.051 172.552)",
-        "note": "Inverts in dark: near-white text on emerald becomes deep emerald-tinted ink."
-      },
-      "accent": {
-        "role": "primary",
-        "displayName": "Emerald Breath",
-        "canonical": "oklch(0.95 0.052 163.051)",
-        "dark": "oklch(0.269 0.03 165)",
-        "note": "The palest wash of the primary hue. Hover surface for outline/ghost buttons and menu items.",
-        "tonalRamp": [
-          "oklch(0.18 0.02 163.051)",
-          "oklch(0.269 0.03 163.051)",
-          "oklch(0.38 0.04 163.051)",
-          "oklch(0.5 0.045 163.051)",
-          "oklch(0.62 0.05 163.051)",
-          "oklch(0.74 0.055 163.051)",
-          "oklch(0.86 0.055 163.051)",
-          "oklch(0.95 0.052 163.051)"
-        ]
-      },
-      "accent-foreground": {
-        "role": "primary",
-        "displayName": "Emerald Ink",
-        "canonical": "oklch(0.378 0.077 168.94)",
-        "dark": "oklch(0.845 0.143 164.978)"
-      },
-      "background": {
-        "role": "neutral",
-        "displayName": "Ward Paper",
-        "canonical": "oklch(1 0 0)",
-        "dark": "oklch(0.145 0 0)",
-        "tonalRamp": [
-          "oklch(0.145 0 0)",
-          "oklch(0.205 0 0)",
-          "oklch(0.269 0 0)",
-          "oklch(0.439 0 0)",
-          "oklch(0.556 0 0)",
-          "oklch(0.708 0 0)",
-          "oklch(0.922 0 0)",
-          "oklch(1 0 0)"
-        ]
-      },
-      "foreground": {
-        "role": "neutral",
-        "displayName": "Ward Night",
-        "canonical": "oklch(0.145 0 0)",
-        "dark": "oklch(0.985 0 0)"
-      },
-      "card": {
-        "role": "neutral",
-        "displayName": "Ward Paper (raised)",
-        "canonical": "oklch(1 0 0)",
-        "dark": "oklch(0.205 0 0)",
-        "note": "In light it matches background; in dark it lifts above it. Depth inverts between themes."
-      },
-      "card-foreground": {
-        "role": "neutral",
-        "displayName": "Ward Night",
-        "canonical": "oklch(0.145 0 0)",
-        "dark": "oklch(0.985 0 0)"
-      },
-      "popover": {
-        "role": "neutral",
-        "displayName": "Ward Paper (portal)",
-        "canonical": "oklch(1 0 0)",
-        "dark": "oklch(0.205 0 0)"
-      },
-      "sidebar": {
-        "role": "neutral",
-        "displayName": "Ward Ash",
-        "canonical": "oklch(0.985 0 0)",
-        "dark": "oklch(0.205 0 0)"
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Ward Ash",
-        "canonical": "oklch(0.97 0 0)",
-        "dark": "oklch(0.269 0 0)"
-      },
-      "muted-foreground": {
-        "role": "neutral",
-        "displayName": "Ward Mist",
-        "canonical": "oklch(0.556 0 0)",
-        "dark": "oklch(0.708 0 0)",
-        "note": "Every piece of secondary text in the product."
-      },
-      "secondary": {
-        "role": "neutral",
-        "displayName": "Ward Ash",
-        "canonical": "oklch(0.97 0 0)",
-        "dark": "oklch(0.269 0 0)"
-      },
-      "secondary-foreground": {
-        "role": "neutral",
-        "displayName": "Ward Graphite",
-        "canonical": "oklch(0.205 0 0)",
-        "dark": "oklch(0.985 0 0)"
-      },
-      "border": {
-        "role": "neutral",
-        "displayName": "Ward Line",
-        "canonical": "oklch(0.922 0 0)",
-        "dark": "oklch(1 0 0 / 10%)",
-        "note": "Becomes translucent white in dark rather than a lighter gray, so it integrates with any surface beneath it."
-      },
-      "input": {
-        "role": "neutral",
-        "displayName": "Ward Line (field)",
-        "canonical": "oklch(0.922 0 0)",
-        "dark": "oklch(1 0 0 / 15%)"
-      },
-      "ring": {
-        "role": "primary",
-        "displayName": "Vital Emerald (focus)",
-        "canonical": "oklch(0.696 0.17 162.48)",
-        "dark": "oklch(0.696 0.17 162.48)",
-        "note": "Always applied at 50% alpha as a 3px halo, never at full opacity."
-      },
-      "destructive": {
-        "role": "tertiary",
-        "displayName": "Alarm Scarlet",
-        "canonical": "oklch(0.577 0.245 27.325)",
-        "dark": "oklch(0.704 0.191 22.216)",
-        "tonalRamp": [
-          "oklch(0.15 0.07 27.325)",
-          "oklch(0.26 0.11 27.325)",
-          "oklch(0.37 0.16 27.325)",
-          "oklch(0.48 0.21 27.325)",
-          "oklch(0.577 0.245 27.325)",
-          "oklch(0.704 0.191 27.325)",
-          "oklch(0.82 0.12 27.325)",
-          "oklch(0.95 0.04 27.325)"
-        ]
-      },
-      "status-up": {
-        "role": "tertiary",
-        "displayName": "Vital Emerald",
-        "canonical": "oklch(0.696 0.17 162.48)",
-        "dark": "oklch(0.696 0.17 162.48)",
-        "note": "Resolves to primary. Operational.",
-        "tonalRamp": [
-          "oklch(0.15 0.05 162.48)",
-          "oklch(0.26 0.08 162.48)",
-          "oklch(0.37 0.11 162.48)",
-          "oklch(0.48 0.14 162.48)",
-          "oklch(0.59 0.16 162.48)",
-          "oklch(0.696 0.17 162.48)",
-          "oklch(0.8 0.14 162.48)",
-          "oklch(0.95 0.052 162.48)"
-        ]
-      },
-      "status-degraded": {
-        "role": "tertiary",
-        "displayName": "Ward Amber",
-        "canonical": "oklch(0.769 0.188 70.08)",
-        "dark": "oklch(0.828 0.189 84.429)",
-        "note": "Responding above the configured degraded-response threshold. Warning without alarm.",
-        "tonalRamp": [
-          "oklch(0.2 0.06 70.08)",
-          "oklch(0.31 0.09 70.08)",
-          "oklch(0.42 0.12 70.08)",
-          "oklch(0.53 0.15 70.08)",
-          "oklch(0.64 0.17 70.08)",
-          "oklch(0.769 0.188 70.08)",
-          "oklch(0.87 0.13 70.08)",
-          "oklch(0.96 0.05 70.08)"
-        ]
-      },
-      "status-partial": {
-        "role": "tertiary",
-        "displayName": "Ward Ember",
-        "canonical": "oklch(0.705 0.213 47.604)",
-        "dark": "oklch(0.75 0.183 55.934)",
-        "note": "Partial outage. Hue sits deliberately closer to scarlet than to amber.",
-        "tonalRamp": [
-          "oklch(0.2 0.07 47.604)",
-          "oklch(0.3 0.1 47.604)",
-          "oklch(0.4 0.14 47.604)",
-          "oklch(0.5 0.17 47.604)",
-          "oklch(0.6 0.2 47.604)",
-          "oklch(0.705 0.213 47.604)",
-          "oklch(0.83 0.14 47.604)",
-          "oklch(0.95 0.05 47.604)"
-        ]
-      },
-      "status-down": {
-        "role": "tertiary",
-        "displayName": "Alarm Scarlet",
-        "canonical": "oklch(0.577 0.245 27.325)",
-        "dark": "oklch(0.704 0.191 22.216)",
-        "note": "Resolves to destructive. A failed check and an irreversible action carry the same weight."
-      },
-      "status-maintenance": {
-        "role": "tertiary",
-        "displayName": "Ward Blue",
-        "canonical": "oklch(0.623 0.214 259.815)",
-        "dark": "oklch(0.707 0.165 254.624)",
-        "note": "The only cool signal. Planned downtime must never be mistaken for failure.",
-        "tonalRamp": [
-          "oklch(0.18 0.07 259.815)",
-          "oklch(0.27 0.1 259.815)",
-          "oklch(0.36 0.14 259.815)",
-          "oklch(0.45 0.17 259.815)",
-          "oklch(0.54 0.2 259.815)",
-          "oklch(0.623 0.214 259.815)",
-          "oklch(0.75 0.15 259.815)",
-          "oklch(0.93 0.05 259.815)"
-        ]
-      },
-      "status-unknown": {
-        "role": "tertiary",
-        "displayName": "Ward Slate",
-        "canonical": "oklch(0.708 0 0)",
-        "dark": "oklch(0.556 0 0)",
-        "note": "Achromatic on purpose. The absence of a reading is not a reading."
-      }
-    },
-    "typographyMeta": {
-      "display": {
-        "displayName": "Display",
-        "purpose": "The landing hero and nothing else. Light weight at large size — the quietest possible way to be big."
-      },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "Page titles and the overall status banner on a public status page."
-      },
-      "title": {
-        "displayName": "Title",
-        "purpose": "Section headings and card titles. Card titles additionally set line-height 1 for grid alignment."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "The dominant size across the entire application. Line-height 1.6 is the main lever making dense operational screens feel unhurried. Cap prose at 65-75ch."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Badges, table headers, timestamps, monitor-type tags, secondary meta. Uppercase only for monitor type."
-      },
-      "readout": {
-        "displayName": "Readout",
-        "purpose": "Every measured value: uptime, latency, timestamps, durations, IPs, URLs, IDs. Mono is what distinguishes a reading from a word."
-      }
-    },
-    "shadows": [
-      {
-        "name": "overlay",
-        "value": "0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)",
-        "purpose": "The only sanctioned resting shadow, and only for portaled elements: dialogs, sheets, dropdown menus, popovers, tooltips."
-      },
-      {
-        "name": "focus-ring",
-        "value": "0 0 0 3px oklch(0.696 0.17 162.48 / 0.5)",
-        "purpose": "Not elevation. A 3px emerald halo applied on :focus-visible only, paired with a ring-colored border. Uniform across every interactive control."
-      },
-      {
-        "name": "focus-ring-destructive",
-        "value": "0 0 0 3px oklch(0.577 0.245 27.325 / 0.2)",
-        "purpose": "Focus halo for destructive controls and aria-invalid fields. Lower alpha because scarlet reads heavier than emerald at equal opacity."
-      }
-    ],
-    "motion": [
-      {
-        "name": "ease-standard",
-        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "purpose": "Default easing for every state transition. The system's only curve outside the sidebar drawer."
-      },
-      {
-        "name": "duration-state",
-        "value": "200ms",
-        "purpose": "Color, border, and box-shadow transitions on hover and focus. Also the chevron rotation on open/close."
-      },
-      {
-        "name": "duration-drawer",
-        "value": "200ms",
-        "purpose": "Mobile sidebar translate, paired with ease-in-out."
-      },
-      {
-        "name": "duration-meter",
-        "value": "300ms",
-        "purpose": "Usage-bar width changes. The only animated geometry in the product."
-      },
-      {
-        "name": "transition-control",
-        "value": "color 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-        "purpose": "The exact property set inputs and buttons animate. Geometry never moves on interaction."
-      }
-    ],
-    "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" },
-      { "name": "xl", "value": "1280px" }
-    ],
-    "containers": [
-      { "name": "sidebar", "value": "256px" },
-      { "name": "mobile-header", "value": "56px" },
-      { "name": "auth", "value": "448px" },
-      { "name": "form", "value": "672px" },
-      { "name": "public", "value": "896px" }
-    ]
-  },
-  "components": [
-    {
-      "name": "Primary Button",
-      "kind": "button",
-      "refersTo": "button-primary",
-      "description": "The committed action. Vital Emerald fill, 36px tall, icon always 16px and always leading.",
-      "html": "<button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Add monitor</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border: none; border-radius: 8px; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; white-space: nowrap; cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn svg { flex-shrink: 0; pointer-events: none; } .ds-btn-primary { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-btn-primary:hover { background: color-mix(in oklab, var(--primary, oklch(0.696 0.17 162.48)) 90%, transparent); } .ds-btn-primary:focus-visible { box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
-    },
-    {
-      "name": "Outline Button",
-      "kind": "button",
-      "refersTo": "button-outline",
-      "description": "The secondary action. 1px border over the page surface; hovers into Emerald Breath.",
-      "html": "<button class=\"ds-btn ds-btn-outline\">Cancel</button>",
-      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 8px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: var(--accent, oklch(0.95 0.052 163.051)); color: var(--accent-foreground, oklch(0.378 0.077 168.94)); } .ds-btn-outline:focus-visible { border-color: var(--ring, oklch(0.696 0.17 162.48)); box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); }"
-    },
-    {
-      "name": "Ghost Icon Button",
-      "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "No border, no fill at rest. The default for icon-only actions: back arrows, menu toggles, row actions.",
-      "html": "<button class=\"ds-btn-ghost\" aria-label=\"Back\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg></button>",
-      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-ghost:hover { background: var(--accent, oklch(0.95 0.052 163.051)); color: var(--accent-foreground, oklch(0.378 0.077 168.94)); } .ds-btn-ghost:focus-visible { box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); }"
-    },
-    {
-      "name": "Status Badge",
-      "kind": "chip",
-      "refersTo": "badge-default",
-      "description": "Fully round, 12px label type. Variant maps to monitor state via getStatusBadge(): default for up, destructive for down, outline for degraded, secondary for paused.",
-      "html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><span class=\"ds-badge ds-badge-default\">Operational</span><span class=\"ds-badge ds-badge-outline\">Degraded</span><span class=\"ds-badge ds-badge-destructive\">Down</span><span class=\"ds-badge ds-badge-secondary\">Paused</span></div>",
-      "css": ".ds-badge { display: inline-flex; width: fit-content; align-items: center; justify-content: center; gap: 4px; overflow: hidden; padding: 3px 8px; border: 1px solid transparent; border-radius: 9999px; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; white-space: nowrap; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-badge-default { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-badge-outline { border-color: var(--border, oklch(0.922 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-badge-destructive { background: var(--destructive, oklch(0.577 0.245 27.325)); color: oklch(1 0 0); } .ds-badge-secondary { background: var(--secondary, oklch(0.97 0 0)); color: var(--secondary-foreground, oklch(0.205 0 0)); }"
-    },
-    {
-      "name": "Text Field",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "36px tall, 8px radius. Text is 16px on mobile and 14px from md up — the 16px floor prevents iOS zoom-on-focus. Only color and box-shadow animate, so the field never shifts geometry.",
-      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"https://api.example.com/health\" />",
-      "css": ".ds-input { display: flex; width: 100%; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--input, oklch(0.922 0 0)); border-radius: 8px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.6; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.556 0 0)); } .ds-input::selection { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-input:focus-visible { border-color: var(--ring, oklch(0.696 0.17 162.48)); box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive, oklch(0.577 0.245 27.325)); box-shadow: 0 0 0 3px oklch(0.577 0.245 27.325 / 0.2); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
-    },
-    {
-      "name": "Sidebar Navigation",
-      "kind": "nav",
-      "refersTo": "nav-item-active",
-      "description": "10px-radius rows, 20px icon, 12px gap. Active is a solid emerald fill; rest is muted text over nothing. Matched by path prefix so a detail route keeps its section lit.",
-      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg>Dashboard</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8\"/><path d=\"M12 17v4\"/></svg>Monitors</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg>Incidents</a></nav>",
-      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; width: 224px; padding: 16px; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; text-decoration: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-nav-item svg { flex-shrink: 0; } .ds-nav-item:hover { background: var(--muted, oklch(0.97 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-nav-item--active, .ds-nav-item--active:hover { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); }"
-    },
-    {
-      "name": "Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "14px radius — the largest in the system, which is what marks it as the outermost container. Flat at rest; depth comes from the tonal step between card and background.",
-      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><div class=\"ds-card-title\">Total monitors</div><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"color:var(--muted-foreground, oklch(0.556 0 0))\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg></div><div class=\"ds-card-content\"><div class=\"ds-card-value\">24</div><p class=\"ds-card-desc\">Active monitoring</p></div></div>",
-      "css": ".ds-card { display: flex; flex-direction: column; gap: 24px; width: 260px; padding: 24px 0; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; } .ds-card-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 24px; } .ds-card-title { font-size: 14px; font-weight: 600; line-height: 1; } .ds-card-content { padding: 0 24px; } .ds-card-value { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 24px; font-weight: 400; line-height: 1.2; } .ds-card-desc { margin: 4px 0 0; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; }"
-    },
-    {
-      "name": "Monitor Row",
-      "kind": "custom",
-      "refersTo": "status-dot",
-      "description": "The most repeated element in the product. A 12px status dot, a name, a mono readout, and a badge. Hover changes tone only — nothing lifts.",
-      "html": "<a class=\"ds-row\" href=\"#\"><div class=\"ds-row-main\"><span class=\"ds-dot ds-dot--up\"></span><div><div class=\"ds-row-name\">api.uppity.cloud</div><div class=\"ds-row-meta\"><span class=\"ds-row-type\">HTTP</span><span>&middot;</span><span class=\"ds-readout\">99.98%</span><span class=\"ds-readout\">142ms</span></div></div></div><span class=\"ds-badge ds-badge-default\">Operational</span></a>",
-      "css": ".ds-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 360px; padding: 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 10px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-row:hover { background: color-mix(in oklab, var(--muted, oklch(0.97 0 0)) 50%, transparent); } .ds-row-main { display: flex; align-items: center; gap: 12px; min-width: 0; } .ds-dot { flex-shrink: 0; width: 12px; height: 12px; border-radius: 9999px; } .ds-dot--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-dot--degraded { background: oklch(0.769 0.188 70.08); } .ds-dot--partial { background: oklch(0.705 0.213 47.604); } .ds-dot--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-dot--maintenance { background: oklch(0.623 0.214 259.815); } .ds-dot--unknown { background: oklch(0.708 0 0); } .ds-row-name { font-size: 14px; font-weight: 500; line-height: 1.6; } .ds-row-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; } .ds-row-type { text-transform: uppercase; letter-spacing: 0.01em; } .ds-readout { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }"
-    },
-    {
-      "name": "Uptime Bar",
-      "kind": "custom",
-      "refersTo": "uptime-day",
-      "description": "The signature component: 90 day-cells, each 32px tall with a 6px radius and a 2px gap, colored by that day's aggregate state. Hovering lightens one step. It works because every cell is identical and only its color varies.",
-      "html": "<div class=\"ds-uptime\"><div class=\"ds-uptime-head\"><span class=\"ds-uptime-name\"><span class=\"ds-dot ds-dot--up\"></span>Uppity</span><span class=\"ds-readout ds-uptime-pct\">99.98% uptime</span></div><div class=\"ds-uptime-bar\"><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--degraded\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--partial\"></i><i class=\"ds-day ds-day--down\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--maintenance\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--unknown\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i></div><div class=\"ds-uptime-foot\"><span>90 days ago</span><span>Today</span></div></div>",
-      "css": ".ds-uptime { width: 420px; padding: 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 10px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; } .ds-uptime-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; } .ds-uptime-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; } .ds-uptime-pct { color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; } .ds-uptime-bar { display: flex; gap: 2px; } .ds-day { flex: 1 1 0; height: 32px; border-radius: 6px; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-day--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-day--up:hover { background: oklch(0.8 0.14 162.48); } .ds-day--degraded { background: oklch(0.769 0.188 70.08); } .ds-day--degraded:hover { background: oklch(0.87 0.13 70.08); } .ds-day--partial { background: oklch(0.705 0.213 47.604); } .ds-day--partial:hover { background: oklch(0.83 0.14 47.604); } .ds-day--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-day--down:hover { background: oklch(0.704 0.191 27.325); } .ds-day--maintenance { background: oklch(0.623 0.214 259.815); } .ds-day--maintenance:hover { background: oklch(0.75 0.15 259.815); } .ds-day--unknown { background: oklch(0.708 0 0); } .ds-day--unknown:hover { background: oklch(0.922 0 0); } .ds-uptime-foot { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; }"
-    },
-    {
-      "name": "Overall Status Banner",
-      "kind": "custom",
-      "refersTo": "status-banner-operational",
-      "description": "The one element in the system that fills a large area with saturated color. It works because nothing else competes with it, so its color is the message. Six states, one per signal token.",
-      "html": "<div class=\"ds-banner ds-banner--up\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg><span>All Systems Operational</span></div>",
-      "css": ".ds-banner { display: flex; align-items: center; gap: 12px; width: 420px; padding: 24px; border-radius: 10px; color: oklch(1 0 0); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; } .ds-banner svg { flex-shrink: 0; } .ds-banner--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-banner--degraded { background: oklch(0.769 0.188 70.08); color: oklch(0.2 0.06 70.08); } .ds-banner--partial { background: oklch(0.705 0.213 47.604); } .ds-banner--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-banner--maintenance { background: oklch(0.623 0.214 259.815); } .ds-banner--unknown { background: oklch(0.708 0 0); }"
-    },
-    {
-      "name": "Incident Timeline Entry",
-      "kind": "custom",
-      "refersTo": "badge-outline",
-      "description": "A 32px circular chip tinted with its status color, a 2px connector in border, a rounded status pill, a mono timestamp, and a 14px message.",
-      "html": "<div class=\"ds-timeline\"><div class=\"ds-tl-entry\"><span class=\"ds-tl-line\"></span><span class=\"ds-tl-chip ds-tl-chip--investigating\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/></svg></span><div class=\"ds-tl-body\"><div class=\"ds-tl-meta\"><span class=\"ds-tl-pill ds-tl-pill--investigating\">Investigating</span><span class=\"ds-readout\">Jul 30, 09:14</span></div><p class=\"ds-tl-msg\">Elevated error rates on the EU edge. We are investigating.</p></div></div><div class=\"ds-tl-entry\"><span class=\"ds-tl-chip ds-tl-chip--resolved\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg></span><div class=\"ds-tl-body\"><div class=\"ds-tl-meta\"><span class=\"ds-tl-pill ds-tl-pill--resolved\">Resolved</span><span class=\"ds-readout\">Jul 30, 09:41</span></div><p class=\"ds-tl-msg\">Error rates back to baseline for 20 minutes.</p></div></div></div>",
-      "css": ".ds-timeline { display: flex; flex-direction: column; gap: 16px; width: 400px; font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; } .ds-tl-entry { position: relative; display: flex; gap: 16px; } .ds-tl-line { position: absolute; top: 32px; left: 15px; width: 2px; height: 100%; background: var(--border, oklch(0.922 0 0)); } .ds-tl-chip { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9999px; } .ds-tl-chip--investigating { background: oklch(0.95 0.04 27.325); color: oklch(0.577 0.245 27.325); } .ds-tl-chip--resolved { background: oklch(0.95 0.052 162.48); color: oklch(0.48 0.14 162.48); } .ds-tl-body { flex: 1; } .ds-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .ds-tl-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; letter-spacing: 0.01em; } .ds-tl-pill--investigating { background: oklch(0.95 0.04 27.325); color: oklch(0.48 0.21 27.325); } .ds-tl-pill--resolved { background: oklch(0.95 0.052 162.48); color: oklch(0.37 0.11 162.48); } .ds-readout { color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; } .ds-tl-msg { margin: 4px 0 0; color: var(--foreground, oklch(0.145 0 0)); font-size: 14px; line-height: 1.6; }"
-    },
-    {
-      "name": "Empty State",
-      "kind": "custom",
-      "refersTo": "button-primary",
-      "description": "48px icon at 50% muted opacity, 18px semibold title, 14px muted description, single primary action. Renders inside a card by default, bare when nested in one.",
-      "html": "<div class=\"ds-empty\"><svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><h3>No monitors yet</h3><p>Add your first monitor and Uppity will start checking it right away.</p><button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Add monitor</button></div>",
-      "css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 380px; padding: 48px 24px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; text-align: center; } .ds-empty > svg { color: color-mix(in oklab, var(--muted-foreground, oklch(0.556 0 0)) 50%, transparent); } .ds-empty h3 { margin: 16px 0 0; font-size: 18px; font-weight: 600; line-height: 1.3; } .ds-empty p { margin: 8px 0 16px; max-width: 34ch; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 14px; line-height: 1.6; }"
-    }
-  ],
-  "narrative": {
-    "northStar": "The Quiet Ward",
-    "overview": "Uppity is a monitoring instrument built on the premise that silence is the healthy state. A ward at rest is calm and almost featureless — soft light, low contrast, nothing competing for attention — and that stillness is precisely what makes a single changed reading impossible to miss. The interface holds itself back so that the one moment it does speak, it is unmistakable. Ninety-five percent of sessions are a five-second glance to confirm nothing has changed; the design optimizes for that glance costing nothing, and for the rare bad night costing nothing either.\n\nThe system is achromatic almost everywhere. Chrome, surfaces, borders, and body text carry zero chroma — true neutrals, not tinted grays. Color is reserved for one job: reporting the condition of a monitored thing. This is not restraint for its own sake; it is what makes a single amber dot legible at a glance on a phone at 3am. Depth comes from surface lightness rather than shadow, so the page reads as a set of quietly stacked planes instead of floating cards. Motion is slow and reactive: it acknowledges a state change and then stops.\n\nThe rejected alternative is the dense telemetry console — the wall of sparklines, gauges, and continuously ticking numbers. That aesthetic reads as vigilance, but it inflates every signal until none of them mean anything. Uppity is the opposite of a wall of lights. It is a room where nothing is happening, and where you will know instantly when that stops being true.",
-    "keyCharacteristics": [
-      "Achromatic chrome; saturation belongs exclusively to status",
-      "Tonal layering for depth — surfaces lift, they do not float",
-      "Generous line-height and unhurried density; airy, one thing at a time",
-      "Every measured value set in monospace, without exception",
-      "Light and dark are equal citizens on every surface, including public ones",
-      "Alarm is rare, total, and never gradual"
-    ],
-    "rules": [
-      {
-        "name": "The Zero-Chroma Rule",
-        "body": "Every neutral in this system has a chroma of exactly 0. Not a warm gray, not a cool gray — achromatic. If a surface, border, or body-text color has chroma above zero, it is either the emerald accent wash or it is a mistake.",
-        "section": "colors"
-      },
-      {
-        "name": "The Signal Monopoly Rule",
-        "body": "Saturated color reports the condition of a monitored thing and nothing else. No colored section headers, no colored category tags, no decorative accent blocks, no colored illustrations. If a color on screen is not answering \"what state is this in?\", remove it.",
-        "section": "colors"
-      },
-      {
-        "name": "The One Green Rule",
-        "body": "There is exactly one green in Uppity, and it is primary. Tailwind's green-500, emerald-400, and every other palette green are prohibited. Reach for status-up or primary; if neither fits, the element should not be green.",
-        "section": "colors"
-      },
-      {
-        "name": "The Null Is Gray Rule",
-        "body": "Unknown, paused, never-checked, and no-data all render in status-unknown. They are never green (\"probably fine\"), never amber (\"mildly concerning\"). Missing information gets no color, because coloring it invents a claim the database cannot support.",
-        "section": "colors"
-      },
-      {
-        "name": "The Measured-Value Rule",
-        "body": "If a number came from a check, a clock, or the database, it is set in mono. Uptime percentages, response times, timestamps, durations, IP addresses, monitor URLs, session IDs, audit-log record IDs. If a number was typed by a human or is a simple count (\"4 monitors\"), it is set in sans. Mono is what distinguishes a reading from a word.",
-        "section": "typography"
-      },
-      {
-        "name": "The No-Bold Rule",
-        "body": "The heaviest weight in the system is 600. Emphasis comes from size, color, and spacing before it comes from weight. A page where three things are bold has nothing emphasized.",
-        "section": "typography"
-      },
-      {
-        "name": "The Two-Column Rule",
-        "body": "Content never exceeds two columns. Stat cards go 2-up then 4-up because they are single glyphs, not columns of content. Anything with prose in it stays one column on mobile and at most two on desktop.",
-        "section": "layout"
-      },
-      {
-        "name": "The Flat-Plane Rule",
-        "body": "A card, a panel, a sidebar, or a row does not carry a shadow at rest. If an element needs to feel separated, change its surface lightness or give it a border. Reach for shadow only when the element is portaled above the document.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Hover-Is-Tone Rule",
-        "body": "Hover states change background tone, never elevation. hover:bg-muted/50 on a list row, hover:bg-accent on a ghost button. Nothing lifts on hover, and nothing casts a shadow it did not already have.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Round-Or-Rectangular Rule",
-        "body": "An element is either fully round (rounded-full) or on the 6/8/10/14 scale. There is no intermediate \"very round\" state. Status dots, badges, and avatars are circles; everything else is a soft rectangle.",
-        "section": "shapes"
-      },
-      {
-        "name": "The Twelve-Pixel Dot Rule",
-        "body": "The monitor status indicator is always a 12px circle (h-3 w-3 rounded-full), never an icon, never a colored text label, never a different size. It is the single most repeated element in the product and its consistency is what makes a list of forty monitors scannable in one pass.",
-        "section": "shapes"
-      }
-    ],
-    "dos": [
-      "Do reach for a semantic token first: bg-card, text-muted-foreground, border-border. Every color in this product has a name, and using the name is what makes dark mode work for free.",
-      "Do set every measured value in mono — uptime, latency, timestamps, durations, IPs, URLs, IDs. The Measured-Value Rule is the single most load-bearing typographic decision in the system.",
-      "Do render monitor status as a 12px circle plus a text label. Color alone never carries state; roughly 8% of the operators reading a down-alert at 3am cannot distinguish your amber from your emerald.",
-      "Do verify every new surface in both themes before considering it finished. Light and dark are equal citizens; mode-watcher is wired and the token layer is fully doubled.",
-      "Do route all user-facing copy through Paraglide m.* messages across en, de, and pt-br, and design for German — it runs roughly 30% longer than English and is where fixed-width labels break.",
-      "Do express depth as a change in surface tone. hover:bg-muted/50, bg-card over bg-background, bg-sidebar beside both.",
-      "Do extend src/lib/components/ui/ and the shadcn-svelte registry rather than introducing a parallel component vocabulary.",
-      "Do design the empty and unknown states deliberately. A monitor that has never been checked is a real, common state, and it is gray."
-    ],
-    "donts": [
-      "Don't hardcode a hex, an rgb(), or a Tailwind palette literal. bg-gray-50, bg-white, text-gray-900, and bg-green-500 are all prohibited. The public status page and the landing page are currently full of them; that is known drift being migrated, not a pattern to copy.",
-      "Don't introduce a second green. There is one, it is primary, and every other green in the codebase is legacy.",
-      "Don't put a shadow on anything that has not left the page. Cards, rows, panels, and sidebars are flat at rest.",
-      "Don't use saturated color for anything that is not reporting the state of a monitored thing. No colored headings, no decorative accents, no category tints.",
-      "Don't exceed font-weight 600. If something needs more emphasis than 600 gives it, the problem is hierarchy, not weight.",
-      "Don't hardcode a value that .env owns. Check intervals, retention days, degraded-response thresholds, and SSL warning windows are all UPPITY_* configurable and must be read, not assumed.",
-      "Don't let plan-limit or billing UI become load-bearing. It vanishes entirely under SELF_HOSTED=true, and the layout must not notice.",
-      "Don't invent social proof. There are no customers, testimonials, logos, uptime figures, or review scores. Any surface that appears to need them must be designed to work without them.",
-      "Don't animate for decoration. Motion acknowledges a state change — a 200ms color shift, a drawer sliding, a spinner while a check is in flight — and then stops."
-    ]
-  }
+	"schemaVersion": 2,
+	"generatedAt": "2026-07-30T19:39:00Z",
+	"title": "Design System: Uppity",
+	"extensions": {
+		"colorMeta": {
+			"primary": {
+				"role": "primary",
+				"displayName": "Vital Emerald",
+				"canonical": "oklch(0.696 0.17 162.48)",
+				"dark": "oklch(0.696 0.17 162.48)",
+				"note": "Theme-invariant. The only token whose light and dark values are identical.",
+				"tonalRamp": [
+					"oklch(0.15 0.05 162.48)",
+					"oklch(0.26 0.08 162.48)",
+					"oklch(0.37 0.11 162.48)",
+					"oklch(0.48 0.14 162.48)",
+					"oklch(0.59 0.16 162.48)",
+					"oklch(0.696 0.17 162.48)",
+					"oklch(0.8 0.14 162.48)",
+					"oklch(0.95 0.052 162.48)"
+				]
+			},
+			"primary-foreground": {
+				"role": "primary",
+				"displayName": "Ward Paper on Emerald",
+				"canonical": "oklch(0.985 0 0)",
+				"dark": "oklch(0.262 0.051 172.552)",
+				"note": "Inverts in dark: near-white text on emerald becomes deep emerald-tinted ink."
+			},
+			"accent": {
+				"role": "primary",
+				"displayName": "Emerald Breath",
+				"canonical": "oklch(0.95 0.052 163.051)",
+				"dark": "oklch(0.269 0.03 165)",
+				"note": "The palest wash of the primary hue. Hover surface for outline/ghost buttons and menu items.",
+				"tonalRamp": [
+					"oklch(0.18 0.02 163.051)",
+					"oklch(0.269 0.03 163.051)",
+					"oklch(0.38 0.04 163.051)",
+					"oklch(0.5 0.045 163.051)",
+					"oklch(0.62 0.05 163.051)",
+					"oklch(0.74 0.055 163.051)",
+					"oklch(0.86 0.055 163.051)",
+					"oklch(0.95 0.052 163.051)"
+				]
+			},
+			"accent-foreground": {
+				"role": "primary",
+				"displayName": "Emerald Ink",
+				"canonical": "oklch(0.378 0.077 168.94)",
+				"dark": "oklch(0.845 0.143 164.978)"
+			},
+			"background": {
+				"role": "neutral",
+				"displayName": "Ward Paper",
+				"canonical": "oklch(1 0 0)",
+				"dark": "oklch(0.145 0 0)",
+				"tonalRamp": [
+					"oklch(0.145 0 0)",
+					"oklch(0.205 0 0)",
+					"oklch(0.269 0 0)",
+					"oklch(0.439 0 0)",
+					"oklch(0.556 0 0)",
+					"oklch(0.708 0 0)",
+					"oklch(0.922 0 0)",
+					"oklch(1 0 0)"
+				]
+			},
+			"foreground": {
+				"role": "neutral",
+				"displayName": "Ward Night",
+				"canonical": "oklch(0.145 0 0)",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"card": {
+				"role": "neutral",
+				"displayName": "Ward Paper (raised)",
+				"canonical": "oklch(1 0 0)",
+				"dark": "oklch(0.205 0 0)",
+				"note": "In light it matches background; in dark it lifts above it. Depth inverts between themes."
+			},
+			"card-foreground": {
+				"role": "neutral",
+				"displayName": "Ward Night",
+				"canonical": "oklch(0.145 0 0)",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"popover": {
+				"role": "neutral",
+				"displayName": "Ward Paper (portal)",
+				"canonical": "oklch(1 0 0)",
+				"dark": "oklch(0.205 0 0)"
+			},
+			"sidebar": {
+				"role": "neutral",
+				"displayName": "Ward Ash",
+				"canonical": "oklch(0.985 0 0)",
+				"dark": "oklch(0.205 0 0)"
+			},
+			"muted": {
+				"role": "neutral",
+				"displayName": "Ward Ash",
+				"canonical": "oklch(0.97 0 0)",
+				"dark": "oklch(0.269 0 0)"
+			},
+			"muted-foreground": {
+				"role": "neutral",
+				"displayName": "Ward Mist",
+				"canonical": "oklch(0.556 0 0)",
+				"dark": "oklch(0.708 0 0)",
+				"note": "Every piece of secondary text in the product."
+			},
+			"secondary": {
+				"role": "neutral",
+				"displayName": "Ward Ash",
+				"canonical": "oklch(0.97 0 0)",
+				"dark": "oklch(0.269 0 0)"
+			},
+			"secondary-foreground": {
+				"role": "neutral",
+				"displayName": "Ward Graphite",
+				"canonical": "oklch(0.205 0 0)",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"border": {
+				"role": "neutral",
+				"displayName": "Ward Line",
+				"canonical": "oklch(0.922 0 0)",
+				"dark": "oklch(1 0 0 / 10%)",
+				"note": "Becomes translucent white in dark rather than a lighter gray, so it integrates with any surface beneath it."
+			},
+			"input": {
+				"role": "neutral",
+				"displayName": "Ward Line (field)",
+				"canonical": "oklch(0.922 0 0)",
+				"dark": "oklch(1 0 0 / 15%)"
+			},
+			"ring": {
+				"role": "primary",
+				"displayName": "Vital Emerald (focus)",
+				"canonical": "oklch(0.696 0.17 162.48)",
+				"dark": "oklch(0.696 0.17 162.48)",
+				"note": "Always applied at 50% alpha as a 3px halo, never at full opacity."
+			},
+			"destructive": {
+				"role": "tertiary",
+				"displayName": "Alarm Scarlet",
+				"canonical": "oklch(0.577 0.245 27.325)",
+				"dark": "oklch(0.704 0.191 22.216)",
+				"tonalRamp": [
+					"oklch(0.15 0.07 27.325)",
+					"oklch(0.26 0.11 27.325)",
+					"oklch(0.37 0.16 27.325)",
+					"oklch(0.48 0.21 27.325)",
+					"oklch(0.577 0.245 27.325)",
+					"oklch(0.704 0.191 27.325)",
+					"oklch(0.82 0.12 27.325)",
+					"oklch(0.95 0.04 27.325)"
+				]
+			},
+			"status-up": {
+				"role": "tertiary",
+				"displayName": "Vital Emerald",
+				"canonical": "oklch(0.696 0.17 162.48)",
+				"dark": "oklch(0.696 0.17 162.48)",
+				"note": "Resolves to primary. Operational.",
+				"tonalRamp": [
+					"oklch(0.15 0.05 162.48)",
+					"oklch(0.26 0.08 162.48)",
+					"oklch(0.37 0.11 162.48)",
+					"oklch(0.48 0.14 162.48)",
+					"oklch(0.59 0.16 162.48)",
+					"oklch(0.696 0.17 162.48)",
+					"oklch(0.8 0.14 162.48)",
+					"oklch(0.95 0.052 162.48)"
+				]
+			},
+			"status-degraded": {
+				"role": "tertiary",
+				"displayName": "Ward Amber",
+				"canonical": "oklch(0.769 0.188 70.08)",
+				"dark": "oklch(0.828 0.189 84.429)",
+				"note": "Responding above the configured degraded-response threshold. Warning without alarm.",
+				"tonalRamp": [
+					"oklch(0.2 0.06 70.08)",
+					"oklch(0.31 0.09 70.08)",
+					"oklch(0.42 0.12 70.08)",
+					"oklch(0.53 0.15 70.08)",
+					"oklch(0.64 0.17 70.08)",
+					"oklch(0.769 0.188 70.08)",
+					"oklch(0.87 0.13 70.08)",
+					"oklch(0.96 0.05 70.08)"
+				]
+			},
+			"status-partial": {
+				"role": "tertiary",
+				"displayName": "Ward Ember",
+				"canonical": "oklch(0.705 0.213 47.604)",
+				"dark": "oklch(0.75 0.183 55.934)",
+				"note": "Partial outage. Hue sits deliberately closer to scarlet than to amber.",
+				"tonalRamp": [
+					"oklch(0.2 0.07 47.604)",
+					"oklch(0.3 0.1 47.604)",
+					"oklch(0.4 0.14 47.604)",
+					"oklch(0.5 0.17 47.604)",
+					"oklch(0.6 0.2 47.604)",
+					"oklch(0.705 0.213 47.604)",
+					"oklch(0.83 0.14 47.604)",
+					"oklch(0.95 0.05 47.604)"
+				]
+			},
+			"status-down": {
+				"role": "tertiary",
+				"displayName": "Alarm Scarlet",
+				"canonical": "oklch(0.577 0.245 27.325)",
+				"dark": "oklch(0.704 0.191 22.216)",
+				"note": "Resolves to destructive. A failed check and an irreversible action carry the same weight."
+			},
+			"status-maintenance": {
+				"role": "tertiary",
+				"displayName": "Ward Blue",
+				"canonical": "oklch(0.623 0.214 259.815)",
+				"dark": "oklch(0.707 0.165 254.624)",
+				"note": "The only cool signal. Planned downtime must never be mistaken for failure.",
+				"tonalRamp": [
+					"oklch(0.18 0.07 259.815)",
+					"oklch(0.27 0.1 259.815)",
+					"oklch(0.36 0.14 259.815)",
+					"oklch(0.45 0.17 259.815)",
+					"oklch(0.54 0.2 259.815)",
+					"oklch(0.623 0.214 259.815)",
+					"oklch(0.75 0.15 259.815)",
+					"oklch(0.93 0.05 259.815)"
+				]
+			},
+			"status-unknown": {
+				"role": "tertiary",
+				"displayName": "Ward Slate",
+				"canonical": "oklch(0.708 0 0)",
+				"dark": "oklch(0.556 0 0)",
+				"note": "Achromatic on purpose. The absence of a reading is not a reading."
+			}
+		},
+		"typographyMeta": {
+			"display": {
+				"displayName": "Display",
+				"purpose": "The landing hero and nothing else. Light weight at large size — the quietest possible way to be big."
+			},
+			"headline": {
+				"displayName": "Headline",
+				"purpose": "Page titles and the overall status banner on a public status page."
+			},
+			"title": {
+				"displayName": "Title",
+				"purpose": "Section headings and card titles. Card titles additionally set line-height 1 for grid alignment."
+			},
+			"body": {
+				"displayName": "Body",
+				"purpose": "The dominant size across the entire application. Line-height 1.6 is the main lever making dense operational screens feel unhurried. Cap prose at 65-75ch."
+			},
+			"label": {
+				"displayName": "Label",
+				"purpose": "Badges, table headers, timestamps, monitor-type tags, secondary meta. Uppercase only for monitor type."
+			},
+			"readout": {
+				"displayName": "Readout",
+				"purpose": "Every measured value: uptime, latency, timestamps, durations, IPs, URLs, IDs. Mono is what distinguishes a reading from a word."
+			}
+		},
+		"shadows": [
+			{
+				"name": "overlay",
+				"value": "0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)",
+				"purpose": "The only sanctioned resting shadow, and only for portaled elements: dialogs, sheets, dropdown menus, popovers, tooltips."
+			},
+			{
+				"name": "focus-ring",
+				"value": "0 0 0 3px oklch(0.696 0.17 162.48 / 0.5)",
+				"purpose": "Not elevation. A 3px emerald halo applied on :focus-visible only, paired with a ring-colored border. Uniform across every interactive control."
+			},
+			{
+				"name": "focus-ring-destructive",
+				"value": "0 0 0 3px oklch(0.577 0.245 27.325 / 0.2)",
+				"purpose": "Focus halo for destructive controls and aria-invalid fields. Lower alpha because scarlet reads heavier than emerald at equal opacity."
+			}
+		],
+		"motion": [
+			{
+				"name": "ease-standard",
+				"value": "cubic-bezier(0.4, 0, 0.2, 1)",
+				"purpose": "Default easing for every state transition. The system's only curve outside the sidebar drawer."
+			},
+			{
+				"name": "duration-state",
+				"value": "200ms",
+				"purpose": "Color, border, and box-shadow transitions on hover and focus. Also the chevron rotation on open/close."
+			},
+			{
+				"name": "duration-drawer",
+				"value": "200ms",
+				"purpose": "Mobile sidebar translate, paired with ease-in-out."
+			},
+			{
+				"name": "duration-meter",
+				"value": "300ms",
+				"purpose": "Usage-bar width changes. The only animated geometry in the product."
+			},
+			{
+				"name": "transition-control",
+				"value": "color 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+				"purpose": "The exact property set inputs and buttons animate. Geometry never moves on interaction."
+			}
+		],
+		"breakpoints": [
+			{ "name": "sm", "value": "640px" },
+			{ "name": "md", "value": "768px" },
+			{ "name": "lg", "value": "1024px" },
+			{ "name": "xl", "value": "1280px" }
+		],
+		"containers": [
+			{ "name": "sidebar", "value": "256px" },
+			{ "name": "mobile-header", "value": "56px" },
+			{ "name": "auth", "value": "448px" },
+			{ "name": "form", "value": "672px" },
+			{ "name": "public", "value": "896px" }
+		]
+	},
+	"components": [
+		{
+			"name": "Primary Button",
+			"kind": "button",
+			"refersTo": "button-primary",
+			"description": "The committed action. Vital Emerald fill, 36px tall, icon always 16px and always leading.",
+			"html": "<button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Add monitor</button>",
+			"css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border: none; border-radius: 8px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; white-space: nowrap; cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn svg { flex-shrink: 0; pointer-events: none; } .ds-btn-primary { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-btn-primary:hover { background: color-mix(in oklab, var(--primary, oklch(0.696 0.17 162.48)) 90%, transparent); } .ds-btn-primary:focus-visible { box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+		},
+		{
+			"name": "Outline Button",
+			"kind": "button",
+			"refersTo": "button-outline",
+			"description": "The secondary action. 1px border over the page surface; hovers into Emerald Breath.",
+			"html": "<button class=\"ds-btn ds-btn-outline\">Cancel</button>",
+			"css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 8px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: 0.01em; cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: var(--accent, oklch(0.95 0.052 163.051)); color: var(--accent-foreground, oklch(0.378 0.077 168.94)); } .ds-btn-outline:focus-visible { border-color: var(--ring, oklch(0.696 0.17 162.48)); box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); }"
+		},
+		{
+			"name": "Ghost Icon Button",
+			"kind": "button",
+			"refersTo": "button-ghost",
+			"description": "No border, no fill at rest. The default for icon-only actions: back arrows, menu toggles, row actions.",
+			"html": "<button class=\"ds-btn-ghost\" aria-label=\"Back\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg></button>",
+			"css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: none; border-radius: 8px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); cursor: pointer; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-ghost:hover { background: var(--accent, oklch(0.95 0.052 163.051)); color: var(--accent-foreground, oklch(0.378 0.077 168.94)); } .ds-btn-ghost:focus-visible { box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); }"
+		},
+		{
+			"name": "Status Badge",
+			"kind": "chip",
+			"refersTo": "badge-default",
+			"description": "Fully round, 12px label type. Variant maps to monitor state via getStatusBadge(): default for up, destructive for down, outline for degraded, secondary for paused.",
+			"html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><span class=\"ds-badge ds-badge-default\">Operational</span><span class=\"ds-badge ds-badge-outline\">Degraded</span><span class=\"ds-badge ds-badge-destructive\">Down</span><span class=\"ds-badge ds-badge-secondary\">Paused</span></div>",
+			"css": ".ds-badge { display: inline-flex; width: fit-content; align-items: center; justify-content: center; gap: 4px; overflow: hidden; padding: 3px 8px; border: 1px solid transparent; border-radius: 9999px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; white-space: nowrap; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-badge-default { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-badge-outline { border-color: var(--border, oklch(0.922 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-badge-destructive { background: var(--destructive, oklch(0.577 0.245 27.325)); color: oklch(1 0 0); } .ds-badge-secondary { background: var(--secondary, oklch(0.97 0 0)); color: var(--secondary-foreground, oklch(0.205 0 0)); }"
+		},
+		{
+			"name": "Text Field",
+			"kind": "input",
+			"refersTo": "input",
+			"description": "36px tall, 8px radius. Text is 16px on mobile and 14px from md up — the 16px floor prevents iOS zoom-on-focus. Only color and box-shadow animate, so the field never shifts geometry.",
+			"html": "<input class=\"ds-input\" type=\"text\" placeholder=\"https://api.example.com/health\" />",
+			"css": ".ds-input { display: flex; width: 100%; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--input, oklch(0.922 0 0)); border-radius: 8px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 400; line-height: 1.6; outline: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.556 0 0)); } .ds-input::selection { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); } .ds-input:focus-visible { border-color: var(--ring, oklch(0.696 0.17 162.48)); box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); } .ds-input[aria-invalid=\"true\"] { border-color: var(--destructive, oklch(0.577 0.245 27.325)); box-shadow: 0 0 0 3px oklch(0.577 0.245 27.325 / 0.2); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+		},
+		{
+			"name": "Sidebar Navigation",
+			"kind": "nav",
+			"refersTo": "nav-item-active",
+			"description": "10px-radius rows, 20px icon, 12px gap. Active is a solid emerald fill; rest is muted text over nothing. Matched by path prefix so a detail route keeps its section lit.",
+			"html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></svg>Dashboard</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8\"/><path d=\"M12 17v4\"/></svg>Monitors</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg>Incidents</a></nav>",
+			"css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; width: 224px; padding: 16px; } .ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; text-decoration: none; transition: color 200ms cubic-bezier(0.4,0,0.2,1), background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-nav-item svg { flex-shrink: 0; } .ds-nav-item:hover { background: var(--muted, oklch(0.97 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-nav-item--active, .ds-nav-item--active:hover { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.985 0 0)); }"
+		},
+		{
+			"name": "Card",
+			"kind": "card",
+			"refersTo": "card",
+			"description": "14px radius — the largest in the system, which is what marks it as the outermost container. Flat at rest; depth comes from the tonal step between card and background.",
+			"html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><div class=\"ds-card-title\">Total monitors</div><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"color:var(--muted-foreground, oklch(0.556 0 0))\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg></div><div class=\"ds-card-content\"><div class=\"ds-card-value\">24</div><p class=\"ds-card-desc\">Active monitoring</p></div></div>",
+			"css": ".ds-card { display: flex; flex-direction: column; gap: 24px; width: 260px; padding: 24px 0; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-card-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 24px; } .ds-card-title { font-size: 14px; font-weight: 600; line-height: 1; } .ds-card-content { padding: 0 24px; } .ds-card-value { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 24px; font-weight: 400; line-height: 1.2; } .ds-card-desc { margin: 4px 0 0; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; }"
+		},
+		{
+			"name": "Monitor Row",
+			"kind": "custom",
+			"refersTo": "status-dot",
+			"description": "The most repeated element in the product. A 12px status dot, a name, a mono readout, and a badge. Hover changes tone only — nothing lifts.",
+			"html": "<a class=\"ds-row\" href=\"#\"><div class=\"ds-row-main\"><span class=\"ds-dot ds-dot--up\"></span><div><div class=\"ds-row-name\">api.uppity.cloud</div><div class=\"ds-row-meta\"><span class=\"ds-row-type\">HTTP</span><span>&middot;</span><span class=\"ds-readout\">99.98%</span><span class=\"ds-readout\">142ms</span></div></div></div><span class=\"ds-badge ds-badge-default\">Operational</span></a>",
+			"css": ".ds-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 360px; padding: 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 10px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-row:hover { background: color-mix(in oklab, var(--muted, oklch(0.97 0 0)) 50%, transparent); } .ds-row-main { display: flex; align-items: center; gap: 12px; min-width: 0; } .ds-dot { flex-shrink: 0; width: 12px; height: 12px; border-radius: 9999px; } .ds-dot--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-dot--degraded { background: oklch(0.769 0.188 70.08); } .ds-dot--partial { background: oklch(0.705 0.213 47.604); } .ds-dot--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-dot--maintenance { background: oklch(0.623 0.214 259.815); } .ds-dot--unknown { background: oklch(0.708 0 0); } .ds-row-name { font-size: 14px; font-weight: 500; line-height: 1.6; } .ds-row-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; } .ds-row-type { text-transform: uppercase; letter-spacing: 0.01em; } .ds-readout { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }"
+		},
+		{
+			"name": "Uptime Bar",
+			"kind": "custom",
+			"refersTo": "uptime-day",
+			"description": "The signature component: 90 day-cells, each 32px tall with a 6px radius and a 2px gap, colored by that day's aggregate state. Hovering lightens one step. It works because every cell is identical and only its color varies.",
+			"html": "<div class=\"ds-uptime\"><div class=\"ds-uptime-head\"><span class=\"ds-uptime-name\"><span class=\"ds-dot ds-dot--up\"></span>Uppity</span><span class=\"ds-readout ds-uptime-pct\">99.98% uptime</span></div><div class=\"ds-uptime-bar\"><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--degraded\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--partial\"></i><i class=\"ds-day ds-day--down\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--maintenance\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--unknown\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i><i class=\"ds-day ds-day--up\"></i></div><div class=\"ds-uptime-foot\"><span>90 days ago</span><span>Today</span></div></div>",
+			"css": ".ds-uptime { width: 420px; padding: 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 10px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-uptime-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; } .ds-uptime-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; } .ds-uptime-pct { color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; } .ds-uptime-bar { display: flex; gap: 2px; } .ds-day { flex: 1 1 0; height: 32px; border-radius: 6px; transition: background-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-day--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-day--up:hover { background: oklch(0.8 0.14 162.48); } .ds-day--degraded { background: oklch(0.769 0.188 70.08); } .ds-day--degraded:hover { background: oklch(0.87 0.13 70.08); } .ds-day--partial { background: oklch(0.705 0.213 47.604); } .ds-day--partial:hover { background: oklch(0.83 0.14 47.604); } .ds-day--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-day--down:hover { background: oklch(0.704 0.191 27.325); } .ds-day--maintenance { background: oklch(0.623 0.214 259.815); } .ds-day--maintenance:hover { background: oklch(0.75 0.15 259.815); } .ds-day--unknown { background: oklch(0.708 0 0); } .ds-day--unknown:hover { background: oklch(0.922 0 0); } .ds-uptime-foot { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 12px; }"
+		},
+		{
+			"name": "Overall Status Banner",
+			"kind": "custom",
+			"refersTo": "status-banner-operational",
+			"description": "The one element in the system that fills a large area with saturated color. It works because nothing else competes with it, so its color is the message. Six states, one per signal token.",
+			"html": "<div class=\"ds-banner ds-banner--up\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg><span>All Systems Operational</span></div>",
+			"css": ".ds-banner { display: flex; align-items: center; gap: 12px; width: 420px; padding: 24px; border-radius: 10px; color: oklch(1 0 0); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; } .ds-banner svg { flex-shrink: 0; } .ds-banner--up { background: var(--primary, oklch(0.696 0.17 162.48)); } .ds-banner--degraded { background: oklch(0.769 0.188 70.08); color: oklch(0.2 0.06 70.08); } .ds-banner--partial { background: oklch(0.705 0.213 47.604); } .ds-banner--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-banner--maintenance { background: oklch(0.623 0.214 259.815); } .ds-banner--unknown { background: oklch(0.708 0 0); }"
+		},
+		{
+			"name": "Incident Timeline Entry",
+			"kind": "custom",
+			"refersTo": "badge-outline",
+			"description": "A 32px circular chip tinted with its status color, a 2px connector in border, a rounded status pill, a mono timestamp, and a 14px message.",
+			"html": "<div class=\"ds-timeline\"><div class=\"ds-tl-entry\"><span class=\"ds-tl-line\"></span><span class=\"ds-tl-chip ds-tl-chip--investigating\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m21 21-4.34-4.34\"/><circle cx=\"11\" cy=\"11\" r=\"8\"/></svg></span><div class=\"ds-tl-body\"><div class=\"ds-tl-meta\"><span class=\"ds-tl-pill ds-tl-pill--investigating\">Investigating</span><span class=\"ds-readout\">Jul 30, 09:14</span></div><p class=\"ds-tl-msg\">Elevated error rates on the EU edge. We are investigating.</p></div></div><div class=\"ds-tl-entry\"><span class=\"ds-tl-chip ds-tl-chip--resolved\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg></span><div class=\"ds-tl-body\"><div class=\"ds-tl-meta\"><span class=\"ds-tl-pill ds-tl-pill--resolved\">Resolved</span><span class=\"ds-readout\">Jul 30, 09:41</span></div><p class=\"ds-tl-msg\">Error rates back to baseline for 20 minutes.</p></div></div></div>",
+			"css": ".ds-timeline { display: flex; flex-direction: column; gap: 16px; width: 400px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-tl-entry { position: relative; display: flex; gap: 16px; } .ds-tl-line { position: absolute; top: 32px; left: 15px; width: 2px; height: 100%; background: var(--border, oklch(0.922 0 0)); } .ds-tl-chip { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9999px; } .ds-tl-chip--investigating { background: oklch(0.95 0.04 27.325); color: oklch(0.577 0.245 27.325); } .ds-tl-chip--resolved { background: oklch(0.95 0.052 162.48); color: oklch(0.48 0.14 162.48); } .ds-tl-body { flex: 1; } .ds-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; } .ds-tl-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; letter-spacing: 0.01em; } .ds-tl-pill--investigating { background: oklch(0.95 0.04 27.325); color: oklch(0.48 0.21 27.325); } .ds-tl-pill--resolved { background: oklch(0.95 0.052 162.48); color: oklch(0.37 0.11 162.48); } .ds-readout { color: var(--muted-foreground, oklch(0.556 0 0)); font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; } .ds-tl-msg { margin: 4px 0 0; color: var(--foreground, oklch(0.145 0 0)); font-size: 14px; line-height: 1.6; }"
+		},
+		{
+			"name": "Empty State",
+			"kind": "custom",
+			"refersTo": "button-primary",
+			"description": "48px icon at 50% muted opacity, 18px semibold title, 14px muted description, single primary action. Renders inside a card by default, bare when nested in one.",
+			"html": "<div class=\"ds-empty\"><svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><h3>No monitors yet</h3><p>Add your first monitor and Uppity will start checking it right away.</p><button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Add monitor</button></div>",
+			"css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 380px; padding: 48px 24px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; text-align: center; } .ds-empty > svg { color: color-mix(in oklab, var(--muted-foreground, oklch(0.556 0 0)) 50%, transparent); } .ds-empty h3 { margin: 16px 0 0; font-size: 18px; font-weight: 600; line-height: 1.3; } .ds-empty p { margin: 8px 0 16px; max-width: 34ch; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 14px; line-height: 1.6; }"
+		}
+	],
+	"narrative": {
+		"northStar": "The Quiet Ward",
+		"overview": "Uppity is a monitoring instrument built on the premise that silence is the healthy state. A ward at rest is calm and almost featureless — soft light, low contrast, nothing competing for attention — and that stillness is precisely what makes a single changed reading impossible to miss. The interface holds itself back so that the one moment it does speak, it is unmistakable. Ninety-five percent of sessions are a five-second glance to confirm nothing has changed; the design optimizes for that glance costing nothing, and for the rare bad night costing nothing either.\n\nThe system is achromatic almost everywhere. Chrome, surfaces, borders, and body text carry zero chroma — true neutrals, not tinted grays. Color is reserved for one job: reporting the condition of a monitored thing. This is not restraint for its own sake; it is what makes a single amber dot legible at a glance on a phone at 3am. Depth comes from surface lightness rather than shadow, so the page reads as a set of quietly stacked planes instead of floating cards. Motion is slow and reactive: it acknowledges a state change and then stops.\n\nThe rejected alternative is the dense telemetry console — the wall of sparklines, gauges, and continuously ticking numbers. That aesthetic reads as vigilance, but it inflates every signal until none of them mean anything. Uppity is the opposite of a wall of lights. It is a room where nothing is happening, and where you will know instantly when that stops being true.",
+		"keyCharacteristics": [
+			"Achromatic chrome; saturation belongs exclusively to status",
+			"Tonal layering for depth — surfaces lift, they do not float",
+			"Generous line-height and unhurried density; airy, one thing at a time",
+			"Every measured value set in monospace, without exception",
+			"Light and dark are equal citizens on every surface, including public ones",
+			"Alarm is rare, total, and never gradual"
+		],
+		"rules": [
+			{
+				"name": "The Zero-Chroma Rule",
+				"body": "Every neutral in this system has a chroma of exactly 0. Not a warm gray, not a cool gray — achromatic. If a surface, border, or body-text color has chroma above zero, it is either the emerald accent wash or it is a mistake.",
+				"section": "colors"
+			},
+			{
+				"name": "The Signal Monopoly Rule",
+				"body": "Saturated color reports the condition of a monitored thing and nothing else. No colored section headers, no colored category tags, no decorative accent blocks, no colored illustrations. If a color on screen is not answering \"what state is this in?\", remove it.",
+				"section": "colors"
+			},
+			{
+				"name": "The One Green Rule",
+				"body": "There is exactly one green in Uppity, and it is primary. Tailwind's green-500, emerald-400, and every other palette green are prohibited. Reach for status-up or primary; if neither fits, the element should not be green.",
+				"section": "colors"
+			},
+			{
+				"name": "The Null Is Gray Rule",
+				"body": "Unknown, paused, never-checked, and no-data all render in status-unknown. They are never green (\"probably fine\"), never amber (\"mildly concerning\"). Missing information gets no color, because coloring it invents a claim the database cannot support.",
+				"section": "colors"
+			},
+			{
+				"name": "The Measured-Value Rule",
+				"body": "If a number came from a check, a clock, or the database, it is set in mono. Uptime percentages, response times, timestamps, durations, IP addresses, monitor URLs, session IDs, audit-log record IDs. If a number was typed by a human or is a simple count (\"4 monitors\"), it is set in sans. Mono is what distinguishes a reading from a word.",
+				"section": "typography"
+			},
+			{
+				"name": "The No-Bold Rule",
+				"body": "The heaviest weight in the system is 600. Emphasis comes from size, color, and spacing before it comes from weight. A page where three things are bold has nothing emphasized.",
+				"section": "typography"
+			},
+			{
+				"name": "The Two-Column Rule",
+				"body": "Content never exceeds two columns. Stat cards go 2-up then 4-up because they are single glyphs, not columns of content. Anything with prose in it stays one column on mobile and at most two on desktop.",
+				"section": "layout"
+			},
+			{
+				"name": "The Flat-Plane Rule",
+				"body": "A card, a panel, a sidebar, or a row does not carry a shadow at rest. If an element needs to feel separated, change its surface lightness or give it a border. Reach for shadow only when the element is portaled above the document.",
+				"section": "elevation"
+			},
+			{
+				"name": "The Hover-Is-Tone Rule",
+				"body": "Hover states change background tone, never elevation. hover:bg-muted/50 on a list row, hover:bg-accent on a ghost button. Nothing lifts on hover, and nothing casts a shadow it did not already have.",
+				"section": "elevation"
+			},
+			{
+				"name": "The Round-Or-Rectangular Rule",
+				"body": "An element is either fully round (rounded-full) or on the 6/8/10/14 scale. There is no intermediate \"very round\" state. Status dots, badges, and avatars are circles; everything else is a soft rectangle.",
+				"section": "shapes"
+			},
+			{
+				"name": "The Twelve-Pixel Dot Rule",
+				"body": "The monitor status indicator is always a 12px circle (h-3 w-3 rounded-full), never an icon, never a colored text label, never a different size. It is the single most repeated element in the product and its consistency is what makes a list of forty monitors scannable in one pass.",
+				"section": "shapes"
+			}
+		],
+		"dos": [
+			"Do reach for a semantic token first: bg-card, text-muted-foreground, border-border. Every color in this product has a name, and using the name is what makes dark mode work for free.",
+			"Do set every measured value in mono — uptime, latency, timestamps, durations, IPs, URLs, IDs. The Measured-Value Rule is the single most load-bearing typographic decision in the system.",
+			"Do render monitor status as a 12px circle plus a text label. Color alone never carries state; roughly 8% of the operators reading a down-alert at 3am cannot distinguish your amber from your emerald.",
+			"Do verify every new surface in both themes before considering it finished. Light and dark are equal citizens; mode-watcher is wired and the token layer is fully doubled.",
+			"Do route all user-facing copy through Paraglide m.* messages across en, de, and pt-br, and design for German — it runs roughly 30% longer than English and is where fixed-width labels break.",
+			"Do express depth as a change in surface tone. hover:bg-muted/50, bg-card over bg-background, bg-sidebar beside both.",
+			"Do extend src/lib/components/ui/ and the shadcn-svelte registry rather than introducing a parallel component vocabulary.",
+			"Do design the empty and unknown states deliberately. A monitor that has never been checked is a real, common state, and it is gray."
+		],
+		"donts": [
+			"Don't hardcode a hex, an rgb(), or a Tailwind palette literal. bg-gray-50, bg-white, text-gray-900, and bg-green-500 are all prohibited. The public status page and the landing page are currently full of them; that is known drift being migrated, not a pattern to copy.",
+			"Don't introduce a second green. There is one, it is primary, and every other green in the codebase is legacy.",
+			"Don't put a shadow on anything that has not left the page. Cards, rows, panels, and sidebars are flat at rest.",
+			"Don't use saturated color for anything that is not reporting the state of a monitored thing. No colored headings, no decorative accents, no category tints.",
+			"Don't exceed font-weight 600. If something needs more emphasis than 600 gives it, the problem is hierarchy, not weight.",
+			"Don't hardcode a value that .env owns. Check intervals, retention days, degraded-response thresholds, and SSL warning windows are all UPPITY_* configurable and must be read, not assumed.",
+			"Don't let plan-limit or billing UI become load-bearing. It vanishes entirely under SELF_HOSTED=true, and the layout must not notice.",
+			"Don't invent social proof. There are no customers, testimonials, logos, uptime figures, or review scores. Any surface that appears to need them must be designed to work without them.",
+			"Don't animate for decoration. Motion acknowledges a state change — a 200ms color shift, a drawer sliding, a spinner while a check is in flight — and then stops."
+		]
+	}
 }
