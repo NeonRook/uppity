@@ -201,10 +201,10 @@
 
 	<!-- Postmortem Section (only for resolved incidents) -->
 	{#if data.incident.status === 'resolved'}
-		<Card.Root class="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30">
+		<Card.Root class="border-status-maintenance/30 bg-status-maintenance-surface">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
-					<FileText class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+					<FileText class="h-5 w-5 text-status-maintenance-ink" />
 					{m.incident_postmortem()}
 				</Card.Title>
 				<Card.Description>

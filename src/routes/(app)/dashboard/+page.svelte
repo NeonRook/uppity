@@ -44,21 +44,21 @@
 			value={data.stats.operational}
 			description={m.dashboard_all_operational()}
 			icon={CircleCheck}
-			iconClass="text-green-500"
+			iconClass="text-status-up"
 		/>
 		<StatCard
 			title={m.dashboard_degraded()}
 			value={data.stats.degraded}
 			description={m.dashboard_experiencing_delays()}
 			icon={Clock}
-			iconClass="text-yellow-500"
+			iconClass="text-status-degraded"
 		/>
 		<StatCard
 			title={m.dashboard_down()}
 			value={data.stats.down}
 			description={m.dashboard_requires_attention()}
 			icon={TriangleAlert}
-			iconClass="text-red-500"
+			iconClass="text-status-down"
 		/>
 	</div>
 

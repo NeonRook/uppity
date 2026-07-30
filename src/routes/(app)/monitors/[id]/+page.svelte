@@ -254,7 +254,7 @@
 								</code>
 								<Button variant="outline" size="sm" onclick={() => copyToClipboard(pushUrl)}>
 									{#if copied}
-										<Check class="h-4 w-4 text-green-500" />
+										<Check class="h-4 w-4 text-status-up" />
 									{:else}
 										<Copy class="h-4 w-4" />
 									{/if}
@@ -327,9 +327,9 @@
 							{#if sslDaysUntilExpiry !== null}
 								<span
 									class={sslDaysUntilExpiry <= 0
-										? 'font-medium text-red-500'
+										? 'font-medium text-status-down'
 										: sslDaysUntilExpiry <= (data.monitor.sslExpiryThresholdDays ?? 14)
-											? 'font-medium text-yellow-500'
+											? 'font-medium text-status-degraded'
 											: ''}
 								>
 									{sslDaysUntilExpiry <= 0
