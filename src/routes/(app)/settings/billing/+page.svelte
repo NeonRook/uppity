@@ -224,7 +224,7 @@
 						type="button"
 						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'monthly'
-							? 'bg-background shadow-sm'
+							? 'bg-background'
 							: 'text-muted-foreground hover:text-foreground'}"
 						onclick={() => (billingPeriod = 'monthly')}
 					>
@@ -234,7 +234,7 @@
 						type="button"
 						class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'annual'
-							? 'bg-background shadow-sm'
+							? 'bg-background'
 							: 'text-muted-foreground hover:text-foreground'}"
 						onclick={() => (billingPeriod = 'annual')}
 					>

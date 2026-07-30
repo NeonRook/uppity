@@ -231,8 +231,6 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **The Null Is Gray Rule.** Unknown, paused, never-checked, and no-data all render in `status-unknown`. They are never green ("probably fine"), never amber ("mildly concerning"). Missing information gets no color, because coloring it invents a claim the database cannot support.
 
-> **Pending implementation.** `src/lib/utils/status.ts` and `src/lib/incidents.ts` currently return raw Tailwind literals (`bg-green-500`, `text-yellow-600`, `bg-red-100`). The `--status-*` token family above is the committed target; those helpers are the migration surface. Until they are converted, treat every `green-500` / `yellow-500` / `orange-500` / `red-500` / `blue-500` / `gray-400` occurrence as legacy, and do not add new ones.
-
 ## Typography
 
 **Display Font:** IBM Plex Sans Variable (with `ui-sans-serif`, `system-ui`, `sans-serif`)
@@ -274,7 +272,7 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ## Elevation & Depth
 
-**This system has no resting shadows.** Depth is expressed entirely through surface lightness and hairline borders. `card` and `popover` sit at pure white against a `sidebar`/`muted` plane at 0.985–0.97, and in dark mode the relationship inverts: `background` drops to 0.145 while `card` and `sidebar` _lift_ to 0.205. Nothing in the page hovers above anything else. Elements are stacked planes, not floating panels — which is why an incident banner appearing genuinely reads as an event rather than as more of the same furniture.
+**This system has no resting shadows.** Depth is expressed entirely through surface lightness and hairline borders. `card`, `popover`, and `sidebar` sit at pure white against a `background` plane recessed to 0.985, and dark mode preserves the same relationship: `background` drops to 0.145 while `card` and `sidebar` lift to 0.205. The recessed page and the lifted card are the system's only two planes, in both themes. Nothing in the page hovers above anything else. Elements are stacked planes, not floating panels — which is why an incident banner appearing genuinely reads as an event rather than as more of the same furniture.
 
 Shadow is reserved for elements that have genuinely left the page: dialogs, popovers, dropdown menus, sheets, tooltips. Those are the only places a shadow is correct, because they are the only places something is actually in front of the document.
 
@@ -288,8 +286,6 @@ Shadow is reserved for elements that have genuinely left the page: dialogs, popo
 **The Flat-Plane Rule.** A card, a panel, a sidebar, or a row does not carry a shadow at rest. If an element needs to feel separated, change its surface lightness or give it a border. Reach for shadow only when the element is portaled above the document.
 
 **The Hover-Is-Tone Rule.** Hover states change background tone, never elevation. `hover:bg-muted/50` on a list row, `hover:bg-accent` on a ghost button. Nothing lifts on hover, and nothing casts a shadow it did not already have.
-
-> **Pending implementation.** `shadow-xs` currently sits on buttons and inputs, `shadow-sm` on `Card.Root`, and `shadow-md` on public-page card hover. All three are resting shadows and should be removed under the doctrine above; `shadow-lg` on overlay primitives stays.
 
 ## Shapes
 
@@ -380,7 +376,7 @@ Centered column with a 48px icon at 50% `muted-foreground` opacity, an 18px semi
 
 ### Don't:
 
-- **Don't** hardcode a hex, an `rgb()`, or a Tailwind palette literal. `bg-gray-50`, `bg-white`, `text-gray-900`, and `bg-green-500` are all prohibited. The public status page and the landing page are currently full of them; that is known drift being migrated, not a pattern to copy.
+- **Don't** hardcode a hex, an `rgb()`, or a Tailwind palette literal. `bg-gray-50`, `bg-white`, `text-gray-900`, and `bg-green-500` are all prohibited. The unit specs for `status.ts` and `incidents.ts` fail on any palette literal escaping those helpers; keep it that way.
 - **Don't** introduce a second green. There is one, it is `primary`, and every other green in the codebase is legacy.
 - **Don't** put a shadow on anything that has not left the page. Cards, rows, panels, and sidebars are flat at rest.
 - **Don't** use saturated color for anything that is not reporting the state of a monitored thing. No colored headings, no decorative accents, no category tints.
