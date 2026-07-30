@@ -215,8 +215,8 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ### Neutral
 
-- **Ward Paper** (`background`, `card`, `popover`) — pure white in light, and the surface everything sits on.
-- **Ward Ash** (`sidebar`, `muted`, `secondary`) — the barely-lifted plane. Carries the sidebar, muted fills, skeleton loaders, and secondary buttons.
+- **Ward Paper** (`background`, `card`, `popover`, `sidebar`) — the paper family, split across the system's two planes: `background` is recessed to form the page's base, while `card`, `popover`, and `sidebar` lift above it to the same tone. That single recess-versus-lift step is the entire depth vocabulary in light mode.
+- **Ward Ash** (`muted`, `secondary`) — the 0.97 fill. Carries hover states, skeleton loaders, and secondary buttons.
 - **Ward Night** (`foreground`, `card-foreground`) — near-black at 0.145 lightness. Primary text.
 - **Ward Mist** (`muted-foreground`) — mid-gray at 0.556. Every piece of secondary text: descriptions, timestamps, table meta, placeholder copy.
 - **Ward Line** (`border`, `input`) — the hairline at 0.922. In dark it becomes `oklch(1 0 0 / 10%)` — a translucent white rather than a lighter gray, so borders stay integrated with whatever surface they sit on.
@@ -274,11 +274,11 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **This system has no resting shadows.** Depth is expressed entirely through surface lightness and hairline borders. `card`, `popover`, and `sidebar` sit at pure white against a `background` plane recessed to 0.985, and dark mode preserves the same relationship: `background` drops to 0.145 while `card` and `sidebar` lift to 0.205. The recessed page and the lifted card are the system's only two planes, in both themes. Nothing in the page hovers above anything else. Elements are stacked planes, not floating panels — which is why an incident banner appearing genuinely reads as an event rather than as more of the same furniture.
 
-Shadow is reserved for elements that have genuinely left the page: dialogs, popovers, dropdown menus, sheets, tooltips. Those are the only places a shadow is correct, because they are the only places something is actually in front of the document.
+Shadow is reserved for elements that have genuinely left the page: dialogs, popovers, dropdown menus, sheets. Those are the only places a shadow is correct, because they are the only places something is actually in front of the document. Tooltips leave the page too, but they separate by inversion — a solid `bg-foreground`/`text-background` chip — rather than by shadow.
 
 ### Shadow Vocabulary
 
-- **Overlay** (`box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)`): dialogs, sheets, dropdown menus, popovers, tooltips. The only sanctioned resting shadow, and only for elements rendered in a portal.
+- **Overlay** (`box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)`): dialogs, sheets, dropdown menus, popovers. The only sanctioned resting shadow, and only for elements rendered in a portal. Tooltips are portaled too, but they skip the shadow for an inverted `bg-foreground`/`text-background` chip instead.
 - **Focus ring** (`box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5)`): not elevation, but the system's other box-shadow. A 3px emerald halo paired with a `ring`-colored border, applied on `:focus-visible` only. Uniform across buttons, inputs, textareas, selects, checkboxes, switches, and badges.
 
 ### Named Rules

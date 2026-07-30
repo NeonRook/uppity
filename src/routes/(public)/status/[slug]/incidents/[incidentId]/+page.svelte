@@ -74,14 +74,14 @@
 			<div class="flex flex-wrap gap-6 border-t border-border pt-4 text-sm text-muted-foreground">
 				<div class="flex items-center gap-2">
 					<Clock class="h-4 w-4 text-muted-foreground" />
-					<span
+					<span class="font-mono"
 						>{m.public_status_started({ date: formatIncidentDateTime(incident.startedAt) })}</span
 					>
 				</div>
 				{#if incident.resolvedAt}
 					<div class="flex items-center gap-2">
 						<Clock class="h-4 w-4 text-muted-foreground" />
-						<span
+						<span class="font-mono"
 							>{m.public_incident_resolved({
 								date: formatIncidentDateTime(incident.resolvedAt)
 							})}</span
@@ -89,7 +89,7 @@
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
-					<span
+					<span class="font-mono"
 						>{m.public_status_duration({
 							duration: formatDuration(incident.startedAt, incident.resolvedAt)
 						})}</span
@@ -166,7 +166,7 @@
 									>
 										{updateStatusInfo.label}
 									</span>
-									<span class="text-sm text-muted-foreground">
+									<span class="font-mono text-sm text-muted-foreground">
 										{formatIncidentDateTime(update.createdAt)}
 									</span>
 								</div>
