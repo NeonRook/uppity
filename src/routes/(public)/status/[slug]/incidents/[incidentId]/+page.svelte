@@ -22,18 +22,18 @@
 	{/if}
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-background">
 	<!-- Header -->
-	<header class="border-b bg-white">
+	<header class="border-b bg-card">
 		<div class="mx-auto max-w-4xl px-4 py-6">
 			<div class="flex items-center gap-4">
 				{#if page.logoUrl}
 					<img src={page.logoUrl} alt={page.name} class="h-10 w-auto" />
 				{/if}
 				<div>
-					<h1 class="text-2xl font-bold text-gray-900">{page.name}</h1>
+					<h1 class="text-2xl font-bold text-foreground">{page.name}</h1>
 					{#if page.description}
-						<p class="text-sm text-gray-600">{page.description}</p>
+						<p class="text-sm text-muted-foreground">{page.description}</p>
 					{/if}
 				</div>
 			</div>
@@ -44,16 +44,16 @@
 		<!-- Back link -->
 		<a
 			href={resolve(`/status/${page.slug}`)}
-			class="mb-6 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+			class="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
 		>
 			<ArrowLeft class="h-4 w-4" />
 			Back to Status
 		</a>
 
 		<!-- Incident Header -->
-		<div class="mb-8 rounded-lg border bg-white p-6 shadow-sm">
+		<div class="mb-8 rounded-lg border bg-card p-6">
 			<div class="mb-4">
-				<h2 class="text-2xl font-bold text-gray-900">{incident.title}</h2>
+				<h2 class="text-2xl font-bold text-foreground">{incident.title}</h2>
 				<div class="mt-3 flex flex-wrap items-center gap-3">
 					<span
 						class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium {statusInfo.bg} {statusInfo.color}"
@@ -70,22 +70,22 @@
 			</div>
 
 			<!-- Duration Info -->
-			<div class="flex flex-wrap gap-6 border-t border-gray-100 pt-4 text-sm text-gray-600">
+			<div class="flex flex-wrap gap-6 border-t border-border pt-4 text-sm text-muted-foreground">
 				<div class="flex items-center gap-2">
-					<Clock class="h-4 w-4 text-gray-400" />
+					<Clock class="h-4 w-4 text-muted-foreground" />
 					<span>Started {formatIncidentDateTime(incident.startedAt)}</span>
 				</div>
 				{#if incident.resolvedAt}
 					<div class="flex items-center gap-2">
-						<Clock class="h-4 w-4 text-gray-400" />
+						<Clock class="h-4 w-4 text-muted-foreground" />
 						<span>Resolved {formatIncidentDateTime(incident.resolvedAt)}</span>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
-					<span class="font-medium text-gray-700">Duration:</span>
+					<span class="font-medium text-foreground">Duration:</span>
 					<span>{formatDuration(incident.startedAt, incident.resolvedAt)}</span>
 					{#if !incident.resolvedAt}
-						<span class="text-gray-400">(ongoing)</span>
+						<span class="text-muted-foreground">(ongoing)</span>
 					{/if}
 				</div>
 			</div>
@@ -93,14 +93,14 @@
 
 		<!-- Affected Monitors -->
 		{#if affectedMonitors.length > 0}
-			<div class="mb-8 rounded-lg border bg-white p-6 shadow-sm">
-				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-					<Server class="h-5 w-5 text-gray-500" />
+			<div class="mb-8 rounded-lg border bg-card p-6">
+				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+					<Server class="h-5 w-5 text-muted-foreground" />
 					Affected Services
 				</h3>
 				<div class="flex flex-wrap gap-2">
 					{#each affectedMonitors as monitor (monitor.id)}
-						<span class="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
+						<span class="rounded-full bg-secondary px-3 py-1 text-sm text-foreground">
 							{monitor.name}
 						</span>
 					{/each}
@@ -110,23 +110,25 @@
 
 		<!-- Postmortem -->
 		{#if postmortemUpdate}
-			<div class="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-6 shadow-sm">
-				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
-					<FileText class="h-5 w-5 text-blue-600" />
+			<div
+				class="mb-8 rounded-lg border border-status-maintenance/30 bg-status-maintenance-surface p-6"
+			>
+				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+					<FileText class="h-5 w-5 text-status-maintenance-ink" />
 					Postmortem
 				</h3>
-				<div class="prose prose-sm max-w-none text-gray-700">
+				<div class="prose prose-sm max-w-none text-foreground">
 					<p class="whitespace-pre-wrap">{postmortemUpdate.message}</p>
 				</div>
-				<p class="mt-4 text-xs text-gray-500">
+				<p class="mt-4 text-xs text-muted-foreground">
 					Published {formatIncidentDateTime(postmortemUpdate.createdAt)}
 				</p>
 			</div>
 		{/if}
 
 		<!-- Timeline -->
-		<div class="rounded-lg border bg-white p-6 shadow-sm">
-			<h3 class="mb-6 text-lg font-semibold text-gray-900">Incident Timeline</h3>
+		<div class="rounded-lg border bg-card p-6">
+			<h3 class="mb-6 text-lg font-semibold text-foreground">Incident Timeline</h3>
 
 			{#if timelineUpdates.length > 0}
 				<div class="relative space-y-6">
@@ -136,7 +138,7 @@
 						<div class="relative flex gap-4">
 							<!-- Connector line -->
 							{#if i < timelineUpdates.length - 1}
-								<div class="absolute top-10 left-4 h-full w-0.5 bg-gray-200"></div>
+								<div class="absolute top-10 left-4 h-full w-0.5 bg-border"></div>
 							{/if}
 							<!-- Icon -->
 							<div
@@ -152,23 +154,25 @@
 									>
 										{updateStatusInfo.label}
 									</span>
-									<span class="text-sm text-gray-500">
+									<span class="text-sm text-muted-foreground">
 										{formatIncidentDateTime(update.createdAt)}
 									</span>
 								</div>
-								<p class="mt-2 text-gray-700">{update.message}</p>
+								<p class="mt-2 text-foreground">{update.message}</p>
 							</div>
 						</div>
 					{/each}
 				</div>
 			{:else}
-				<p class="text-gray-500">No updates available.</p>
+				<p class="text-muted-foreground">No updates available.</p>
 			{/if}
 		</div>
 	</main>
 
 	<!-- Footer -->
-	<footer class="border-t bg-white py-6">
-		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-gray-500">Powered by Uppity</div>
+	<footer class="border-t bg-card py-6">
+		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-muted-foreground">
+			Powered by Uppity
+		</div>
 	</footer>
 </div>
