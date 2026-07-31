@@ -1,5 +1,6 @@
-test-results
-node_modules
+test-results/
+node_modules/
+.playwright-mcp/
 
 # Output
 .output
