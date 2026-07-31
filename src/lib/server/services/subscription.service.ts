@@ -1,5 +1,7 @@
+import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
 import { DEFAULT_PLAN_ID, isSelfHosted, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
+import { invitation, member } from "$lib/server/db/auth-schema";
 import * as schema from "$lib/server/db/schema";
 import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
 import type {
@@ -10,7 +12,7 @@ import type {
 	PlanLimits,
 	SubscriptionStatus,
 } from "$lib/types/plans";
-import { eq, count } from "drizzle-orm";
+import { and, count, eq, gt } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -136,6 +138,46 @@ export class SubscriptionService {
 			monitors: monitorCount?.count ?? 0,
 			statusPages: statusPageCount?.count ?? 0,
 		};
+	}
+
+	/**
+	 * Reports how much of the organization's team-member allowance is consumed.
+	 *
+	 * Counts accepted members *and* unexpired pending invitations: counting accepted
+	 * members alone would let an organization blow past its cap by mass-inviting.
+	 * Expired invitations release their slot.
+	 *
+	 * A `teamMembers` limit of -1 resolves to `ORGANIZATION_MEMBERSHIP_LIMIT` rather
+	 * than infinity, because better-auth compares `membersCount >= limit` and needs a
+	 * real number.
+	 */
+	async getMemberCapacity(organizationId: string): Promise<{
+		used: number;
+		limit: number;
+		canInvite: boolean;
+	}> {
+		const limits = await this.getEffectiveLimits(organizationId);
+		const limit = limits.teamMembers === -1 ? ORGANIZATION_MEMBERSHIP_LIMIT : limits.teamMembers;
+
+		const [memberCount] = await this.db
+			.select({ count: count() })
+			.from(member)
+			.where(eq(member.organizationId, organizationId));
+
+		const [pendingCount] = await this.db
+			.select({ count: count() })
+			.from(invitation)
+			.where(
+				and(
+					eq(invitation.organizationId, organizationId),
+					eq(invitation.status, "pending"),
+					gt(invitation.expiresAt, new Date()),
+				),
+			);
+
+		const used = (memberCount?.count ?? 0) + (pendingCount?.count ?? 0);
+
+		return { used, limit, canInvite: used < limit };
 	}
 
 	/**
