@@ -1,16 +1,28 @@
-import { eq, and, gte, lt, count } from "drizzle-orm";
+import { eq, and, gte, inArray, lt, notInArray, sql, count, type SQLWrapper } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
+import { DEFAULT_PLAN_ID, isSelfHosted, retentionGroups } from "../../lib/constants/plans";
+import * as schema from "../../lib/server/db/schema";
 import {
 	monitorCheck,
 	monitorDailyStats,
 	monitorStatus,
 	monitor,
 	incidentMonitor,
+	subscription,
 } from "../../lib/server/db/schema";
 import { db } from "../shared/db";
 
-class StatsService {
+type Db = PostgresJsDatabase<typeof schema>;
+
+export class StatsService {
+	private database: Db;
+
+	constructor(database: Db = db) {
+		this.database = database;
+	}
+
 	/**
 	 * Aggregate stats for a specific monitor and date
 	 */
@@ -22,7 +34,7 @@ class StatsService {
 		endOfDay.setHours(23, 59, 59, 999);
 
 		// Get all checks for this monitor on this day
-		const checks = await db
+		const checks = await this.database
 			.select({
 				status: monitorCheck.status,
 				responseTimeMs: monitorCheck.responseTimeMs,
@@ -60,14 +72,14 @@ class StatsService {
 		const uptimePercent = totalChecks > 0 ? (successfulChecks / totalChecks) * 100 : null;
 
 		// Count incidents for this monitor
-		const [incidentCountResult] = await db
+		const [incidentCountResult] = await this.database
 			.select({ count: count() })
 			.from(incidentMonitor)
 			.where(eq(incidentMonitor.monitorId, monitorId));
 		const incidentCount = incidentCountResult?.count || 0;
 
 		// Upsert daily stats
-		await db
+		await this.database
 			.insert(monitorDailyStats)
 			.values({
 				id: nanoid(),
@@ -101,7 +113,7 @@ class StatsService {
 	 * Aggregate stats for all monitors for a given date
 	 */
 	async aggregateAllMonitorsForDate(date: Date): Promise<number> {
-		const monitors = await db.select({ id: monitor.id }).from(monitor);
+		const monitors = await this.database.select({ id: monitor.id }).from(monitor);
 		let processed = 0;
 
 		for (const mon of monitors) {
@@ -128,7 +140,7 @@ class StatsService {
 		const now = new Date();
 		const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-		const checks = await db
+		const checks = await this.database
 			.select({
 				status: monitorCheck.status,
 				responseTimeMs: monitorCheck.responseTimeMs,
@@ -156,7 +168,7 @@ class StatsService {
 				? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
 				: null;
 
-		await db
+		await this.database
 			.update(monitorStatus)
 			.set({
 				uptimePercent24h,
@@ -170,7 +182,7 @@ class StatsService {
 	 * Update 24h stats for all active monitors
 	 */
 	async updateAll24hStats(): Promise<number> {
-		const monitors = await db
+		const monitors = await this.database
 			.select({ id: monitor.id })
 			.from(monitor)
 			.where(eq(monitor.active, true));
@@ -185,19 +197,69 @@ class StatsService {
 	}
 
 	/**
-	 * Clean up old check data (keep last N days)
+	 * Deletes check rows past their organization's retention window.
+	 *
+	 * Runs one DELETE per distinct window rather than one per organization, so the
+	 * query count is bounded by the number of plans, not by the number of tenants.
+	 *
+	 * `fallbackDays` is the operator's `UPPITY_CHECK_RETENTION_DAYS`. It governs
+	 * every organization in self-hosted mode, and plans whose retention is -1.
 	 */
-	async cleanupOldChecks(daysToKeep: number = 30): Promise<number> {
-		const cutoffDate = new Date();
-		cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+	async cleanupOldChecks(fallbackDays: number = 30): Promise<number> {
+		if (isSelfHosted()) {
+			// Self-hosted has no tenants to distinguish; one global sweep, as before.
+			return this.deleteChecksBefore(cutoffFor(fallbackDays));
+		}
 
-		const result = await db
-			.delete(monitorCheck)
-			.where(lt(monitorCheck.checkedAt, cutoffDate))
-			.returning({ id: monitorCheck.id });
+		const groups = retentionGroups(fallbackDays);
+		// The catch-all group is expressed as "not any of the other plans", so it also
+		// covers orgs with no subscription row and rows carrying a retired plan id.
+		const explicitPlanIds = groups.filter((g) => !g.catchAll).flatMap((g) => g.planIds);
+		const effectivePlan = sql<string>`coalesce(${subscription.planId}, ${DEFAULT_PLAN_ID})`;
 
-		return result.length;
+		let deleted = 0;
+		for (const group of groups) {
+			const scopedMonitors = this.database
+				.select({ id: monitor.id })
+				.from(monitor)
+				.leftJoin(subscription, eq(subscription.organizationId, monitor.organizationId))
+				.where(
+					group.catchAll
+						? explicitPlanIds.length > 0
+							? notInArray(effectivePlan, explicitPlanIds)
+							: undefined
+						: inArray(effectivePlan, group.planIds),
+				);
+
+			deleted += await this.deleteChecksBefore(cutoffFor(group.days), scopedMonitors);
+		}
+
+		return deleted;
 	}
+
+	/**
+	 * Deletes checks older than `cutoff`, optionally restricted to a monitor subquery.
+	 *
+	 * Uses the driver's row count rather than `.returning()`: the first run after a
+	 * retention window shrinks can delete millions of rows, and there is no reason to
+	 * materialise every id just to count them.
+	 */
+	private async deleteChecksBefore(cutoff: Date, scopedMonitors?: SQLWrapper): Promise<number> {
+		const where =
+			scopedMonitors === undefined
+				? lt(monitorCheck.checkedAt, cutoff)
+				: and(lt(monitorCheck.checkedAt, cutoff), inArray(monitorCheck.monitorId, scopedMonitors));
+
+		const result = await this.database.delete(monitorCheck).where(where);
+		return result.count ?? 0;
+	}
+}
+
+/** Returns the timestamp `days` before now. */
+function cutoffFor(days: number): Date {
+	const cutoff = new Date();
+	cutoff.setDate(cutoff.getDate() - days);
+	return cutoff;
 }
 
 export const statsService = new StatsService();

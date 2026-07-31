@@ -78,6 +78,13 @@
       "when": 1785400000000,
       "tag": "0010_plan_id_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785410000000,
+      "tag": "0011_monitor_check_composite_idx",
+      "breakpoints": true
     }
   ]
 }
