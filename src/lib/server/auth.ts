@@ -189,8 +189,18 @@ export const auth = betterAuth({
 	plugins: [
 		polar({
 			client: polarClient,
-			// Don't create Polar customer on signup - it fails for test emails (example.com)
-			// and blocks registration. Customers are created lazily on first checkout/portal access.
+			// Keep this false. The plugin creates the customer in a `before` hook that
+			// rethrows any failure as INTERNAL_SERVER_ERROR, so enabling it makes Polar
+			// a hard dependency of registration: an outage, a rate limit, or an address
+			// their validator rejects (they check deliverability, not just syntax --
+			// example.com returns 422) all become "you cannot sign up".
+			//
+			// It also mismatches the billing model. The plugin keys customers by user id,
+			// while billing is per organization via `referenceId`, so eager creation mints
+			// a customer for every teammate who joins an org and never pays.
+			//
+			// Customers are created lazily on first checkout instead. `hasCustomerAccount`
+			// in settings/billing gates the portal link until one exists.
 			createCustomerOnSignUp: false,
 			use: [
 				checkout({
@@ -237,9 +247,14 @@ export const auth = betterAuth({
 						try {
 							const orgId = sub.metadata?.referenceId as string | undefined;
 							if (!orgId) {
-								event.merge({ org_id: undefined });
-								event.setSuccess();
-								event.emitWarn("subscription created without org reference");
+								// A paid subscription this app cannot attribute to an organization:
+								// the customer is charged and granted nothing, and no retry can fix
+								// it because the reference is absent from the payload itself. Logged
+								// at error level so it alerts rather than sitting in a warning
+								// stream. Returns instead of throwing - a Polar retry would replay
+								// the same referenceId-less payload forever.
+								event.setStatus("error");
+								event.emit("subscription created without org reference");
 								return;
 							}
 
@@ -276,8 +291,8 @@ export const auth = betterAuth({
 						try {
 							const orgId = sub.metadata?.referenceId as string | undefined;
 							if (!orgId) {
-								event.setSuccess();
-								event.emitWarn("subscription updated without org reference");
+								event.setStatus("error");
+								event.emit("subscription updated without org reference");
 								return;
 							}
 
@@ -312,8 +327,8 @@ export const auth = betterAuth({
 						try {
 							const orgId = sub.metadata?.referenceId as string | undefined;
 							if (!orgId) {
-								event.setSuccess();
-								event.emitWarn("subscription canceled without org reference");
+								event.setStatus("error");
+								event.emit("subscription canceled without org reference");
 								return;
 							}
 
@@ -350,8 +365,8 @@ export const auth = betterAuth({
 						try {
 							const orgId = order.metadata?.referenceId as string | undefined;
 							if (!orgId) {
-								event.setSuccess();
-								event.emitWarn("order paid without org reference");
+								event.setStatus("error");
+								event.emit("order paid without org reference");
 								return;
 							}
 
@@ -382,24 +397,18 @@ export const auth = betterAuth({
 						});
 
 						try {
-							// externalId is unset today: checkout identifies the organization
-							// through subscription metadata.referenceId instead. Falling back to
-							// metadata keeps this handler working either way.
-							const orgId =
-								customer.externalId ?? (customer.metadata?.referenceId as string | undefined);
-							if (!orgId) {
-								event.setSuccess();
-								event.emitWarn("customer state changed without org reference");
-								return;
-							}
+							// No org_id on purpose. A Polar customer is keyed to a better-auth
+							// user (the plugin hardcodes externalCustomerId to session.user.id),
+							// and a user may own several organizations, so the customer alone
+							// cannot identify one. Org identity lives on each subscription's
+							// metadata.referenceId, not on the customer.
 
-							event.set("org_id", orgId);
-
-							// TODO(NEO-?): reconcile drift against customer.activeSubscriptions,
-							// which is the only event that can repair a subscription this app
-							// never received. Deliberately not wired up yet - a reconcile that
-							// disagrees with the subscription.* handlers would silently fight
-							// them, so it needs its own design pass.
+							// TODO(NEO-?): reconcile drift against activeSubscriptions, reading
+							// referenceId from each subscription's own metadata. This is the only
+							// event able to repair a subscription whose webhook was never
+							// received. Deliberately not wired up yet - a reconciler that
+							// disagrees with the subscription.* handlers would silently overwrite
+							// them on every benefit grant, so precedence needs its own design pass.
 							await Promise.resolve();
 
 							event.setSuccess();
@@ -422,8 +431,8 @@ export const auth = betterAuth({
 						try {
 							const orgId = sub.metadata?.referenceId as string | undefined;
 							if (!orgId) {
-								event.setSuccess();
-								event.emitWarn("subscription revoked without org reference");
+								event.setStatus("error");
+								event.emit("subscription revoked without org reference");
 								return;
 							}
 
