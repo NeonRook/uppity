@@ -91,6 +91,21 @@ Names only — never commit values. All are optional; absent means billing is of
 sets it keeps working. It also means **local `.env` must set
 `POLAR_SERVER=sandbox` explicitly**, which it now does.
 
+`POLAR_ACCESS_TOKEN` and `POLAR_SERVER` are required on **both** the
+`uppity-server` and `worker-monitor` Railway services, not just `uppity-server`.
+The `usage-snapshot` maintenance job — the only code path that calls
+`events.ingest` — runs on `worker-monitor` (see [Usage meters](#usage-meters)),
+so that service needs its own copy of both variables to report anything. This
+is the same lesson as `SELF_HOSTED` above: each Railway service has its own
+variable set, and code that assumes `uppity-server`'s configuration also
+applies to the worker is wrong.
+
+A token present without `POLAR_SERVER` set falls back to `production` (see
+`src/lib/server/polar.ts`), so a sandbox token on `worker-monitor` without an
+accompanying `POLAR_SERVER=sandbox` would 401 on every ingest rather than
+silently doing nothing — the opposite failure mode from an absent token, and
+worth telling apart when debugging.
+
 ### Token scopes
 
 `POLAR_ACCESS_TOKEN` needs exactly the capabilities the running app calls:
@@ -224,6 +239,11 @@ the code deployed.
       absence there is not evidence they are unset.
 - [x] Verify `SELF_HOSTED` is not `true` on `uppity-server`. It has been removed entirely.
 - [x] Register a webhook endpoint at `https://uppity.cloud/api/auth/polar/webhooks`.
+- [ ] Set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER=production` on the `worker-monitor`
+      Railway service. `MeterService.enabled` requires `POLAR_ACCESS_TOKEN`; without it
+      `reportUsageSnapshots()` returns 0 without logging anything, the `usage-snapshot` job
+      records `records_processed: 0` and reports success, and no event ever reaches Polar —
+      indistinguishable from having no paying customers.
 
 - [x] **The webhook endpoint's format and event subscriptions.** Verified 2026-07-31:
       `https://uppity.cloud/api/auth/polar/webhooks`, format `raw`, subscribed to all six
@@ -255,7 +275,7 @@ the code deployed.
 
 - [ ] `bun run check` — passes (0 errors)
 - [ ] `bun run lint:ci` — exits 0
-- [ ] `mise run test` — 181 tests pass
+- [ ] `mise run test` — 197 tests pass
 - [ ] Local dev still reaches sandbox: `bun run dev`, open `/settings/billing`,
       confirm plan cards render and the upgrade button opens a Polar sandbox
       checkout
