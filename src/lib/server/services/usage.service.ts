@@ -1,4 +1,4 @@
-import { USAGE_THRESHOLDS,isSelfHosted } from "$lib/constants/plans";
+import { USAGE_THRESHOLDS, isSelfHosted } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
 import { usageWarning } from "$lib/server/db/schema";
 import { eq, and, gte } from "drizzle-orm";
