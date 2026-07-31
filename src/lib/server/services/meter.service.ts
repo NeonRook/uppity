@@ -7,6 +7,10 @@ import { collectUsageSnapshots, type UsageSnapshot } from "./usage-snapshot";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
+/** Return shape of the Polar SDK's `events.ingest`, isolated so tests can supply a double. */
+type IngestResult = Awaited<ReturnType<typeof polarClient.events.ingest>>;
+type IngestFn = (events: ReturnType<typeof toIngestEvent>[]) => Promise<IngestResult>;
+
 /**
  * Meter event names. These must match the meter filters configured in Polar;
  * `docs/superpowers/pricing/polar-usage-meters.sh` provisions them.
@@ -34,32 +38,46 @@ const INGEST_CHUNK_SIZE = 100;
 export class MeterService {
 	private readonly enabled: boolean;
 
-	constructor(private readonly db: Db) {
+	constructor(
+		private readonly db: Db,
+		private readonly ingest: IngestFn = (events) => polarClient.events.ingest({ events }),
+		private readonly chunkSize: number = INGEST_CHUNK_SIZE,
+	) {
 		// Self-hosted installations have no Polar organization to report to.
 		this.enabled = process.env.SELF_HOSTED !== "true" && Boolean(process.env.POLAR_ACCESS_TOKEN);
 	}
 
 	/**
 	 * Emits one usage snapshot per billed organization.
-	 * Returns the number of snapshots ingested.
+	 * Returns the number of snapshots Polar reports as newly inserted (duplicates
+	 * it skips are not counted, so this can be lower than the snapshot count).
 	 *
-	 * Never throws: a metering outage must not fail the maintenance job that
-	 * calls it. Failures are logged with the chunk size so a partial ingest is
-	 * distinguishable from a total one.
+	 * Never throws: a metering outage — whether the snapshot query or the Polar
+	 * ingest call — must not fail the maintenance job that calls this. Failures
+	 * are logged with enough context to tell a partial ingest from a total one.
 	 */
 	async reportUsageSnapshots(): Promise<number> {
 		if (!this.enabled) return 0;
 
-		const snapshots = await collectUsageSnapshots(this.db);
+		let snapshots: UsageSnapshot[];
+		try {
+			snapshots = await collectUsageSnapshots(this.db);
+		} catch (error) {
+			logger.error({ error }, "Failed to collect usage snapshots for Polar metering");
+			return 0;
+		}
 		if (snapshots.length === 0) return 0;
 
 		let ingested = 0;
 
-		for (let offset = 0; offset < snapshots.length; offset += INGEST_CHUNK_SIZE) {
-			const chunk = snapshots.slice(offset, offset + INGEST_CHUNK_SIZE);
+		for (let offset = 0; offset < snapshots.length; offset += this.chunkSize) {
+			const chunk = snapshots.slice(offset, offset + this.chunkSize);
 			try {
-				await polarClient.events.ingest({ events: chunk.map(toIngestEvent) });
-				ingested += chunk.length;
+				const response = await this.ingest(chunk.map(toIngestEvent));
+				// Trust the SDK's count of what it actually inserted (duplicates are
+				// skipped, not inserted) but tolerate a malformed response rather than
+				// silently reporting zero for a chunk that did ingest.
+				ingested += typeof response.inserted === "number" ? response.inserted : chunk.length;
 			} catch (error) {
 				logger.error(
 					{ error, chunk_size: chunk.length, offset },
