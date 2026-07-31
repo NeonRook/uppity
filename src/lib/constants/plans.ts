@@ -43,11 +43,22 @@ export const FREE_PLAN: Plan = {
 };
 
 /**
+ * Purchasable capacity on top of the Uppity base allowance.
+ *
+ * Capacity is the one thing with real marginal cost, so it is the one thing
+ * metered — see PRODUCT.md's governing principle. A block is safe to price per
+ * monitor only because `UPPITY_MIN_INTERVAL_SECONDS` caps worst-case check
+ * volume; if that floor ever drops, the billing unit has to change with it.
+ */
+export const MONITOR_BLOCK_SIZE = 50;
+export const MONITOR_BLOCK_PRICE_CENTS = 800; // $8/month per +50 monitors
+export const MONITOR_BLOCK_ANNUAL_PRICE_CENTS = 8000; // $80/year (two months free)
+
+/**
  * Uppity — the base paid unit. $12/month or $120/year (two months free).
  *
- * The 50-monitor allowance is the *included* capacity. Purchasable capacity
- * blocks of +50 monitors are not yet implemented; see PRODUCT.md's outstanding
- * work. Until they are, this ceiling is fixed.
+ * The 50-monitor allowance is the *included* capacity; further capacity is
+ * bought in blocks of `MONITOR_BLOCK_SIZE` at `MONITOR_BLOCK_PRICE_CENTS`.
  */
 export const UPPITY_PLAN: Plan = {
 	id: "uppity",
