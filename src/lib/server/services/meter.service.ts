@@ -1,4 +1,4 @@
-import { Polar } from "@polar-sh/sdk";
+import { polarClient } from "$lib/server/polar";
 
 /**
  * Meter event names - these should match meters defined in Polar Dashboard.
@@ -31,7 +31,6 @@ interface MeterEvent {
  * Meter events are for analytics/billing purposes.
  */
 export class MeterService {
-	private client: Polar | null = null;
 	private enabled = false;
 
 	constructor() {
@@ -41,13 +40,7 @@ export class MeterService {
 		// Only enable meter reporting if:
 		// 1. Not self-hosted (self-hosted doesn't need Polar)
 		// 2. Polar access token is configured
-		if (!selfHosted && accessToken) {
-			this.client = new Polar({
-				accessToken,
-				server: import.meta.env.DEV ? "sandbox" : "production",
-			});
-			this.enabled = true;
-		}
+		this.enabled = !selfHosted && Boolean(accessToken);
 	}
 
 	/**
@@ -55,10 +48,10 @@ export class MeterService {
 	 * Fails silently - meter reporting should never block operations.
 	 */
 	async reportEvent(event: MeterEvent): Promise<void> {
-		if (!this.enabled || !this.client) return;
+		if (!this.enabled) return;
 
 		try {
-			await this.client.events.ingest({
+			await polarClient.events.ingest({
 				events: [
 					{
 						name: event.name,
@@ -77,12 +70,12 @@ export class MeterService {
 	 * Reports multiple events in a batch.
 	 */
 	async reportEvents(events: MeterEvent[]): Promise<void> {
-		if (!this.enabled || !this.client || events.length === 0) {
+		if (!this.enabled || events.length === 0) {
 			return;
 		}
 
 		try {
-			await this.client.events.ingest({
+			await polarClient.events.ingest({
 				events: events.map((e) => ({
 					name: e.name,
 					externalCustomerId: e.organizationId,
