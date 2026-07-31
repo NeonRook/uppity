@@ -84,14 +84,14 @@ describe("collectUsageSnapshots", () => {
 		await seedMember(db.db, orgId);
 
 		const snapshots = await collectUsageSnapshots(db.db);
-		const row = snapshots.find((s) => s.organizationId === orgId);
+		const row = snapshots.find((s) => s.polarCustomerId === "polar-cust-1");
 
 		expect(row).toEqual({
-			organizationId: orgId,
 			polarCustomerId: "polar-cust-1",
 			monitors: 2,
 			statusPages: 1,
 			teamMembers: 3,
+			organizationCount: 1,
 		});
 	});
 
@@ -102,10 +102,10 @@ describe("collectUsageSnapshots", () => {
 
 		const snapshots = await collectUsageSnapshots(db.db);
 
-		expect(snapshots.find((s) => s.organizationId === orgId)).toBeUndefined();
+		expect(snapshots.some((s) => s.polarCustomerId === null)).toBe(false);
 	});
 
-	test("attributes counts to the right organization when several are billed", async ({ db }) => {
+	test("attributes counts to the right customer when several are billed", async ({ db }) => {
 		const first = await seedOrganization(db.db);
 		const second = await seedOrganization(db.db);
 		await seedSubscription(db.db, first, "polar-cust-a");
@@ -116,8 +116,8 @@ describe("collectUsageSnapshots", () => {
 
 		const snapshots = await collectUsageSnapshots(db.db);
 
-		expect(snapshots.find((s) => s.organizationId === first)?.monitors).toBe(1);
-		expect(snapshots.find((s) => s.organizationId === second)?.monitors).toBe(2);
+		expect(snapshots.find((s) => s.polarCustomerId === "polar-cust-a")?.monitors).toBe(1);
+		expect(snapshots.find((s) => s.polarCustomerId === "polar-cust-b")?.monitors).toBe(2);
 	});
 
 	test("reports zero for a billed organization with no resources", async ({ db }) => {
@@ -126,10 +126,45 @@ describe("collectUsageSnapshots", () => {
 
 		const snapshots = await collectUsageSnapshots(db.db);
 
-		expect(snapshots.find((s) => s.organizationId === orgId)).toMatchObject({
+		expect(snapshots.find((s) => s.polarCustomerId === "polar-cust-empty")).toMatchObject({
 			monitors: 0,
 			statusPages: 0,
 			teamMembers: 0,
+			organizationCount: 1,
+		});
+	});
+
+	test("sums counts across organizations that share one Polar customer", async ({ db }) => {
+		// Two organizations owned by the same better-auth user share one Polar
+		// customer (subscription.polarCustomerId is not unique per organization).
+		// A per-organization implementation would emit two events here — one per
+		// organization, each keyed by the shared customer ID — rather than one
+		// event carrying the sum.
+		const sharedCustomerId = "polar-cust-shared";
+		const first = await seedOrganization(db.db);
+		const second = await seedOrganization(db.db);
+		await seedSubscription(db.db, first, sharedCustomerId);
+		await seedSubscription(db.db, second, sharedCustomerId);
+		await seedMonitor(db.db, first);
+		await seedMonitor(db.db, first);
+		await seedMonitor(db.db, first);
+		await seedMonitor(db.db, second);
+		await seedMonitor(db.db, second);
+		await seedMonitor(db.db, second);
+		await seedMonitor(db.db, second);
+		await seedStatusPage(db.db, first);
+		await seedMember(db.db, second);
+
+		const snapshots = await collectUsageSnapshots(db.db);
+		const matching = snapshots.filter((s) => s.polarCustomerId === sharedCustomerId);
+
+		expect(matching).toHaveLength(1);
+		expect(matching[0]).toEqual({
+			polarCustomerId: sharedCustomerId,
+			monitors: 7,
+			statusPages: 1,
+			teamMembers: 1,
+			organizationCount: 2,
 		});
 	});
 });

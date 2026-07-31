@@ -11,9 +11,11 @@ import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { MeterService } from "./meter.service";
 
+/** Seeds one billed organization and returns its (unique) Polar customer ID. */
 async function seedBilledOrganization(drizzleDb: TestDb["db"]): Promise<string> {
 	const suffix = nanoid();
 	const orgId = `test-org-${suffix}`;
+	const polarCustomerId = `polar-cust-${suffix}`;
 	await drizzleDb.insert(organization).values({
 		id: orgId,
 		name: `Test Org ${suffix}`,
@@ -25,9 +27,9 @@ async function seedBilledOrganization(drizzleDb: TestDb["db"]): Promise<string> 
 		organizationId: orgId,
 		planId: "uppity",
 		status: "active",
-		polarCustomerId: `polar-cust-${suffix}`,
+		polarCustomerId,
 	});
-	return orgId;
+	return polarCustomerId;
 }
 
 describe("MeterService", () => {
@@ -92,17 +94,19 @@ describe("MeterService", () => {
 		expect(ingest).not.toHaveBeenCalled();
 	});
 
-	test("each ingested event carries organization_id in its metadata", async ({ db }) => {
-		const orgId = await seedBilledOrganization(db.db);
+	test("each ingested event carries organization_count in its metadata", async ({ db }) => {
+		const polarCustomerId = await seedBilledOrganization(db.db);
 
 		const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
 		const service = new MeterService(db.db, ingest, 10);
 
 		await service.reportUsageSnapshots();
 
-		const [events] = ingest.mock.calls[0] as [Array<{ metadata: Record<string, unknown> }>];
-		const event = events.find((e) => e.metadata.organization_id === orgId);
-		expect(event).toBeDefined();
+		const [events] = ingest.mock.calls[0] as [
+			Array<{ customerId: string; metadata: Record<string, unknown> }>,
+		];
+		const event = events.find((e) => e.customerId === polarCustomerId);
+		expect(event?.metadata.organization_count).toBe(1);
 	});
 
 	test("the returned count reflects inserted, not chunk length, when Polar skips duplicates", async ({
