@@ -182,7 +182,11 @@ export const actions: Actions = {
 		const form = await superValidate(request, valibot(inviteMemberSchema));
 
 		if (!form.valid) {
-			return fail(400, { error: "Valid email is required" });
+			// Report the field that actually failed. Hardcoding the email message here
+			// made a malformed `role` look like a bad address, which is impossible to
+			// act on from the UI.
+			const firstError = Object.values(form.errors).flat().find(Boolean);
+			return fail(400, { error: firstError ?? "Please check the form and try again." });
 		}
 
 		try {
