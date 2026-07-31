@@ -686,5 +686,6 @@
 	"landing_footer_license": "AGPL-3.0-Lizenz",
 	"landing_footer_security": "Sicherheit",
 	"landing_footer_contact": "Kontakt",
-	"landing_footer_tagline": "Open-Source-Uptime-Monitoring. Überall betreibbar."
+	"landing_footer_tagline": "Open-Source-Uptime-Monitoring. Überall betreibbar.",
+	"landing_hero_free_note": "Kostenlos für {count} Monitore, ohne Kreditkarte."
 }
