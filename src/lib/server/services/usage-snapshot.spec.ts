@@ -27,12 +27,13 @@ async function seedSubscription(
 	drizzleDb: TestDb["db"],
 	orgId: string,
 	polarCustomerId: string | null,
+	overrides: { planId?: string; status?: string } = {},
 ): Promise<void> {
 	await drizzleDb.insert(subscription).values({
 		id: nanoid(),
 		organizationId: orgId,
-		planId: "uppity",
-		status: "active",
+		planId: overrides.planId ?? "uppity",
+		status: overrides.status ?? "active",
 		polarCustomerId,
 	});
 }
@@ -107,6 +108,51 @@ describe("collectUsageSnapshots", () => {
 		const snapshots = await collectUsageSnapshots(db.db);
 
 		expect(snapshots.some((s) => s.organizationId === orgId)).toBe(false);
+	});
+
+	test("excludes an organization downgraded to free even though it still carries a polarCustomerId, while its sibling keeps reporting its own counts", async ({
+		db,
+	}) => {
+		// downgradeToFree routes through syncFromPolar, which never clears
+		// polarCustomerId (it carries `?? existing.polarCustomerId` forward), so a
+		// revoked/downgraded organization keeps its Polar customer ID forever.
+		// Two organizations sharing one customer — one still paid, one downgraded
+		// to free — reproduces the exact shape that would otherwise inflate the
+		// customer's summed total.
+		const sharedCustomerId = `polar-cust-shared-${nanoid()}`;
+		const paidOrg = await seedOrganization(db.db);
+		const downgradedOrg = await seedOrganization(db.db);
+		await seedSubscription(db.db, paidOrg, sharedCustomerId, { planId: "uppity" });
+		await seedSubscription(db.db, downgradedOrg, sharedCustomerId, { planId: "free" });
+		for (let i = 0; i < 4; i++) await seedMonitor(db.db, paidOrg);
+		for (let i = 0; i < 9; i++) await seedMonitor(db.db, downgradedOrg);
+
+		const snapshots = await collectUsageSnapshots(db.db);
+		const matching = snapshots.filter((s) => s.polarCustomerId === sharedCustomerId);
+
+		expect(matching).toHaveLength(1);
+		expect(matching[0]).toEqual({
+			organizationId: paidOrg,
+			polarCustomerId: sharedCustomerId,
+			monitors: 4,
+			statusPages: 0,
+			teamMembers: 0,
+		});
+	});
+
+	test("keeps a past_due organization in the snapshot — it is still on a paid plan", async ({
+		db,
+	}) => {
+		const orgId = await seedOrganization(db.db);
+		await seedSubscription(db.db, orgId, "polar-cust-past-due", {
+			planId: "uppity",
+			status: "past_due",
+		});
+		await seedMonitor(db.db, orgId);
+
+		const snapshots = await collectUsageSnapshots(db.db);
+
+		expect(snapshots.some((s) => s.organizationId === orgId)).toBe(true);
 	});
 
 	test("attributes counts to the right organization when several are billed", async ({ db }) => {

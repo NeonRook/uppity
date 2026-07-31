@@ -1,7 +1,8 @@
+import { DEFAULT_PLAN_ID } from "$lib/constants/plans";
 import { member } from "$lib/server/db/auth-schema";
 import * as schema from "$lib/server/db/schema";
 import { monitor, statusPage, subscription } from "$lib/server/db/schema";
-import { getTableName, isNotNull, sql } from "drizzle-orm";
+import { and, getTableName, isNotNull, ne, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -45,13 +46,23 @@ export interface CustomerUsageSnapshot {
 }
 
 /**
- * Reads current resource counts for every organization that has a Polar
- * customer, one row per organization.
+ * Reads current resource counts for every organization that is both billed
+ * and actively on a paid plan, one row per organization.
  *
  * Organizations without a Polar customer (the free tier — customers are
  * created lazily at first checkout) are excluded by the query rather than
  * filtered afterwards, so there is no path that produces an unattributable
  * event.
+ *
+ * Organizations on the free plan are excluded the same way, by `planId`
+ * rather than `status`. `downgradeToFree` and cancellation both route
+ * through `syncFromPolar`, which never clears `polarCustomerId` — it carries
+ * `?? existing.polarCustomerId` forward — so a revoked or downgraded
+ * organization keeps its Polar customer ID forever and would otherwise stay
+ * in every future snapshot. Filtering on `status` instead would wrongly drop
+ * `past_due` organizations, which are still consuming resources and still
+ * owe money and so must stay metered; only a `planId` of `free` means the
+ * organization is no longer on a paid plan.
  */
 export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSnapshot[]> {
 	const rows = await db
@@ -63,7 +74,7 @@ export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSn
 			teamMembers: sql<string>`(select count(*) from ${member} where ${member.organizationId} = ${outerOrganizationId})`,
 		})
 		.from(subscription)
-		.where(isNotNull(subscription.polarCustomerId));
+		.where(and(isNotNull(subscription.polarCustomerId), ne(subscription.planId, DEFAULT_PLAN_ID)));
 
 	// postgres-js returns bigint counts as strings.
 	return rows.map((row) => ({
