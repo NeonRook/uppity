@@ -1,8 +1,16 @@
 {
-	"mcpServers": {
-		"svelte": {
-			"type": "http",
-			"url": "https://mcp.svelte.dev/mcp"
-		}
-	}
+  "mcpServers": {
+    "svelte": {
+      "type": "http",
+      "url": "https://mcp.svelte.dev/mcp"
+    },
+    "Polar-Sandbox": {
+      "type": "http",
+      "url": "https://mcp.polar.sh/mcp/polar-sandbox"
+    },
+    "Polar": {
+      "type": "http",
+      "url": "https://mcp.polar.sh/mcp/polar-mcp"
+    }
+  }
 }
