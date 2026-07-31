@@ -11,10 +11,10 @@ import { db } from "$lib/server/db";
 import * as authSchema from "$lib/server/db/auth-schema";
 import { subscription } from "$lib/server/db/schema";
 import { createWebhookWideEvent } from "$lib/server/logger";
+import { polarClient } from "$lib/server/polar";
 import { subscriptionService } from "$lib/server/services/subscription.service";
 import type { PlanId, SubscriptionStatus } from "$lib/types/plans";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
-import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
@@ -29,11 +29,6 @@ const baseURL = process.env.BETTER_AUTH_URL || "https://localhost:3000";
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
 	"https://localhost:3000",
 ];
-
-const polarClient = new Polar({
-	accessToken: process.env.POLAR_ACCESS_TOKEN,
-	server: import.meta.env.DEV ? "sandbox" : "production",
-});
 
 // Polar product IDs from environment (different for sandbox vs production)
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
@@ -334,6 +329,84 @@ export const auth = betterAuth({
 						} catch (error) {
 							event.setError(error);
 							event.emit("subscription canceled");
+							throw error;
+						}
+					},
+					// Fires for every paid order: first purchase, renewal and seat change
+					// alike. Plan state is already maintained by the subscription.*
+					// handlers above, which carry the period boundaries this event does
+					// not, so this exists as a payment audit trail rather than a second
+					// path into SubscriptionService.
+					onOrderPaid: async ({ data: order }) => {
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "order.paid",
+							polar_order_id: order.id,
+							polar_customer_id: order.customerId,
+							polar_product_id: order.productId ?? undefined,
+							polar_subscription_id: order.subscriptionId ?? undefined,
+						});
+
+						try {
+							const orgId = order.metadata?.referenceId as string | undefined;
+							if (!orgId) {
+								event.setSuccess();
+								event.emitWarn("order paid without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+
+							// TODO(NEO-?): one-time purchases (credit packs, setup fees) have no
+							// subscription.* event, so they will need to be granted here once such
+							// a product exists. Every product sold today is a subscription.
+							await Promise.resolve();
+
+							event.setSuccess();
+							event.emit("order paid");
+						} catch (error) {
+							event.setError(error);
+							event.emit("order paid");
+							throw error;
+						}
+					},
+					// Polar's authoritative snapshot of everything a customer currently has.
+					// Useful as a reconciliation source when an individual subscription.*
+					// event is missed or arrives out of order.
+					onCustomerStateChanged: async ({ data: customer }) => {
+						const event = createWebhookWideEvent("polar");
+						event.merge({
+							webhook_event: "customer.state_changed",
+							polar_customer_id: customer.id,
+							active_subscription_count: customer.activeSubscriptions.length,
+						});
+
+						try {
+							// externalId is unset today: checkout identifies the organization
+							// through subscription metadata.referenceId instead. Falling back to
+							// metadata keeps this handler working either way.
+							const orgId =
+								customer.externalId ?? (customer.metadata?.referenceId as string | undefined);
+							if (!orgId) {
+								event.setSuccess();
+								event.emitWarn("customer state changed without org reference");
+								return;
+							}
+
+							event.set("org_id", orgId);
+
+							// TODO(NEO-?): reconcile drift against customer.activeSubscriptions,
+							// which is the only event that can repair a subscription this app
+							// never received. Deliberately not wired up yet - a reconcile that
+							// disagrees with the subscription.* handlers would silently fight
+							// them, so it needs its own design pass.
+							await Promise.resolve();
+
+							event.setSuccess();
+							event.emit("customer state changed");
+						} catch (error) {
+							event.setError(error);
+							event.emit("customer state changed");
 							throw error;
 						}
 					},
