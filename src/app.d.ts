@@ -27,6 +27,7 @@ declare global {
 			// Polar billing [Optional - required for SaaS mode]
 			POLAR_ACCESS_TOKEN?: string;
 			POLAR_WEBHOOK_SECRET?: string;
+			POLAR_SERVER?: "sandbox" | "production";
 			POLAR_PRODUCT_FREE?: string;
 			POLAR_PRODUCT_UPPITY_MONTHLY?: string;
 			POLAR_PRODUCT_UPPITY_ANNUAL?: string;
