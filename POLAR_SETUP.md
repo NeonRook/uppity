@@ -91,6 +91,35 @@ Names only — never commit values. All are optional; absent means billing is of
 sets it keeps working. It also means **local `.env` must set
 `POLAR_SERVER=sandbox` explicitly**, which it now does.
 
+### Token scopes
+
+`POLAR_ACCESS_TOKEN` needs exactly the capabilities the running app calls:
+
+| Polar API call               | Called by                                 | Capability                |
+| ---------------------------- | ----------------------------------------- | ------------------------- |
+| `checkouts.create`           | plugin checkout endpoint                  | checkouts — write         |
+| `customerSessions.create`    | portal, and every `customerPortal.*` read | customer sessions — write |
+| `customers.getStateExternal` | plugin customer-state endpoint            | customers — read          |
+| `subscriptions.list`         | plugin subscriptions endpoint             | subscriptions — read      |
+| `subscriptions.get`          | `admin/organizations/[id]` resync action  | subscriptions — read      |
+| `events.ingest`              | `meter.service.ts`                        | events — write            |
+
+Deliberately **excluded**:
+
+- **Products.** Product IDs come from `POLAR_PRODUCT_*` and are passed straight
+  into `checkouts.create`; no code path reads or writes the products API. Products
+  write on a runtime token would let a leaked token re-price the live catalogue.
+- **Webhooks.** Inbound webhooks are verified by HMAC against
+  `POLAR_WEBHOOK_SECRET`; the access token plays no part in receiving them. The
+  scope only permits managing endpoints through the API.
+
+The portal, benefit-grant, order and meter listings need no scope of their own —
+each is preceded by `customerSessions.create` and authenticated by that ephemeral
+customer session rather than the organization token.
+
+Provisioning scripts are a separate concern: give them their own short-lived
+token with products write and delete it when done.
+
 ## Current state
 
 ### Sandbox — complete except webhooks
@@ -122,12 +151,15 @@ Outstanding work below is done.
 
 - [ ] **Rotate the `Postgres-18` password.** The production `DATABASE_URL` was
       exposed during this setup session.
-- [ ] Create a **production** organization access token at
-      https://polar.sh/dashboard/neonrook/settings (scopes: products, checkouts,
-      webhooks — read and write).
+- [ ] Create the **runtime** production organization access token at
+      https://polar.sh/dashboard/neonrook/settings. Grant only what the app
+      calls (see [Token scopes](#token-scopes)) — notably **not** products and
+      **not** webhooks.
 - [ ] Confirm the five **production** product IDs. Sandbox IDs will not work.
       `docs/superpowers/pricing/polar-production-migration.sh` provisions and
-      prints them.
+      prints them. It needs products write, so run it with a **separate,
+      short-lived** token and delete that token afterwards — do not grant
+      products write to the token Railway holds.
 - [ ] Register a webhook endpoint at
       `https://uppity.cloud/api/auth/polar/webhooks`, format **raw**, subscribed
       to at minimum: `subscription.created`, `subscription.updated`,
