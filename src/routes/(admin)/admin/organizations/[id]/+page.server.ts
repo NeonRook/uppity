@@ -1,4 +1,5 @@
 import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
+import { isSelfHosted } from "$lib/constants/plans";
 import { updateOrganizationSchema, addMemberSchema } from "$lib/schemas/admin";
 import { getActor } from "$lib/server/audit-actor";
 import { getPlanFromSubscription, mapPolarStatus } from "$lib/server/auth";
@@ -6,7 +7,6 @@ import { db } from "$lib/server/db";
 import { adminService } from "$lib/server/services/admin.service";
 import { auditService } from "$lib/server/services/audit.service";
 import {
-	isSelfHosted,
 	subscriptionService,
 	type PolarSubscriptionSnapshot,
 } from "$lib/server/services/subscription.service";

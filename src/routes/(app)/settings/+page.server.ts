@@ -1,8 +1,8 @@
+import { isSelfHosted } from "$lib/constants/plans";
 import { updateProfileSchema, createOrganizationSchema } from "$lib/schemas/settings";
 import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db";
 import { member } from "$lib/server/db/auth-schema";
-import { isSelfHosted } from "$lib/server/services/subscription.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
