@@ -140,8 +140,11 @@
 		"Courier New", monospace;
 	/* Display — the landing hero and nothing else (DESIGN.md). Light weight at
 	   large size is the quietest possible way to be big; it exists as a token
-	   so the one sanctioned usage cannot drift back to a bold heading. */
-	--text-display: clamp(2.25rem, 5vw, 3rem);
+	   so the one sanctioned usage cannot drift back to a bold heading. The
+	   ceiling reaches 4.5rem so the headline holds one line on a wide screen;
+	   at 3rem it wrapped at every breakpoint and stopped reading as the focal
+	   element. */
+	--text-display: clamp(2.25rem, 5.5vw, 4.5rem);
 	--text-display--line-height: 1.05;
 	--text-display--letter-spacing: -0.02em;
 	--text-display--font-weight: 300;

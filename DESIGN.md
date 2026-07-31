@@ -3,7 +3,7 @@ name: Uppity
 description: Uptime monitoring that stays quiet until it shouldn't.
 colors:
   primary: "oklch(0.696 0.17 162.48)"
-  primary-foreground: "oklch(0.985 0 0)"
+  primary-foreground: "oklch(0.262 0.051 172.552)"
   background: "oklch(0.985 0 0)"
   foreground: "oklch(0.145 0 0)"
   card: "oklch(1 0 0)"
@@ -29,7 +29,7 @@ colors:
 typography:
   display:
     fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.25rem, 5vw, 3rem)"
+    fontSize: "clamp(2.25rem, 5.5vw, 4.5rem)"
     fontWeight: 300
     lineHeight: 1.05
     letterSpacing: "-0.02em"
@@ -231,6 +231,10 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **The Null Is Gray Rule.** Unknown, paused, never-checked, and no-data all render in `status-unknown`. They are never green ("probably fine"), never amber ("mildly concerning"). Missing information gets no color, because coloring it invents a claim the database cannot support.
 
+**The Emerald Never Takes White Rule.** Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink `oklch(0.262 0.051 172.552)`, which reaches 6.14:1. Because `primary` is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons.
+
+> **Known exceptions, not yet fixed.** `--status-up-foreground` and `--sidebar-primary-foreground` still resolve to near-white on emerald in the light theme, so the public status banner and the active sidebar item carry the same 2.36:1 defect. They are out of compliance with the rule above and should be brought in line.
+
 ## Typography
 
 **Display Font:** IBM Plex Sans Variable (with `ui-sans-serif`, `system-ui`, `sans-serif`)
@@ -241,7 +245,7 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 ### Hierarchy
 
-- **Display** (300, `clamp(2.25rem, 5vw, 3rem)`, 1.05, `-0.02em`): the landing hero and nothing else. Light weight at large size — the quietest possible way to be big.
+- **Display** (300, `clamp(2.25rem, 5.5vw, 4.5rem)`, 1.05, `-0.02em`): the landing hero and nothing else, available as the `text-display` utility. Light weight at large size — the quietest possible way to be big. The ceiling is 4.5rem because at 3rem the headline wrapped to two lines at every breakpoint and stopped reading as the focal element.
 - **Headline** (600, 24px, 1.2, `-0.01em`): page titles (`Dashboard`, `Monitors`) and the overall status banner on a public page.
 - **Title** (600, 18px, 1.3): section headings and card titles. Card titles additionally set `line-height: 1` because they sit in a fixed grid row.
 - **Body** (400, 14px, 1.6): the dominant size across the entire application. Line-height 1.6 is generous for 14px and is the main lever making dense operational screens feel unhurried. Cap prose at 65–75ch; incident descriptions and postmortems are the surfaces this matters on.
@@ -260,7 +264,13 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **Content padding** is 16px on mobile, 24px from `sm` (640px) up. Vertical rhythm inside a page is 24px between major blocks and 16px within them — `space-y-6` wrapping `space-y-4` is the single most repeated structure in the codebase and should stay that way.
 
-**Public and marketing surfaces** are centered in an 896px column with 16px side padding: the status page, its incident detail pages, and the landing page. Forms and settings panes use a 672px column. Authentication uses 448px, vertically centered in the viewport. These four widths are the entire container vocabulary.
+**Reading surfaces** are centered in an 896px column with 16px side padding: the status page and its incident detail pages. 896px is a _prose_ measure — it exists to hold a 65–75ch line — and it belongs only where the dominant content is text.
+
+**The marketing surface** (the landing page) uses a 1280px column with 16px side padding, rising to 24px from `sm`. Its dominant content is a wide comparison chart and multi-column plan tables, none of which is prose and none of which wants a prose measure. Prose blocks inside it are individually capped at `65ch` rather than being constrained by the container. The header and footer inner rails follow the page container, not the reading column: at 896px on a 2560px screen the navigation became a floating island in an empty white band, which is the single clearest tell of a dated layout.
+
+Forms and settings panes use a 672px column. Authentication uses 448px, vertically centered in the viewport. These five widths are the entire container vocabulary.
+
+**The Measure-Not-Membership Rule.** A surface gets the 896px column because its content is prose, never because it appears on a list of public routes. When a surface's dominant element is a chart, a table, or a grid, it takes the wider container and caps its prose individually.
 
 **Responsive behavior has one major reflow, at `sm` (640px).** Stat grids go 2-up → 4-up, header rows go stacked → justified, secondary metadata (monitor URLs, separator dots) appears. `lg` is reserved almost exclusively for the sidebar. `md` is used three times in the whole product. Design mobile-first and treat the 640px step as the real breakpoint.
 
