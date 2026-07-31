@@ -12,12 +12,20 @@ type Db = PostgresJsDatabase<typeof schema>;
 // resolves to the subquery's own row instead of the outer one, silently
 // turning the correlation into a self-comparison that matches everything.
 // Qualifying the outer reference by table name avoids that.
-// Assumes `subscription` is queried unaliased (as it is below, including
-// inside the `perOrganization` CTE); if it's ever queried through an alias,
-// this hardcoded qualifier will no longer match.
+// Assumes `subscription` is queried unaliased (as it is below); if it's ever
+// queried through an alias, this hardcoded qualifier will no longer match.
 const outerOrganizationId = sql.raw(
 	`"${getTableName(subscription)}"."${subscription.organizationId.name}"`,
 );
+
+/** Absolute resource counts for one organization at a point in time. */
+export interface OrganizationUsageSnapshot {
+	organizationId: string;
+	polarCustomerId: string;
+	monitors: number;
+	statusPages: number;
+	teamMembers: number;
+}
 
 /**
  * Summed resource counts for one Polar customer at a point in time.
@@ -27,7 +35,7 @@ const outerOrganizationId = sql.raw(
  * customer's counts are the sum across every organization it owns —
  * `organizationId` does not survive that aggregation.
  */
-export interface UsageSnapshot {
+export interface CustomerUsageSnapshot {
 	polarCustomerId: string;
 	monitors: number;
 	statusPages: number;
@@ -37,58 +45,68 @@ export interface UsageSnapshot {
 }
 
 /**
- * Reads current resource counts for every Polar customer that owns at least
- * one organization, summed across all organizations that customer owns.
+ * Reads current resource counts for every organization that has a Polar
+ * customer, one row per organization.
  *
  * Organizations without a Polar customer (the free tier — customers are
  * created lazily at first checkout) are excluded by the query rather than
  * filtered afterwards, so there is no path that produces an unattributable
  * event.
  */
-export async function collectUsageSnapshots(db: Db): Promise<UsageSnapshot[]> {
-	// Per-organization counts first, as a CTE, then grouped and summed by
-	// customer — grouping directly in the outer query would require the
-	// correlated subqueries to reference a per-group organization_id, which
-	// doesn't exist once several organizations share a group.
-	const perOrganization = db.$with("per_organization").as(
-		db
-			.select({
-				polarCustomerId: subscription.polarCustomerId,
-				monitors:
-					sql<string>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId})`.as(
-						"monitors",
-					),
-				statusPages:
-					sql<string>`(select count(*) from ${statusPage} where ${statusPage.organizationId} = ${outerOrganizationId})`.as(
-						"status_pages",
-					),
-				teamMembers:
-					sql<string>`(select count(*) from ${member} where ${member.organizationId} = ${outerOrganizationId})`.as(
-						"team_members",
-					),
-			})
-			.from(subscription)
-			.where(isNotNull(subscription.polarCustomerId)),
-	);
-
+export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSnapshot[]> {
 	const rows = await db
-		.with(perOrganization)
 		.select({
-			polarCustomerId: perOrganization.polarCustomerId,
-			monitors: sql<string>`sum(${perOrganization.monitors})`,
-			statusPages: sql<string>`sum(${perOrganization.statusPages})`,
-			teamMembers: sql<string>`sum(${perOrganization.teamMembers})`,
-			organizationCount: sql<string>`count(*)`,
+			organizationId: subscription.organizationId,
+			polarCustomerId: subscription.polarCustomerId,
+			monitors: sql<string>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId})`,
+			statusPages: sql<string>`(select count(*) from ${statusPage} where ${statusPage.organizationId} = ${outerOrganizationId})`,
+			teamMembers: sql<string>`(select count(*) from ${member} where ${member.organizationId} = ${outerOrganizationId})`,
 		})
-		.from(perOrganization)
-		.groupBy(perOrganization.polarCustomerId);
+		.from(subscription)
+		.where(isNotNull(subscription.polarCustomerId));
 
 	// postgres-js returns bigint counts as strings.
 	return rows.map((row) => ({
+		organizationId: row.organizationId,
 		polarCustomerId: row.polarCustomerId as string,
 		monitors: Number(row.monitors),
 		statusPages: Number(row.statusPages),
 		teamMembers: Number(row.teamMembers),
-		organizationCount: Number(row.organizationCount),
 	}));
+}
+
+/**
+ * Sums per-organization rows into one row per Polar customer.
+ *
+ * A Polar customer may own several organizations (up to
+ * `ORGANIZATION_LIMIT_PER_USER`), and Polar's `max` aggregation over
+ * per-organization events would report the largest single organization's
+ * usage instead of the customer's total — this collapses that ambiguity
+ * before anything is reported. A customer with exactly one organization
+ * passes through unchanged, with `organizationCount: 1`.
+ *
+ * Pure and synchronous so it can be unit tested without the database.
+ */
+export function sumByCustomer(rows: OrganizationUsageSnapshot[]): CustomerUsageSnapshot[] {
+	const byCustomer = new Map<string, CustomerUsageSnapshot>();
+
+	for (const row of rows) {
+		const existing = byCustomer.get(row.polarCustomerId);
+		if (existing) {
+			existing.monitors += row.monitors;
+			existing.statusPages += row.statusPages;
+			existing.teamMembers += row.teamMembers;
+			existing.organizationCount += 1;
+		} else {
+			byCustomer.set(row.polarCustomerId, {
+				polarCustomerId: row.polarCustomerId,
+				monitors: row.monitors,
+				statusPages: row.statusPages,
+				teamMembers: row.teamMembers,
+				organizationCount: 1,
+			});
+		}
+	}
+
+	return Array.from(byCustomer.values());
 }
