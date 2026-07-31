@@ -1,5 +1,5 @@
-import { PLANS, PUBLIC_PLAN_IDS } from "$lib/constants/plans";
-import { subscriptionService, isSelfHosted } from "$lib/server/services/subscription.service";
+import { isSelfHosted, PLANS, PUBLIC_PLAN_IDS } from "$lib/constants/plans";
+import { subscriptionService } from "$lib/server/services/subscription.service";
 import { usageService } from "$lib/server/services/usage.service";
 import { redirect } from "@sveltejs/kit";
 
