@@ -46,8 +46,8 @@ describe("SubscriptionService", () => {
 				status: "active",
 			});
 
-			// Free plan caps at 5 monitors — seed 4 first.
-			for (let i = 0; i < 4; i++) {
+			// Free plan caps at 20 monitors — seed 19 first.
+			for (let i = 0; i < 19; i++) {
 				await drizzleDb.insert(monitor).values({
 					id: nanoid(),
 					organizationId: orgId,
@@ -61,15 +61,15 @@ describe("SubscriptionService", () => {
 
 			const underLimit = await service.canAddMonitor(orgId);
 			expect(underLimit.allowed).toBe(true);
-			expect(underLimit.currentUsage).toBe(4);
-			expect(underLimit.limit).toBe(5);
+			expect(underLimit.currentUsage).toBe(19);
+			expect(underLimit.limit).toBe(20);
 			expect(underLimit.message).toBeUndefined();
 
-			// Fifth monitor fills the quota.
+			// Twentieth monitor fills the quota.
 			await drizzleDb.insert(monitor).values({
 				id: nanoid(),
 				organizationId: orgId,
-				name: "Monitor 5",
+				name: "Monitor 20",
 				type: "http",
 				url: "https://example.com",
 				intervalSeconds: 300,
@@ -78,30 +78,28 @@ describe("SubscriptionService", () => {
 
 			const atLimit = await service.canAddMonitor(orgId);
 			expect(atLimit.allowed).toBe(false);
-			expect(atLimit.currentUsage).toBe(5);
-			expect(atLimit.limit).toBe(5);
-			expect(atLimit.message).toMatch(/limit of 5 monitors/);
+			expect(atLimit.currentUsage).toBe(20);
+			expect(atLimit.limit).toBe(20);
+			expect(atLimit.message).toMatch(/limit of 20 monitors/);
 		});
 
-		test("enterprise plan (limits.monitors = -1) short-circuits without a usage query", async ({
+		test("self-hosted mode (limits.monitors = -1) short-circuits without a usage query", async ({
 			db,
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const orgId = await seedOrganization(drizzleDb);
 
-			await drizzleDb.insert(subscription).values({
-				id: nanoid(),
-				organizationId: orgId,
-				planId: "enterprise",
-				status: "active",
-			});
-
-			const result = await service.canAddMonitor(orgId);
-			// The short-circuit branch returns { allowed: true } and nothing else —
-			// no currentUsage/limit/message set. That shape is the proof the count
-			// query never ran.
-			expect(result).toEqual({ allowed: true });
+			vi.stubEnv("SELF_HOSTED", "true");
+			try {
+				const result = await service.canAddMonitor(orgId);
+				// The short-circuit branch returns { allowed: true } and nothing else —
+				// no currentUsage/limit/message set. That shape is the proof the count
+				// query never ran.
+				expect(result).toEqual({ allowed: true });
+			} finally {
+				vi.stubEnv("SELF_HOSTED", "");
+			}
 		});
 	});
 
@@ -157,7 +155,7 @@ describe("SubscriptionService", () => {
 	});
 
 	describe("isCheckIntervalAllowed", () => {
-		test("free plan rejects sub-300s intervals and accepts the floor", async ({ db }) => {
+		test("free plan rejects sub-120s intervals and accepts the floor", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const orgId = await seedOrganization(drizzleDb);
@@ -171,10 +169,10 @@ describe("SubscriptionService", () => {
 
 			const tooFast = await service.isCheckIntervalAllowed(orgId, 60);
 			expect(tooFast.allowed).toBe(false);
-			expect(tooFast.limit).toBe(300);
-			expect(tooFast.message).toMatch(/below 300 seconds/);
+			expect(tooFast.limit).toBe(120);
+			expect(tooFast.message).toMatch(/below 120 seconds/);
 
-			const atFloor = await service.isCheckIntervalAllowed(orgId, 300);
+			const atFloor = await service.isCheckIntervalAllowed(orgId, 120);
 			expect(atFloor.allowed).toBe(true);
 			expect(atFloor.message).toBeUndefined();
 		});
@@ -220,13 +218,13 @@ describe("SubscriptionService", () => {
 			expect(initial.planId).toBe("free");
 
 			const upgraded = await service.syncFromPolar(orgId, {
-				planId: "pro",
+				planId: "uppity",
 				status: "active",
 				polarCustomerId: "cus_test_123",
 				polarSubscriptionId: "sub_test_456",
 			});
 			expect(upgraded.id).toBe(initial.id);
-			expect(upgraded.planId).toBe("pro");
+			expect(upgraded.planId).toBe("uppity");
 			expect(upgraded.polarCustomerId).toBe("cus_test_123");
 			expect(upgraded.polarSubscriptionId).toBe("sub_test_456");
 
@@ -245,11 +243,11 @@ describe("SubscriptionService", () => {
 			const orgId = await seedOrganization(drizzleDb);
 
 			const result = await service.syncFromPolar(orgId, {
-				planId: "pro",
+				planId: "uppity",
 				status: "active",
 				polarCustomerId: "cus_fresh",
 			});
-			expect(result.planId).toBe("pro");
+			expect(result.planId).toBe("uppity");
 			expect(result.polarCustomerId).toBe("cus_fresh");
 
 			const [row] = await drizzleDb
@@ -268,7 +266,7 @@ describe("SubscriptionService", () => {
 			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
 
 			const updated = await service.resyncFromPolar(orgId, {
-				planId: "pro",
+				planId: "uppity",
 				status: "active",
 				polarCustomerId: "cus_1",
 				polarSubscriptionId: "sub_1",
@@ -276,7 +274,7 @@ describe("SubscriptionService", () => {
 				currentPeriodEnd: new Date("2026-08-01T00:00:00Z"),
 			});
 
-			expect(updated.planId).toBe("pro");
+			expect(updated.planId).toBe("uppity");
 			expect(updated.polarSubscriptionId).toBe("sub_1");
 		});
 
@@ -287,11 +285,102 @@ describe("SubscriptionService", () => {
 			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
 
 			const before = await service.getSubscription(orgId);
-			const after = await service.resyncFromPolar(orgId, { planId: "pro", status: "past_due" });
+			const after = await service.resyncFromPolar(orgId, { planId: "uppity", status: "past_due" });
 
 			expect(before?.planId).toBe("free");
-			expect(after.planId).toBe("pro");
+			expect(after.planId).toBe("uppity");
 			expect(after.status).toBe("past_due");
+		});
+	});
+
+	describe("getEffectiveLimits", () => {
+		test("uppity plan unlocks sso, audit logs and unlimited status pages", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			const limits = await service.getEffectiveLimits(orgId);
+			expect(limits.monitors).toBe(50);
+			expect(limits.checkIntervalSeconds).toBe(30);
+			expect(limits.statusPages).toBe(-1);
+			expect(limits.sso).toBe(true);
+			expect(limits.auditLogs).toBe(true);
+			expect(limits.teamMembers).toBe(-1);
+		});
+
+		test("dedicated plan caps monitors at the 2000 fair-use figure rather than unlimited", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "dedicated",
+				status: "active",
+			});
+
+			const limits = await service.getEffectiveLimits(orgId);
+			expect(limits.monitors).toBe(2000);
+			expect(limits.retentionDays).toBe(-1);
+		});
+
+		test("an unknown plan id falls back to free limits", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "legacy-tier-that-no-longer-exists",
+				status: "active",
+			});
+
+			const limits = await service.getEffectiveLimits(orgId);
+			expect(limits.monitors).toBe(20);
+		});
+	});
+
+	describe("getOrganizationPlan", () => {
+		test("enterprise limits are identical to dedicated — the tier unlocks no features", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+
+			const dedicatedOrg = await seedOrganization(drizzleDb);
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: dedicatedOrg,
+				planId: "dedicated",
+				status: "active",
+			});
+
+			const enterpriseOrg = await seedOrganization(drizzleDb);
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: enterpriseOrg,
+				planId: "enterprise",
+				status: "active",
+			});
+
+			const dedicated = await service.getOrganizationPlan(dedicatedOrg);
+			const enterprise = await service.getOrganizationPlan(enterpriseOrg);
+
+			expect(enterprise.limits).toEqual(dedicated.limits);
+			// Pricing is where they differ: Enterprise is negotiated.
+			expect(dedicated.monthlyPriceCents).toBe(29900);
+			expect(enterprise.monthlyPriceCents).toBeNull();
 		});
 	});
 });

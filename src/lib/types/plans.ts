@@ -10,8 +10,11 @@ export type ApiAccessLevel = "none" | "read" | "full";
 
 /**
  * Plan identifiers for subscription tiers.
+ *
+ * `enterprise` is `dedicated` plus a contractual SLA, priority support, onboarding
+ * and invoicing. It deliberately unlocks no additional features — see PRODUCT.md.
  */
-export type PlanId = "free" | "pro" | "enterprise";
+export type PlanId = "free" | "uppity" | "dedicated" | "enterprise";
 
 /**
  * Subscription status values.
@@ -32,8 +35,25 @@ export interface PlanLimits {
 	/** Maximum number of status pages allowed. -1 for unlimited. */
 	statusPages: number;
 
-	/** Number of days to retain check history data. -1 for unlimited. */
+	/**
+	 * Number of days to retain check history data. -1 for unlimited.
+	 *
+	 * ADVERTISED, NOT ENFORCED. Check cleanup runs off the single global
+	 * `UPPITY_CHECK_RETENTION_DAYS` value in `src/worker/monitor/maintenance.ts`
+	 * and applies the same window to every organization. Enforcing this per-plan
+	 * means joining `subscription` in `statsService.cleanupOldChecks`.
+	 */
 	retentionDays: number;
+
+	/**
+	 * Maximum number of members in the organization. -1 for unlimited.
+	 *
+	 * ADVERTISED, NOT ENFORCED. better-auth receives a single plugin-level
+	 * `membershipLimit` in `src/lib/server/auth.ts`, applied to every organization
+	 * regardless of plan. Enforcing this per-plan means a `before` hook on the
+	 * organization invite path.
+	 */
+	teamMembers: number;
 
 	/** Notification channel types available to this plan. */
 	notificationChannels: NotificationChannelType[];

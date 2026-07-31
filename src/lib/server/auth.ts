@@ -40,9 +40,10 @@ const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.en
 
 const {
 	POLAR_PRODUCT_FREE,
-	POLAR_PRODUCT_PRO_MONTHLY,
-	POLAR_PRODUCT_PRO_ANNUAL,
-	POLAR_PRODUCT_ENTERPRISE,
+	POLAR_PRODUCT_UPPITY_MONTHLY,
+	POLAR_PRODUCT_UPPITY_ANNUAL,
+	POLAR_PRODUCT_DEDICATED_MONTHLY,
+	POLAR_PRODUCT_DEDICATED_ANNUAL,
 } = process.env;
 
 /**
@@ -51,9 +52,12 @@ const {
  */
 const POLAR_PRODUCT_TO_PLAN: Record<string, PlanId> = {
 	...(POLAR_PRODUCT_FREE && { [POLAR_PRODUCT_FREE]: "free" as const }),
-	...(POLAR_PRODUCT_PRO_MONTHLY && { [POLAR_PRODUCT_PRO_MONTHLY]: "pro" as const }),
-	...(POLAR_PRODUCT_PRO_ANNUAL && { [POLAR_PRODUCT_PRO_ANNUAL]: "pro" as const }),
-	...(POLAR_PRODUCT_ENTERPRISE && { [POLAR_PRODUCT_ENTERPRISE]: "enterprise" as const }),
+	...(POLAR_PRODUCT_UPPITY_MONTHLY && { [POLAR_PRODUCT_UPPITY_MONTHLY]: "uppity" as const }),
+	...(POLAR_PRODUCT_UPPITY_ANNUAL && { [POLAR_PRODUCT_UPPITY_ANNUAL]: "uppity" as const }),
+	...(POLAR_PRODUCT_DEDICATED_MONTHLY && {
+		[POLAR_PRODUCT_DEDICATED_MONTHLY]: "dedicated" as const,
+	}),
+	...(POLAR_PRODUCT_DEDICATED_ANNUAL && { [POLAR_PRODUCT_DEDICATED_ANNUAL]: "dedicated" as const }),
 };
 
 /**
@@ -77,7 +81,11 @@ export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
 
 /**
  * Extracts plan ID from a Polar subscription.
- * Falls back to "pro" if product ID not mapped.
+ *
+ * Falls back to "uppity" — the base paid unit — when a product ID is not mapped.
+ * This fails open on purpose: an unmapped product means a configuration slip, and
+ * downgrading a paying customer to free mid-period is a far worse outcome than
+ * briefly granting the base tier to someone who bought Dedicated.
  */
 export function getPlanFromSubscription(sub: {
 	productId?: string;
@@ -87,8 +95,8 @@ export function getPlanFromSubscription(sub: {
 	if (productId && POLAR_PRODUCT_TO_PLAN[productId]) {
 		return POLAR_PRODUCT_TO_PLAN[productId];
 	}
-	// Default to pro for any paid subscription
-	return "pro";
+	// Default to the base paid unit for any unmapped subscription
+	return "uppity";
 }
 
 export const auth = betterAuth({
@@ -193,17 +201,23 @@ export const auth = betterAuth({
 				checkout({
 					authenticatedUsersOnly: true,
 					products: [
-						POLAR_PRODUCT_PRO_MONTHLY && {
-							productId: POLAR_PRODUCT_PRO_MONTHLY,
-							slug: "pro-monthly",
+						POLAR_PRODUCT_UPPITY_MONTHLY && {
+							productId: POLAR_PRODUCT_UPPITY_MONTHLY,
+							slug: "uppity-monthly",
 						},
-						POLAR_PRODUCT_PRO_ANNUAL && {
-							productId: POLAR_PRODUCT_PRO_ANNUAL,
-							slug: "pro-annual",
+						POLAR_PRODUCT_UPPITY_ANNUAL && {
+							productId: POLAR_PRODUCT_UPPITY_ANNUAL,
+							slug: "uppity-annual",
 						},
-						POLAR_PRODUCT_ENTERPRISE && {
-							productId: POLAR_PRODUCT_ENTERPRISE,
-							slug: "enterprise",
+						// Dedicated is contact-sales in the UI; these slugs exist so a
+						// checkout link can be sent manually once provisioning is agreed.
+						POLAR_PRODUCT_DEDICATED_MONTHLY && {
+							productId: POLAR_PRODUCT_DEDICATED_MONTHLY,
+							slug: "dedicated-monthly",
+						},
+						POLAR_PRODUCT_DEDICATED_ANNUAL && {
+							productId: POLAR_PRODUCT_DEDICATED_ANNUAL,
+							slug: "dedicated-annual",
 						},
 					].filter(Boolean) as { productId: string; slug: string }[],
 					successUrl: `${baseURL}/settings/billing?checkout=success`,
