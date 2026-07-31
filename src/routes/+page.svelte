@@ -119,13 +119,13 @@
 <!--
 	THESIS: This page argues that the upgrade wall is the category's business model, and
 	refuses the feature-grid landing page that states capabilities without pricing them.
-	OWN-WORLD: DESIGN.md's Quiet Ward, inherited unchanged — zero-chroma neutrals, signal
-	colour only, no resting shadows, 896px column, Plex Sans with every measured value in
-	Plex Mono.
+	OWN-WORLD: DESIGN.md's Quiet Ward — zero-chroma neutrals, signal colour only, no resting
+	shadows, Plex Sans with every measured value in Plex Mono. Extends the system with a
+	1280px marketing column, since 896px is a prose measure and this page is chart and table.
 	STORY: A visitor learns that SSO costs $299-$300 elsewhere and $12 here, sees the price
 	of growth drawn rather than claimed, and leaves through one of two doors.
-	FIRST VIEWPORT: Display 300 headline left-aligned in the 896px column, one muted line of
-	offer, then two buttons — hosted and self-hosted — side by side from sm.
+	FIRST VIEWPORT: Display 300 headline on one line, one muted line of offer, two buttons —
+	hosted and self-hosted — side by side from sm, and the free tier named beneath them.
 	FORM: "The Wall, Torn Down", candidate 5 of 7; seed key 9bff159c.
 	FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
 	review, the verdict, and DESIGN.md.
@@ -149,7 +149,7 @@
 		</div>
 	</header>
 
-	<main class="mx-auto flex max-w-7xl flex-col gap-24 px-4 py-16 sm:px-6">
+	<main class="mx-auto flex max-w-7xl flex-col px-4 pt-16 pb-24 sm:px-6">
 		<section class="flex flex-col gap-6">
 			<h1 class="text-display text-balance text-foreground">{m.landing_hero_title()}</h1>
 			<p class="max-w-[60ch] text-lg text-muted-foreground">{m.landing_hero_subtitle()}</p>
@@ -168,14 +168,14 @@
 		</section>
 
 		<!-- The chart leads: the composition argues with the picture before the prose. -->
-		<section class="flex flex-col gap-6" aria-labelledby="chart-heading">
+		<section class="mt-20 flex flex-col gap-6" aria-labelledby="chart-heading">
 			<h2 id="chart-heading" class="text-2xl font-semibold text-foreground">
 				{m.landing_chart_title()}
 			</h2>
 			<PricingCliffChart />
 		</section>
 
-		<section class="flex flex-col gap-6" aria-labelledby="gate-heading">
+		<section class="mt-16 flex flex-col gap-6" aria-labelledby="gate-heading">
 			<div class="flex flex-col gap-3">
 				<h2 id="gate-heading" class="text-2xl font-semibold text-foreground">
 					{m.landing_gate_title()}
@@ -251,15 +251,20 @@
 			</div>
 		</section>
 
-		<section class="flex flex-col gap-4" aria-labelledby="principle-heading">
+		<section class="mt-40 flex flex-col gap-8" aria-labelledby="principle-heading">
 			<div class="h-px w-full bg-primary" role="presentation"></div>
-			<h2 id="principle-heading" class="text-2xl font-semibold text-foreground">
+			<h2
+				id="principle-heading"
+				class="max-w-[16ch] text-4xl leading-[1.1] font-light tracking-[-0.02em] text-foreground sm:text-5xl"
+			>
 				{m.landing_principle_title()}
 			</h2>
-			<p class="max-w-[65ch] text-muted-foreground">{m.landing_principle_body()}</p>
+			<p class="max-w-[55ch] text-lg leading-relaxed text-muted-foreground">
+				{m.landing_principle_body()}
+			</p>
 		</section>
 
-		<section class="flex flex-col gap-6" aria-labelledby="plans-heading">
+		<section class="mt-40 flex flex-col gap-6" aria-labelledby="plans-heading">
 			<div class="flex flex-col gap-3">
 				<h2 id="plans-heading" class="text-2xl font-semibold text-foreground">
 					{m.landing_plans_title()}
@@ -293,7 +298,7 @@
 				{/each}
 			</div>
 
-			<div class="hidden sm:block">
+			<div class="hidden rounded-xl border bg-card p-2 sm:block">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -331,8 +336,7 @@
 			</div>
 		</section>
 
-		<section class="flex flex-col gap-4" aria-labelledby="proof-heading">
-			<Separator />
+		<section class="mt-32 flex flex-col gap-4" aria-labelledby="proof-heading">
 			<h2 id="proof-heading" class="text-2xl font-semibold text-foreground">
 				{m.landing_proof_title()}
 			</h2>
@@ -344,13 +348,21 @@
 			</div>
 		</section>
 
-		<section class="flex flex-col gap-6" aria-labelledby="close-heading">
-			<Separator />
-			<div class="flex flex-col gap-3">
-				<h2 id="close-heading" class="text-2xl font-semibold text-foreground">
+		<!-- The one centred block on the page. Every other section reads from the
+		     left rail; breaking that alignment once is what marks this as the end
+		     rather than another section. -->
+		<section
+			class="mt-40 flex flex-col items-center gap-6 text-center"
+			aria-labelledby="close-heading"
+		>
+			<div class="flex flex-col items-center gap-4">
+				<h2
+					id="close-heading"
+					class="max-w-[20ch] text-3xl leading-[1.1] font-light tracking-[-0.02em] text-foreground sm:text-4xl"
+				>
 					{m.landing_close_title()}
 				</h2>
-				<p class="max-w-[65ch] text-muted-foreground">{m.landing_close_body()}</p>
+				<p class="max-w-[55ch] text-lg text-muted-foreground">{m.landing_close_body()}</p>
 			</div>
 			<div class="flex flex-col gap-3 sm:flex-row">
 				<Button size="lg" href={resolve('/register')}>{m.landing_cta_start_hosted()}</Button>
@@ -358,6 +370,9 @@
 					{m.landing_cta_self_host()}
 				</Button>
 			</div>
+			<p class="text-sm text-muted-foreground">
+				{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
+			</p>
 		</section>
 	</main>
 

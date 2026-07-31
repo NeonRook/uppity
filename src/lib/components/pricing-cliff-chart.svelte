@@ -170,15 +170,25 @@
 			>
 		{/if}
 
-		<path d={path(g)} class="stroke-primary" stroke-width="2" fill="none" />
+		<!-- pathLength normalises the ladder to 1 unit, so the draw needs no
+		     measurement and no client JS. -->
+		<path
+			d={path(g)}
+			pathLength="1"
+			class="cliff-ladder stroke-primary"
+			stroke-width="2"
+			fill="none"
+		/>
 		{#each callouts as c (c.monitors)}
-			<circle cx={scaleX(g, c.monitors)} cy={scaleY(g, c.price)} r="3" class="fill-primary" />
-			<text
-				x={scaleX(g, c.monitors)}
-				y={scaleY(g, c.price) - 10}
-				text-anchor="middle"
-				class="fill-foreground font-mono text-xs">${c.price}</text
-			>
+			<g class="cliff-mark">
+				<circle cx={scaleX(g, c.monitors)} cy={scaleY(g, c.price)} r="3" class="fill-primary" />
+				<text
+					x={scaleX(g, c.monitors)}
+					y={scaleY(g, c.price) - 10}
+					text-anchor="middle"
+					class="fill-foreground font-mono text-xs">${c.price}</text
+				>
+			</g>
 		{/each}
 
 		{#if compact}
@@ -203,3 +213,54 @@
 		{m.landing_chart_caption()}
 	</figcaption>
 </figure>
+
+<style>
+	/*
+	 * The page's one authored moment: the ladder draws itself, then its readings
+	 * settle. An instrument reporting a measurement, which is the only thing
+	 * DESIGN.md licenses motion for — it acknowledges, then stops.
+	 *
+	 * Exponential ease-out. Nothing else on this page moves.
+	 */
+	@keyframes cliff-draw {
+		from {
+			stroke-dashoffset: 1;
+		}
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	@keyframes cliff-settle {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.cliff-ladder {
+		stroke-dasharray: 1;
+		stroke-dashoffset: 0;
+		/*
+		 * Held back so the page is read before anything moves, and eased with a
+		 * cubic rather than an expo curve: expo covers most of the path in its
+		 * first fraction, which reads as a line whipping across rather than an
+		 * instrument tracing a measurement.
+		 */
+		animation: cliff-draw 1100ms cubic-bezier(0.33, 1, 0.68, 1) 700ms backwards;
+	}
+
+	.cliff-mark {
+		animation: cliff-settle 350ms ease-out 1600ms backwards;
+	}
+
+	/* Reduced motion gets the finished reading, not a slower one. */
+	@media (prefers-reduced-motion: reduce) {
+		.cliff-ladder,
+		.cliff-mark {
+			animation: none;
+		}
+	}
+</style>
