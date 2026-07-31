@@ -1,8 +1,9 @@
+import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
-import { organization } from "../db/auth-schema";
+import { invitation, member, organization, user } from "../db/auth-schema";
 import { monitor, statusPage, subscription } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -18,6 +19,48 @@ async function seedOrganization(drizzleDb: TestDb["db"]): Promise<string> {
 		createdAt: new Date(),
 	});
 	return orgId;
+}
+
+async function seedUser(drizzleDb: TestDb["db"]): Promise<string> {
+	const suffix = nanoid();
+	const userId = `test-user-${suffix}`;
+	await drizzleDb.insert(user).values({
+		id: userId,
+		name: `Test User ${suffix}`,
+		email: `user-${suffix}@example.com`,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	});
+	return userId;
+}
+
+async function seedMember(drizzleDb: TestDb["db"], orgId: string): Promise<void> {
+	await drizzleDb.insert(member).values({
+		id: nanoid(),
+		organizationId: orgId,
+		userId: await seedUser(drizzleDb),
+		role: "member",
+		createdAt: new Date(),
+	});
+}
+
+async function seedInvitation(
+	drizzleDb: TestDb["db"],
+	orgId: string,
+	{ expired = false }: { expired?: boolean } = {},
+): Promise<void> {
+	const expiresAt = new Date();
+	expiresAt.setDate(expiresAt.getDate() + (expired ? -1 : 7));
+	await drizzleDb.insert(invitation).values({
+		id: nanoid(),
+		organizationId: orgId,
+		email: `invitee-${nanoid()}@example.com`,
+		role: "member",
+		status: "pending",
+		expiresAt,
+		createdAt: new Date(),
+		inviterId: await seedUser(drizzleDb),
+	});
 }
 
 describe("SubscriptionService", () => {
@@ -381,6 +424,89 @@ describe("SubscriptionService", () => {
 			// Pricing is where they differ: Enterprise is negotiated.
 			expect(dedicated.monthlyPriceCents).toBe(29900);
 			expect(enterprise.monthlyPriceCents).toBeNull();
+		});
+	});
+
+	describe("getMemberCapacity", () => {
+		test("counts accepted members plus unexpired pending invitations", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "free",
+				status: "active",
+			});
+
+			for (let i = 0; i < 4; i++) await seedMember(drizzleDb, orgId);
+			await seedInvitation(drizzleDb, orgId);
+
+			const capacity = await service.getMemberCapacity(orgId);
+			expect(capacity.used).toBe(5);
+			expect(capacity.limit).toBe(5);
+			expect(capacity.canInvite).toBe(false);
+		});
+
+		test("an expired invitation does not hold a slot", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "free",
+				status: "active",
+			});
+
+			await seedMember(drizzleDb, orgId);
+			await seedInvitation(drizzleDb, orgId, { expired: true });
+
+			const capacity = await service.getMemberCapacity(orgId);
+			expect(capacity.used).toBe(1);
+			expect(capacity.canInvite).toBe(true);
+		});
+
+		test("uppity's unlimited members resolve to the operator's ceiling", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			const capacity = await service.getMemberCapacity(orgId);
+			// -1 must not reach better-auth, whose check is `membersCount >= limit`.
+			expect(capacity.limit).toBe(ORGANIZATION_MEMBERSHIP_LIMIT);
+			expect(capacity.canInvite).toBe(true);
+		});
+
+		test("an organization already over its cap reports canInvite false without error", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "free",
+				status: "active",
+			});
+
+			for (let i = 0; i < 8; i++) await seedMember(drizzleDb, orgId);
+
+			const capacity = await service.getMemberCapacity(orgId);
+			expect(capacity.used).toBe(8);
+			expect(capacity.limit).toBe(5);
+			expect(capacity.canInvite).toBe(false);
 		});
 	});
 });
