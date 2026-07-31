@@ -10,8 +10,13 @@ node_modules/
 /.svelte-kit
 /build
 
-# Local planning artifacts
+# Subagent-driven development scratch (ledger, briefs, review packages)
+.superpowers/
 docs/superpowers/
+
+# Worktrees
+.worktrees/
+.claude/worktrees
 
 # OS
 .DS_Store
@@ -33,7 +38,3 @@ project.inlang/cache/
 
 # SQLite
 *.db
-.worktrees/
-
-# Subagent-driven development scratch (ledger, briefs, review packages)
-.superpowers/
