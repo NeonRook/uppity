@@ -13,7 +13,7 @@ type IngestFn = (events: ReturnType<typeof toIngestEvent>[]) => Promise<IngestRe
 
 /**
  * Meter event names. These must match the meter filters configured in Polar;
- * `docs/superpowers/pricing/polar-usage-meters.sh` provisions them.
+ * `scripts/polar-usage-meters.sh` provisions them.
  */
 export const METER_EVENTS = {
 	USAGE_SNAPSHOT: "usage_snapshot",
