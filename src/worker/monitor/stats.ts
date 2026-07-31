@@ -1,4 +1,15 @@
-import { eq, and, gte, inArray, lt, notInArray, sql, count, type SQLWrapper } from "drizzle-orm";
+import {
+	eq,
+	and,
+	gte,
+	inArray,
+	lt,
+	notInArray,
+	sql,
+	count,
+	type SQL,
+	type SQLWrapper,
+} from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -219,17 +230,22 @@ export class StatsService {
 
 		let deleted = 0;
 		for (const group of groups) {
+			let planFilter: SQL | undefined;
+			if (!group.catchAll) {
+				planFilter = inArray(effectivePlan, group.planIds);
+			} else if (explicitPlanIds.length > 0) {
+				planFilter = notInArray(effectivePlan, explicitPlanIds);
+			} else {
+				// Every plan shares one window, so the catch-all covers every org and
+				// needs no predicate at all.
+				planFilter = undefined;
+			}
+
 			const scopedMonitors = this.database
 				.select({ id: monitor.id })
 				.from(monitor)
 				.leftJoin(subscription, eq(subscription.organizationId, monitor.organizationId))
-				.where(
-					group.catchAll
-						? explicitPlanIds.length > 0
-							? notInArray(effectivePlan, explicitPlanIds)
-							: undefined
-						: inArray(effectivePlan, group.planIds),
-				);
+				.where(planFilter);
 
 			deleted += await this.deleteChecksBefore(cutoffFor(group.days), scopedMonitors);
 		}
