@@ -102,6 +102,8 @@ export const monitorCheck = pgTable(
 	(table) => [
 		index("monitor_check_monitor_idx").on(table.monitorId),
 		index("monitor_check_checked_at_idx").on(table.checkedAt),
+		// Retention cleanup filters on both columns together, one DELETE per plan window.
+		index("monitor_check_monitor_checked_idx").on(table.monitorId, table.checkedAt),
 	],
 );
 
