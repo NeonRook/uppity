@@ -7,6 +7,7 @@ import {
 	CRON_DAILY_STATS,
 	CRON_MAINTENANCE_WINDOW_TRANSITIONS,
 	CRON_ROLLING_STATS,
+	CRON_USAGE_SNAPSHOT,
 } from "../../lib/constants/scheduler";
 import { maintenanceJob } from "../../lib/server/db/schema";
 import {
@@ -16,6 +17,7 @@ import {
 	type WideEventBuilder,
 } from "../../lib/server/logger";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
+import { MeterService } from "../../lib/server/services/meter.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
 
@@ -41,21 +43,19 @@ const jobHandlers: Record<string, JobHandler> = {
 		event.set("windows_started", result.started);
 		event.set("windows_completed", result.completed);
 	},
+	"usage-snapshot": async (event) => {
+		const reported = await new MeterService(db).reportUsageSnapshots();
+		event.set("records_processed", reported);
+	},
 };
 
 /**
  * Initializes the maintenance jobs table with default jobs if empty.
  */
 export async function initializeMaintenanceJobs(): Promise<void> {
-	const existingJobs = await db.select().from(maintenanceJob);
-
-	if (existingJobs.length > 0) {
-		maintenanceLogger.debug({ count: existingJobs.length }, "Found existing maintenance jobs");
-		return;
-	}
-
-	maintenanceLogger.info("Initializing default maintenance jobs");
-
+	// Every job is inserted on every boot with onConflictDoNothing. Existing rows
+	// keep their schedule and run history; jobs added in a later release get
+	// created on the next deploy instead of silently never running.
 	const now = new Date();
 	const jobs = [
 		{
@@ -82,11 +82,17 @@ export async function initializeMaintenanceJobs(): Promise<void> {
 			cronExpression: CRON_MAINTENANCE_WINDOW_TRANSITIONS,
 			nextRunAt: calculateNextRun(CRON_MAINTENANCE_WINDOW_TRANSITIONS, now),
 		},
+		{
+			id: "usage-snapshot",
+			name: "Polar Usage Snapshot",
+			cronExpression: CRON_USAGE_SNAPSHOT,
+			nextRunAt: calculateNextRun(CRON_USAGE_SNAPSHOT, now),
+		},
 	];
 
 	for (const job of jobs) {
 		await db.insert(maintenanceJob).values(job).onConflictDoNothing();
-		maintenanceLogger.info({ job_id: job.id, job_name: job.name }, "Created maintenance job");
+		maintenanceLogger.debug({ job_id: job.id, job_name: job.name }, "Ensured maintenance job");
 	}
 }
 
