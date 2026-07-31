@@ -167,19 +167,26 @@ are different commitments; the gap between them is where Enterprise revenue live
   this.
 - **Enterprise Polar product.** Enterprise has no product and no self-serve path. It is
   reached through Dedicated's contact flow until a first customer exists.
-- **Billing is switched off in production.** `uppity-server` runs with `SELF_HOSTED=true`, so
-  every plan limit is bypassed: no monitor or member caps, and retention uses the single
-  global `UPPITY_CHECK_RETENTION_DAYS` sweep rather than per-plan windows. The catalog and the
-  five `POLAR_PRODUCT_*` ids are staged and correct, but nothing in the plan model takes
-  effect until this flips.
 - **`POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` are set as Railway sealed variables.**
   Sealed variables are omitted from the API's variable listing entirely — not merely
   value-redacted — so their absence from `list-variables` output is not evidence they are
   unset. `BETTER_AUTH_SECRET` behaves the same way. Verify these in the Railway dashboard,
   never by listing.
-- **Flipping `SELF_HOSTED` to false triggers the first per-plan retention sweep**, not the
-  code deploy. Every organization holding more than its plan's window loses the excess in one
-  statement. Do it in a quiet period.
+
+**Plan enforcement went live in production on 2026-07-31.** `SELF_HOSTED` was removed from
+`uppity-server`; `isSelfHosted()` tests `=== "true"`, so an unset variable evaluates false.
+Monitor, status-page, interval and team-member caps are now enforced, and check retention
+follows each organization's plan rather than one global window.
+
+Two consequences worth remembering:
+
+- **`SELF_HOSTED` was never set on `worker-monitor`.** Retention has therefore taken the
+  per-plan path there since the code deployed, independently of the server's configuration.
+  Anything that gates worker behaviour on self-hosted mode must be set on that service too,
+  not only on `uppity-server`.
+- **The first per-plan retention sweep runs at the next `UPPITY_CRON_CLEANUP`** (`0 2 * * *`,
+  UTC), deleting whatever each organization holds beyond its plan's window. At current
+  volumes this is small; it would not be on a populated instance.
 
 **Technical constraints**
 
