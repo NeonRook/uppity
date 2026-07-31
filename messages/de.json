@@ -526,6 +526,8 @@
 	"public_status_maintenance_window": "{startTime} → {endTime}",
 	"public_status_legend_maintenance": "Wartung",
 	"public_status_footer": "Unterstützt von Uppity",
+	"public_status_page_title": "{name} - Status",
+	"public_incident_page_title": "{title} - Status von {name}",
 	"public_incident_back": "Zurück zum Status",
 	"public_incident_resolved": "Gelöst {date}",
 	"public_incident_ongoing": "(laufend)",
