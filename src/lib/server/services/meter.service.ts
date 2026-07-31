@@ -34,6 +34,12 @@ const INGEST_CHUNK_SIZE = 100;
  * hardcodes it to the better-auth user ID. Polar accepts an unrecognised
  * external ID with a 200 and stores the event with a null customer, so getting
  * this wrong fails silently rather than loudly.
+ *
+ * A Polar customer may in turn own several organizations (up to
+ * `ORGANIZATION_LIMIT_PER_USER`), so `collectUsageSnapshots` sums counts per
+ * customer before this ever runs — one event per customer, not per
+ * organization. `organization_count` records how many organizations each
+ * event's totals span.
  */
 export class MeterService {
 	private readonly enabled: boolean;
@@ -48,7 +54,8 @@ export class MeterService {
 	}
 
 	/**
-	 * Emits one usage snapshot per billed organization.
+	 * Emits one usage snapshot per Polar customer, summed across every
+	 * organization that customer owns.
 	 * Returns the number of snapshots Polar reports as newly inserted. In
 	 * practice this equals the snapshot count: `toIngestEvent` sets neither
 	 * `externalId` nor `timestamp`, so Polar's dedup-on-`external_id` never
@@ -97,13 +104,10 @@ function toIngestEvent(snapshot: UsageSnapshot) {
 		name: METER_EVENTS.USAGE_SNAPSHOT,
 		customerId: snapshot.polarCustomerId,
 		metadata: {
-			// A Polar customer is keyed by the better-auth user ID, and one user may
-			// own several organizations, so distinct organizations' events can share
-			// a customerId. organization_id is what disambiguates the stream.
-			organization_id: snapshot.organizationId,
 			monitors: snapshot.monitors,
 			status_pages: snapshot.statusPages,
 			team_members: snapshot.teamMembers,
+			organization_count: snapshot.organizationCount,
 		},
 	};
 }
