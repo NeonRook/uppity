@@ -415,12 +415,15 @@
 				</Field.Field>
 				<Field.Field>
 					<Field.Label for="inviteRole">{m.common_role()}</Field.Label>
-					<Select.Root
-						type="single"
-						name="role"
-						value={inviteRole}
-						onValueChange={(v) => (inviteRole = v)}
-					>
+					<!--
+						Deliberately no `name` on Select.Root: it would render a second
+						field called "role" alongside the hidden input below. The two
+						disagree once the dialog is reopened, because the select's own
+						input remounts empty while `inviteRole` still holds the previous
+						value, and the resulting submission fails the picklist check.
+						The hidden input is the single source of truth.
+					-->
+					<Select.Root type="single" value={inviteRole} onValueChange={(v) => (inviteRole = v)}>
 						<Select.Trigger class="w-full">
 							{inviteRole === 'admin' ? m.role_admin() : m.role_member()}
 						</Select.Trigger>
