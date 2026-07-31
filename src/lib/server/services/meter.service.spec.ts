@@ -1,3 +1,4 @@
+import { isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 import postgres from "postgres";
@@ -44,22 +45,35 @@ describe("MeterService", () => {
 	test("a chunk whose ingest rejects does not throw, and later chunks still ingest", async ({
 		db,
 	}) => {
+		const billedOrgsBefore = await db.db
+			.select()
+			.from(subscription)
+			.where(isNotNull(subscription.polarCustomerId));
 		await seedBilledOrganization(db.db);
 		await seedBilledOrganization(db.db);
 		await seedBilledOrganization(db.db);
+		const orgsSeededHere = 3;
 
 		const ingest = vi
 			.fn()
 			.mockRejectedValueOnce(new Error("Polar unavailable"))
 			.mockResolvedValue({ inserted: 1, duplicates: 0 });
 
-		// chunkSize 1 forces three separate ingest calls, one per organization.
+		// chunkSize 1 forces one ingest call per organization present in the
+		// (file-scoped, so possibly non-empty) database, not just the ones this
+		// test seeded.
 		const service = new MeterService(db.db, ingest, 1);
 
 		const result = await service.reportUsageSnapshots();
 
-		expect(result).toBe(2);
-		expect(ingest).toHaveBeenCalledTimes(3);
+		// The harness is file-scoped: rows seeded by earlier tests in this file
+		// are still present, so the total organization count — and therefore the
+		// call count and the successful-chunk count — must be derived rather
+		// than hardcoded. The first call always rejects; every other call
+		// resolves with one insert.
+		const totalOrgs = billedOrgsBefore.length + orgsSeededHere;
+		expect(ingest).toHaveBeenCalledTimes(totalOrgs);
+		expect(result).toBe(totalOrgs - 1);
 	});
 
 	test("a snapshot query failure resolves to 0 instead of throwing", async ({ db }) => {
@@ -76,6 +90,19 @@ describe("MeterService", () => {
 
 		expect(result).toBe(0);
 		expect(ingest).not.toHaveBeenCalled();
+	});
+
+	test("each ingested event carries organization_id in its metadata", async ({ db }) => {
+		const orgId = await seedBilledOrganization(db.db);
+
+		const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+		const service = new MeterService(db.db, ingest, 10);
+
+		await service.reportUsageSnapshots();
+
+		const [events] = ingest.mock.calls[0] as [Array<{ metadata: Record<string, unknown> }>];
+		const event = events.find((e) => e.metadata.organization_id === orgId);
+		expect(event).toBeDefined();
 	});
 
 	test("the returned count reflects inserted, not chunk length, when Polar skips duplicates", async ({
