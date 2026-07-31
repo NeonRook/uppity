@@ -38,20 +38,19 @@ export interface PlanLimits {
 	/**
 	 * Number of days to retain check history data. -1 for unlimited.
 	 *
-	 * ADVERTISED, NOT ENFORCED. Check cleanup runs off the single global
-	 * `UPPITY_CHECK_RETENTION_DAYS` value in `src/worker/monitor/maintenance.ts`
-	 * and applies the same window to every organization. Enforcing this per-plan
-	 * means joining `subscription` in `statsService.cleanupOldChecks`.
+	 * Enforced by `cleanupOldChecks` in `src/worker/monitor/stats.ts`, which runs one
+	 * DELETE per distinct retention window. -1 resolves to the operator's
+	 * `UPPITY_CHECK_RETENTION_DAYS` rather than to infinity — see `retentionGroups`.
 	 */
 	retentionDays: number;
 
 	/**
 	 * Maximum number of members in the organization. -1 for unlimited.
 	 *
-	 * ADVERTISED, NOT ENFORCED. better-auth receives a single plugin-level
-	 * `membershipLimit` in `src/lib/server/auth.ts`, applied to every organization
-	 * regardless of plan. Enforcing this per-plan means a `before` hook on the
-	 * organization invite path.
+	 * Enforced through better-auth's `membershipLimit` function and the
+	 * `beforeCreateInvitation` hook in `src/lib/server/auth.ts`, both backed by
+	 * `SubscriptionService.getMemberCapacity`. Counts accepted members plus unexpired
+	 * pending invitations. -1 resolves to `UPPITY_ORGANIZATION_MEMBERSHIP_LIMIT`.
 	 */
 	teamMembers: number;
 

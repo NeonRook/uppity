@@ -2,7 +2,6 @@ import { getRequestEvent } from "$app/server";
 import {
 	ORGANIZATION_CREATOR_ROLE,
 	ORGANIZATION_LIMIT_PER_USER,
-	ORGANIZATION_MEMBERSHIP_LIMIT,
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "$lib/constants/auth";
@@ -18,6 +17,7 @@ import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth"
 import { Polar } from "@polar-sh/sdk";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
@@ -373,7 +373,24 @@ export const auth = betterAuth({
 			allowUserToCreateOrganization: true,
 			organizationLimit: ORGANIZATION_LIMIT_PER_USER,
 			creatorRole: ORGANIZATION_CREATOR_ROLE,
-			membershipLimit: ORGANIZATION_MEMBERSHIP_LIMIT,
+			// better-auth checks this during acceptInvitation against the accepted
+			// member count, which also covers direct member adds. -1 plans resolve to
+			// ORGANIZATION_MEMBERSHIP_LIMIT inside getMemberCapacity.
+			membershipLimit: async (_user, org) =>
+				(await subscriptionService.getMemberCapacity(org.id)).limit,
+			organizationHooks: {
+				// membershipLimit alone counts accepted members only, so an org could
+				// mass-invite past its cap. This applies the members-plus-invitations
+				// rule at invite time; throwing here aborts the invitation.
+				beforeCreateInvitation: async ({ organization: org }) => {
+					const capacity = await subscriptionService.getMemberCapacity(org.id);
+					if (!capacity.canInvite) {
+						throw new APIError("FORBIDDEN", {
+							message: `Your plan allows ${capacity.limit} team members. Upgrade to invite more.`,
+						});
+					}
+				},
+			},
 		}),
 		admin(),
 		sveltekitCookies(getRequestEvent),
