@@ -167,9 +167,10 @@ are different commitments; the gap between them is where Enterprise revenue live
   this.
 - **Enterprise Polar product.** Enterprise has no product and no self-serve path. It is
   reached through Dedicated's contact flow until a first customer exists.
-- **Production Polar catalog.** Only the sandbox catalog has been updated. Production is
-  blocked on access-token rotation and must be renamed identically before the environment
-  variable rename can deploy.
+- **Production `POLAR_PRODUCT_*` values.** The production catalog now matches the adopted
+  model, but the five product ids must be set in production config **before** this deploys.
+  Without them `POLAR_PRODUCT_TO_PLAN` resolves empty and every paid subscription falls
+  through to the `uppity` fallback in `getPlanFromSubscription`.
 
 **Technical constraints**
 
