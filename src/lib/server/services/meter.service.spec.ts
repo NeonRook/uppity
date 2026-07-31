@@ -6,10 +6,21 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
 import { organization } from "../db/auth-schema";
 import * as schema from "../db/schema";
-import { subscription } from "../db/schema";
+import { monitor, subscription } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
-import { METER_EVENTS, MeterService } from "./meter.service";
+import { MeterService } from "./meter.service";
+
+// The wire-format assertions below deliberately use literal strings
+// ("usage_snapshot", "usage_snapshot_org") and literal metadata key lists
+// instead of the METER_EVENTS constant or a shared key-list helper. The
+// three provisioned Polar meters key on the literal event name and property
+// names, not on whatever this codebase happens to call them internally.
+// Comparing production output against the same constant it was built from
+// proves nothing — a rename of METER_EVENTS.USAGE_SNAPSHOT or a `status_pages`
+// -> `statusPages` typo in `toIngestEvent` would keep these tests green while
+// the meters silently read zero forever. Do not "simplify" these back to the
+// constant.
 
 /** Seeds one organization and its subscription, wired to the given Polar customer. */
 async function seedOrganizationWithCustomer(
@@ -39,6 +50,19 @@ async function seedBilledOrganization(drizzleDb: TestDb["db"]): Promise<string> 
 	const polarCustomerId = `polar-cust-${nanoid()}`;
 	await seedOrganizationWithCustomer(drizzleDb, polarCustomerId);
 	return polarCustomerId;
+}
+
+/** Seeds `count` monitors for an already-created organization. */
+async function seedMonitors(drizzleDb: TestDb["db"], orgId: string, count: number): Promise<void> {
+	for (let i = 0; i < count; i++) {
+		await drizzleDb.insert(monitor).values({
+			id: nanoid(),
+			organizationId: orgId,
+			name: `Monitor ${nanoid()}`,
+			type: "http",
+			url: "https://example.com",
+		});
+	}
 }
 
 type IngestedEvent = { name: string; customerId: string; metadata: Record<string, unknown> };
@@ -125,7 +149,16 @@ describe("MeterService", () => {
 		// chunk per stream: the first ingest call is the customer stream.
 		const [customerEvents] = ingest.mock.calls[0] as [IngestedEvent[]];
 		const event = customerEvents.find((e) => e.customerId === polarCustomerId);
-		expect(event?.name).toBe(METER_EVENTS.USAGE_SNAPSHOT);
+		expect(event?.name).toBe("usage_snapshot");
+		// Exact key set, not just presence of organization_count: a rename of
+		// any property (e.g. status_pages -> statusPages) would zero that
+		// meter while every other assertion here stayed green.
+		expect(Object.keys(event?.metadata ?? {}).toSorted()).toEqual([
+			"monitors",
+			"organization_count",
+			"status_pages",
+			"team_members",
+		]);
 		expect(event?.metadata.organization_count).toBe(1);
 	});
 
@@ -147,26 +180,37 @@ describe("MeterService", () => {
 		expect(result).toEqual({ customerSnapshots: 1, organizationSnapshots: 1 });
 	});
 
-	test("emits one usage_snapshot_org event per organization, each carrying its own organization_id", async ({
+	test("sums a shared customer's organizations into one usage_snapshot event, and still emits one usage_snapshot_org event per organization", async ({
 		db,
 	}) => {
-		// Two organizations sharing one Polar customer: the customer stream
-		// collapses them into a single summed event, but the organization
-		// stream must still carry one event per organization.
+		// Two organizations sharing one Polar customer, seeded with distinguishable
+		// monitor counts (3 and 7) so a wrong sum, a wrong pick of one org's count,
+		// or an accidental average are all distinguishable from the correct 10.
 		const sharedCustomerId = `polar-cust-shared-${nanoid()}`;
 		const first = await seedOrganizationWithCustomer(db.db, sharedCustomerId);
 		const second = await seedOrganizationWithCustomer(db.db, sharedCustomerId);
+		await seedMonitors(db.db, first, 3);
+		await seedMonitors(db.db, second, 7);
 
 		const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
 		const service = new MeterService(db.db, ingest, 100);
 
 		await service.reportUsageSnapshots();
 
-		const orgEventCalls = ingest.mock.calls
-			.flatMap((call) => call[0] as IngestedEvent[])
-			.filter(
-				(e) => e.name === METER_EVENTS.USAGE_SNAPSHOT_ORG && e.customerId === sharedCustomerId,
-			);
+		const allEvents = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
+
+		const customerEvents = allEvents.filter(
+			(e) => e.name === "usage_snapshot" && e.customerId === sharedCustomerId,
+		);
+		expect(customerEvents).toHaveLength(1);
+		expect(customerEvents[0]?.metadata).toMatchObject({
+			monitors: 10,
+			organization_count: 2,
+		});
+
+		const orgEventCalls = allEvents.filter(
+			(e) => e.name === "usage_snapshot_org" && e.customerId === sharedCustomerId,
+		);
 
 		const orgIds = new Set(orgEventCalls.map((e) => e.metadata.organization_id));
 		expect(orgIds).toEqual(new Set([first, second]));
@@ -190,8 +234,6 @@ describe("MeterService", () => {
 		const eventNames = new Set(
 			ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]).map((e) => e.name),
 		);
-		expect(eventNames).toEqual(
-			new Set([METER_EVENTS.USAGE_SNAPSHOT, METER_EVENTS.USAGE_SNAPSHOT_ORG]),
-		);
+		expect(eventNames).toEqual(new Set(["usage_snapshot", "usage_snapshot_org"]));
 	});
 });
