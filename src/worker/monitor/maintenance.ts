@@ -1,5 +1,6 @@
 import { CronExpressionParser } from "cron-parser";
 import { eq, lte, and } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
 	CHECK_RETENTION_DAYS,
@@ -10,6 +11,7 @@ import {
 	CRON_USAGE_SNAPSHOT,
 } from "../../lib/constants/scheduler";
 import { maintenanceJob } from "../../lib/server/db/schema";
+import type * as schema from "../../lib/server/db/schema";
 import {
 	createMaintenanceWideEvent,
 	createMaintenanceLogger,
@@ -20,6 +22,8 @@ import { MaintenanceWindowService } from "../../lib/server/services/maintenance-
 import { MeterService } from "../../lib/server/services/meter.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
+
+type Db = PostgresJsDatabase<typeof schema>;
 
 const maintenanceLogger = createMaintenanceLogger();
 
@@ -50,9 +54,11 @@ const jobHandlers: Record<string, JobHandler> = {
 };
 
 /**
- * Initializes the maintenance jobs table with default jobs if empty.
+ * Ensures every known job row exists, inserting on the primary key and
+ * ignoring conflicts. Runs unconditionally on every boot — existing rows
+ * (including operator edits to `cronExpression` or `enabled`) are left alone.
  */
-export async function initializeMaintenanceJobs(): Promise<void> {
+export async function initializeMaintenanceJobs(targetDb: Db = db): Promise<void> {
 	// Every job is inserted on every boot with onConflictDoNothing. Existing rows
 	// keep their schedule and run history; jobs added in a later release get
 	// created on the next deploy instead of silently never running.
@@ -91,7 +97,7 @@ export async function initializeMaintenanceJobs(): Promise<void> {
 	];
 
 	for (const job of jobs) {
-		await db.insert(maintenanceJob).values(job).onConflictDoNothing();
+		await targetDb.insert(maintenanceJob).values(job).onConflictDoNothing();
 		maintenanceLogger.debug({ job_id: job.id, job_name: job.name }, "Ensured maintenance job");
 	}
 }
