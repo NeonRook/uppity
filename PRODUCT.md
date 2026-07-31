@@ -160,12 +160,11 @@ are different commitments; the gap between them is where Enterprise revenue live
   stacked on both Uppity products, and a ceiling derived as `50 + 50 × blocks` in
   `getEffectiveLimits`. Polar supports stacking metered prices on fixed ones, which is why
   this mechanism was chosen over the beta seat-pricing feature.
-- **Per-organization retention.** `PlanLimits.retentionDays` is advertised but not enforced —
-  `statsService.cleanupOldChecks` applies the global `UPPITY_CHECK_RETENTION_DAYS` to every
-  organization. Enforcing it means joining `subscription` in the cleanup query.
-- **Per-plan team-member caps.** `PlanLimits.teamMembers` is advertised but not enforced —
-  better-auth receives one plugin-level `membershipLimit`. Enforcing it means a `before` hook
-  on the organization invite path.
+- **First retention sweep after deploy is large.** Retention is now per-plan, so every Free
+  organization that accumulated more than 30 days of checks under the old global window loses
+  the excess in one statement against the largest table. Schedule the first run in a quiet
+  period. The `(monitor_id, checked_at)` index added in `0011` mitigates but does not remove
+  this.
 - **Enterprise Polar product.** Enterprise has no product and no self-serve path. It is
   reached through Dedicated's contact flow until a first customer exists.
 - **Production Polar catalog.** Only the sandbox catalog has been updated. Production is
