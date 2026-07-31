@@ -188,11 +188,9 @@ the code deployed.
 - [ ] **That the runtime token carries only the five capabilities** in
       [Token scopes](#token-scopes), and specifically not products or webhooks. If the
       provisioning token was reused, Railway is holding one that can re-price the live
-      catalogue.
-
-      Note that listing webhook endpoints requires `webhooks:read`, so whichever token ran
-          the verification above has it. That is expected of the provisioning token and a
-          finding if it is also the one Railway holds.
+      catalogue. Listing webhook endpoints requires `webhooks:read`, so whichever token ran
+      the verification above has that scope — expected of the provisioning token, a finding
+      if it is also the one Railway holds.
 
 - [ ] **That the webhook secret is correct.** A wrong secret fails signature validation
       rather than crashing: Polar sees non-2xx, retries, and eventually disables the
