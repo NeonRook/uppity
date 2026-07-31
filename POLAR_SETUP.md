@@ -217,9 +217,23 @@ run once against sandbox and once against production.
 
 **Sandbox: provisioned.** `Monitors`, `Status Pages` and `Team Members` exist,
 unarchived, with the aggregations above; the four retired meters are archived.
-Verified end-to-end: running `MeterService.reportUsageSnapshots()` against a
-sandbox organization with a real `polarCustomerId` produced a `usage_snapshot`
-event with a non-null `customer_id` and all four metadata properties.
+
+Verified end-to-end 2026-07-31: a local organization's `subscription` row was
+temporarily pointed at the one real customer in sandbox
+(`3e3fd227-4c57-47a2-b6b6-fbfc6dae6dec`, `uppity-test@mailinator.com`) with
+`planId` set to a paid plan, then reverted immediately after. Running
+`MeterService.reportUsageSnapshots()` against it ingested one event on each
+stream, confirmed via `GET /v1/events/` against `sandbox-api.polar.sh`:
+
+- `usage_snapshot` — non-null `customer_id`, metadata
+  `{"monitors": 1, "status_pages": 1, "team_members": 1, "organization_count": 1}`
+  (all four properties).
+- `usage_snapshot_org` — same `customer_id`, metadata
+  `{"monitors": 1, "status_pages": 1, "team_members": 1, "organization_id": "P8z2W1j6LBrAFlVgHMxp4"}`.
+
+Sandbox also still holds one older `usage_snapshot` event from before this
+work, metadata `{"monitors": 0, "status_pages": 0, "team_members": 1}` — three
+properties, no `organization_count`, predating the summed-customer stream.
 
 **Production: not yet run.** The production access token lives on the
 `uppity-server` Railway service, not in local `.env`. Run
@@ -286,8 +300,9 @@ the code deployed.
 - [x] Register a webhook endpoint at `https://uppity.cloud/api/auth/polar/webhooks`.
 - [ ] Set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER=production` on the `worker-monitor`
       Railway service. `MeterService.enabled` requires `POLAR_ACCESS_TOKEN`; without it
-      `reportUsageSnapshots()` returns 0 without logging anything, the `usage-snapshot` job
-      records `records_processed: 0` and reports success, and no event ever reaches Polar —
+      `reportUsageSnapshots()` returns `{ customerSnapshots: 0, organizationSnapshots: 0 }`
+      without logging anything, the `usage-snapshot` job records
+      `records_processed: 0` and reports success, and no event ever reaches Polar —
       indistinguishable from having no paying customers.
 
 - [x] **The webhook endpoint's format and event subscriptions.** Verified 2026-07-31:
