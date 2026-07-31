@@ -95,14 +95,14 @@ sets it keeps working. It also means **local `.env` must set
 
 `POLAR_ACCESS_TOKEN` needs exactly the capabilities the running app calls:
 
-| Polar API call               | Called by                                 | Capability                |
-| ---------------------------- | ----------------------------------------- | ------------------------- |
-| `checkouts.create`           | plugin checkout endpoint                  | checkouts — write         |
-| `customerSessions.create`    | portal, and every `customerPortal.*` read | customer sessions — write |
-| `customers.getStateExternal` | plugin customer-state endpoint            | customers — read          |
-| `subscriptions.list`         | plugin subscriptions endpoint             | subscriptions — read      |
-| `subscriptions.get`          | `admin/organizations/[id]` resync action  | subscriptions — read      |
-| `events.ingest`              | `meter.service.ts`                        | events — write            |
+| Polar API call               | Called by                                        | Capability                |
+| ---------------------------- | ------------------------------------------------ | ------------------------- |
+| `checkouts.create`           | plugin checkout endpoint                         | checkouts — write         |
+| `customerSessions.create`    | portal, and every `customerPortal.*` read        | customer sessions — write |
+| `customers.getStateExternal` | plugin customer-state endpoint                   | customers — read          |
+| `subscriptions.list`         | plugin subscriptions endpoint                    | subscriptions — read      |
+| `subscriptions.get`          | `admin/organizations/[id]` resync action         | subscriptions — read      |
+| `events.ingest`              | `meter.service.ts`, via the `usage-snapshot` job | events — write            |
 
 Deliberately **excluded**:
 
@@ -119,6 +119,54 @@ customer session rather than the organization token.
 
 Provisioning scripts are a separate concern: give them their own short-lived
 token with products write and delete it when done.
+
+## Usage meters
+
+Polar meters aggregate the `usage_snapshot` event that the `usage-snapshot`
+maintenance job emits daily (`MeterService.reportUsageSnapshots`, scheduled
+from `src/worker/monitor/maintenance.ts`). Free organizations are excluded
+from every meter: they have no `subscription.polarCustomerId`, and
+`collectUsageSnapshots` only selects organizations that do.
+
+| Meter          | Aggregation               |
+| -------------- | ------------------------- |
+| `Monitors`     | `max` over `monitors`     |
+| `Status Pages` | `max` over `status_pages` |
+| `Team Members` | `max` over `team_members` |
+
+Each filters on event name `usage_snapshot`. `max` reports peak usage within
+the billing period — defensible on an invoice — rather than `avg`, which
+prorates mid-period changes and is easier to game.
+
+These replace four retired meters that counted `monitor_created`,
+`monitor_deleted`, `status_page_created` and `status_page_deleted` events: a
+count of creations cannot express how many resources currently exist, and
+Polar cannot subtract one meter from another. The retired meters are
+archived, not deleted — the meters API has no delete verb. `DELETE
+/v1/meters/{id}` returns 405, and `PATCH` with `archived_at` is silently
+accepted (HTTP 200) but has no effect, because `archived_at` isn't part of
+the `MeterUpdate` schema. The schema's actual field is `is_archived`;
+`PATCH /v1/meters/{id}` with `{"is_archived": true}` is what archives a meter.
+
+`docs/superpowers/pricing/polar-usage-meters.sh <sandbox|production>`
+provisions the three meters and archives the four retired ones. It is safe to
+re-run: creation is skipped when an unarchived meter of that name already
+exists, and archiving is skipped when the meter is absent or already
+archived. Meters do not replicate between environments, so the script must be
+run once against sandbox and once against production.
+
+**Sandbox: provisioned.** `Monitors`, `Status Pages` and `Team Members` exist,
+unarchived, with the aggregations above; the four retired meters are archived.
+Verified end-to-end: running `MeterService.reportUsageSnapshots()` against a
+sandbox organization with a real `polarCustomerId` produced a `usage_snapshot`
+event with a non-null `customer_id` and all three metadata properties.
+
+**Production: not yet run.** The production access token lives on the
+`uppity-server` Railway service, not in local `.env`. Run
+`POLAR_ACCESS_TOKEN=<production token> ./docs/superpowers/pricing/polar-usage-meters.sh production`
+and verify with the same meters listing query against `https://api.polar.sh`.
+If production never had the four create/delete meters provisioned, the
+archive step reporting `skip` for each is the expected outcome, not a failure.
 
 ## Current state
 
@@ -197,6 +245,11 @@ the code deployed.
       endpoint, while the logs look like ordinary rejected requests. Sending a test event
       from the Polar dashboard and confirming a wide event with `webhook_source: "polar"` is
       the only check that actually proves it.
+
+- [ ] **Run `docs/superpowers/pricing/polar-usage-meters.sh production`.** The three
+      usage meters (see [Usage meters](#usage-meters)) are provisioned in sandbox only; the
+      production access token is not available outside the `uppity-server` Railway service,
+      so this has to be run by whoever has it.
 
 ## Verify before merging
 
