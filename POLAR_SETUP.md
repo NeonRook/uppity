@@ -137,22 +137,29 @@ token with products write and delete it when done.
 
 ## Usage meters
 
-Polar meters aggregate the `usage_snapshot` event that the `usage-snapshot`
-maintenance job emits daily (`MeterService.reportUsageSnapshots`, scheduled
-from `src/worker/monitor/maintenance.ts`). Free organizations are excluded
-from every meter: they have no `subscription.polarCustomerId`, and
+The `usage-snapshot` maintenance job (`MeterService.reportUsageSnapshots`,
+scheduled from `src/worker/monitor/maintenance.ts`) reads current resource
+counts once a day (`collectUsageSnapshots`, one row per organization) and
+emits **two** Polar event streams from that single query. Free organizations
+are excluded from both: they have no `subscription.polarCustomerId`, and
 `collectUsageSnapshots` only selects organizations that do.
+
+### `usage_snapshot` — the billable stream, summed per customer
 
 `subscription.polarCustomerId` is not unique per organization: Polar customers
 are keyed by the better-auth user ID, and one user may own several
 organizations (up to `ORGANIZATION_LIMIT_PER_USER`). Emitting one event per
 organization would let `max` report the largest single organization's usage
-instead of the customer's total, so `collectUsageSnapshots` sums `monitors`,
+instead of the customer's total, so `sumByCustomer` sums `monitors`,
 `status_pages` and `team_members` across every organization a Polar customer
-owns before emitting — one event per customer, not per organization.
-`organization_count`, also carried in the event's metadata, records how many
-organizations each event's totals span; it exists for diagnostics and is not
-backed by a meter.
+owns before this stream is emitted — one event per customer, not per
+organization. `organization_count`, also carried in the event's metadata,
+records how many organizations each event's totals span; it exists for
+diagnostics and is not backed by a meter.
+
+**The three Polar meters in sandbox key on this event and these property
+names.** Do not rename the event or its metadata fields without re-provisioning
+the meters (`scripts/polar-usage-meters.sh`).
 
 | Meter          | Aggregation               |
 | -------------- | ------------------------- |
@@ -163,6 +170,33 @@ backed by a meter.
 Each filters on event name `usage_snapshot`. `max` reports peak usage within
 the billing period — defensible on an invoice — rather than `avg`, which
 prorates mid-period changes and is easier to game.
+
+### `usage_snapshot_org` — the per-organization audit trail, deliberately unmetered
+
+One event per organization, unsummed, carrying `organization_id`, `monitors`,
+`status_pages` and `team_members` in its metadata (no `organization_count` —
+that field only means something once rows have been collapsed). It exists
+purely so per-organization usage history stays queryable in Polar's event
+stream after `usage_snapshot` has summed that detail away; it is not read by
+any billing logic and has no meter of its own.
+
+**Do not point a meter at `usage_snapshot_org` expecting a billable number.**
+For any Polar customer that owns more than one organization, this stream
+emits one event per organization while `usage_snapshot` emits one summed
+event — a meter aggregating `usage_snapshot_org` would double-count (or worse,
+for `max`, over-report) relative to the summed stream. `METER_EVENTS.USAGE_SNAPSHOT_ORG`
+exists in `meter.service.ts` precisely so this event name has a single,
+grep-able source of truth, but adding a filter for it to
+`scripts/polar-usage-meters.sh` is a deliberate non-goal.
+
+Both streams are ingested independently in the same chunked, never-throwing
+path: a failure ingesting one never prevents or is masked by the other.
+`reportUsageSnapshots` returns `{ customerSnapshots, organizationSnapshots }`
+rather than a single combined count, for the same reason — the two numbers
+count different things (billable customers vs. audited organizations) and
+summing them would be meaningless. The maintenance job records
+`customerSnapshots` as `records_processed` and `organizationSnapshots` as
+`org_records_processed`.
 
 These replace four retired meters that counted `monitor_created`,
 `monitor_deleted`, `status_page_created` and `status_page_deleted` events: a
