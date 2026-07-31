@@ -143,6 +143,17 @@ from `src/worker/monitor/maintenance.ts`). Free organizations are excluded
 from every meter: they have no `subscription.polarCustomerId`, and
 `collectUsageSnapshots` only selects organizations that do.
 
+`subscription.polarCustomerId` is not unique per organization: Polar customers
+are keyed by the better-auth user ID, and one user may own several
+organizations (up to `ORGANIZATION_LIMIT_PER_USER`). Emitting one event per
+organization would let `max` report the largest single organization's usage
+instead of the customer's total, so `collectUsageSnapshots` sums `monitors`,
+`status_pages` and `team_members` across every organization a Polar customer
+owns before emitting — one event per customer, not per organization.
+`organization_count`, also carried in the event's metadata, records how many
+organizations each event's totals span; it exists for diagnostics and is not
+backed by a meter.
+
 | Meter          | Aggregation               |
 | -------------- | ------------------------- |
 | `Monitors`     | `max` over `monitors`     |
@@ -174,7 +185,7 @@ run once against sandbox and once against production.
 unarchived, with the aggregations above; the four retired meters are archived.
 Verified end-to-end: running `MeterService.reportUsageSnapshots()` against a
 sandbox organization with a real `polarCustomerId` produced a `usage_snapshot`
-event with a non-null `customer_id` and all three metadata properties.
+event with a non-null `customer_id` and all four metadata properties.
 
 **Production: not yet run.** The production access token lives on the
 `uppity-server` Railway service, not in local `.env`. Run
