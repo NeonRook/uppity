@@ -33,22 +33,37 @@ Uppity bills **per organization** (`subscription.organizationId` is unique), but
 Polar's model is customer-centric. The checkout call stuffs the Uppity org ID
 into `metadata.referenceId`, and every webhook handler reads it back out to find
 the organization. A checkout that omits `referenceId` produces a subscription
-this app structurally cannot attribute: the handler logs
-`"... without org reference"` and drops the event, so the customer pays and
-receives nothing. Any new checkout path must set it.
+this app structurally cannot attribute, so the customer pays and receives
+nothing. Any new checkout path must set it.
+
+Those unattributable events are logged at **error** level and dropped. They are
+dropped rather than retried because the reference is missing from the payload
+itself — a Polar retry would replay the same event forever — and logged loudly
+because the failure is silent revenue loss otherwise. Grep for
+`without org reference`.
+
+### Why `external_customer_id` is not used for this
+
+`external_customer_id` is already taken: `@polar-sh/better-auth` hardcodes it to
+the **better-auth user ID** at checkout, and its portal, customer-state, orders
+and subscriptions endpoints all look the customer up by that same user ID. It
+cannot be repurposed as the organization ID without breaking those endpoints.
+It would also be ambiguous — a user may own up to `ORGANIZATION_LIMIT_PER_USER`
+(default 5) organizations, so a customer maps to no single one. This is why
+`onCustomerStateChanged` deliberately records no `org_id`.
 
 ## Files changed
 
-| File                                                          | Change                                                                                     |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `src/lib/server/polar.ts`                                     | **New.** Single shared `Polar` client + `polarServer` resolution                           |
-| `src/lib/server/auth.ts`                                      | Imports the shared client; adds `onOrderPaid` and `onCustomerStateChanged` handlers        |
-| `src/lib/server/services/meter.service.ts`                    | Uses the shared client instead of constructing its own                                     |
-| `src/routes/(admin)/admin/organizations/[id]/+page.server.ts` | Uses the shared client instead of constructing one per call                                |
-| `src/lib/server/logger/types.ts`                              | `WebhookWideEvent` gains `polar_order_id`, `polar_product_id`, `active_subscription_count` |
-| `src/app.d.ts`                                                | Declares `POLAR_SERVER`                                                                    |
-| `.env.example`                                                | Documents `POLAR_SERVER`; clarifies which webhook secret to use                            |
-| `.env`                                                        | Adds `POLAR_SERVER=sandbox` (local dev targets sandbox)                                    |
+| File                                                          | Change                                                                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/server/polar.ts`                                     | **New.** Single shared `Polar` client + `polarServer` resolution                                                                 |
+| `src/lib/server/auth.ts`                                      | Imports the shared client; adds `onOrderPaid` and `onCustomerStateChanged` handlers; raises unattributable events to error level |
+| `src/lib/server/services/meter.service.ts`                    | Uses the shared client instead of constructing its own                                                                           |
+| `src/routes/(admin)/admin/organizations/[id]/+page.server.ts` | Uses the shared client instead of constructing one per call                                                                      |
+| `src/lib/server/logger/types.ts`                              | `WebhookWideEvent` gains `polar_order_id`, `polar_product_id`, `active_subscription_count`                                       |
+| `src/app.d.ts`                                                | Declares `POLAR_SERVER`                                                                                                          |
+| `.env.example`                                                | Documents `POLAR_SERVER`; clarifies which webhook secret to use                                                                  |
+| `.env`                                                        | Adds `POLAR_SERVER=sandbox` (local dev targets sandbox)                                                                          |
 
 Previously `new Polar({...})` was constructed in three places, each hardcoding
 `server: import.meta.env.DEV ? "sandbox" : "production"`. That made the target
