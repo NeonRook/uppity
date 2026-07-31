@@ -12,6 +12,8 @@ type Db = PostgresJsDatabase<typeof schema>;
 // resolves to the subquery's own row instead of the outer one, silently
 // turning the correlation into a self-comparison that matches everything.
 // Qualifying the outer reference by table name avoids that.
+// Assumes `subscription` is queried unaliased (as it is below); if it's ever
+// queried through an alias, this hardcoded qualifier will no longer match.
 const outerOrganizationId = sql.raw(
 	`"${getTableName(subscription)}"."${subscription.organizationId.name}"`,
 );
