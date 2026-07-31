@@ -31,7 +31,7 @@
 		if (plan.monthlyPriceCents === 0) {
 			return { display: m.billing_free(), suffix: '', isFree: true };
 		}
-		// Enterprise (custom pricing)
+		// Negotiated plans carry no list price
 		if (plan.monthlyPriceCents === null || plan.annualPriceCents === null) {
 			return { display: m.billing_custom_pricing(), suffix: '', isFree: false };
 		}
@@ -79,6 +79,13 @@
 			f.push(m.billing_features_retention({ days: limits.retentionDays }));
 		}
 
+		// Team members
+		if (limits.teamMembers === -1) {
+			f.push(m.billing_features_team_members_unlimited());
+		} else {
+			f.push(m.billing_features_team_members({ count: limits.teamMembers }));
+		}
+
 		// Notifications
 		if (limits.notificationChannels.length > 1) {
 			f.push(m.billing_features_all_notifications());
@@ -103,7 +110,9 @@
 		return f;
 	});
 
-	const isEnterprise = $derived(plan.id === 'enterprise');
+	// Dedicated implies provisioning isolated infrastructure, so it is never a
+	// self-serve checkout. Negotiated plans (null pricing) are contact-sales too.
+	const isContactSales = $derived(plan.id === 'dedicated' || plan.monthlyPriceCents === null);
 </script>
 
 <Card.Root class={isCurrentPlan ? 'border-primary' : ''}>
@@ -136,7 +145,7 @@
 			<Button class="w-full" variant="outline" disabled>
 				{m.billing_current()}
 			</Button>
-		{:else if isEnterprise}
+		{:else if isContactSales}
 			<Button
 				class="w-full"
 				variant="outline"
