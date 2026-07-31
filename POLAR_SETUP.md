@@ -235,12 +235,14 @@ Sandbox also still holds one older `usage_snapshot` event from before this
 work, metadata `{"monitors": 0, "status_pages": 0, "team_members": 1}` — three
 properties, no `organization_count`, predating the summed-customer stream.
 
-**Production: not yet run.** The production access token lives on the
-`uppity-server` Railway service, not in local `.env`. Run
-`POLAR_ACCESS_TOKEN=<production token> ./scripts/polar-usage-meters.sh production`
-and verify with the same meters listing query against `https://api.polar.sh`.
-If production never had the four create/delete meters provisioned, the
-archive step reporting `skip` for each is the expected outcome, not a failure.
+**Production: provisioned 2026-07-31** by the operator holding the production
+access token, which lives on the Railway services rather than in local `.env`.
+To re-run or re-check it:
+`POLAR_ACCESS_TOKEN=<production token> ./scripts/polar-usage-meters.sh production`,
+verified with the same meters listing query against `https://api.polar.sh`. The
+script is idempotent, so a re-run reports `skip` for everything already in place.
+If production never had the four create/delete meters, the archive step
+reporting `skip` for each is the expected outcome, not a failure.
 
 ## Current state
 
@@ -298,12 +300,14 @@ the code deployed.
       absence there is not evidence they are unset.
 - [x] Verify `SELF_HOSTED` is not `true` on `uppity-server`. It has been removed entirely.
 - [x] Register a webhook endpoint at `https://uppity.cloud/api/auth/polar/webhooks`.
-- [ ] Set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER=production` on the `worker-monitor`
-      Railway service. `MeterService.enabled` requires `POLAR_ACCESS_TOKEN`; without it
-      `reportUsageSnapshots()` returns `{ customerSnapshots: 0, organizationSnapshots: 0 }`
-      without logging anything, the `usage-snapshot` job records
-      `records_processed: 0` and reports success, and no event ever reaches Polar —
-      indistinguishable from having no paying customers.
+- [x] Set `POLAR_ACCESS_TOKEN` and `POLAR_SERVER=production` on the `worker-monitor`
+      Railway service. Done 2026-07-31. This service is easy to overlook because it holds
+      its own variable set: `MeterService.enabled` requires `POLAR_ACCESS_TOKEN`, and
+      without it `reportUsageSnapshots()` returns
+      `{ customerSnapshots: 0, organizationSnapshots: 0 }` without logging anything, the
+      `usage-snapshot` job records `records_processed: 0` and reports success, and no event
+      ever reaches Polar — indistinguishable from having no paying customers. Re-check it
+      after any change to that service's variables.
 
 - [x] **The webhook endpoint's format and event subscriptions.** Verified 2026-07-31:
       `https://uppity.cloud/api/auth/polar/webhooks`, format `raw`, subscribed to all six
@@ -326,10 +330,10 @@ the code deployed.
       from the Polar dashboard and confirming a wide event with `webhook_source: "polar"` is
       the only check that actually proves it.
 
-- [ ] **Run `scripts/polar-usage-meters.sh production`.** The three
-      usage meters (see [Usage meters](#usage-meters)) are provisioned in sandbox only; the
-      production access token is not available outside the `uppity-server` Railway service,
-      so this has to be run by whoever has it.
+- [x] **Run `scripts/polar-usage-meters.sh production`.** Done 2026-07-31. The three
+      usage meters (see [Usage meters](#usage-meters)) are now provisioned in both
+      environments. Meters do not replicate between them, so any future meter change has to
+      be applied to each in turn.
 
 ## Verify before merging
 
