@@ -17,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<title>{incident.title} - {page.name} Status</title>
+	<title>{m.public_incident_page_title({ title: incident.title, name: page.name })}</title>
 	{#if page.faviconUrl}
 		<link rel="icon" href={page.faviconUrl} />
 	{/if}
