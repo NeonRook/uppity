@@ -113,9 +113,10 @@ export class SubscriptionService {
 	 */
 	async getOrganizationPlan(organizationId: string): Promise<Plan> {
 		if (isSelfHosted()) {
-			// Return a synthetic "self-hosted" plan
+			// Self-hosted is not a billing tier. It borrows `dedicated` as its id so
+			// UI keyed on plan id treats it as top-tier, but the name is what renders.
 			return {
-				id: "enterprise" as PlanId,
+				id: "dedicated" as PlanId,
 				name: "Self-Hosted",
 				monthlyPriceCents: null,
 				annualPriceCents: null,
