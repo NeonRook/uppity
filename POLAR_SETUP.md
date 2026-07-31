@@ -141,38 +141,59 @@ is unset locally, so the webhook path has never been exercised in development.
 `webhooks({ secret: process.env.POLAR_WEBHOOK_SECRET ?? "" })` means an unset
 secret fails signature validation rather than crashing at boot — silent, not loud.
 
-### Production — not configured
+### Production — configured, billing live
 
-The `uppity-server` Railway service has **no `POLAR_*` variables at all**.
-Checkout and webhooks are both non-functional on https://uppity.cloud until the
-Outstanding work below is done.
+The production catalogue matches `src/lib/constants/plans.ts`. It had drifted badly before
+this work: no annual products at all, `Uppity` priced at $14.90, and an `Enterprise` at
+$49.50/mo that mapped to no tier. `Uppity` was repriced to $12 and `Enterprise` renamed and
+repriced into `Dedicated`, both keeping their product IDs, so the configured
+`POLAR_PRODUCT_*` values stayed valid.
+
+| Product            | ID                                     | Price     |
+| ------------------ | -------------------------------------- | --------- |
+| Free               | `8a2388a1-3fe6-4b38-9b56-71e04b38c1f3` | $0        |
+| Uppity             | `a818ebe5-b290-4f69-befa-00b87ab8b064` | $12.00    |
+| Uppity (Annual)    | `13ff6413-a022-45b0-a4c7-952c3a4f6aed` | $120.00   |
+| Dedicated          | `2e0b74ad-cc18-48ed-a9be-917fbd1970d2` | $299.00   |
+| Dedicated (Annual) | `4abe8d31-e5d7-4644-b26f-610f43c99e40` | $2,990.00 |
+| Self-Hosted        | `bfd5dc5e-1e67-4865-a157-354c2cb621ec` | archived  |
+
+`SELF_HOSTED` has been **removed** from `uppity-server`. `isSelfHosted()` tests
+`=== "true"`, so unset evaluates false and every plan limit is now enforced. Note it was
+never set on `worker-monitor` at all, so retention there has taken the per-plan path since
+the code deployed.
 
 ## Outstanding work
 
-- [ ] **Rotate the `Postgres-18` password.** The production `DATABASE_URL` was
+- [x] **Rotate the `Postgres-18` password.** Done — the production `DATABASE_URL` had been
       exposed during this setup session.
-- [ ] Create the **runtime** production organization access token at
-      https://polar.sh/dashboard/neonrook/settings. Grant only what the app
-      calls (see [Token scopes](#token-scopes)) — notably **not** products and
-      **not** webhooks.
-- [ ] Confirm the five **production** product IDs. Sandbox IDs will not work.
-      `docs/superpowers/pricing/polar-production-migration.sh` provisions and
-      prints them. It needs products write, so run it with a **separate,
-      short-lived** token and delete that token afterwards — do not grant
-      products write to the token Railway holds.
-- [ ] Register a webhook endpoint at
-      `https://uppity.cloud/api/auth/polar/webhooks`, format **raw**, subscribed
-      to at minimum: `subscription.created`, `subscription.updated`,
-      `subscription.canceled`, `subscription.revoked`, `order.paid`,
-      `customer.state_changed`.
-      **The last two are new** — the handlers exist but will never fire unless
-      the endpoint subscribes to them.
-- [ ] Set on the `uppity-server` Railway service: `POLAR_ACCESS_TOKEN`,
-      `POLAR_SERVER=production`, `POLAR_WEBHOOK_SECRET` (from the endpoint above),
-      and the five `POLAR_PRODUCT_*` IDs.
-- [ ] Verify `SELF_HOSTED` is not `true` on `uppity-server` — it short-circuits
-      every limit check to the unlimited self-hosted plan and disables meter
-      reporting.
+- [x] Confirm the five **production** product IDs. Provisioned and verified; see the table
+      above. `docs/superpowers/pricing/polar-production-migration.sh` did this with a
+      separate token carrying products write.
+- [x] Set on the `uppity-server` Railway service: `POLAR_ACCESS_TOKEN`,
+      `POLAR_SERVER`, `POLAR_WEBHOOK_SECRET` and the five `POLAR_PRODUCT_*` IDs.
+      The two secrets are **sealed**, so they do not appear in the API's variable listing —
+      absence there is not evidence they are unset.
+- [x] Verify `SELF_HOSTED` is not `true` on `uppity-server`. It has been removed entirely.
+- [x] Register a webhook endpoint at `https://uppity.cloud/api/auth/polar/webhooks`.
+
+### Still to confirm
+
+- [ ] **The webhook endpoint's format and event subscriptions.** Format must be **raw**, not
+      Standard Webhooks, or signature validation fails. It must subscribe to
+      `subscription.created`, `subscription.updated`, `subscription.canceled`,
+      `subscription.revoked`, `order.paid` and `customer.state_changed` — **the last two are
+      new**, and an endpoint created with the default event set will not include them, so
+      those handlers would never fire.
+- [ ] **That the runtime token carries only the five capabilities** in
+      [Token scopes](#token-scopes), and specifically not products or webhooks. If the
+      provisioning token was reused, Railway is holding one that can re-price the live
+      catalogue.
+- [ ] **That the webhook secret is correct.** A wrong secret fails signature validation
+      rather than crashing: Polar sees non-2xx, retries, and eventually disables the
+      endpoint, while the logs look like ordinary rejected requests. Sending a test event
+      from the Polar dashboard and confirming a wide event with `webhook_source: "polar"` is
+      the only check that actually proves it.
 
 ## Verify before merging
 
