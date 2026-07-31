@@ -140,3 +140,23 @@ export function truncate(str: string, maxLength: number): string {
 	if (str.length <= maxLength) return str;
 	return `${str.slice(0, maxLength - 3)}...`;
 }
+
+/**
+ * Formats a US cent amount as a dollar string, showing cents only when the amount
+ * is not a whole number of dollars.
+ *
+ * The conditional precision exists for annual plans: $2,990/year is $249.1666../month,
+ * and rendering that as "$249" understates the real charge by $2 a year. Prices that
+ * divide evenly — $12, $10 — stay free of decimal noise.
+ *
+ * USD only. Multi-currency display is deferred; see the multi-currency spec.
+ */
+export function formatUsdCents(cents: number): string {
+	const amount = cents / 100;
+	const isWholeDollars = Number.isInteger(amount);
+
+	return `$${amount.toLocaleString("en-US", {
+		minimumFractionDigits: isWholeDollars ? 0 : 2,
+		maximumFractionDigits: isWholeDollars ? 0 : 2,
+	})}`;
+}

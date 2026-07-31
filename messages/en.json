@@ -572,6 +572,7 @@
 	"billing_features_check_interval": "{seconds}s check interval",
 	"billing_features_retention": "{days} days data retention",
 	"billing_features_retention_unlimited": "Unlimited data retention",
+	"billing_billed_annually": "billed {amount} annually",
 	"billing_features_team_members": "Up to {count} team members",
 	"billing_features_team_members_unlimited": "Unlimited team members",
 	"billing_features_email_notifications": "Email notifications",

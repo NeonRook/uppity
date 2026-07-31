@@ -4,6 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import { Check, LoaderCircle } from '@lucide/svelte';
+	import { formatUsdCents } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
 
 	type BillingPeriod = 'monthly' | 'annual';
@@ -29,24 +30,27 @@
 	const priceInfo = $derived.by(() => {
 		// Free plan
 		if (plan.monthlyPriceCents === 0) {
-			return { display: m.billing_free(), suffix: '', isFree: true };
+			return { display: m.billing_free(), suffix: '', note: '', isFree: true };
 		}
 		// Negotiated plans carry no list price
 		if (plan.monthlyPriceCents === null || plan.annualPriceCents === null) {
-			return { display: m.billing_custom_pricing(), suffix: '', isFree: false };
+			return { display: m.billing_custom_pricing(), suffix: '', note: '', isFree: false };
 		}
-		// Paid plan
+		// Annual keeps the monthly-equivalent headline so the figure stays comparable
+		// across the toggle, and states the real charge underneath — the customer is
+		// billed once a year, not monthly.
 		if (billingPeriod === 'annual') {
-			const monthlyEquivalent = plan.annualPriceCents / 12 / 100;
 			return {
-				display: `$${monthlyEquivalent.toFixed(0)}`,
+				display: formatUsdCents(plan.annualPriceCents / 12),
 				suffix: m.billing_per_month(),
+				note: m.billing_billed_annually({ amount: formatUsdCents(plan.annualPriceCents) }),
 				isFree: false
 			};
 		}
 		return {
-			display: `$${(plan.monthlyPriceCents / 100).toFixed(0)}`,
+			display: formatUsdCents(plan.monthlyPriceCents),
 			suffix: m.billing_per_month(),
+			note: '',
 			isFree: false
 		};
 	});
@@ -129,6 +133,9 @@
 				<span class="text-sm font-normal text-muted-foreground">{priceInfo.suffix}</span>
 			{/if}
 		</div>
+		{#if priceInfo.note}
+			<div class="text-sm text-muted-foreground">{priceInfo.note}</div>
+		{/if}
 	</Card.Header>
 	<Card.Content class="space-y-4">
 		<ul class="space-y-2">
