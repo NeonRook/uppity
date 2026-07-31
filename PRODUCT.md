@@ -167,10 +167,17 @@ are different commitments; the gap between them is where Enterprise revenue live
   this.
 - **Enterprise Polar product.** Enterprise has no product and no self-serve path. It is
   reached through Dedicated's contact flow until a first customer exists.
-- **Production `POLAR_PRODUCT_*` values.** The production catalog now matches the adopted
-  model, but the five product ids must be set in production config **before** this deploys.
-  Without them `POLAR_PRODUCT_TO_PLAN` resolves empty and every paid subscription falls
-  through to the `uppity` fallback in `getPlanFromSubscription`.
+- **Billing is switched off in production.** `uppity-server` runs with `SELF_HOSTED=true`, so
+  every plan limit is bypassed: no monitor or member caps, and retention uses the single
+  global `UPPITY_CHECK_RETENTION_DAYS` sweep rather than per-plan windows. The catalog and the
+  five `POLAR_PRODUCT_*` ids are staged and correct, but nothing in the plan model takes
+  effect until this flips.
+- **`POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` are not set in production.** Both are
+  required before `SELF_HOSTED` can be turned off: without the token `polarClient` cannot
+  create a checkout, and without the webhook secret subscription syncs never land.
+- **Flipping `SELF_HOSTED` to false triggers the first per-plan retention sweep**, not the
+  code deploy. Every organization holding more than its plan's window loses the excess in one
+  statement. Do it in a quiet period.
 
 **Technical constraints**
 
