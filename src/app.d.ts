@@ -28,9 +28,10 @@ declare global {
 			POLAR_ACCESS_TOKEN?: string;
 			POLAR_WEBHOOK_SECRET?: string;
 			POLAR_PRODUCT_FREE?: string;
-			POLAR_PRODUCT_PRO_MONTHLY?: string;
-			POLAR_PRODUCT_PRO_ANNUAL?: string;
-			POLAR_PRODUCT_ENTERPRISE?: string;
+			POLAR_PRODUCT_UPPITY_MONTHLY?: string;
+			POLAR_PRODUCT_UPPITY_ANNUAL?: string;
+			POLAR_PRODUCT_DEDICATED_MONTHLY?: string;
+			POLAR_PRODUCT_DEDICATED_ANNUAL?: string;
 
 			// Authentication
 			BETTER_AUTH_SECRET: string;

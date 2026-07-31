@@ -59,11 +59,9 @@
 
 		loadingCheckout = plan.id;
 		try {
-			// Map plan ID and billing period to Polar product slug
-			let slug: string = plan.id;
-			if (plan.id === 'pro') {
-				slug = billingPeriod === 'annual' ? 'pro-annual' : 'pro-monthly';
-			}
+			// Map plan ID and billing period to Polar product slug. Dedicated is
+			// contact-sales and never reaches this path.
+			const slug = billingPeriod === 'annual' ? `${plan.id}-annual` : `${plan.id}-monthly`;
 
 			const { data: checkoutData, error } = await authClient.checkout({
 				slug,

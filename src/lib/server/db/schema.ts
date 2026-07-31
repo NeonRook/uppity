@@ -656,7 +656,7 @@ export const subscription = pgTable(
 			.notNull()
 			.unique()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		planId: text("plan_id").notNull().default("free"), // 'free' | 'pro' | 'enterprise'
+		planId: text("plan_id").notNull().default("free"), // 'free' | 'uppity' | 'dedicated' | 'enterprise'
 		status: text("status").notNull().default("active"), // 'active' | 'canceled' | 'past_due' | 'trialing'
 
 		// Billing period
