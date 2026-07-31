@@ -79,7 +79,7 @@
 </script>
 
 <svelte:head>
-	<title>{page.name} - Status</title>
+	<title>{m.public_status_page_title({ name: page.name })}</title>
 	{#if page.faviconUrl}
 		<link rel="icon" href={page.faviconUrl} />
 	{/if}
