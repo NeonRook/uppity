@@ -195,8 +195,13 @@ export interface WebhookWideEvent extends WideEventBase {
 	subscription_id?: string;
 	polar_subscription_id?: string;
 	polar_customer_id?: string;
+	polar_order_id?: string;
+	polar_product_id?: string;
 	plan_id?: string;
 	subscription_status?: string;
+	// customer.state_changed carries the customer's full subscription set rather
+	// than a single subscription, so the count is what identifies the change.
+	active_subscription_count?: number;
 }
 
 /**
