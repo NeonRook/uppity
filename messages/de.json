@@ -572,6 +572,8 @@
 	"billing_features_check_interval": "{seconds}s Prüfintervall",
 	"billing_features_retention": "{days} Tage Datenaufbewahrung",
 	"billing_features_retention_unlimited": "Unbegrenzte Datenaufbewahrung",
+	"billing_features_team_members": "Bis zu {count} Teammitglieder",
+	"billing_features_team_members_unlimited": "Unbegrenzte Teammitglieder",
 	"billing_features_email_notifications": "E-Mail-Benachrichtigungen",
 	"billing_features_all_notifications": "Alle Benachrichtigungskanäle",
 	"billing_features_custom_domains": "Benutzerdefinierte Domains",

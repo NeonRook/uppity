@@ -1,9 +1,12 @@
-import { PLANS } from "$lib/constants/plans";
+import { PLANS, PUBLIC_PLAN_IDS } from "$lib/constants/plans";
 import { subscriptionService, isSelfHosted } from "$lib/server/services/subscription.service";
 import { usageService } from "$lib/server/services/usage.service";
 import { redirect } from "@sveltejs/kit";
 
 import type { PageServerLoad } from "./$types";
+
+/** Enterprise is deliberately absent — it is reached via Dedicated's contact flow. */
+const publicPlans = PUBLIC_PLAN_IDS.map((id) => PLANS[id]);
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user === null) redirect(302, "/login");
@@ -20,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			selfHosted,
 			subscription: null,
 			usage: null,
-			plans: Object.values(PLANS),
+			plans: publicPlans,
 			checkoutSuccess,
 			organizationId: null,
 		};
@@ -50,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				limit: usageSummary.statusPages.limit,
 			},
 		},
-		plans: Object.values(PLANS),
+		plans: publicPlans,
 		checkoutSuccess,
 		organizationId,
 		currentPlanName: usageSummary.plan.name,
