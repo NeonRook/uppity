@@ -6,6 +6,7 @@ import {
 	formatResponseTime,
 	formatInterval,
 	formatUptime,
+	formatUsdCents,
 	getRelativeTime,
 	truncate,
 } from "./format";
@@ -190,5 +191,29 @@ describe("truncate", () => {
 
 	it("handles empty string", () => {
 		expect(truncate("", 10)).toBe("");
+	});
+});
+
+describe("formatUsdCents", () => {
+	it("omits cents for whole dollar amounts", () => {
+		expect(formatUsdCents(1200)).toBe("$12");
+	});
+
+	it("groups thousands", () => {
+		expect(formatUsdCents(299000)).toBe("$2,990");
+	});
+
+	it("shows cents when the amount is not whole", () => {
+		// $2,990/year is $249.1666../month. Rendering it as "$249" understates the
+		// real charge by $2 a year.
+		expect(formatUsdCents(299000 / 12)).toBe("$249.17");
+	});
+
+	it("keeps an evenly divisible monthly equivalent clean", () => {
+		expect(formatUsdCents(12000 / 12)).toBe("$10");
+	});
+
+	it("formats zero", () => {
+		expect(formatUsdCents(0)).toBe("$0");
 	});
 });

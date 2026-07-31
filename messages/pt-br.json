@@ -572,6 +572,7 @@
 	"billing_features_check_interval": "intervalo de verificação de {seconds}s",
 	"billing_features_retention": "{days} dias de retenção de dados",
 	"billing_features_retention_unlimited": "Retenção de dados ilimitada",
+	"billing_billed_annually": "cobrado {amount} anualmente",
 	"billing_features_team_members": "Até {count} membros da equipe",
 	"billing_features_team_members_unlimited": "Membros da equipe ilimitados",
 	"billing_features_email_notifications": "Notificações por e-mail",
