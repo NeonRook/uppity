@@ -1,4 +1,4 @@
-import { DEFAULT_PLAN_ID, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
+import { DEFAULT_PLAN_ID, isSelfHosted, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
 import { db } from "$lib/server/db";
 import * as schema from "$lib/server/db/schema";
 import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
@@ -15,21 +15,6 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 type Db = PostgresJsDatabase<typeof schema>;
-
-/**
- * Checks if the application is running in self-hosted mode.
- * When true, all subscription limits are bypassed.
- */
-export function isSelfHosted(): boolean {
-	return process.env.SELF_HOSTED === "true";
-}
-
-/**
- * Gets the plan limits for self-hosted mode (all features unlocked).
- */
-export function getSelfHostedLimits(): PlanLimits {
-	return SELF_HOSTED_LIMITS;
-}
 
 /**
  * Gets a plan definition by ID.
@@ -98,7 +83,7 @@ export class SubscriptionService {
 	 */
 	async getEffectiveLimits(organizationId: string): Promise<PlanLimits> {
 		if (isSelfHosted()) {
-			return getSelfHostedLimits();
+			return SELF_HOSTED_LIMITS;
 		}
 
 		const sub = await this.getOrCreateSubscription(organizationId);
@@ -120,7 +105,7 @@ export class SubscriptionService {
 				name: "Self-Hosted",
 				monthlyPriceCents: null,
 				annualPriceCents: null,
-				limits: getSelfHostedLimits(),
+				limits: SELF_HOSTED_LIMITS,
 			};
 		}
 

@@ -1,7 +1,7 @@
+import { isSelfHosted } from "$lib/constants/plans";
 import { auth } from "$lib/server/auth";
 import { db } from "$lib/server/db";
 import { member, organization } from "$lib/server/db/auth-schema";
-import { isSelfHosted } from "$lib/server/services/subscription.service";
 import { getUsageLimitsData } from "$lib/server/services/usage-limits";
 import { redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";

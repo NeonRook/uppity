@@ -135,6 +135,59 @@ export const PUBLIC_PLAN_IDS: PlanId[] = ["free", "uppity", "dedicated"];
 export const DEFAULT_PLAN_ID = "free" as const;
 
 /**
+ * Checks if the application is running in self-hosted mode.
+ * When true, all subscription limits are bypassed.
+ *
+ * Lives here rather than in `subscription.service.ts` so the monitor worker can
+ * ask the question without importing `$lib/server/db`.
+ */
+export function isSelfHosted(): boolean {
+	return process.env.SELF_HOSTED === "true";
+}
+
+/** A set of plans that share one effective check-retention window. */
+export interface RetentionGroup {
+	/** Effective retention window in days. Always finite. */
+	days: number;
+	/** Plan ids resolving to this window. */
+	planIds: PlanId[];
+	/**
+	 * True for the single group containing `DEFAULT_PLAN_ID`. That group must also
+	 * absorb organizations with no subscription row and rows carrying a plan id no
+	 * longer present in `PLANS`, so cleanup treats unknown state as free rather
+	 * than retaining it forever.
+	 */
+	catchAll: boolean;
+}
+
+/**
+ * Groups plans by their effective retention window.
+ *
+ * `retentionDays: -1` means "no plan-imposed limit" and resolves to `fallbackDays`
+ * (the operator's `UPPITY_CHECK_RETENTION_DAYS`) rather than to infinity — otherwise
+ * self-hosted and Dedicated instances would never delete a check row.
+ *
+ * Grouping keeps cleanup at one DELETE per distinct window instead of one per
+ * organization. Windows that coincide merge into a single group.
+ */
+export function retentionGroups(fallbackDays: number): RetentionGroup[] {
+	const byDays = new Map<number, PlanId[]>();
+
+	for (const plan of Object.values(PLANS)) {
+		const days = plan.limits.retentionDays === -1 ? fallbackDays : plan.limits.retentionDays;
+		const existing = byDays.get(days);
+		if (existing) existing.push(plan.id);
+		else byDays.set(days, [plan.id]);
+	}
+
+	return [...byDays.entries()].map(([days, planIds]) => ({
+		days,
+		planIds,
+		catchAll: planIds.includes(DEFAULT_PLAN_ID),
+	}));
+}
+
+/**
  * Usage warning thresholds (percentages).
  */
 export const USAGE_THRESHOLDS = {
