@@ -177,18 +177,23 @@ the code deployed.
 - [x] Verify `SELF_HOSTED` is not `true` on `uppity-server`. It has been removed entirely.
 - [x] Register a webhook endpoint at `https://uppity.cloud/api/auth/polar/webhooks`.
 
+- [x] **The webhook endpoint's format and event subscriptions.** Verified 2026-07-31:
+      `https://uppity.cloud/api/auth/polar/webhooks`, format `raw`, subscribed to all six
+      events the handlers need — including `order.paid` and `customer.state_changed`, which
+      are absent from Polar's default set. Re-check after any dashboard change with
+      `docs/superpowers/pricing/polar-check-webhooks.sh`.
+
 ### Still to confirm
 
-- [ ] **The webhook endpoint's format and event subscriptions.** Format must be **raw**, not
-      Standard Webhooks, or signature validation fails. It must subscribe to
-      `subscription.created`, `subscription.updated`, `subscription.canceled`,
-      `subscription.revoked`, `order.paid` and `customer.state_changed` — **the last two are
-      new**, and an endpoint created with the default event set will not include them, so
-      those handlers would never fire.
 - [ ] **That the runtime token carries only the five capabilities** in
       [Token scopes](#token-scopes), and specifically not products or webhooks. If the
       provisioning token was reused, Railway is holding one that can re-price the live
       catalogue.
+
+      Note that listing webhook endpoints requires `webhooks:read`, so whichever token ran
+          the verification above has it. That is expected of the provisioning token and a
+          finding if it is also the one Railway holds.
+
 - [ ] **That the webhook secret is correct.** A wrong secret fails signature validation
       rather than crashing: Polar sees non-2xx, retries, and eventually disables the
       endpoint, while the logs look like ordinary rejected requests. Sending a test event
