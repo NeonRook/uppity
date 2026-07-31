@@ -49,8 +49,10 @@ export class MeterService {
 
 	/**
 	 * Emits one usage snapshot per billed organization.
-	 * Returns the number of snapshots Polar reports as newly inserted (duplicates
-	 * it skips are not counted, so this can be lower than the snapshot count).
+	 * Returns the number of snapshots Polar reports as newly inserted. In
+	 * practice this equals the snapshot count: `toIngestEvent` sets neither
+	 * `externalId` nor `timestamp`, so Polar's dedup-on-`external_id` never
+	 * matches and nothing is ever skipped as a duplicate.
 	 *
 	 * Never throws: a metering outage — whether the snapshot query or the Polar
 	 * ingest call — must not fail the maintenance job that calls this. Failures
@@ -95,6 +97,10 @@ function toIngestEvent(snapshot: UsageSnapshot) {
 		name: METER_EVENTS.USAGE_SNAPSHOT,
 		customerId: snapshot.polarCustomerId,
 		metadata: {
+			// A Polar customer is keyed by the better-auth user ID, and one user may
+			// own several organizations, so distinct organizations' events can share
+			// a customerId. organization_id is what disambiguates the stream.
+			organization_id: snapshot.organizationId,
 			monitors: snapshot.monitors,
 			status_pages: snapshot.statusPages,
 			team_members: snapshot.teamMembers,
