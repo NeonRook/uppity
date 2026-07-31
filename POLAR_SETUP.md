@@ -158,9 +158,13 @@ Outstanding work below is done.
 
 ## Testing checkout without a real charge
 
-A plain checkout link cannot pre-apply a discount. Create a 100% discount code
-via the Polar dashboard (or the discounts API) and enter it on the Polar-hosted
-checkout page.
+A plain checkout link cannot pre-apply a discount — the code must be typed on
+the Polar-hosted checkout page.
+
+A 100% forever discount already exists **in sandbox**: code `UPPITYTEST100`
+(`b6b535a2-b2ab-40a8-a4d0-c0896d825c47`). It does not exist in production; create
+a separate one there if you want the same flow against live products, and archive
+it afterwards.
 
 ## Customer portal
 
