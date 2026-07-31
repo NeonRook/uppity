@@ -132,7 +132,7 @@
 -->
 <div class="min-h-screen bg-background">
 	<header class="sticky top-0 z-50 border-b bg-card">
-		<div class="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
+		<div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
 			<a
 				href={resolve('/')}
 				class="flex shrink-0 items-center gap-2 text-lg font-semibold text-foreground"
@@ -149,9 +149,9 @@
 		</div>
 	</header>
 
-	<main class="mx-auto flex max-w-4xl flex-col gap-24 px-4 py-16">
+	<main class="mx-auto flex max-w-7xl flex-col gap-24 px-4 py-16 sm:px-6">
 		<section class="flex flex-col gap-6">
-			<h1 class="max-w-[18ch] text-display text-foreground">{m.landing_hero_title()}</h1>
+			<h1 class="text-display text-balance text-foreground">{m.landing_hero_title()}</h1>
 			<p class="max-w-[60ch] text-lg text-muted-foreground">{m.landing_hero_subtitle()}</p>
 			<div class="flex flex-col gap-3 sm:flex-row">
 				<Button size="lg" href={resolve('/register')}>{m.landing_cta_start_hosted()}</Button>
@@ -159,6 +159,20 @@
 					{m.landing_cta_self_host()}
 				</Button>
 			</div>
+			<!-- The free tier stays discoverable without competing for the headline:
+			     signup speed is ground PRODUCT.md deliberately cedes. Naming the
+			     ceiling here is what stops anyone meeting it by surprise later. -->
+			<p class="text-sm text-muted-foreground">
+				{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
+			</p>
+		</section>
+
+		<!-- The chart leads: the composition argues with the picture before the prose. -->
+		<section class="flex flex-col gap-6" aria-labelledby="chart-heading">
+			<h2 id="chart-heading" class="text-2xl font-semibold text-foreground">
+				{m.landing_chart_title()}
+			</h2>
+			<PricingCliffChart />
 		</section>
 
 		<section class="flex flex-col gap-6" aria-labelledby="gate-heading">
@@ -235,12 +249,10 @@
 					</Table.Body>
 				</Table.Root>
 			</div>
-
-			<PricingCliffChart />
 		</section>
 
 		<section class="flex flex-col gap-4" aria-labelledby="principle-heading">
-			<Separator />
+			<div class="h-px w-full bg-primary" role="presentation"></div>
 			<h2 id="principle-heading" class="text-2xl font-semibold text-foreground">
 				{m.landing_principle_title()}
 			</h2>
@@ -350,7 +362,7 @@
 	</main>
 
 	<footer class="border-t bg-card">
-		<div class="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-12">
+		<div class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6">
 			<div class="grid gap-8 sm:grid-cols-3">
 				<div class="flex flex-col gap-3">
 					<h2 class="text-sm font-medium text-foreground">{m.landing_footer_product()}</h2>
