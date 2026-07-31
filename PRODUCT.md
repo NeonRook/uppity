@@ -172,9 +172,11 @@ are different commitments; the gap between them is where Enterprise revenue live
   global `UPPITY_CHECK_RETENTION_DAYS` sweep rather than per-plan windows. The catalog and the
   five `POLAR_PRODUCT_*` ids are staged and correct, but nothing in the plan model takes
   effect until this flips.
-- **`POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` are not set in production.** Both are
-  required before `SELF_HOSTED` can be turned off: without the token `polarClient` cannot
-  create a checkout, and without the webhook secret subscription syncs never land.
+- **`POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` are set as Railway sealed variables.**
+  Sealed variables are omitted from the API's variable listing entirely — not merely
+  value-redacted — so their absence from `list-variables` output is not evidence they are
+  unset. `BETTER_AUTH_SECRET` behaves the same way. Verify these in the Railway dashboard,
+  never by listing.
 - **Flipping `SELF_HOSTED` to false triggers the first per-plan retention sweep**, not the
   code deploy. Every organization holding more than its plan's window loses the excess in one
   statement. Do it in a quiet period.
