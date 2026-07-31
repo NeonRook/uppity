@@ -148,7 +148,7 @@ accepted (HTTP 200) but has no effect, because `archived_at` isn't part of
 the `MeterUpdate` schema. The schema's actual field is `is_archived`;
 `PATCH /v1/meters/{id}` with `{"is_archived": true}` is what archives a meter.
 
-`docs/superpowers/pricing/polar-usage-meters.sh <sandbox|production>`
+`scripts/polar-usage-meters.sh <sandbox|production>`
 provisions the three meters and archives the four retired ones. It is safe to
 re-run: creation is skipped when an unarchived meter of that name already
 exists, and archiving is skipped when the meter is absent or already
@@ -163,7 +163,7 @@ event with a non-null `customer_id` and all three metadata properties.
 
 **Production: not yet run.** The production access token lives on the
 `uppity-server` Railway service, not in local `.env`. Run
-`POLAR_ACCESS_TOKEN=<production token> ./docs/superpowers/pricing/polar-usage-meters.sh production`
+`POLAR_ACCESS_TOKEN=<production token> ./scripts/polar-usage-meters.sh production`
 and verify with the same meters listing query against `https://api.polar.sh`.
 If production never had the four create/delete meters provisioned, the
 archive step reporting `skip` for each is the expected outcome, not a failure.
@@ -246,7 +246,7 @@ the code deployed.
       from the Polar dashboard and confirming a wide event with `webhook_source: "polar"` is
       the only check that actually proves it.
 
-- [ ] **Run `docs/superpowers/pricing/polar-usage-meters.sh production`.** The three
+- [ ] **Run `scripts/polar-usage-meters.sh production`.** The three
       usage meters (see [Usage meters](#usage-meters)) are provisioned in sandbox only; the
       production access token is not available outside the `uppity-server` Railway service,
       so this has to be run by whoever has it.
