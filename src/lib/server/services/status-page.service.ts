@@ -18,7 +18,6 @@ import {
 	type StatusPageMonitor,
 } from "$lib/server/db/schema";
 import { SubscriptionLimitError, FeatureNotAvailableError } from "$lib/server/errors";
-import { meterService } from "$lib/server/services/meter.service";
 import { subscriptionService } from "$lib/server/services/subscription.service";
 import { eq, and, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -170,9 +169,6 @@ export class StatusPageService {
 			})
 			.returning();
 
-		// Report meter event (non-blocking)
-		void meterService.statusPageCreated(input.organizationId, id);
-
 		return newPage;
 	}
 
@@ -260,9 +256,6 @@ export class StatusPageService {
 		await this.db
 			.delete(statusPage)
 			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)));
-
-		// Report meter event (non-blocking)
-		void meterService.statusPageDeleted(organizationId, id);
 
 		return true;
 	}

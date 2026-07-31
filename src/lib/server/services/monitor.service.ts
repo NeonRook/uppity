@@ -13,7 +13,6 @@ import { CHECK_RETRY } from "$lib/constants/worker";
 import { db } from "$lib/server/db";
 import { monitor, monitorStatus, type Monitor } from "$lib/server/db/schema";
 import { SubscriptionLimitError } from "$lib/server/errors";
-import { meterService } from "$lib/server/services/meter.service";
 import { subscriptionService } from "$lib/server/services/subscription.service";
 import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -104,9 +103,6 @@ export class MonitorService {
 			consecutiveFailures: 0,
 		});
 
-		// Report meter event (non-blocking)
-		void meterService.monitorCreated(input.organizationId, id, newMonitor.type);
-
 		return newMonitor;
 	}
 
@@ -195,9 +191,6 @@ export class MonitorService {
 		await db
 			.delete(monitor)
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)));
-
-		// Report meter event (non-blocking)
-		void meterService.monitorDeleted(organizationId, id);
 
 		return true;
 	}
