@@ -687,5 +687,6 @@
 	"landing_footer_security": "Security",
 	"landing_footer_contact": "Contact",
 	"landing_footer_tagline": "Open source uptime monitoring. Run it anywhere.",
-	"landing_hero_free_note": "Free for {count} monitors, no card required."
+	"landing_hero_free_note": "Free for {count} monitors, no card required.",
+	"public_status_no_data": "No data"
 }
