@@ -22,8 +22,18 @@
 	const BASE_PRICE = (UPPITY_PLAN.monthlyPriceCents ?? 0) / 100;
 	const BLOCK_PRICE = MONITOR_BLOCK_PRICE_CENTS / 100;
 
-	/** Every figure on the plot, written the way the surrounding caption writes it. */
-	const usd = (dollars: number) => formatUsdCents(dollars * 100, getLocale());
+	/**
+	 * Every figure on the plot, written the way the surrounding caption writes it.
+	 *
+	 * Rounded back to whole cents because the plot holds dollars — the geometry
+	 * needs them — while the formatter takes cents. Every price on this chart is
+	 * a whole dollar today, so the product is already exact. It stops being exact
+	 * the moment a block price is not binary-representable: `12 + 10 * 8.3` lands
+	 * on 95.00000000000001, and `formatUsdCents` decides between "$95" and
+	 * "$95.00" on `Number.isInteger`. The rounding keeps that decision resting on
+	 * the price rather than on the float.
+	 */
+	const usd = (dollars: number) => formatUsdCents(Math.round(dollars * 100), getLocale());
 
 	/**
 	 * Assembled here rather than interpolated across the compact `<text>`: the
@@ -116,6 +126,15 @@
 	 * `csr = false` and is never hydrated. This is the page's entire JavaScript
 	 * budget — roughly 300 bytes, parsed from the document that carries it,
 	 * against the 87 KB the framework cost to do the same thing.
+	 *
+	 * The consequence, if this chart is ever reused on a route that *is*
+	 * hydrated: the reveal silently does nothing. Svelte's client `{@html}`
+	 * deliberately never executes script tags, and `csr = false` on one route
+	 * does not remove it from the client manifest, so a client-side navigation
+	 * to `/` would render this markup inert too. Nothing breaks — the resting
+	 * CSS below is the finished chart, so the reading is always correct and only
+	 * the motion is lost — but the animation is not portable. A hydrated host
+	 * needs the attachment back, not a second copy of this script.
 	 *
 	 * The `rootMargin` fires when the chart's top reaches the upper 60% of the
 	 * viewport, not when its first pixel peeks over the bottom edge. On a
