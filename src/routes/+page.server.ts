@@ -5,6 +5,19 @@ import { redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
 /**
+ * The front door ships no JavaScript. Nothing here holds client state: every
+ * control is an `<a>`, both comparison tables are static markup, and the one
+ * authored motion — the chart's draw — runs from an inline observer rather
+ * than from hydration. Booting Svelte, the SvelteKit router, and tailwind-merge
+ * to animate one path cost 87 KB gzipped and 242 ms of blocking time on a
+ * throttled phone, against a page that is already complete when it arrives.
+ *
+ * The trade is that links leave this page as full navigations. That costs
+ * nothing real: every destination boots the app bundle on arrival anyway.
+ */
+export const csr = false;
+
+/**
  * The featured band aggregates ninety days of checks, and `/` is the busiest
  * anonymous route in the product. A day's cells change at most once a day, so
  * a few minutes of staleness costs nothing and keeps the front door cheap.

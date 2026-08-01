@@ -651,8 +651,6 @@
 	"landing_plan_dedicated": "Dedicated",
 	"landing_plan_selfhosted": "Auto-hospedado",
 	"landing_plan_per_month": "/mês",
-	"landing_plan_free_price": "US$ 0",
-	"landing_plan_selfhosted_price": "US$ 0",
 	"landing_plan_row_monitors": "Monitores",
 	"landing_plan_row_interval": "Verificação mais rápida",
 	"landing_plan_row_status_pages": "Páginas de status",

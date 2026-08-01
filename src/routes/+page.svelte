@@ -7,8 +7,9 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
 	import { DEDICATED_PLAN, FREE_PLAN, SELF_HOSTED_LIMITS, UPPITY_PLAN } from '$lib/constants/plans';
-	import { formatDateMonthDay } from '$lib/format';
+	import { formatDateMonthDay, formatUsdCents } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import type { PlanLimits } from '$lib/types/plans';
 	import { getDayStatusColor } from '$lib/utils/status';
 
@@ -26,67 +27,73 @@
 	const STATUS_URL = 'https://uppity.cloud/status/uppity';
 	const CONTACT_EMAIL = 'hello@neonrook.com';
 
-	const dollars = (cents: number | null) => (cents === null ? '—' : `$${cents / 100}`);
+	/**
+	 * DESIGN.md's Measured-Value Rule decides mono per value, not per row: "50"
+	 * and "30 days" are readings, "Unlimited" and "Not published" are words, and
+	 * they share a column. Carrying the distinction on the value is what stops a
+	 * row-level flag from setting an English sentence in Plex Mono.
+	 */
+	type Reading = { text: string; mono: boolean };
+	const reading = (text: string): Reading => ({ text, mono: true });
+	const word = (text: string): Reading => ({ text, mono: false });
+
+	/** USD everywhere, written the way the reader's locale writes it. */
+	const usd = (cents: number | null): Reading =>
+		cents === null ? word('—') : reading(formatUsdCents(cents, getLocale()));
 
 	/**
 	 * The gate. Only these three capabilities have a published competitor price
 	 * behind them (see PRODUCT.md); anything further would be invented, so the
 	 * table stops here rather than padding itself out to look thorough.
 	 */
+	const unpublished = () => word(m.landing_gate_unpublished());
 	const gatedCapabilities = [
-		{ label: m.landing_gate_row_sso(), instatus: '$300', hyperping: '$299' },
-		{
-			label: m.landing_gate_row_audit(),
-			instatus: m.landing_gate_unpublished(),
-			hyperping: '$299'
-		},
-		{
-			label: m.landing_gate_row_private(),
-			instatus: '$300',
-			hyperping: m.landing_gate_unpublished()
-		}
+		{ label: m.landing_gate_row_sso(), instatus: usd(30_000), hyperping: usd(29_900) },
+		{ label: m.landing_gate_row_audit(), instatus: unpublished(), hyperping: usd(29_900) },
+		{ label: m.landing_gate_row_private(), instatus: usd(30_000), hyperping: unpublished() }
 	];
 
-	const capacity = (n: number) => (n === -1 ? m.landing_plan_unlimited() : n.toLocaleString());
-	const retention = (days: number) => {
-		if (days === -1) return m.landing_plan_unlimited();
-		if (days >= 365) return m.landing_plan_retention_1y();
-		return m.landing_plan_retention_30d();
+	const capacity = (n: number): Reading =>
+		n === -1 ? word(m.landing_plan_unlimited()) : reading(n.toLocaleString(getLocale()));
+	const retention = (days: number): Reading => {
+		if (days === -1) return word(m.landing_plan_unlimited());
+		if (days >= 365) return reading(m.landing_plan_retention_1y());
+		return reading(m.landing_plan_retention_30d());
 	};
-	const yesNo = (v: boolean) => (v ? m.landing_plan_yes() : m.landing_plan_no());
+	const yesNo = (v: boolean): Reading => word(v ? m.landing_plan_yes() : m.landing_plan_no());
 
 	const plans = [
 		{
 			name: m.landing_plan_free(),
-			price: m.landing_plan_free_price(),
+			price: usd(0),
 			note: '',
 			limits: FREE_PLAN.limits,
 			channels: m.landing_plan_email_only()
 		},
 		{
 			name: m.landing_plan_uppity(),
-			price: dollars(UPPITY_PLAN.monthlyPriceCents),
+			price: usd(UPPITY_PLAN.monthlyPriceCents),
 			note: m.landing_plan_blocks_note(),
 			limits: UPPITY_PLAN.limits,
 			channels: m.landing_plan_all_channels()
 		},
 		{
 			name: m.landing_plan_dedicated(),
-			price: dollars(DEDICATED_PLAN.monthlyPriceCents),
+			price: usd(DEDICATED_PLAN.monthlyPriceCents),
 			note: m.landing_plan_fair_use(),
 			limits: DEDICATED_PLAN.limits,
 			channels: m.landing_plan_all_channels()
 		},
 		{
 			name: m.landing_plan_selfhosted(),
-			price: m.landing_plan_selfhosted_price(),
+			price: usd(0),
 			note: '',
 			limits: SELF_HOSTED_LIMITS,
 			channels: m.landing_plan_all_channels()
 		}
 	];
 
-	type PlanRow = { label: string; value: (limits: PlanLimits) => string; mono?: boolean };
+	type PlanRow = { label: string; value: (limits: PlanLimits) => Reading };
 
 	/**
 	 * One definition of the comparison, read twice: as table rows from `sm` up,
@@ -95,21 +102,22 @@
 	 * reflows.
 	 */
 	const planRows: PlanRow[] = [
-		{ label: m.landing_plan_row_monitors(), value: (l) => capacity(l.monitors), mono: true },
+		{ label: m.landing_plan_row_monitors(), value: (l) => capacity(l.monitors) },
 		{
 			label: m.landing_plan_row_interval(),
-			value: (l) => `${l.checkIntervalSeconds}s`,
-			mono: true
+			value: (l) => reading(`${l.checkIntervalSeconds}s`)
 		},
-		{ label: m.landing_plan_row_status_pages(), value: (l) => capacity(l.statusPages), mono: true },
-		{ label: m.landing_plan_row_members(), value: (l) => capacity(l.teamMembers), mono: true },
-		{ label: m.landing_plan_row_retention(), value: (l) => retention(l.retentionDays), mono: true },
+		{ label: m.landing_plan_row_status_pages(), value: (l) => capacity(l.statusPages) },
+		{ label: m.landing_plan_row_members(), value: (l) => capacity(l.teamMembers) },
+		{ label: m.landing_plan_row_retention(), value: (l) => retention(l.retentionDays) },
 		{
 			label: m.landing_plan_row_channels(),
 			value: (l) =>
-				l.notificationChannels.length > 1
-					? m.landing_plan_all_channels()
-					: m.landing_plan_email_only()
+				word(
+					l.notificationChannels.length > 1
+						? m.landing_plan_all_channels()
+						: m.landing_plan_email_only()
+				)
 		},
 		{ label: m.landing_plan_row_domains(), value: (l) => yesNo(l.customDomains) },
 		{ label: m.landing_plan_row_sso(), value: (l) => yesNo(l.sso && l.auditLogs) },
@@ -165,7 +173,9 @@
 	<main class="mx-auto flex max-w-7xl flex-col px-4 pt-16 pb-24 sm:px-6">
 		<section class="flex flex-col gap-6">
 			<h1 class="text-display text-balance text-foreground">{m.landing_hero_title()}</h1>
-			<p class="max-w-[60ch] text-lg text-muted-foreground">{m.landing_hero_subtitle()}</p>
+			<p class="max-w-[60ch] text-lg text-balance text-muted-foreground">
+				{m.landing_hero_subtitle()}
+			</p>
 			<div class="flex flex-col gap-3 sm:flex-row">
 				<Button size="lg" href={resolve('/register')}>{m.landing_cta_start_hosted()}</Button>
 				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer">
@@ -207,21 +217,23 @@
 						<Card.Content class="flex flex-col gap-2">
 							<div class="flex items-baseline justify-between gap-4">
 								<span class="text-sm text-muted-foreground">Instatus</span>
-								<span class="font-mono text-sm text-muted-foreground">{cap.instatus}</span>
-							</div>
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-sm text-muted-foreground">Hyperping</span>
-								<span class="font-mono text-sm text-muted-foreground">{cap.hyperping}</span>
-							</div>
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-sm text-foreground">Uppity</span>
-								<span class="font-mono text-sm text-status-up-ink">
-									{m.landing_gate_included()}
+								<span class="text-sm text-muted-foreground" class:font-mono={cap.instatus.mono}>
+									{cap.instatus.text}
 								</span>
 							</div>
 							<div class="flex items-baseline justify-between gap-4">
+								<span class="text-sm text-muted-foreground">Hyperping</span>
+								<span class="text-sm text-muted-foreground" class:font-mono={cap.hyperping.mono}>
+									{cap.hyperping.text}
+								</span>
+							</div>
+							<div class="flex items-baseline justify-between gap-4">
+								<span class="text-sm text-foreground">Uppity</span>
+								<span class="text-sm text-status-up-ink">{m.landing_gate_included()}</span>
+							</div>
+							<div class="flex items-baseline justify-between gap-4">
 								<span class="text-sm text-foreground">{m.landing_gate_col_selfhosted()}</span>
-								<span class="font-mono text-sm text-status-up-ink">{m.landing_gate_free()}</span>
+								<span class="text-sm text-status-up-ink">{m.landing_gate_free()}</span>
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -247,16 +259,20 @@
 						{#each gatedCapabilities as cap (cap.label)}
 							<Table.Row>
 								<Table.Head scope="row" class="font-medium text-foreground">{cap.label}</Table.Head>
-								<Table.Cell class="text-right font-mono text-muted-foreground">
-									{cap.instatus}
+								<Table.Cell
+									class="text-right text-muted-foreground {cap.instatus.mono ? 'font-mono' : ''}"
+								>
+									{cap.instatus.text}
 								</Table.Cell>
-								<Table.Cell class="text-right font-mono text-muted-foreground">
-									{cap.hyperping}
+								<Table.Cell
+									class="text-right text-muted-foreground {cap.hyperping.mono ? 'font-mono' : ''}"
+								>
+									{cap.hyperping.text}
 								</Table.Cell>
-								<Table.Cell class="text-right font-mono text-status-up-ink">
+								<Table.Cell class="text-right text-status-up-ink">
 									{m.landing_gate_included()}
 								</Table.Cell>
-								<Table.Cell class="text-right font-mono text-status-up-ink">
+								<Table.Cell class="text-right text-status-up-ink">
 									{m.landing_gate_free()}
 								</Table.Cell>
 							</Table.Row>
@@ -294,17 +310,20 @@
 						<Card.Header>
 							<Card.Title>{plan.name}</Card.Title>
 							<Card.Description>
-								<span class="font-mono text-base text-foreground">{plan.price}</span
-								>{m.landing_plan_per_month()}{#if plan.note}
-									· {plan.note}{/if}
+								<!-- The suffix is built in one expression rather than an inline {#if}:
+								     Svelte trims the whitespace opening a block, which ate the space
+								     before the separator and rendered "/month· 50 included". -->
+								<span class="font-mono text-base text-foreground">{plan.price.text}</span
+								>{m.landing_plan_per_month()}{plan.note ? ` · ${plan.note}` : ''}
 							</Card.Description>
 						</Card.Header>
 						<Card.Content class="flex flex-col gap-2">
 							{#each planRows as row (row.label)}
+								{@const value = row.value(plan.limits)}
 								<div class="flex items-baseline justify-between gap-4">
 									<span class="text-sm text-muted-foreground">{row.label}</span>
-									<span class="text-sm text-foreground {row.mono ? 'font-mono' : ''}">
-										{row.value(plan.limits)}
+									<span class="text-sm text-foreground" class:font-mono={value.mono}>
+										{value.text}
 									</span>
 								</div>
 							{/each}
@@ -313,7 +332,10 @@
 				{/each}
 			</div>
 
-			<div class="hidden rounded-xl border bg-card p-2 sm:block">
+			<!-- Bare, like the ledger above it. The card wrapper this replaced inset the
+			     table by its own padding, so the row labels alone sat off the left rail
+			     every other block on the page reads from. -->
+			<div class="hidden sm:block">
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
@@ -324,7 +346,7 @@
 								<Table.Head scope="col" class="text-right align-bottom">
 									<span class="block text-foreground">{plan.name}</span>
 									<span class="block font-mono text-base text-foreground">
-										{plan.price}<span class="text-xs text-muted-foreground"
+										{plan.price.text}<span class="text-xs text-muted-foreground"
 											>{m.landing_plan_per_month()}</span
 										>
 									</span>
@@ -340,8 +362,9 @@
 							<Table.Row>
 								<Table.Head scope="row" class="font-medium text-foreground">{row.label}</Table.Head>
 								{#each plans as plan (plan.name)}
-									<Table.Cell class="text-right {row.mono ? 'font-mono' : ''}">
-										{row.value(plan.limits)}
+									{@const value = row.value(plan.limits)}
+									<Table.Cell class="text-right {value.mono ? 'font-mono' : ''}">
+										{value.text}
 									</Table.Cell>
 								{/each}
 							</Table.Row>

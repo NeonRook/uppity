@@ -216,4 +216,19 @@ describe("formatUsdCents", () => {
 	it("formats zero", () => {
 		expect(formatUsdCents(0)).toBe("$0");
 	});
+
+	// Intl binds the amount to its symbol with U+00A0, which is what keeps a price
+	// from wrapping across a line break. Spelled out so a plain space in an
+	// expectation reads as the mistake it is rather than an invisible mismatch.
+	it("writes the symbol where the locale puts it", () => {
+		expect(formatUsdCents(1200, "de")).toBe("12\u00a0$");
+	});
+
+	it("keeps the currency USD regardless of locale", () => {
+		expect(formatUsdCents(1200, "pt-br")).toBe("US$\u00a012");
+	});
+
+	it("uses the locale's decimal and grouping separators", () => {
+		expect(formatUsdCents(299000 / 12, "de")).toBe("249,17\u00a0$");
+	});
 });
