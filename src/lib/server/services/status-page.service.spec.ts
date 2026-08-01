@@ -1,3 +1,5 @@
+import { STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
@@ -100,6 +102,13 @@ async function seedCheck(
 		status,
 		checkedAt,
 	});
+}
+
+function daysAgo(n: number, hour = 12): Date {
+	const d = new Date();
+	d.setDate(d.getDate() - n);
+	d.setHours(hour, 0, 0, 0);
+	return d;
 }
 
 describe("StatusPageService.getPublicStatusPage — maintenance", () => {
@@ -258,5 +267,160 @@ describe("StatusPageService.getPublicStatusPage — maintenance", () => {
 		expect(result).not.toBeNull();
 		expect(result!.ungroupedMonitors).toHaveLength(1);
 		expect(result!.ungroupedMonitors[0].uptimePercent90d).toBe(0);
+	});
+});
+
+describe("StatusPageService.getFeaturedUptime", () => {
+	test("returns null for a slug that does not exist", async ({ db }) => {
+		const service = new StatusPageService(db.db);
+
+		await expect(service.getFeaturedUptime("no-such-page")).resolves.toBeNull();
+	});
+
+	test("returns null for a page that is not public", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await drizzleDb.update(statusPage).set({ isPublic: false }).where(eq(statusPage.id, pageId));
+
+		await expect(service.getFeaturedUptime(slug)).resolves.toBeNull();
+	});
+
+	test("returns one entry per day of the configured history window", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+
+		const result = await service.getFeaturedUptime(slug);
+
+		expect(result?.days).toHaveLength(STATUS_PAGE_HISTORY_DAYS);
+	});
+
+	test("a day with no checks is unknown, never up", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(1));
+
+		const result = await service.getFeaturedUptime(slug);
+
+		// -2 is yesterday (seeded); -3 is the day before, which has no checks.
+		expect(result?.days.at(-3)).toMatchObject({ status: "unknown", uptimePercent: null });
+	});
+
+	test("uptime is null when nothing has been measured at all", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+
+		const result = await service.getFeaturedUptime(slug);
+
+		expect(result?.uptimePercent).toBeNull();
+	});
+
+	test("a day mixing up and down checks reads as partial", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(1, 9));
+		await seedCheck(drizzleDb, monitorId, "down", daysAgo(1, 10));
+
+		const result = await service.getFeaturedUptime(slug);
+		const yesterday = result?.days.at(-2);
+
+		expect(yesterday?.status).toBe("partial");
+	});
+
+	test("a day whose checks all failed reads as down", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedCheck(drizzleDb, monitorId, "down", daysAgo(1, 9));
+		await seedCheck(drizzleDb, monitorId, "down", daysAgo(1, 10));
+
+		const result = await service.getFeaturedUptime(slug);
+
+		expect(result?.days.at(-2)?.status).toBe("down");
+	});
+
+	test("aggregates every monitor on the page into one band", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const firstMonitor = await seedMonitor(drizzleDb, orgId);
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, firstMonitor);
+
+		const secondMonitor = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(statusPageMonitor).values({
+			id: `spm-${nanoid()}`,
+			statusPageId: pageId,
+			monitorId: secondMonitor,
+			order: 1,
+		});
+
+		await seedCheck(drizzleDb, firstMonitor, "up", daysAgo(1, 9));
+		await seedCheck(drizzleDb, secondMonitor, "down", daysAgo(1, 10));
+
+		const result = await service.getFeaturedUptime(slug);
+
+		// One band, not one per monitor: the second monitor's failure has to show.
+		expect(result?.days.at(-2)).toMatchObject({ status: "partial", uptimePercent: 50 });
+	});
+
+	test("checks older than the window are excluded", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedCheck(drizzleDb, monitorId, "down", daysAgo(STATUS_PAGE_HISTORY_DAYS + 5));
+
+		const result = await service.getFeaturedUptime(slug);
+
+		expect(result?.uptimePercent).toBeNull();
+	});
+});
+
+describe("StatusPageService.getPublicStatusPage — unmeasured days", () => {
+	test("a day with no checks is unknown, not a green day nobody measured", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(1));
+
+		const result = await service.getPublicStatusPage(slug);
+		const [monitorStatus] = result!.ungroupedMonitors;
+
+		expect(monitorStatus.dailyHistory.at(-3)).toMatchObject({
+			status: "unknown",
+			uptimePercent: null,
+		});
+	});
+
+	test("uptime over a window with no checks is null, not 100", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+
+		const result = await service.getPublicStatusPage(slug);
+		const [monitorStatus] = result!.ungroupedMonitors;
+
+		expect(monitorStatus.uptimePercent90d).toBeNull();
 	});
 });

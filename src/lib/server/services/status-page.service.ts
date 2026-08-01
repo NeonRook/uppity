@@ -108,14 +108,16 @@ export interface PublicMonitorStatus {
 	name: string;
 	description: string | null;
 	status: "up" | "down" | "degraded" | "unknown" | "maintenance";
-	uptimePercent90d: number;
-	// Days fully covered by a maintenance window render as "up" via the no-data
-	// branch (their checks are excluded from aggregation). A future improvement
-	// would propagate per-day window coverage and emit a "maintenance" bar.
+	/** Null when nothing was measured in the window. Not the same as 100%. */
+	uptimePercent90d: number | null;
+	// Days fully covered by a maintenance window fall into the no-data branch
+	// (their checks are excluded from aggregation) and so read as "unknown". A
+	// future improvement would propagate per-day window coverage and emit a
+	// "maintenance" bar.
 	dailyHistory: Array<{
 		date: string;
-		status: "up" | "down" | "degraded" | "partial";
-		uptimePercent: number;
+		status: "up" | "down" | "degraded" | "partial" | "unknown";
+		uptimePercent: number | null;
 	}>;
 }
 
@@ -126,6 +128,20 @@ export interface PublicMaintenanceView {
 	startsAt: Date;
 	endsAt: Date;
 	affectedMonitorIds: string[];
+}
+
+export interface FeaturedUptimeDay {
+	date: string;
+	status: "up" | "down" | "degraded" | "partial" | "unknown";
+	/** Null when no check ran that day — an absent reading, not a perfect one. */
+	uptimePercent: number | null;
+}
+
+export interface FeaturedUptime {
+	slug: string;
+	name: string;
+	days: FeaturedUptimeDay[];
+	uptimePercent: number | null;
 }
 
 export class StatusPageService {
@@ -585,8 +601,10 @@ export class StatusPageService {
 					}
 					dailyHistory.push({ date: dateStr, status, uptimePercent });
 				} else {
-					// No data for this day - assume up or unknown
-					dailyHistory.push({ date: dateStr, status: "up", uptimePercent: 100 });
+					// Nothing was checked, so nothing is known. Rendering this as "up"
+					// invented ninety days of green for a monitor created yesterday, and
+					// DESIGN.md's Null Is Gray Rule exists precisely to forbid that.
+					dailyHistory.push({ date: dateStr, status: "unknown", uptimePercent: null });
 				}
 			}
 
@@ -597,7 +615,7 @@ export class StatusPageService {
 				totalChecks += data.total;
 				upChecks += data.up;
 			}
-			const uptimePercentHistory = totalChecks > 0 ? (upChecks / totalChecks) * 100 : 100;
+			const uptimePercentHistory = totalChecks > 0 ? (upChecks / totalChecks) * 100 : null;
 
 			const status: PublicMonitorStatus["status"] = activeMonitorIdSet.has(pm.monitor.id)
 				? "maintenance"
@@ -865,6 +883,92 @@ export class StatusPageService {
 				updates,
 			},
 			affectedMonitors,
+		};
+	}
+	/**
+	 * One aggregated uptime band for a single public status page.
+	 *
+	 * Deliberately narrower than `getPublicStatusPage`: the landing page renders
+	 * one bar, so this collapses every monitor on the page into a single row per
+	 * day and skips groups, incidents, maintenance windows and per-monitor
+	 * history entirely. `/` is the busiest anonymous route and previously did no
+	 * database work at all, so it should not pay for a payload it never renders.
+	 *
+	 * A day with no checks is `unknown`, not `up`. `getPublicStatusPage` assumes
+	 * `up` for missing days, which renders a monitor created yesterday as ninety
+	 * days of green; on a surface whose whole purpose is proof that would be a
+	 * fabricated history, and DESIGN.md's Null Is Gray Rule says missing
+	 * information gets no colour.
+	 */
+	async getFeaturedUptime(slug: string): Promise<FeaturedUptime | null> {
+		const page = await this.findBySlug(slug);
+		if (!page || !page.isPublic) {
+			return null;
+		}
+
+		const since = new Date();
+		since.setDate(since.getDate() - (STATUS_PAGE_HISTORY_DAYS - 1));
+		since.setHours(0, 0, 0, 0);
+
+		const rows = await this.db
+			.select({
+				date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
+				total: sql<number>`COUNT(*)::int`.as("total"),
+				up: sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'up' THEN 1 ELSE 0 END)::int`.as(
+					"up",
+				),
+				down: sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'down' THEN 1 ELSE 0 END)::int`.as(
+					"down",
+				),
+				degraded:
+					sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'degraded' THEN 1 ELSE 0 END)::int`.as(
+						"degraded",
+					),
+			})
+			.from(monitorCheck)
+			.innerJoin(statusPageMonitor, eq(statusPageMonitor.monitorId, monitorCheck.monitorId))
+			.where(and(eq(statusPageMonitor.statusPageId, page.id), gte(monitorCheck.checkedAt, since)))
+			.groupBy(sql`DATE(${monitorCheck.checkedAt})`);
+
+		const byDate = new Map(rows.map((r) => [r.date, r]));
+
+		const days: FeaturedUptimeDay[] = [];
+		let totalChecks = 0;
+		let upChecks = 0;
+
+		for (let i = STATUS_PAGE_HISTORY_DAYS - 1; i >= 0; i--) {
+			const date = new Date();
+			date.setDate(date.getDate() - i);
+			const [dateStr] = date.toISOString().split("T");
+			const row = byDate.get(dateStr);
+
+			if (!row || row.total === 0) {
+				days.push({ date: dateStr, status: "unknown", uptimePercent: null });
+				continue;
+			}
+
+			totalChecks += row.total;
+			upChecks += row.up;
+
+			let status: FeaturedUptimeDay["status"] = "up";
+			if (row.down > 0 && row.up === 0) {
+				status = "down";
+			} else if (row.down > 0) {
+				status = "partial";
+			} else if (row.degraded > 0) {
+				status = "degraded";
+			}
+
+			days.push({ date: dateStr, status, uptimePercent: (row.up / row.total) * 100 });
+		}
+
+		return {
+			slug: page.slug,
+			name: page.name,
+			days,
+			// Null rather than a number when nothing has been measured: an instance
+			// with no checks has no uptime, which is not the same as 100%.
+			uptimePercent: totalChecks > 0 ? (upChecks / totalChecks) * 100 : null,
 		};
 	}
 }

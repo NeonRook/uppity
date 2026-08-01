@@ -76,6 +76,21 @@
 	}
 
 	const statusInfo = $derived(getOverallStatusInfo());
+	/**
+	 * An unmeasured window has no uptime figure. Rendering 100% for a monitor
+	 * that has never been checked states a fact the database cannot support.
+	 */
+	function uptimeLabel(percent: number | null): string {
+		return percent === null
+			? m.public_status_no_data()
+			: m.public_status_uptime({ percent: percent.toFixed(2) });
+	}
+
+	function dayTitle(date: string, percent: number | null): string {
+		return percent === null
+			? `${formatDateMonthDay(date)}: ${m.public_status_no_data()}`
+			: `${formatDateMonthDay(date)}: ${percent.toFixed(1)}% uptime`;
+	}
 </script>
 
 <svelte:head>
@@ -274,7 +289,7 @@
 									<span class="font-medium text-foreground">{monitor.name}</span>
 								</div>
 								<span class="font-mono text-sm text-muted-foreground">
-									{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
+									{uptimeLabel(monitor.uptimePercent90d)}
 								</span>
 							</div>
 							<!-- 90-day uptime bar -->
@@ -284,7 +299,7 @@
 										class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
 											day.status
 										)}"
-										title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
+										title={dayTitle(day.date, day.uptimePercent)}
 									></div>
 								{/each}
 							</div>
@@ -315,7 +330,7 @@
 										<span class="font-medium text-foreground">{monitor.name}</span>
 									</div>
 									<span class="font-mono text-sm text-muted-foreground">
-										{m.public_status_uptime({ percent: monitor.uptimePercent90d.toFixed(2) })}
+										{uptimeLabel(monitor.uptimePercent90d)}
 									</span>
 								</div>
 								<!-- 90-day uptime bar -->
@@ -325,7 +340,7 @@
 											class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
 												day.status
 											)}"
-											title="{formatDateMonthDay(day.date)}: {day.uptimePercent.toFixed(1)}% uptime"
+											title={dayTitle(day.date, day.uptimePercent)}
 										></div>
 									{/each}
 								</div>
