@@ -152,7 +152,7 @@ components:
     height: "32px"
   status-banner-operational:
     backgroundColor: "{colors.status-up}"
-    textColor: "oklch(1 0 0)"
+    textColor: "{colors.primary-foreground}"
     typography: "{typography.headline}"
     rounded: "{rounded.lg}"
     padding: "24px"
@@ -231,9 +231,9 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **The Null Is Gray Rule.** Unknown, paused, never-checked, and no-data all render in `status-unknown`. They are never green ("probably fine"), never amber ("mildly concerning"). Missing information gets no color, because coloring it invents a claim the database cannot support.
 
-**The Emerald Never Takes White Rule.** Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink `oklch(0.262 0.051 172.552)`, which reaches 6.14:1. Because `primary` is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons.
+**The Emerald Never Takes White Rule.** Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink `oklch(0.262 0.051 172.552)`, which reaches 6.14:1. Because `primary` is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons — `primary`, `status-up`, and `sidebar-primary` all take the same ink, in both themes.
 
-> **Known exceptions, not yet fixed.** `--status-up-foreground` and `--sidebar-primary-foreground` still resolve to near-white on emerald in the light theme, so the public status banner and the active sidebar item carry the same 2.36:1 defect. They are out of compliance with the rule above and should be brought in line.
+Where a token's fill is derived (`--status-up: var(--primary)`), its foreground is derived too. A literal copy is a second source of truth that will eventually disagree with the first; that is exactly how the near-white value survived a theme rewrite.
 
 ## Typography
 
