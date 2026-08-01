@@ -687,5 +687,6 @@
 	"landing_footer_security": "Segurança",
 	"landing_footer_contact": "Contato",
 	"landing_footer_tagline": "Monitoramento de uptime open source. Rode onde quiser.",
-	"landing_hero_free_note": "Grátis para {count} monitores, sem cartão."
+	"landing_hero_free_note": "Grátis para {count} monitores, sem cartão.",
+	"public_status_no_data": "Sem dados"
 }
