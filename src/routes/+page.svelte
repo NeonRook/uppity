@@ -138,9 +138,10 @@
 				class="flex shrink-0 items-center gap-2 text-lg font-semibold text-foreground"
 			>
 				<img src={logoSvg} alt="" class="size-7" />
-				<!-- Below sm the wordmark is dropped rather than compressed: German runs
-				     ~30% longer and used to render underneath the buttons at 390px. -->
-				<span class="hidden sm:inline">Uppity</span>
+				<!-- Below sm the wordmark is not painted — German runs ~30% longer and
+				     used to render underneath the buttons at 390px — but it stays in the
+				     accessibility tree, so the link is never an unnamed one. -->
+				<span class="sr-only sm:not-sr-only">Uppity</span>
 			</a>
 			<nav class="flex items-center gap-1 sm:gap-3" aria-label={m.landing_footer_product()}>
 				<Button variant="ghost" href={resolve('/login')}>{m.landing_cta_sign_in()}</Button>
@@ -221,17 +222,19 @@
 					<Table.Caption class="text-left">{m.landing_gate_caption()}</Table.Caption>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>{m.landing_gate_col_capability()}</Table.Head>
-							<Table.Head class="text-right">Instatus</Table.Head>
-							<Table.Head class="text-right">Hyperping</Table.Head>
-							<Table.Head class="text-right">Uppity</Table.Head>
-							<Table.Head class="text-right">{m.landing_gate_col_selfhosted()}</Table.Head>
+							<Table.Head scope="col">{m.landing_gate_col_capability()}</Table.Head>
+							<Table.Head scope="col" class="text-right">Instatus</Table.Head>
+							<Table.Head scope="col" class="text-right">Hyperping</Table.Head>
+							<Table.Head scope="col" class="text-right">Uppity</Table.Head>
+							<Table.Head scope="col" class="text-right"
+								>{m.landing_gate_col_selfhosted()}</Table.Head
+							>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
 						{#each gatedCapabilities as cap (cap.label)}
 							<Table.Row>
-								<Table.Cell class="font-medium text-foreground">{cap.label}</Table.Cell>
+								<Table.Head scope="row" class="font-medium text-foreground">{cap.label}</Table.Head>
 								<Table.Cell class="text-right font-mono text-muted-foreground">
 									{cap.instatus}
 								</Table.Cell>
@@ -302,11 +305,11 @@
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
-							<Table.Head>
+							<Table.Head scope="col">
 								<span class="sr-only">{m.landing_gate_col_capability()}</span>
 							</Table.Head>
 							{#each plans as plan (plan.name)}
-								<Table.Head class="text-right align-bottom">
+								<Table.Head scope="col" class="text-right align-bottom">
 									<span class="block text-foreground">{plan.name}</span>
 									<span class="block font-mono text-base text-foreground">
 										{plan.price}<span class="text-xs text-muted-foreground"
@@ -323,7 +326,7 @@
 					<Table.Body>
 						{#each planRows as row (row.label)}
 							<Table.Row>
-								<Table.Cell class="font-medium text-foreground">{row.label}</Table.Cell>
+								<Table.Head scope="row" class="font-medium text-foreground">{row.label}</Table.Head>
 								{#each plans as plan (plan.name)}
 									<Table.Cell class="text-right {row.mono ? 'font-mono' : ''}">
 										{row.value(plan.limits)}
