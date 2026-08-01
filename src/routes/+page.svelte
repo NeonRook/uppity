@@ -7,8 +7,20 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Table from '$lib/components/ui/table';
 	import { DEDICATED_PLAN, FREE_PLAN, SELF_HOSTED_LIMITS, UPPITY_PLAN } from '$lib/constants/plans';
+	import { formatDateMonthDay } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
 	import type { PlanLimits } from '$lib/types/plans';
+	import { getDayStatusColor } from '$lib/utils/status';
+
+	/** `featuredUptime` is present only on the hosted instance, where
+	    UPPITY_LANDING_STATUS_SLUG names a page to feature. */
+	let { data } = $props();
+
+	function dayTitle(date: string, percent: number | null): string {
+		return percent === null
+			? `${formatDateMonthDay(date)}: ${m.public_status_no_data()}`
+			: `${formatDateMonthDay(date)}: ${percent.toFixed(1)}% uptime`;
+	}
 
 	const GITHUB_URL = 'https://github.com/NeonRook/uppity';
 	const STATUS_URL = 'https://uppity.cloud/status/uppity';
@@ -344,6 +356,39 @@
 				{m.landing_proof_title()}
 			</h2>
 			<p class="max-w-[65ch] text-muted-foreground">{m.landing_proof_body()}</p>
+
+			{#if data.featuredUptime}
+				<!-- Real checks or nothing. Days nobody measured stay grey rather than
+				     being coloured in, which is the whole reason this bar is worth
+				     showing at all. -->
+				<figure class="flex flex-col gap-2">
+					<figcaption class="flex items-baseline justify-between gap-4">
+						<span class="text-sm text-foreground">{data.featuredUptime.name}</span>
+						<span class="font-mono text-sm text-muted-foreground">
+							{data.featuredUptime.uptimePercent === null
+								? m.public_status_no_data()
+								: m.public_status_uptime({
+										percent: data.featuredUptime.uptimePercent.toFixed(2)
+									})}
+						</span>
+					</figcaption>
+					<div class="flex gap-0.5" role="presentation">
+						{#each data.featuredUptime.days as day (day.date)}
+							<div
+								class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
+									day.status
+								)}"
+								title={dayTitle(day.date, day.uptimePercent)}
+							></div>
+						{/each}
+					</div>
+					<div class="flex justify-between text-xs text-muted-foreground">
+						<span>{m.public_status_days_ago()}</span>
+						<span>{m.public_status_today()}</span>
+					</div>
+				</figure>
+			{/if}
+
 			<div>
 				<Button variant="outline" href={STATUS_URL} rel="noreferrer">
 					{m.landing_proof_link()}

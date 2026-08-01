@@ -71,6 +71,16 @@ export const DEFAULT_PRIMARY_COLOR = "#000000";
 /** Number of days of uptime history displayed on public status pages. */
 export const STATUS_PAGE_HISTORY_DAYS = envInt("UPPITY_STATUS_PAGE_HISTORY_DAYS", 90);
 
+/**
+ * Slug of a public status page to feature on the landing page, or empty to
+ * omit that section.
+ *
+ * Only meaningful on the hosted instance, where it points at the page Uppity
+ * keeps on itself: the copy around it says so in as many words. A self-hosted
+ * instance leaves this unset and gets the link-only section.
+ */
+export const LANDING_STATUS_PAGE_SLUG = envString("UPPITY_LANDING_STATUS_SLUG", "");
+
 /** Initial status assigned to newly created incidents. */
 export const DEFAULT_INCIDENT_STATUS = "investigating" as const;
 
