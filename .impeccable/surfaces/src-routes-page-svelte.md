@@ -50,6 +50,7 @@ Approved comps: `.impeccable/mocks/comp-c.png` (primary, sidecar marked `approve
 - All copy through Paraglide `m.*` across `en`, `de`, `pt-br`. Design for German (~30% longer) — the previous header broke there.
 - Light and dark are equal citizens. Every new surface verified in both.
 - Extend `src/lib/components/ui/`; do not introduce a parallel component vocabulary.
+- **This page ships no JavaScript.** `+page.server.ts` sets `csr = false` (2026-08-02), so nothing here is hydrated: no client router, no Svelte runtime, no `cn()`/tailwind-merge, no reactive state. Anything added to this surface has to work as server-rendered HTML and CSS. The one exception is the chart's reveal, which is an inline observer in `pricing-cliff-chart.svelte` rather than an attachment — roughly 300 bytes, and the entire client-side budget of the page. A future requirement that genuinely needs hydration is a decision to reverse this, not something to slip in beside it.
 
 ## Implementation fidelity inventory
 

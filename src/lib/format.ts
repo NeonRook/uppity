@@ -149,14 +149,19 @@ export function truncate(str: string, maxLength: number): string {
  * and rendering that as "$249" understates the real charge by $2 a year. Prices that
  * divide evenly — $12, $10 — stay free of decimal noise.
  *
- * USD only. Multi-currency display is deferred; see the multi-currency spec.
+ * The currency is always USD; `locale` only decides how it is written. Pass
+ * `getLocale()` on surfaces whose surrounding prose is translated — German writes
+ * "12 $" and pt-BR "US$ 12", and a hardcoded "$12" beside a translated "12 $/Monat"
+ * reads as two different prices. Defaults to en-US so app chrome is unaffected.
  */
-export function formatUsdCents(cents: number): string {
+export function formatUsdCents(cents: number, locale = "en-US"): string {
 	const amount = cents / 100;
 	const isWholeDollars = Number.isInteger(amount);
 
-	return `$${amount.toLocaleString("en-US", {
+	return amount.toLocaleString(locale, {
+		style: "currency",
+		currency: "USD",
 		minimumFractionDigits: isWholeDollars ? 0 : 2,
 		maximumFractionDigits: isWholeDollars ? 0 : 2,
-	})}`;
+	});
 }

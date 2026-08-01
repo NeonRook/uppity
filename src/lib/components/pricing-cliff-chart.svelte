@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { MONITOR_BLOCK_PRICE_CENTS, MONITOR_BLOCK_SIZE, UPPITY_PLAN } from '$lib/constants/plans';
+	import { formatUsdCents } from '$lib/format';
 	import { m } from '$lib/paraglide/messages.js';
-	import type { Attachment } from 'svelte/attachments';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	/**
 	 * Price against capacity, drawn rather than asserted.
@@ -20,6 +21,17 @@
 	const BASE_MONITORS = UPPITY_PLAN.limits.monitors;
 	const BASE_PRICE = (UPPITY_PLAN.monthlyPriceCents ?? 0) / 100;
 	const BLOCK_PRICE = MONITOR_BLOCK_PRICE_CENTS / 100;
+
+	/** Every figure on the plot, written the way the surrounding caption writes it. */
+	const usd = (dollars: number) => formatUsdCents(dollars * 100, getLocale());
+
+	/**
+	 * Assembled here rather than interpolated across the compact `<text>`: the
+	 * formatter reflows that markup onto several lines, and SVG only *renders*
+	 * the resulting newlines away — they stay in the accessible name and in
+	 * anything that copies the label.
+	 */
+	const competitorSummary = () => COMPETITORS.map((c) => `${c.label} ${usd(c.price)}`).join(' · ');
 
 	/**
 	 * Published monthly list prices, nothing interpolated (PRODUCT.md). These
@@ -41,9 +53,20 @@
 	 * Wide keeps a right-hand series gutter; compact sets its labels inline.
 	 * Wide's height clears its baseline by enough to hold the axis caption's
 	 * descent — at 360 the caption's box crossed the canvas edge.
+	 *
+	 * Both reserve the same 48-unit top inset. The gate annotation hangs above
+	 * the $300 line, so a smaller inset leaves it sharing a baseline with the
+	 * price-axis caption in the top-left corner and the two read as one run of
+	 * text — in German, where the caption is wider, they touch outright.
+	 *
+	 * Both gutters are sized for the longest currency string any shipped locale
+	 * produces, which is pt-BR's "US$ 300" — three characters wider than "$300"
+	 * and the reason 52 was not enough on the left or 596 on the right. Sizing
+	 * to English clips Portuguese, and the plot losing ~5% of its width costs
+	 * the argument nothing.
 	 */
-	const WIDE: Geometry = { w: 720, h: 364, l: 52, r: 596, t: 20, b: 320 };
-	const COMPACT: Geometry = { w: 340, h: 300, l: 40, r: 332, t: 48, b: 250 };
+	const WIDE: Geometry = { w: 720, h: 364, l: 64, r: 580, t: 48, b: 320 };
+	const COMPACT: Geometry = { w: 340, h: 300, l: 64, r: 332, t: 48, b: 250 };
 
 	const scaleX = (g: Geometry, monitors: number) => g.l + (monitors / MAX_MONITORS) * (g.r - g.l);
 	const scaleY = (g: Geometry, price: number) => g.b - (price / MAX_PRICE) * (g.b - g.t);
@@ -89,30 +112,36 @@
 	 * already in view as finished — which would fix mobile by costing desktop
 	 * the moment entirely. So: one observer, disconnected the instant it fires.
 	 *
-	 * `drawn` is only ever assigned from the observer callback, which is
-	 * asynchronous and therefore untracked — so the attachment does not list it
-	 * as a dependency and never tears itself down mid-animation.
+	 * It ships as inline markup rather than as an attachment because `/` sets
+	 * `csr = false` and is never hydrated. This is the page's entire JavaScript
+	 * budget — roughly 300 bytes, parsed from the document that carries it,
+	 * against the 87 KB the framework cost to do the same thing.
+	 *
+	 * The `rootMargin` fires when the chart's top reaches the upper 60% of the
+	 * viewport, not when its first pixel peeks over the bottom edge. On a
+	 * 390x844 phone the chart already pokes into the fold at load, so a
+	 * permissive margin reintroduces exactly the bug this is here to fix.
+	 * Measured against the element's own top rather than a visible-fraction
+	 * threshold, which breaks once the chart is taller than the viewport.
+	 *
+	 * The tag name is interpolated at both ends, and this comment spells no tag
+	 * out either. Svelte closes the block at the first literal closing script
+	 * tag it meets, and Prettier reads a literal opening one as a second
+	 * component script — anywhere in the file, prose included. Escaping the
+	 * slash satisfies both but trips the linters, which see an escape that is
+	 * redundant everywhere except here.
 	 */
-	let drawn = $state(false);
-
-	const drawOnReveal: Attachment = (node) => {
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (!entries.some((entry) => entry.isIntersecting)) return;
-				drawn = true;
-				observer.disconnect();
-			},
-			// Fire when the chart's top reaches the upper 60% of the viewport, not
-			// when its first pixel peeks over the bottom edge. On a 390x844 phone
-			// the chart already pokes into the fold at load, so a permissive
-			// margin reintroduces exactly the bug this is here to fix. Measured
-			// against the element's own top rather than a visible-fraction
-			// threshold, which breaks once the chart is taller than the viewport.
-			{ rootMargin: '0px 0px -40% 0px' }
-		);
-		observer.observe(node);
-		return () => observer.disconnect();
-	};
+	const TAG = 'script';
+	const REVEAL_SCRIPT = `<${TAG}>
+for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
+	const o = new IntersectionObserver((entries) => {
+		if (!entries.some((e) => e.isIntersecting)) return;
+		el.classList.add("cliff-drawn");
+		o.disconnect();
+	}, { rootMargin: "0px 0px -40% 0px" });
+	o.observe(el);
+}
+</${TAG}>`;
 </script>
 
 {#snippet plot(g: Geometry, monitorTicks: number[], compact: boolean)}
@@ -139,7 +168,7 @@
 				x={g.l - 8}
 				y={scaleY(g, p) + 4}
 				text-anchor="end"
-				class="fill-muted-foreground font-mono text-xs">${p}</text
+				class="fill-muted-foreground font-mono text-xs">{usd(p)}</text
 			>
 		{/each}
 
@@ -159,10 +188,10 @@
 		<text x={g.r} y={g.b + 38} text-anchor="end" class="fill-muted-foreground text-xs"
 			>{m.landing_chart_axis_monitors()}</text
 		>
-		<!-- Pinned to the viewBox top, not to `t`. Hung off the plot area it was
-		     clipped on wide (where t is small) and collided with the gate label
-		     on compact (where t is large) — one offset cannot serve both, and
-		     what this label actually wants is the top-left corner. -->
+		<!-- Pinned to the viewBox corner, not hung off `t`: an offset measured from
+		     the plot area was either clipped at the canvas edge or pushed down into
+		     the gate annotation's band. The corner is what this label actually wants,
+		     and the 48-unit top inset is what keeps the two apart. -->
 		<text x="0" y="16" text-anchor="start" class="fill-muted-foreground text-xs"
 			>{m.landing_chart_axis_price()}</text
 		>
@@ -196,27 +225,27 @@
 		>
 
 		{#if compact}
-			<!-- Below the line: above it the gate marker already owns that band. -->
+			<!-- Below the line: above it the gate marker already owns that band. Far
+			     enough below to clear the $300 tick opposite it — in pt-BR the label
+			     runs wide enough to reach across and share that band. -->
 			<text
 				x={g.r}
-				y={scaleY(g, COMPETITORS[1].price) + 16}
+				y={scaleY(g, COMPETITORS[1].price) + 24}
 				text-anchor="end"
-				class="fill-muted-foreground font-mono text-xs"
-				>{COMPETITORS[0].label} ${COMPETITORS[0].price} · {COMPETITORS[1].label} ${COMPETITORS[1]
-					.price}</text
+				class="fill-muted-foreground font-mono text-xs">{competitorSummary()}</text
 			>
 		{:else}
 			<text
 				x={g.r + 8}
 				y={scaleY(g, COMPETITORS[0].price) - 4}
 				class="fill-muted-foreground font-mono text-xs"
-				>{COMPETITORS[0].label} ${COMPETITORS[0].price}</text
+				>{COMPETITORS[0].label} {usd(COMPETITORS[0].price)}</text
 			>
 			<text
 				x={g.r + 8}
 				y={scaleY(g, COMPETITORS[1].price) + 12}
 				class="fill-muted-foreground font-mono text-xs"
-				>{COMPETITORS[1].label} ${COMPETITORS[1].price}</text
+				>{COMPETITORS[1].label} {usd(COMPETITORS[1].price)}</text
 			>
 		{/if}
 
@@ -236,33 +265,42 @@
 					x={scaleX(g, c.monitors)}
 					y={scaleY(g, c.price) - 10}
 					text-anchor="middle"
-					class="fill-foreground font-mono text-xs">${c.price}</text
+					class="fill-foreground font-mono text-xs">{usd(c.price)}</text
 				>
 			</g>
 		{/each}
 
+		<!-- Emerald ink, not the emerald itself: Vital Emerald sits at 0.696 lightness
+		     and computes to 2.37:1 as text on Ward Paper. Same relationship the
+		     ledger's "Included at $12" cells use, and it still reads as this
+		     series because the ink is the same hue as the line it names. -->
 		{#if compact}
 			<text
 				x={g.r}
 				y={scaleY(g, topStep.price) - 10}
 				text-anchor="end"
-				class="fill-primary font-mono text-xs">Uppity ${topStep.price}</text
+				class="fill-status-up-ink font-mono text-xs">Uppity {usd(topStep.price)}</text
 			>
 		{:else}
-			<text x={g.r + 8} y={scaleY(g, topStep.price) + 4} class="fill-primary font-mono text-xs"
-				>Uppity ${topStep.price}</text
+			<text
+				x={g.r + 8}
+				y={scaleY(g, topStep.price) + 4}
+				class="fill-status-up-ink font-mono text-xs">Uppity {usd(topStep.price)}</text
 			>
 		{/if}
 	</svg>
 {/snippet}
 
-<figure class="flex flex-col gap-3" class:cliff-drawn={drawn} {@attach drawOnReveal}>
+<figure class="flex flex-col gap-3" data-cliff-reveal>
 	{@render plot(COMPACT, compactMonitorTicks, true)}
 	{@render plot(WIDE, wideMonitorTicks, false)}
 	<figcaption class="max-w-[65ch] text-sm text-muted-foreground">
 		{m.landing_chart_caption()}
 	</figcaption>
 </figure>
+<!-- After the figure, so the element it observes is already parsed. -->
+<!-- eslint-disable-next-line svelte/no-at-html-tags -- authored constant, no interpolation -->
+{@html REVEAL_SCRIPT}
 
 <style>
 	/*
@@ -299,7 +337,11 @@
 		stroke-dashoffset: 0;
 	}
 
-	.cliff-drawn .cliff-ladder {
+	/* `cliff-drawn` is set from the inline observer rather than from a class
+	   directive, so it never appears in this component's markup and Svelte
+	   would prune these rules as unused. `:global()` on the ancestor keeps
+	   them; the animated children stay scoped. */
+	:global(.cliff-drawn) .cliff-ladder {
 		/*
 		 * Held back so the chart is seen before anything moves, and eased with a
 		 * cubic rather than an expo curve: expo covers most of the path in its
@@ -309,14 +351,14 @@
 		animation: cliff-draw 1100ms cubic-bezier(0.33, 1, 0.68, 1) 700ms backwards;
 	}
 
-	.cliff-drawn .cliff-mark {
+	:global(.cliff-drawn) .cliff-mark {
 		animation: cliff-settle 350ms ease-out 1600ms backwards;
 	}
 
 	/* Reduced motion gets the finished reading, not a slower one. */
 	@media (prefers-reduced-motion: reduce) {
-		.cliff-drawn .cliff-ladder,
-		.cliff-drawn .cliff-mark {
+		:global(.cliff-drawn) .cliff-ladder,
+		:global(.cliff-drawn) .cliff-mark {
 			animation: none;
 		}
 	}
