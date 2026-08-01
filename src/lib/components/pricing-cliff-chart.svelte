@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { MONITOR_BLOCK_PRICE_CENTS, MONITOR_BLOCK_SIZE, UPPITY_PLAN } from '$lib/constants/plans';
 	import { m } from '$lib/paraglide/messages.js';
+	import type { Attachment } from 'svelte/attachments';
 
 	/**
 	 * Price against capacity, drawn rather than asserted.
 	 *
 	 * Authored SVG rather than a charting library on purpose: the figures are
-	 * static and this page is the product's SEO surface, so it ships as
-	 * server-rendered markup with no client JS. Every colour resolves through a
-	 * token, so light and dark both work without a second code path.
+	 * static and this page is the product's SEO surface, so the whole chart is
+	 * server-rendered markup. The only client code is the observer that starts
+	 * the draw; nothing the chart *says* depends on it. Every colour resolves
+	 * through a token, so light and dark both work without a second code path.
 	 *
 	 * Two geometries rather than one scaled plot: a 720-unit viewBox squeezed
 	 * into 350px renders its labels at roughly 5px, so the narrow viewport gets
@@ -35,8 +37,12 @@
 
 	type Geometry = { w: number; h: number; l: number; r: number; t: number; b: number };
 
-	/** Wide keeps a right-hand series gutter; compact sets its labels inline. */
-	const WIDE: Geometry = { w: 720, h: 360, l: 52, r: 596, t: 20, b: 320 };
+	/**
+	 * Wide keeps a right-hand series gutter; compact sets its labels inline.
+	 * Wide's height clears its baseline by enough to hold the axis caption's
+	 * descent — at 360 the caption's box crossed the canvas edge.
+	 */
+	const WIDE: Geometry = { w: 720, h: 364, l: 52, r: 596, t: 20, b: 320 };
 	const COMPACT: Geometry = { w: 340, h: 300, l: 40, r: 332, t: 48, b: 250 };
 
 	const scaleX = (g: Geometry, monitors: number) => g.l + (monitors / MAX_MONITORS) * (g.r - g.l);
@@ -72,6 +78,41 @@
 	const priceTicks = [0, 100, 200, 300];
 	const wideMonitorTicks = [200, 400, 600, 800, 1000];
 	const compactMonitorTicks = [500, 1000];
+
+	/**
+	 * The draw plays once, when the chart is actually on screen. On a phone it
+	 * sits well below the fold, so a load-triggered animation finishes long
+	 * before the reader arrives and they scroll down to a static chart.
+	 *
+	 * CSS cannot express this. `animation-timeline: view()` scrubs progress
+	 * against scroll position rather than playing once, and treats an element
+	 * already in view as finished — which would fix mobile by costing desktop
+	 * the moment entirely. So: one observer, disconnected the instant it fires.
+	 *
+	 * `drawn` is only ever assigned from the observer callback, which is
+	 * asynchronous and therefore untracked — so the attachment does not list it
+	 * as a dependency and never tears itself down mid-animation.
+	 */
+	let drawn = $state(false);
+
+	const drawOnReveal: Attachment = (node) => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (!entries.some((entry) => entry.isIntersecting)) return;
+				drawn = true;
+				observer.disconnect();
+			},
+			// Fire when the chart's top reaches the upper 60% of the viewport, not
+			// when its first pixel peeks over the bottom edge. On a 390x844 phone
+			// the chart already pokes into the fold at load, so a permissive
+			// margin reintroduces exactly the bug this is here to fix. Measured
+			// against the element's own top rather than a visible-fraction
+			// threshold, which breaks once the chart is taller than the viewport.
+			{ rootMargin: '0px 0px -40% 0px' }
+		);
+		observer.observe(node);
+		return () => observer.disconnect();
+	};
 </script>
 
 {#snippet plot(g: Geometry, monitorTicks: number[], compact: boolean)}
@@ -102,18 +143,27 @@
 			>
 		{/each}
 
+		<!-- The compact plot's right edge *is* the viewBox edge — unlike wide,
+		     which reserves a series gutter — so a centred final tick hangs 7
+		     units into the void and "1000" renders as "100". An axis that
+		     understates capacity tenfold is the one error this chart cannot
+		     afford, so the last tick anchors to its own end. -->
 		{#each monitorTicks as mt (mt)}
 			<text
 				x={scaleX(g, mt)}
 				y={g.b + 20}
-				text-anchor="middle"
+				text-anchor={compact && mt === MAX_MONITORS ? 'end' : 'middle'}
 				class="fill-muted-foreground font-mono text-xs">{mt}</text
 			>
 		{/each}
 		<text x={g.r} y={g.b + 38} text-anchor="end" class="fill-muted-foreground text-xs"
 			>{m.landing_chart_axis_monitors()}</text
 		>
-		<text x="0" y={g.t - 10} text-anchor="start" class="fill-muted-foreground text-xs"
+		<!-- Pinned to the viewBox top, not to `t`. Hung off the plot area it was
+		     clipped on wide (where t is small) and collided with the gate label
+		     on compact (where t is large) — one offset cannot serve both, and
+		     what this label actually wants is the top-left corner. -->
+		<text x="0" y="16" text-anchor="start" class="fill-muted-foreground text-xs"
 			>{m.landing_chart_axis_price()}</text
 		>
 
@@ -170,8 +220,8 @@
 			>
 		{/if}
 
-		<!-- pathLength normalises the ladder to 1 unit, so the draw needs no
-		     measurement and no client JS. -->
+		<!-- pathLength normalises the ladder to 1 unit, so the draw is a plain
+		     dashoffset animation with nothing to measure at runtime. -->
 		<path
 			d={path(g)}
 			pathLength="1"
@@ -206,7 +256,7 @@
 	</svg>
 {/snippet}
 
-<figure class="flex flex-col gap-3">
+<figure class="flex flex-col gap-3" class:cliff-drawn={drawn} {@attach drawOnReveal}>
 	{@render plot(COMPACT, compactMonitorTicks, true)}
 	{@render plot(WIDE, wideMonitorTicks, false)}
 	<figcaption class="max-w-[65ch] text-sm text-muted-foreground">
@@ -220,7 +270,7 @@
 	 * settle. An instrument reporting a measurement, which is the only thing
 	 * DESIGN.md licenses motion for — it acknowledges, then stops.
 	 *
-	 * Exponential ease-out. Nothing else on this page moves.
+	 * Plays once, on reveal. Nothing else on this page moves.
 	 */
 	@keyframes cliff-draw {
 		from {
@@ -240,11 +290,18 @@
 		}
 	}
 
+	/* Resting state is the finished reading: dasharray 1 against pathLength 1 is
+	   a single dash long enough to cover the whole path. Motion is layered on
+	   top, so no JS, no IntersectionObserver, and reduced motion all land here
+	   rather than on a chart stuck half-drawn. */
 	.cliff-ladder {
 		stroke-dasharray: 1;
 		stroke-dashoffset: 0;
+	}
+
+	.cliff-drawn .cliff-ladder {
 		/*
-		 * Held back so the page is read before anything moves, and eased with a
+		 * Held back so the chart is seen before anything moves, and eased with a
 		 * cubic rather than an expo curve: expo covers most of the path in its
 		 * first fraction, which reads as a line whipping across rather than an
 		 * instrument tracing a measurement.
@@ -252,14 +309,14 @@
 		animation: cliff-draw 1100ms cubic-bezier(0.33, 1, 0.68, 1) 700ms backwards;
 	}
 
-	.cliff-mark {
+	.cliff-drawn .cliff-mark {
 		animation: cliff-settle 350ms ease-out 1600ms backwards;
 	}
 
 	/* Reduced motion gets the finished reading, not a slower one. */
 	@media (prefers-reduced-motion: reduce) {
-		.cliff-ladder,
-		.cliff-mark {
+		.cliff-drawn .cliff-ladder,
+		.cliff-drawn .cliff-mark {
 			animation: none;
 		}
 	}
