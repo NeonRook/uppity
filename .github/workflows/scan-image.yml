@@ -53,6 +53,24 @@ jobs:
             exit 1
           fi
 
+      # The package was private from January until 2026-08-04 without anyone noticing,
+      # so `docker pull` never worked for a self-hoster despite the README documenting
+      # it. Anonymous readability is the property users actually depend on, and nothing
+      # else in CI tests it — a scan that passes on an unpullable image is worthless.
+      - name: Verify the image is anonymously pullable
+        if: steps.exists.outputs.found == 'true'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          path="${REPO,,}"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "https://ghcr.io/token?scope=repository%3A${path}%3Apull&service=ghcr.io")
+          if [ "$code" != "200" ]; then
+            echo "::error::ghcr.io/${path} is not anonymously pullable (token endpoint returned $code). Check the package's visibility setting."
+            exit 1
+          fi
+          echo "ghcr.io/${path} is publicly readable"
+
       - if: steps.exists.outputs.found == 'true'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
