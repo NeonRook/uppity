@@ -3,13 +3,15 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-3.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A self-hosted monitoring and status page application built with SvelteKit 2 and Svelte 5.
+A self-hosted monitoring and status page application built with SvelteKit 2 and
+Svelte 5.
 
 ## Features
 
 - **Monitor Types**: HTTP, TCP, and push-based health checks
 - **Incident Management**: Track and manage service incidents
-- **Notifications**: Multi-channel alerts via Email, Slack, Discord, and Webhooks
+- **Notifications**: Multi-channel alerts via Email, Slack, Discord, and
+  Webhooks
 - **Public Status Pages**: Customizable status pages for your customers
 - **Multi-tenant**: Organization-based authentication with team support
 - **Admin Panel**: Manage users and organizations
@@ -17,18 +19,22 @@ A self-hosted monitoring and status page application built with SvelteKit 2 and 
 ## Tech Stack
 
 - **Runtime**: [Bun](https://bun.sh)
-- **Framework**: [SvelteKit 2](https://svelte.dev/docs/kit) with [Svelte 5](https://svelte.dev)
+- **Framework**: [SvelteKit 2](https://svelte.dev/docs/kit) with
+  [Svelte 5](https://svelte.dev)
 - **Database**: PostgreSQL via [Drizzle ORM](https://orm.drizzle.team)
 - **Auth**: [better-auth](https://www.better-auth.com) with organization support
 - **UI**: [shadcn-svelte](https://shadcn-svelte.com) components
-- **Forms**: [sveltekit-superforms](https://superforms.rocks) with Valibot validation
-- **i18n**: [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs)
+- **Forms**: [sveltekit-superforms](https://superforms.rocks) with Valibot
+  validation
+- **i18n**:
+  [Paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs)
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) (v1.0+)
+- [Bun](https://bun.sh) — the version pinned in [`mise.toml`](mise.toml).
+  `mise install` reproduces it locally, and CI installs from the same file.
 - [PostgreSQL](https://www.postgresql.org) (v15+) or use Docker
 
 ### Quick Start
@@ -154,6 +160,39 @@ docker build \
   -t uppity .
 ```
 
+### Verifying the image
+
+Published images carry a Sigstore-backed build provenance attestation. Verify
+that an image was built by this repository's workflow, from this repository's
+source, before running it:
+
+```bash
+gh attestation verify oci://ghcr.io/neonrook/uppity:latest --repo NeonRook/uppity
+```
+
+No keys to distribute and no trust in the registry required — the attestation is
+signed by GitHub's OIDC identity for the workflow that produced it.
+
+Images are published for `linux/amd64` and `linux/arm64`.
+
+**Tags**
+
+| Tag            | Contents                                               |
+| -------------- | ------------------------------------------------------ |
+| `latest`       | The most recent release                                |
+| `0.2.0`, `0.2` | A specific release, and the newest patch on that minor |
+| `edge`         | The current state of `main`. Not release-tested        |
+| `main-<sha>`   | A specific commit on `main`                            |
+
+For production self-hosting, pin the digest rather than a tag — a tag can be
+repointed, a digest cannot:
+
+```bash
+docker pull ghcr.io/neonrook/uppity@sha256:<digest>
+```
+
+Each release's digest is printed in its GitHub release notes.
+
 ### Environment Variables
 
 See [`.env.example`](.env.example) for all available configuration options.
@@ -172,12 +211,16 @@ See [`.env.example`](.env.example) for all available configuration options.
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md)
+for details.
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+This project follows the
+[Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+This project is licensed under the
+[GNU Affero General Public License v3.0](LICENSE).
 
-**Commercial licensing** is available for organizations that cannot use AGPL-licensed software. Contact us for details.
+**Commercial licensing** is available for organizations that cannot use
+AGPL-licensed software. Contact us for details.
