@@ -33,7 +33,7 @@ jobs:
           # changeset version reads git history to attribute changelog entries.
           fetch-depth: 0
           # The ONLY checkout in this repository that keeps credentials:
-          # changesets/action pushes the version branch and the release tag.
+          # changesets/action pushes the branch it opens the version pull request from.
           persist-credentials: true
 
       - uses: ./.github/actions/setup-bun
@@ -41,8 +41,9 @@ jobs:
           paraglide: "false"
 
       # With pending changesets: opens or updates a "Version Packages" pull request.
-      # With none left (the version PR just merged): runs `changeset tag` and pushes
-      # v0.2.0, and sets published=true.
+      # With none left (the version PR just merged): runs `changeset tag` and sets
+      # published=true. The tag is NOT pushed from here — `announce` creates it
+      # server-side once the image exists. See createGithubReleases below.
       - name: Version or tag
         id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
