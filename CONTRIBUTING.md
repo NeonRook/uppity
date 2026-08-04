@@ -109,6 +109,11 @@ Examples:
 Every pull request that changes behaviour needs a changeset. It records what changed and how the
 version should move, and it becomes the changelog entry on release.
 
+`CHANGELOG.md` is generated from `.changeset/` files by Changesets on release and should not be
+hand-edited — entries from 0.1.1 onward are all generated this way; earlier entries follow
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ```bash
 bun changeset
 ```

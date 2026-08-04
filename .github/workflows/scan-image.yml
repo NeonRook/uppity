@@ -45,7 +45,7 @@ jobs:
           echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           if err=$(docker manifest inspect "$IMAGE" 2>&1 >/dev/null); then
             echo "found=true" >> "$GITHUB_OUTPUT"
-          elif printf '%s' "$err" | grep -qiE 'manifest unknown|not found|no such manifest'; then
+          elif printf '%s' "$err" | grep -qiE 'manifest unknown|name unknown|not found|no such manifest'; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::notice::$IMAGE does not exist yet — skipping scan"
           else
@@ -60,6 +60,9 @@ jobs:
           format: sarif
           output: trivy-${{ matrix.tag }}.sarif
           severity: HIGH,CRITICAL
+          # Without this, entrypoint.sh unsets TRIVY_SEVERITY whenever format=sarif and
+          # reports every severity, silently ignoring the line above.
+          limit-severities-for-sarif: true
           exit-code: "0"
         env:
           TRIVY_USERNAME: ${{ github.actor }}

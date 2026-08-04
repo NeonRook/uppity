@@ -49,6 +49,13 @@ jobs:
           REPO: ${{ github.repository }}
         run: echo "ref=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ steps.image.outputs.ref }}
+          tags: ${{ inputs.tags }}
+
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -64,6 +71,11 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ steps.image.outputs.ref }},push-by-digest=true,name-canonical=true,push=true
+          # Image-config labels are per-architecture and survive the later
+          # `imagetools create` merge — this is what gives GHCR its
+          # org.opencontainers.image.source linkage back to the repository. Do not add
+          # `tags:` here: the push-by-digest outputs line above must stay as-is.
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.slug }}
           cache-to: type=gha,mode=max,scope=${{ matrix.slug }}
           provenance: mode=max
@@ -174,6 +186,9 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
+          # Without this, entrypoint.sh unsets TRIVY_SEVERITY whenever format=sarif and
+          # reports every severity, silently ignoring the line above.
+          limit-severities-for-sarif: true
           exit-code: "0"
         env:
           TRIVY_USERNAME: ${{ github.actor }}

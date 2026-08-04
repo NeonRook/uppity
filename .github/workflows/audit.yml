@@ -39,6 +39,9 @@ jobs:
           format: sarif
           output: trivy-deps.sarif
           severity: HIGH,CRITICAL
+          # Without this, entrypoint.sh unsets TRIVY_SEVERITY whenever format=sarif and
+          # reports every severity, silently ignoring the line above.
+          limit-severities-for-sarif: true
           exit-code: "0"
         env:
           # Mandatory. Trivy skips dev dependencies by default, and most of this
