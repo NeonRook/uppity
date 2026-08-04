@@ -1,0 +1,116 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main
+  # Never cancel a publish mid-flight: an interrupted run can leave a git tag
+  # with no corresponding image.
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  release:
+    name: Release
+    runs-on: ubuntu-26.04
+    needs: checks
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # changeset version reads git history to attribute changelog entries.
+          fetch-depth: 0
+          # The ONLY checkout in this repository that keeps credentials:
+          # changesets/action pushes the version branch and the release tag.
+          persist-credentials: true
+
+      - uses: ./.github/actions/setup-bun
+        with:
+          paraglide: "false"
+
+      # With pending changesets: opens or updates a "Version Packages" pull request.
+      # With none left (the version PR just merged): runs `changeset tag` and pushes
+      # v0.2.0, and sets published=true.
+      - name: Version or tag
+        id: changesets
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          version: bun run changeset:version
+          publish: bun run changeset:tag
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read package version
+        id: version
+        run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [checks, release]
+    uses: ./.github/workflows/publish-image.yml
+    with:
+      tags: |
+        type=edge,branch=main
+        type=sha,prefix=main-,format=short
+        type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }},enable=${{ needs.release.outputs.published == 'true' }}
+        type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }},enable=${{ needs.release.outputs.published == 'true' }}
+        type=raw,value=latest,enable=${{ needs.release.outputs.published == 'true' }}
+
+  announce:
+    name: GitHub Release
+    runs-on: ubuntu-26.04
+    needs: [release, publish]
+    if: needs.release.outputs.published == 'true'
+    permissions:
+      contents: write
+    steps:
+      # github.sha is the merged "Version Packages" commit, so CHANGELOG.md here
+      # already contains the section changesets just generated.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+          REPO: ${{ github.repository }}
+        run: |
+          notes=$(mktemp)
+          awk -v want="## $VERSION" '
+            $0 == want { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > "$notes"
+          {
+            echo
+            echo "## Container image"
+            echo
+            echo '```'
+            echo "docker pull ${IMAGE}:${VERSION}"
+            echo '```'
+            echo
+            echo "Digest: \`${DIGEST}\`"
+            echo
+            echo "Verify build provenance:"
+            echo
+            echo '```'
+            echo "gh attestation verify oci://${IMAGE}:${VERSION} --repo ${REPO}"
+            echo '```'
+          } >> "$notes"
+          gh release create "v${VERSION}" --title "v${VERSION}" --notes-file "$notes"
