@@ -1,0 +1,114 @@
+name: Checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+      - run: bun run lint:ci
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+      - run: bun --bun run check
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-26.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+      # The "client" vitest project runs in a real browser but pins chromium alone,
+      # so installing firefox and webkit is pure runner time.
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:unit run
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-26.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      VITE_BETTER_AUTH_URL: http://localhost:4173
+      # better-auth reads this from process.env at runtime; the build only needs a
+      # non-empty value to be present. Never the real secret.
+      BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+      - run: bunx playwright install --with-deps chromium
+      - run: bun --bun run db:migrate
+      - run: bun run test:e2e
+
+  build:
+    name: Build
+    runs-on: ubuntu-26.04
+    env:
+      VITE_BETTER_AUTH_URL: http://localhost:5173
+      BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+      - run: bun --bun run build:all
+
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+        with:
+          paraglide: "false"
+      - run: bun audit --audit-level=high

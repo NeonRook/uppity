@@ -1,0 +1,36 @@
+name: Set up Bun
+description: >-
+  Installs the mise-pinned Bun toolchain, restores the dependency cache, installs dependencies and
+  optionally compiles Paraglide messages. Assumes the repository is already checked out.
+
+inputs:
+  paraglide:
+    description: >-
+      Compile Paraglide messages after installing. Set to "false" for jobs that neither typecheck,
+      lint, nor run the application.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # Installs from mise.toml so the Bun version is declared in exactly one place.
+    # install_args limits this to bun — mise.toml also pins actionlint, which CI
+    # jobs other than the workflow lint have no use for.
+    - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v4
+      with:
+        install_args: bun
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          bun-${{ runner.os }}-${{ runner.arch }}-
+
+    - run: bun install --frozen-lockfile
+      shell: bash
+
+    - if: inputs.paraglide == 'true'
+      run: bun --bun run i18n:generate
+      shell: bash
