@@ -13,6 +13,13 @@ RUN bun install --frozen-lockfile
 # install with --production (exclude devDependencies)
 RUN mkdir -p /temp/prod
 COPY package.json bun.lock /temp/prod/
+# Skip peer dependencies for the runtime tree. --production correctly excludes
+# devDependencies, but production packages pull heavy optional peers that Bun
+# installs by default: better-auth declares vitest and drizzle-kit as optional
+# peers, and drizzle-kit brings esbuild. That was ~275MB and 35 CVE-carrying
+# esbuild binaries in the runtime image, for tools nothing at runtime uses.
+# Migrations use drizzle-orm's migrator (build/migrate.js), not drizzle-kit.
+RUN printf '[install]\npeer = false\n' > /temp/prod/bunfig.toml
 WORKDIR /temp/prod
 RUN bun install --frozen-lockfile --production
 
