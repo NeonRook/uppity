@@ -1,0 +1,185 @@
+name: Publish Image
+
+on:
+  workflow_call:
+    inputs:
+      tags:
+        description: A docker/metadata-action tag expression.
+        required: true
+        type: string
+    outputs:
+      digest:
+        description: Digest of the published manifest list.
+        value: ${{ jobs.merge.outputs.digest }}
+      image:
+        description: Lowercased image reference, without a tag.
+        value: ${{ jobs.merge.outputs.image }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.slug }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slug: amd64
+            platform: linux/amd64
+            runner: ubuntu-26.04
+          - slug: arm64
+            platform: linux/arm64
+            runner: ubuntu-26.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # GHCR requires a lowercase path, and github.repository preserves the owner's
+      # casing (NeonRook). The registry coerces on push, but attest-build-provenance
+      # rejects a mixed-case subject-name outright.
+      - name: Compute image reference
+        id: image
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "ref=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ steps.image.outputs.ref }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.slug }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.slug }}
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            BETTER_AUTH_SECRET=ci-placeholder-not-a-real-secret
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: digest-${{ matrix.slug }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  merge:
+    name: Merge and attest
+    runs-on: ubuntu-26.04
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      digest: ${{ steps.inspect.outputs.digest }}
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - name: Compute image reference
+        id: image
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "ref=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ steps.image.outputs.ref }}
+          tags: ${{ inputs.tags }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: |
+          # DOCKER_METADATA_OUTPUT_JSON is set by docker/metadata-action above.
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect published manifest list
+        id: inspect
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" \
+            --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      # Attest the MANIFEST LIST, not the per-architecture digests. A client pulling
+      # the tag resolves the manifest-list digest and looks for an attestation against
+      # that; per-arch attestations resolve to nothing.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
+        with:
+          subject-name: ${{ steps.image.outputs.ref }}
+          subject-digest: ${{ steps.inspect.outputs.digest }}
+          push-to-registry: true
+
+  scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-26.04
+    needs: merge
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      # Non-blocking by design: the artifact already exists and is tagged. A CVE
+      # disclosed in a base-image package should be recorded, not used to cancel a
+      # release that cannot be un-cut.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ needs.merge.outputs.image }}@${{ needs.merge.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
