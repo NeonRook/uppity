@@ -64,4 +64,9 @@ jobs:
           persist-credentials: false
       - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
         with:
-          advanced-security: true
+          # advanced-security uploads SARIF via codeql-action/upload-sarif, which 403s
+          # on a fork PR's read-only token and rethrows — failing this blocking check
+          # for a reason an external contributor cannot fix. Same-repo PRs still get
+          # SARIF in the Security tab; fork PRs get the same findings as annotations.
+          advanced-security: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          annotations: ${{ github.event.pull_request.head.repo.full_name != github.repository }}

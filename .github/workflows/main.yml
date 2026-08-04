@@ -51,6 +51,14 @@ jobs:
           publish: bun run changeset:tag
           title: "chore: version packages"
           commit: "chore: version packages"
+          # This action's own createGithubReleases defaults to true, which would have
+          # it call repos.createRelease as soon as `changeset tag` prints "New tag:" —
+          # before `publish` has even started. `announce` would then hit HTTP 422
+          # (already_exists) on every release, and the release notes that actually
+          # shipped would be this action's, missing the digest and the
+          # `gh attestation verify` command README.md promises. Leave release creation
+          # to `announce`, which runs only after the image is published.
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -127,4 +135,4 @@ jobs:
             echo "gh attestation verify oci://${IMAGE}:${VERSION} --repo ${REPO}"
             echo '```'
           } >> "$notes"
-          gh release create "v${VERSION}" --title "v${VERSION}" --notes-file "$notes"
+          gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --notes-file "$notes"
