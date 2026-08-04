@@ -60,6 +60,16 @@ jobs:
 
   publish:
     needs: [checks, release]
+    # A caller job's permissions are the ceiling for the workflow it calls — a reusable
+    # workflow can narrow them but never widen them. These are the union of what
+    # publish-image.yml's build, merge and scan jobs request; each job there still
+    # narrows to its own subset.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
     uses: ./.github/workflows/publish-image.yml
     with:
       tags: |
@@ -91,6 +101,10 @@ jobs:
           DIGEST: ${{ needs.publish.outputs.digest }}
           REPO: ${{ github.repository }}
         run: |
+          if ! grep -q "^## ${VERSION}\$" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## ${VERSION}' section — refusing to cut a release with empty notes"
+            exit 1
+          fi
           notes=$(mktemp)
           awk -v want="## $VERSION" '
             $0 == want { capture = 1; next }
