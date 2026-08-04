@@ -45,7 +45,9 @@ export default defineConfig({
 				test: {
 					name: "server",
 					environment: "node",
-					include: ["src/**/*.{test,spec}.{js,ts}"],
+					// scripts/ holds build tooling with real logic (check-externals);
+					// its specs run in the server project, which is the Node environment.
+					include: ["src/**/*.{test,spec}.{js,ts}", "scripts/**/*.{test,spec}.{js,ts}"],
 					exclude: ["src/**/*.svelte.{test,spec}.{js,ts}"],
 					globalSetup: ["./src/lib/server/test/global-setup.ts"],
 				},
