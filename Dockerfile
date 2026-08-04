@@ -34,6 +34,17 @@ RUN bun --bun run prepare && bun --bun run build:all
 
 # Stage 3: Production image
 FROM base AS runner
+
+# Static OCI metadata, so an image built outside the pipeline — by a self-hoster from
+# source, or by Railway — is still self-describing. CI overrides these and adds the
+# dynamic ones (revision, version, created) via docker/metadata-action.
+LABEL org.opencontainers.image.title="uppity" \
+  org.opencontainers.image.description="Self-hosted uptime monitoring and status pages. HTTP, TCP, and push-based health checks with incident tracking and multi-channel notifications." \
+  org.opencontainers.image.source="https://github.com/NeonRook/uppity" \
+  org.opencontainers.image.url="https://github.com/NeonRook/uppity" \
+  org.opencontainers.image.documentation="https://github.com/NeonRook/uppity#readme" \
+  org.opencontainers.image.licenses="AGPL-3.0-only" \
+  org.opencontainers.image.vendor="NeonRook"
 # Create non-root user
 RUN groupadd --system --gid 1001 uppity && \
   useradd --system --uid 1001 --gid uppity uppity

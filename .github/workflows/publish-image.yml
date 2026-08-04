@@ -133,6 +133,12 @@ jobs:
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        env:
+          # Emit `index:`-prefixed annotations. For a multi-architecture image GHCR
+          # reads INDEX annotations to populate the package page's repository link,
+          # description and licence — the per-architecture config labels set in the
+          # build job are not enough on their own, and leave the package looking bare.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
         with:
           images: ${{ steps.image.outputs.ref }}
           tags: ${{ inputs.tags }}
@@ -141,12 +147,22 @@ jobs:
         working-directory: /tmp/digests
         env:
           IMAGE: ${{ steps.image.outputs.ref }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+          ANNOTATIONS: ${{ steps.meta.outputs.annotations }}
         run: |
-          # DOCKER_METADATA_OUTPUT_JSON is set by docker/metadata-action above.
-          # shellcheck disable=SC2046
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "${IMAGE}@sha256:%s " *)
+          # Built as an array rather than by word-splitting a command substitution:
+          # annotation values contain spaces, which $(...) expansion would shred.
+          args=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && args+=(--tag "$tag")
+          done <<< "$TAGS"
+          while IFS= read -r ann; do
+            [ -n "$ann" ] && args+=(--annotation "$ann")
+          done <<< "$ANNOTATIONS"
+          for digest in *; do
+            args+=("${IMAGE}@sha256:${digest}")
+          done
+          docker buildx imagetools create "${args[@]}"
 
       - name: Inspect published manifest list
         id: inspect
