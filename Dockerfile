@@ -1,5 +1,8 @@
 # Stage 1: Install dependencies
-FROM oven/bun:1 AS base
+# Alpine rather than the Debian-based default: same bun binary (84.5MB), on an
+# 11MB userland instead of a 132MB one, and both amd64 and arm64 are published.
+# Not distroless -- sh is needed for docker exec and for HEALTHCHECK's CMD-SHELL.
+FROM oven/bun:1-alpine AS base
 WORKDIR /usr/src/app
 
 # install dependencies into temp directory
@@ -53,17 +56,30 @@ LABEL org.opencontainers.image.title="uppity" \
   org.opencontainers.image.licenses="AGPL-3.0-only" \
   org.opencontainers.image.vendor="NeonRook"
 # Create non-root user
-RUN groupadd --system --gid 1001 uppity && \
-  useradd --system --uid 1001 --gid uppity uppity
+# busybox applets, so short flags only: -S system, -u uid, -g gid, -G group.
+RUN addgroup -S -g 1001 uppity && \
+  adduser -S -u 1001 -G uppity uppity
 
-# Copy built application and dependencies
-COPY --from=install --chown=uppity:uppity /temp/prod/node_modules node_modules
+# The runtime tree is exactly RUNTIME_EXTERNALS from externals.config.ts -- the
+# specifiers that cannot be bundled and are actually executed. Everything else the
+# server needs is inlined into build/server. Copied by path out of the install
+# stage so the version matches what the build resolved, with no second install.
+# @opentelemetry/api declares no dependencies, so this directory is complete.
+COPY --from=install --chown=uppity:uppity \
+  /temp/prod/node_modules/@opentelemetry/api node_modules/@opentelemetry/api
+
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
-COPY --from=builder --chown=uppity:uppity /usr/src/app/package.json .
 
-# Copy drizzle for migrations (optional runtime migrations)
+# Migration SQL. scripts/migrate.ts hardcodes ./drizzle; drizzle.config.ts is
+# drizzle-kit's config and drizzle-kit is not in this image, so it is not copied.
 COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle ./drizzle
-COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle.config.ts ./
+
+# A minimal manifest rather than the project's. Two reasons: "type": "module" so
+# Bun treats build/*.js as ESM, and a full manifest would declare ~40 packages
+# that are not present, which vulnerability scanners report as findings against
+# code that does not ship.
+RUN printf '{"type":"module","private":true}' > package.json && \
+  chown uppity:uppity package.json
 
 USER uppity
 EXPOSE 3000/tcp
