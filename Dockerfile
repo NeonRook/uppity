@@ -5,31 +5,20 @@
 FROM oven/bun:1-alpine AS base
 WORKDIR /usr/src/app
 
-# install dependencies into temp directory
-# this will cache them and speed up future builds
+# Install dependencies into a temp directory once. There used to be a second,
+# --production-only install here to build a separate runtime-only tree, but the
+# runtime image no longer ships a dependency tree at all (see the runner stage
+# below) -- it copies exactly one dependency-free package out of this one.
 FROM base AS install
-RUN mkdir -p /temp/dev
-COPY package.json bun.lock /temp/dev/
-WORKDIR /temp/dev
+RUN mkdir -p /temp/deps
+COPY package.json bun.lock /temp/deps/
+WORKDIR /temp/deps
 RUN bun install --frozen-lockfile
-
-# install with --production (exclude devDependencies)
-RUN mkdir -p /temp/prod
-COPY package.json bun.lock /temp/prod/
-# Skip peer dependencies for the runtime tree. --production correctly excludes
-# devDependencies, but production packages pull heavy optional peers that Bun
-# installs by default: better-auth declares vitest and drizzle-kit as optional
-# peers, and drizzle-kit brings esbuild. That was ~275MB and 35 CVE-carrying
-# esbuild binaries in the runtime image, for tools nothing at runtime uses.
-# Migrations use drizzle-orm's migrator (build/migrate.js), not drizzle-kit.
-RUN printf '[install]\npeer = false\n' > /temp/prod/bunfig.toml
-WORKDIR /temp/prod
-RUN bun install --frozen-lockfile --production
 
 # Stage 2: Build application
 FROM base AS builder
 WORKDIR /usr/src/app
-COPY --from=install /temp/dev/node_modules node_modules
+COPY --from=install /temp/deps/node_modules node_modules
 COPY . .
 # VITE_ prefixed vars are client-side and must be set at build time
 ARG VITE_BETTER_AUTH_URL="https://localhost:3000"
@@ -63,10 +52,11 @@ RUN addgroup -S -g 1001 uppity && \
 # The runtime tree is exactly RUNTIME_EXTERNALS from externals.config.ts -- the
 # specifiers that cannot be bundled and are actually executed. Everything else the
 # server needs is inlined into build/server. Copied by path out of the install
-# stage so the version matches what the build resolved, with no second install.
-# @opentelemetry/api declares no dependencies, so this directory is complete.
+# stage's one dependency tree so the version matches what the build resolved,
+# with no second install. @opentelemetry/api declares no dependencies, so this
+# directory is complete.
 COPY --from=install --chown=uppity:uppity \
-  /temp/prod/node_modules/@opentelemetry/api node_modules/@opentelemetry/api
+  /temp/deps/node_modules/@opentelemetry/api node_modules/@opentelemetry/api
 
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
 
