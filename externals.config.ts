@@ -2,8 +2,8 @@
  * Specifiers the SSR bundle is permitted to leave unresolved.
  *
  * `ssr.noExternal` bundles everything else, so the runtime image ships no
- * node_modules beyond RUNTIME_EXTERNALS. Adding to either list is a deliberate
- * act: scripts/check-externals.ts fails the build on anything not listed here.
+ * node_modules beyond RUNTIME_EXTERNALS. Adding to it is a deliberate act:
+ * scripts/check-externals.ts fails the build on anything not listed here.
  *
  * See docs/superpowers/specs/2026-08-04-runtime-image-size-design.md
  */
@@ -19,15 +19,4 @@ export const RUNTIME_EXTERNALS = [
 	"@opentelemetry/api",
 ] as const;
 
-/**
- * Never executed. better-auth bundles a Kysely adapter whose dialects statically
- * reference driver packages; this project uses the Drizzle adapter, so those code
- * paths are dead. They are already absent from the production image today and
- * already never resolve, so leaving them external keeps behaviour identical.
- *
- * They are listed only because `noExternal: true` would otherwise make Vite try
- * to resolve them and fail the build. They must NOT be copied into the image.
- */
-export const DEAD_EXTERNALS = ["pg", "mysql2", "tedious", "better-sqlite3", "tarn"] as const;
-
-export const SSR_EXTERNALS: readonly string[] = [...RUNTIME_EXTERNALS, ...DEAD_EXTERNALS];
+export const SSR_EXTERNALS: readonly string[] = [...RUNTIME_EXTERNALS];
