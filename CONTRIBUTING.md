@@ -104,6 +104,28 @@ Examples:
 - `fix(notifications): handle rate limiting in Slack channel`
 - `docs(readme): update installation instructions`
 
+### Changesets
+
+Every pull request that changes behaviour needs a changeset. It records what changed and how the
+version should move, and it becomes the changelog entry on release.
+
+```bash
+bun changeset
+```
+
+Pick a bump level, write a short user-facing description, and commit the generated file in
+`.changeset/`. Bump levels: `patch` for fixes, `minor` for new features, `major` for breaking
+changes.
+
+Pull requests that change no behaviour — documentation, CI, tests, refactors — still need a
+changeset file so the check passes, but an empty one:
+
+```bash
+bun changeset --empty
+```
+
+The `Changeset` check on your pull request fails until one is present.
+
 ### Pull Requests
 
 1. Fill out the PR template completely

@@ -41,7 +41,10 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"auth:generate": "bun x auth@latest generate --output src/lib/server/db/auth-schema.ts --yes",
-		"i18n:generate": "bun x @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide"
+		"i18n:generate": "bun x @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+		"changeset": "changeset",
+		"changeset:version": "changeset version && bun install --lockfile-only",
+		"changeset:tag": "changeset tag"
 	},
 	"dependencies": {
 		"@fontsource-variable/ibm-plex-sans": "5.3.0",
@@ -65,6 +68,8 @@
 		"valibot": "^1.4.2"
 	},
 	"devDependencies": {
+		"@changesets/changelog-github": "^0.7.0",
+		"@changesets/cli": "^2.31.1",
 		"@eslint/compat": "^2.1.0",
 		"@eslint/js": "^10.0.1",
 		"@inlang/paraglide-js": "^2.23.0",
