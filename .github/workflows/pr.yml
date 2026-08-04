@@ -1,0 +1,67 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          # Licences that cannot be combined into an AGPL-3.0-only distribution. A starting
+          # list, not an exhaustive legal analysis — tune as false positives appear.
+          deny-licenses: >-
+            MPL-1.1, CDDL-1.0, CDDL-1.1, EPL-1.0, CPL-1.0, NPL-1.1,
+            SSPL-1.0, BUSL-1.1, Elastic-2.0, CC-BY-NC-4.0
+
+  changeset:
+    name: Changeset
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # `changeset status --since` compares against the base branch, which a
+          # shallow clone does not contain.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bun
+        with:
+          paraglide: "false"
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+        run: bun changeset status --since="origin/$BASE_REF"
+
+  zizmor:
+    name: Workflow Lint
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          advanced-security: true
