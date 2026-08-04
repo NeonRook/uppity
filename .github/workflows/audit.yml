@@ -1,0 +1,55 @@
+name: Audit
+
+on:
+  schedule:
+    # 06:17 UTC daily. Deliberately off the hour: GitHub's scheduler is congested at
+    # :00 and queues jobs scheduled there, sometimes by tens of minutes.
+    - cron: "17 6 * * *"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependencies:
+    name: Dependency Scan
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # exit-code 0 keeps this non-blocking: the SARIF upload is the report, and a
+      # newly disclosed advisory against unchanged dependencies should not fail an
+      # unrelated pull request.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: sarif
+          output: trivy-deps.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+        env:
+          # Mandatory. Trivy skips dev dependencies by default, and most of this
+          # project's advisories arrive through the dev toolchain — without this the
+          # scan looks clean when it is not.
+          TRIVY_INCLUDE_DEV_DEPS: "true"
+
+      # A fork pull request gets a read-only token regardless of the permissions
+      # block, so the upload cannot succeed. Skip rather than fail.
+      - if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4
+        with:
+          sarif_file: trivy-deps.sarif
+          category: trivy-dependencies
