@@ -17,8 +17,8 @@ export default defineConfig({
 
 	// Bundle the SSR graph instead of externalising it, so the runtime image needs no
 	// node_modules beyond RUNTIME_EXTERNALS. Externalised imports were what forced the
-	// whole 357MB production tree into the image; see externals.config.ts for why each
-	// remaining exception cannot be bundled.
+	// whole 357MB production tree into the image. The allowlist is everything that must
+	// still resolve at run time; see externals.config.ts for why.
 	ssr: { noExternal: true, external: [...SSR_EXTERNALS] },
 
 	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
