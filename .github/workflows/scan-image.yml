@@ -1,0 +1,67 @@
+name: Scan Image
+
+on:
+  schedule:
+    # Mondays at 05:41 UTC. Base-image CVEs move more slowly than npm advisories,
+    # so weekly rather than daily.
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan ${{ matrix.tag }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [latest, edge]
+    steps:
+      - name: Compute image reference
+        id: image
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "ref=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+      # Before the first release there is no :latest tag, and this workflow would
+      # fail every Monday for a reason that is not a security problem.
+      - name: Check the tag exists
+        id: exists
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}:${{ matrix.tag }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$IMAGE does not exist yet — skipping scan"
+          fi
+
+      - if: steps.exists.outputs.found == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}:${{ matrix.tag }}
+          format: sarif
+          output: trivy-${{ matrix.tag }}.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - if: steps.exists.outputs.found == 'true'
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4
+        with:
+          sarif_file: trivy-${{ matrix.tag }}.sarif
+          # Distinct category per tag, so findings against :latest and :edge do not
+          # overwrite each other in the Security tab.
+          category: trivy-image-${{ matrix.tag }}
