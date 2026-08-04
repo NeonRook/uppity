@@ -30,20 +30,27 @@ jobs:
         run: echo "ref=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
 
       # Before the first release there is no :latest tag, and this workflow would
-      # fail every Monday for a reason that is not a security problem.
+      # fail every Monday for a reason that is not a security problem. Distinguish
+      # a confirmed-absent tag from every other failure (bad auth, missing
+      # packages:read, a registry outage): only the registry's own "no such
+      # manifest" answer counts as absent. Anything else is a loud error, because a
+      # security scan that silently stops running is worse than one that fails.
       - name: Check the tag exists
         id: exists
         env:
           IMAGE: ${{ steps.image.outputs.ref }}:${{ matrix.tag }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
-          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+          if err=$(docker manifest inspect "$IMAGE" 2>&1 >/dev/null); then
             echo "found=true" >> "$GITHUB_OUTPUT"
-          else
+          elif printf '%s' "$err" | grep -qiE 'manifest unknown|not found|no such manifest'; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::notice::$IMAGE does not exist yet — skipping scan"
+          else
+            echo "::error::cannot determine whether $IMAGE exists: $err"
+            exit 1
           fi
 
       - if: steps.exists.outputs.found == 'true'
