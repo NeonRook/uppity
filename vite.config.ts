@@ -5,6 +5,8 @@ import { playwright } from "@vitest/browser-playwright";
 import devtoolsJson from "vite-plugin-devtools-json";
 import { defineConfig } from "vitest/config";
 
+import { SSR_EXTERNALS } from "./externals.config";
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -13,10 +15,16 @@ export default defineConfig({
 		paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/lib/paraglide" }),
 	],
 
-	// better-auth dynamic-imports @opentelemetry/api and reads named exports (`mod.trace`).
-	// Vite's CJS→ESM interop returns `{ default: exports }`, so the import must stay
-	// external — Bun resolves it at runtime with correct named-export extraction.
-	ssr: { external: ["@opentelemetry/api"] },
+	// Bundle the SSR graph instead of externalising it, so the runtime image needs no
+	// node_modules beyond RUNTIME_EXTERNALS. Externalised imports were what forced the
+	// whole 357MB production tree into the image; see externals.config.ts for why each
+	// remaining exception cannot be bundled.
+	ssr: { noExternal: true, external: [...SSR_EXTERNALS] },
+
+	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
+	// Diagnosis relies on the structured pino logs instead. The client build already
+	// emits none, so this changes only the server.
+	build: { sourcemap: false },
 
 	test: {
 		expect: { requireAssertions: true },
