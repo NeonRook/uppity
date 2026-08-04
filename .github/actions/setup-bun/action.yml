@@ -17,7 +17,7 @@ runs:
     # Installs from mise.toml so the Bun version is declared in exactly one place.
     # install_args limits this to bun — mise.toml also pins actionlint, which CI
     # jobs other than the workflow lint have no use for.
-    - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v4
+    - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
       with:
         install_args: bun
 
