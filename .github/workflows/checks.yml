@@ -101,14 +101,6 @@ jobs:
       - uses: ./.github/actions/setup-bun
       - run: bun --bun run build:all
 
-  audit:
-    name: Dependency Audit
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-        with:
-          paraglide: "false"
-      - run: bun audit --audit-level=high
+# Dependency auditing does not live here. A PR-only audit learns nothing during a quiet
+# week with no dependency-touching PRs, so it runs on a schedule (plus pull requests) in
+# audit.yml, using trivy fs to report SARIF to the Security tab, non-blocking.
