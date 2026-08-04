@@ -26,5 +26,12 @@ try {
 	console.error("migration failed:", error);
 	process.exitCode = 1;
 } finally {
-	await client.end();
+	// end() rejects on an already-closed socket and can hang if the server stopped
+	// responding. Either would mask the migration result — and this runs as Railway's
+	// preDeployCommand, where a hang blocks the deploy rather than failing it.
+	try {
+		await client.end({ timeout: 5 });
+	} catch (error) {
+		console.warn("could not close the database connection cleanly:", error);
+	}
 }
