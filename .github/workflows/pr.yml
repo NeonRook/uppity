@@ -38,6 +38,13 @@ jobs:
   changeset:
     name: Changeset
     runs-on: ubuntu-26.04
+    # Skip on the Version Packages pull request. It bumps package.json and deletes
+    # every changeset — that is its whole purpose — so `changeset status` correctly
+    # reports "packages changed but no changesets found" and exits 1. The check can
+    # never pass there, by construction. A skipped job counts as success for a
+    # required status check, so this unblocks that PR without weakening the gate on
+    # any other.
+    if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
