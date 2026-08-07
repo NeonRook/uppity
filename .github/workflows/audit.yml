@@ -52,7 +52,7 @@ jobs:
       # A fork pull request gets a read-only token regardless of the permissions
       # block, so the upload cannot succeed. Skip rather than fail.
       - if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
         with:
           sarif_file: trivy-deps.sarif
           category: trivy-dependencies
