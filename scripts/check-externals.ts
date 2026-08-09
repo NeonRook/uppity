@@ -22,7 +22,7 @@ export function packageNameOf(specifier: string): string {
 	return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
 }
 
-/** Specifiers that are neither relative, nor Node built-ins, nor allowlisted. */
+/** Specifiers that are neither relative nor absolute, nor Node built-ins, nor allowlisted. */
 export function disallowedFrom(specifiers: Iterable<string>, allowed: readonly string[]): string[] {
 	const offences = new Set<string>();
 
