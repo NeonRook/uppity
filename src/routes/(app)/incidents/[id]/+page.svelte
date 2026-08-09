@@ -1,34 +1,34 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { superForm } from 'sveltekit-superforms';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { LoaderCircle, Trash2, FileText, Pencil, X } from '@lucide/svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import PageHeader from "$lib/components/page-header.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import {
+		INCIDENT_STATUS_VALUES,
+		INCIDENT_IMPACTS,
+		type IncidentStatusValue,
+		type IncidentImpact,
+	} from "$lib/constants/status";
 	import {
 		getStatusInfo,
 		getImpactInfo,
 		getStatusLabel,
 		getImpactLabel,
-		formatIncidentDate
-	} from '$lib/incidents';
-	import {
-		INCIDENT_STATUS_VALUES,
-		INCIDENT_IMPACTS,
-		type IncidentStatusValue,
-		type IncidentImpact
-	} from '$lib/constants/status';
-	import { m } from '$lib/paraglide/messages.js';
-	import { deleteIncident } from '$lib/remote/incidents.remote';
+		formatIncidentDate,
+	} from "$lib/incidents";
+	import { m } from "$lib/paraglide/messages.js";
+	import { deleteIncident } from "$lib/remote/incidents.remote";
+	import { LoaderCircle, Trash2, FileText, Pencil, X } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -37,7 +37,7 @@
 		errors: editErrors,
 		enhance: editEnhance,
 		delayed: editDelayed,
-		message: editMessage
+		message: editMessage,
 	} = superForm(untrack(() => data.updateForm));
 
 	const {
@@ -46,7 +46,7 @@
 		enhance: addEnhance,
 		delayed: addDelayed,
 		message: addMessage,
-		reset: resetAddForm
+		reset: resetAddForm,
 	} = superForm(
 		untrack(() => data.addUpdateForm),
 		{
@@ -54,8 +54,8 @@
 				if (form.valid) {
 					resetAddForm();
 				}
-			}
-		}
+			},
+		},
 	);
 
 	const {
@@ -63,7 +63,7 @@
 		errors: postmortemErrors,
 		enhance: postmortemEnhance,
 		delayed: postmortemDelayed,
-		message: postmortemMessage
+		message: postmortemMessage,
 	} = superForm(untrack(() => data.postmortemForm));
 
 	const {
@@ -71,24 +71,24 @@
 		errors: editPostmortemErrors,
 		enhance: editPostmortemEnhance,
 		delayed: editPostmortemDelayed,
-		message: editPostmortemMessage
+		message: editPostmortemMessage,
 	} = superForm(
 		untrack(() => data.editPostmortemForm),
-		{ resetForm: false }
+		{ resetForm: false },
 	);
 
 	let showDeleteDialog = $state(false);
 	let editingPostmortem = $state(false);
 
 	// Get existing postmortem if any
-	const existingPostmortem = $derived(data.incident.updates.find((u) => u.status === 'postmortem'));
+	const existingPostmortem = $derived(data.incident.updates.find((u) => u.status === "postmortem"));
 
 	const statusInfo = $derived(getStatusInfo(data.incident.status));
 	const impactInfo = $derived(getImpactInfo(data.incident.impact));
 
 	async function handleDelete() {
 		await deleteIncident({ incidentId: data.incident.id });
-		goto(resolve('/incidents'));
+		goto(resolve("/incidents"));
 	}
 </script>
 
@@ -105,7 +105,7 @@
 				{m.incidents_impact({ impact: getImpactLabel(data.incident.impact) })}
 			</Badge>
 		</div>
-		<p class="text-sm text-muted-foreground">
+		<p class="text-muted-foreground text-sm">
 			{m.incident_started_at({ date: formatIncidentDate(data.incident.startedAt) })}
 			{#if data.incident.resolvedAt}
 				| {m.incident_resolved_at({ date: formatIncidentDate(data.incident.resolvedAt) })}
@@ -143,7 +143,7 @@
 	{/if}
 
 	<!-- Add Update -->
-	{#if data.incident.status !== 'resolved'}
+	{#if data.incident.status !== "resolved"}
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>{m.incident_post_update()}</Card.Title>
@@ -181,7 +181,7 @@
 							bind:value={$addForm.message}
 							disabled={$addDelayed}
 							rows={3}
-							aria-invalid={$addErrors.message ? 'true' : undefined}
+							aria-invalid={$addErrors.message ? "true" : undefined}
 						/>
 						<Field.Error errors={$addErrors.message} />
 					</Field.Field>
@@ -200,11 +200,11 @@
 	{/if}
 
 	<!-- Postmortem Section (only for resolved incidents) -->
-	{#if data.incident.status === 'resolved'}
+	{#if data.incident.status === "resolved"}
 		<Card.Root class="border-status-maintenance/30 bg-status-maintenance-surface">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
-					<FileText class="h-5 w-5 text-status-maintenance-ink" />
+					<FileText class="text-status-maintenance-ink h-5 w-5" />
 					{m.incident_postmortem()}
 				</Card.Title>
 				<Card.Description>
@@ -237,7 +237,7 @@
 									bind:value={$editPostmortemForm.message}
 									disabled={$editPostmortemDelayed}
 									rows={6}
-									aria-invalid={$editPostmortemErrors.message ? 'true' : undefined}
+									aria-invalid={$editPostmortemErrors.message ? "true" : undefined}
 								/>
 								<Field.Error errors={$editPostmortemErrors.message} />
 							</Field.Field>
@@ -263,13 +263,13 @@
 					{:else}
 						<!-- Show existing postmortem -->
 						<div class="space-y-4">
-							<div class="rounded-md bg-card p-4">
+							<div class="bg-card rounded-md p-4">
 								<p class="text-sm whitespace-pre-wrap">{existingPostmortem.message}</p>
 							</div>
 							<div class="flex items-center justify-between">
-								<p class="text-xs text-muted-foreground">
+								<p class="text-muted-foreground text-xs">
 									{m.incident_postmortem_published({
-										date: formatIncidentDate(existingPostmortem.createdAt)
+										date: formatIncidentDate(existingPostmortem.createdAt),
 									})}
 								</p>
 								<Button variant="outline" size="sm" onclick={() => (editingPostmortem = true)}>
@@ -292,7 +292,7 @@
 								bind:value={$postmortemForm.message}
 								disabled={$postmortemDelayed}
 								rows={6}
-								aria-invalid={$postmortemErrors.message ? 'true' : undefined}
+								aria-invalid={$postmortemErrors.message ? "true" : undefined}
 							/>
 							<Field.Error errors={$postmortemErrors.message} />
 						</Field.Field>
@@ -324,9 +324,9 @@
 					{@const UpdateIcon = updateStatusInfo.icon}
 					<div class="relative flex gap-4">
 						{#if i < data.incident.updates.length - 1}
-							<div class="absolute top-8 left-3.75 h-full w-0.5 bg-border"></div>
+							<div class="bg-border absolute top-8 left-3.75 h-full w-0.5"></div>
 						{/if}
-						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+						<div class="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
 							<UpdateIcon class="h-4 w-4" />
 						</div>
 						<div class="flex-1 pb-2">
@@ -334,7 +334,7 @@
 								<Badge variant={updateStatusInfo.variant} class="text-xs">
 									{getStatusLabel(update.status)}
 								</Badge>
-								<span class="text-xs text-muted-foreground">
+								<span class="text-muted-foreground text-xs">
 									{formatIncidentDate(update.createdAt)}
 								</span>
 							</div>
@@ -379,7 +379,7 @@
 						name="title"
 						bind:value={$editForm.title}
 						disabled={$editDelayed}
-						aria-invalid={$editErrors.title ? 'true' : undefined}
+						aria-invalid={$editErrors.title ? "true" : undefined}
 					/>
 					<Field.Error errors={$editErrors.title} />
 				</Field.Field>

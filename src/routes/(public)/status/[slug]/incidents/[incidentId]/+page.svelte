@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { ArrowLeft, Clock, Server, FileText } from '@lucide/svelte';
-	import { resolve } from '$app/paths';
-	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from '$lib/incidents';
-	import { formatDuration } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
+	import { resolve } from "$app/paths";
+	import { formatDuration } from "$lib/format";
+	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "$lib/incidents";
+	import { m } from "$lib/paraglide/messages.js";
+	import { ArrowLeft, Clock, Server, FileText } from "@lucide/svelte";
 
 	let { data } = $props();
 
@@ -12,8 +12,8 @@
 	const impactInfo = $derived(getImpactInfo(incident.impact));
 
 	// Separate postmortem from timeline updates
-	const postmortemUpdate = $derived(incident.updates.find((u) => u.status === 'postmortem'));
-	const timelineUpdates = $derived(incident.updates.filter((u) => u.status !== 'postmortem'));
+	const postmortemUpdate = $derived(incident.updates.find((u) => u.status === "postmortem"));
+	const timelineUpdates = $derived(incident.updates.filter((u) => u.status !== "postmortem"));
 </script>
 
 <svelte:head>
@@ -23,18 +23,18 @@
 	{/if}
 </svelte:head>
 
-<div class="min-h-screen bg-background">
+<div class="bg-background min-h-screen">
 	<!-- Header -->
-	<header class="border-b bg-card">
+	<header class="bg-card border-b">
 		<div class="mx-auto max-w-4xl px-4 py-6">
 			<div class="flex items-center gap-4">
 				{#if page.logoUrl}
 					<img src={page.logoUrl} alt={page.name} class="h-10 w-auto" />
 				{/if}
 				<div>
-					<h1 class="text-2xl font-bold text-foreground">{page.name}</h1>
+					<h1 class="text-foreground text-2xl font-bold">{page.name}</h1>
 					{#if page.description}
-						<p class="text-sm text-muted-foreground">{page.description}</p>
+						<p class="text-muted-foreground text-sm">{page.description}</p>
 					{/if}
 				</div>
 			</div>
@@ -45,16 +45,16 @@
 		<!-- Back link -->
 		<a
 			href={resolve(`/status/${page.slug}`)}
-			class="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+			class="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm"
 		>
 			<ArrowLeft class="h-4 w-4" />
 			{m.public_incident_back()}
 		</a>
 
 		<!-- Incident Header -->
-		<div class="mb-8 rounded-lg border bg-card p-6">
+		<div class="bg-card mb-8 rounded-lg border p-6">
 			<div class="mb-4">
-				<h2 class="text-2xl font-bold text-foreground">{incident.title}</h2>
+				<h2 class="text-foreground text-2xl font-bold">{incident.title}</h2>
 				<div class="mt-3 flex flex-wrap items-center gap-3">
 					<span
 						class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium {statusInfo.bg} {statusInfo.color}"
@@ -71,19 +71,19 @@
 			</div>
 
 			<!-- Duration Info -->
-			<div class="flex flex-wrap gap-6 border-t border-border pt-4 text-sm text-muted-foreground">
+			<div class="border-border text-muted-foreground flex flex-wrap gap-6 border-t pt-4 text-sm">
 				<div class="flex items-center gap-2">
-					<Clock class="h-4 w-4 text-muted-foreground" />
+					<Clock class="text-muted-foreground h-4 w-4" />
 					<span class="font-mono"
 						>{m.public_status_started({ date: formatIncidentDateTime(incident.startedAt) })}</span
 					>
 				</div>
 				{#if incident.resolvedAt}
 					<div class="flex items-center gap-2">
-						<Clock class="h-4 w-4 text-muted-foreground" />
+						<Clock class="text-muted-foreground h-4 w-4" />
 						<span class="font-mono"
 							>{m.public_incident_resolved({
-								date: formatIncidentDateTime(incident.resolvedAt)
+								date: formatIncidentDateTime(incident.resolvedAt),
 							})}</span
 						>
 					</div>
@@ -91,7 +91,7 @@
 				<div class="flex items-center gap-2">
 					<span class="font-mono"
 						>{m.public_status_duration({
-							duration: formatDuration(incident.startedAt, incident.resolvedAt)
+							duration: formatDuration(incident.startedAt, incident.resolvedAt),
 						})}</span
 					>
 					{#if !incident.resolvedAt}
@@ -103,14 +103,14 @@
 
 		<!-- Affected Monitors -->
 		{#if affectedMonitors.length > 0}
-			<div class="mb-8 rounded-lg border bg-card p-6">
-				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-					<Server class="h-5 w-5 text-muted-foreground" />
+			<div class="bg-card mb-8 rounded-lg border p-6">
+				<h3 class="text-foreground mb-4 flex items-center gap-2 text-lg font-semibold">
+					<Server class="text-muted-foreground h-5 w-5" />
 					{m.public_incident_affected_services()}
 				</h3>
 				<div class="flex flex-wrap gap-2">
 					{#each affectedMonitors as monitor (monitor.id)}
-						<span class="rounded-full bg-secondary px-3 py-1 text-sm text-foreground">
+						<span class="bg-secondary text-foreground rounded-full px-3 py-1 text-sm">
 							{monitor.name}
 						</span>
 					{/each}
@@ -121,26 +121,26 @@
 		<!-- Postmortem -->
 		{#if postmortemUpdate}
 			<div
-				class="mb-8 rounded-lg border border-status-maintenance/30 bg-status-maintenance-surface p-6"
+				class="border-status-maintenance/30 bg-status-maintenance-surface mb-8 rounded-lg border p-6"
 			>
-				<h3 class="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-					<FileText class="h-5 w-5 text-status-maintenance-ink" />
+				<h3 class="text-foreground mb-4 flex items-center gap-2 text-lg font-semibold">
+					<FileText class="text-status-maintenance-ink h-5 w-5" />
 					{m.incident_status_postmortem()}
 				</h3>
-				<div class="prose prose-sm max-w-none text-foreground">
+				<div class="prose prose-sm text-foreground max-w-none">
 					<p class="whitespace-pre-wrap">{postmortemUpdate.message}</p>
 				</div>
-				<p class="mt-4 text-xs text-muted-foreground">
+				<p class="text-muted-foreground mt-4 text-xs">
 					{m.incident_postmortem_published({
-						date: formatIncidentDateTime(postmortemUpdate.createdAt)
+						date: formatIncidentDateTime(postmortemUpdate.createdAt),
 					})}
 				</p>
 			</div>
 		{/if}
 
 		<!-- Timeline -->
-		<div class="rounded-lg border bg-card p-6">
-			<h3 class="mb-6 text-lg font-semibold text-foreground">{m.public_incident_timeline()}</h3>
+		<div class="bg-card rounded-lg border p-6">
+			<h3 class="text-foreground mb-6 text-lg font-semibold">{m.public_incident_timeline()}</h3>
 
 			{#if timelineUpdates.length > 0}
 				<div class="relative space-y-6">
@@ -150,7 +150,7 @@
 						<div class="relative flex gap-4">
 							<!-- Connector line -->
 							{#if i < timelineUpdates.length - 1}
-								<div class="absolute top-10 left-4 h-full w-0.5 bg-border"></div>
+								<div class="bg-border absolute top-10 left-4 h-full w-0.5"></div>
 							{/if}
 							<!-- Icon -->
 							<div
@@ -166,11 +166,11 @@
 									>
 										{updateStatusInfo.label}
 									</span>
-									<span class="font-mono text-sm text-muted-foreground">
+									<span class="text-muted-foreground font-mono text-sm">
 										{formatIncidentDateTime(update.createdAt)}
 									</span>
 								</div>
-								<p class="mt-2 text-foreground">{update.message}</p>
+								<p class="text-foreground mt-2">{update.message}</p>
 							</div>
 						</div>
 					{/each}
@@ -182,8 +182,8 @@
 	</main>
 
 	<!-- Footer -->
-	<footer class="border-t bg-card py-6">
-		<div class="mx-auto max-w-4xl px-4 text-center text-sm text-muted-foreground">
+	<footer class="bg-card border-t py-6">
+		<div class="text-muted-foreground mx-auto max-w-4xl px-4 text-center text-sm">
 			{m.public_status_footer()}
 		</div>
 	</footer>

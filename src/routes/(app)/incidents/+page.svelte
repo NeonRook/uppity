@@ -1,13 +1,13 @@
 <script lang="ts">
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import EmptyState from '$lib/components/empty-state.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { formatIncidentDate, getImpactInfo, getStatusInfo } from '$lib/incidents';
-	import { m } from '$lib/paraglide/messages.js';
-	import { deleteIncident, getIncidents } from '$lib/remote/incidents.remote';
-	import { Plus, Trash2, TriangleAlert } from '@lucide/svelte';
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { formatIncidentDate, getImpactInfo, getStatusInfo } from "$lib/incidents";
+	import { m } from "$lib/paraglide/messages.js";
+	import { deleteIncident, getIncidents } from "$lib/remote/incidents.remote";
+	import { Plus, Trash2, TriangleAlert } from "@lucide/svelte";
 
 	let { data } = $props();
 
@@ -33,8 +33,8 @@
 	async function handleDelete(incidentId: string) {
 		await deleteIncident({ incidentId }).updates(
 			getIncidents({ includeResolved: data.includeResolved }).withOverride((incidents) =>
-				incidents.filter((inc) => inc.id !== incidentId)
-			)
+				incidents.filter((inc) => inc.id !== incidentId),
+			),
 		);
 	}
 </script>
@@ -94,7 +94,7 @@
 									{/if}
 								</div>
 								<div
-									class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground"
+									class="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
 								>
 									<span>{m.incidents_started({ date: formatIncidentDate(inc.startedAt) })}</span>
 									{#if inc.resolvedAt}
@@ -103,7 +103,7 @@
 									{/if}
 									<span
 										>{m.incidents_duration({
-											duration: getDuration(inc.startedAt, inc.resolvedAt)
+											duration: getDuration(inc.startedAt, inc.resolvedAt),
 										})}</span
 									>
 								</div>

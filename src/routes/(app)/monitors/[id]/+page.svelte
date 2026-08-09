@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import { formatDate, formatResponseTime, formatInterval } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
-	import { toggleMonitor, deleteMonitor } from '$lib/remote/monitors.remote';
-	import { getStatusBadgeWithIcon, getCheckIcon } from '$lib/utils/status';
+	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import PageHeader from "$lib/components/page-header.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Table from "$lib/components/ui/table";
+	import { formatDate, formatResponseTime, formatInterval } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { toggleMonitor, deleteMonitor } from "$lib/remote/monitors.remote";
+	import { getStatusBadgeWithIcon, getCheckIcon } from "$lib/utils/status";
 	import {
 		Check,
 		Copy,
@@ -23,9 +23,9 @@
 		ShieldAlert,
 		ShieldCheck,
 		ShieldX,
-		Trash2
-	} from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
+		Trash2,
+	} from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	let { data } = $props();
 
@@ -34,9 +34,9 @@
 	let toggling = $state(false);
 
 	const pushUrl = $derived(
-		data.monitor.type === 'push' && data.monitor.pushToken
+		data.monitor.type === "push" && data.monitor.pushToken
 			? `${page.url.origin}/api/webhooks/push/${data.monitor.pushToken}`
-			: null
+			: null,
 	);
 
 	async function copyToClipboard(text: string) {
@@ -51,7 +51,7 @@
 			await toggleMonitor({ monitorId: data.monitor.id });
 			await invalidateAll();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Failed to toggle monitor');
+			toast.error(e instanceof Error ? e.message : "Failed to toggle monitor");
 		} finally {
 			toggling = false;
 		}
@@ -59,11 +59,11 @@
 
 	async function handleDelete() {
 		await deleteMonitor({ monitorId: data.monitor.id });
-		goto(resolve('/monitors'));
+		goto(resolve("/monitors"));
 	}
 
 	const statusInfo = $derived(
-		getStatusBadgeWithIcon(data.status?.status ?? null, data.monitor.active)
+		getStatusBadgeWithIcon(data.status?.status ?? null, data.monitor.active),
 	);
 	const StatusIcon = $derived(statusInfo.icon);
 
@@ -77,26 +77,26 @@
 
 	function getSslStatus(daysUntil: number | null, threshold: number | null) {
 		if (daysUntil === null) {
-			return { variant: 'secondary' as const, label: m.monitor_ssl_unknown(), icon: ShieldX };
+			return { variant: "secondary" as const, label: m.monitor_ssl_unknown(), icon: ShieldX };
 		}
 		if (daysUntil <= 0) {
-			return { variant: 'destructive' as const, label: m.monitor_ssl_expired(), icon: ShieldX };
+			return { variant: "destructive" as const, label: m.monitor_ssl_expired(), icon: ShieldX };
 		}
 		if (daysUntil <= (threshold ?? 14)) {
 			return {
-				variant: 'outline' as const,
+				variant: "outline" as const,
 				label: m.monitor_ssl_expiring_soon(),
-				icon: ShieldAlert
+				icon: ShieldAlert,
 			};
 		}
-		return { variant: 'default' as const, label: m.monitor_ssl_valid(), icon: ShieldCheck };
+		return { variant: "default" as const, label: m.monitor_ssl_valid(), icon: ShieldCheck };
 	}
 
 	// SSL info comes from the most recent check
 	const latestSslInfo = $derived(data.recentChecks[0] ?? null);
 	const sslDaysUntilExpiry = $derived(getDaysUntilExpiry(latestSslInfo?.sslExpiresAt ?? null));
 	const sslStatus = $derived(
-		getSslStatus(sslDaysUntilExpiry, data.monitor.sslExpiryThresholdDays ?? null)
+		getSslStatus(sslDaysUntilExpiry, data.monitor.sslExpiryThresholdDays ?? null),
 	);
 	const SslIcon = $derived(sslStatus.icon);
 </script>
@@ -151,7 +151,7 @@
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground"
+				<Card.Title class="text-muted-foreground text-sm font-medium"
 					>{m.monitor_uptime_24h()}</Card.Title
 				>
 			</Card.Header>
@@ -159,14 +159,14 @@
 				<div class="text-2xl font-bold">
 					{data.status?.uptimePercent24h !== null
 						? `${data.status?.uptimePercent24h?.toFixed(2)}%`
-						: '-'}
+						: "-"}
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground"
+				<Card.Title class="text-muted-foreground text-sm font-medium"
 					>{m.monitor_avg_response()}</Card.Title
 				>
 			</Card.Header>
@@ -179,20 +179,20 @@
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground"
+				<Card.Title class="text-muted-foreground text-sm font-medium"
 					>{m.monitor_last_check()}</Card.Title
 				>
 			</Card.Header>
 			<Card.Content>
 				<div class="text-2xl font-bold">
-					{data.status?.lastCheckAt ? new Date(data.status.lastCheckAt).toLocaleTimeString() : '-'}
+					{data.status?.lastCheckAt ? new Date(data.status.lastCheckAt).toLocaleTimeString() : "-"}
 				</div>
 			</Card.Content>
 		</Card.Root>
 
 		<Card.Root>
 			<Card.Header class="pb-2">
-				<Card.Title class="text-sm font-medium text-muted-foreground"
+				<Card.Title class="text-muted-foreground text-sm font-medium"
 					>{m.monitor_check_interval()}</Card.Title
 				>
 			</Card.Header>
@@ -210,13 +210,13 @@
 		<Card.Content>
 			<dl class="grid gap-4 sm:grid-cols-2">
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">{m.common_type()}</dt>
+					<dt class="text-muted-foreground text-sm font-medium">{m.common_type()}</dt>
 					<dd class="mt-1 text-sm uppercase">{data.monitor.type}</dd>
 				</div>
 
-				{#if data.monitor.type === 'http' && data.monitor.url}
+				{#if data.monitor.type === "http" && data.monitor.url}
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_url()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_url()}</dt>
 						<dd class="mt-1 flex items-center gap-1 text-sm">
 							<span class="font-mono">{data.monitor.url}</span>
 							<a
@@ -230,62 +230,62 @@
 						</dd>
 					</div>
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_http_method()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_http_method()}</dt>
 						<dd class="mt-1 text-sm">{data.monitor.method}</dd>
 					</div>
 				{/if}
 
-				{#if data.monitor.type === 'tcp'}
+				{#if data.monitor.type === "tcp"}
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_hostname()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_hostname()}</dt>
 						<dd class="mt-1 font-mono text-sm">
 							{data.monitor.hostname}:{data.monitor.port}
 						</dd>
 					</div>
 				{/if}
 
-				{#if data.monitor.type === 'push' && pushUrl}
+				{#if data.monitor.type === "push" && pushUrl}
 					<div class="sm:col-span-2">
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_push_url()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_push_url()}</dt>
 						<dd class="mt-1">
 							<div class="flex items-center gap-2">
-								<code class="flex-1 rounded bg-muted px-3 py-2 text-sm break-all">
+								<code class="bg-muted flex-1 rounded px-3 py-2 text-sm break-all">
 									{pushUrl}
 								</code>
 								<Button variant="outline" size="sm" onclick={() => copyToClipboard(pushUrl)}>
 									{#if copied}
-										<Check class="h-4 w-4 text-status-up" />
+										<Check class="text-status-up h-4 w-4" />
 									{:else}
 										<Copy class="h-4 w-4" />
 									{/if}
 								</Button>
 							</div>
-							<p class="mt-2 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-2 text-xs">
 								{m.monitor_push_url_desc({
 									seconds:
-										data.monitor.intervalSeconds + (data.monitor.pushGracePeriodSeconds || 60)
+										data.monitor.intervalSeconds + (data.monitor.pushGracePeriodSeconds || 60),
 								})}
 							</p>
 						</dd>
 					</div>
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_grace_period()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_grace_period()}</dt>
 						<dd class="mt-1 text-sm">{data.monitor.pushGracePeriodSeconds || 60}s</dd>
 					</div>
 				{/if}
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_timeout()}</dt>
+					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_timeout()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.timeoutSeconds}s</dd>
 				</div>
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_retries()}</dt>
+					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_retries()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.retries}</dd>
 				</div>
 
 				<div>
-					<dt class="text-sm font-medium text-muted-foreground">{m.monitor_alert_after()}</dt>
+					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_alert_after()}</dt>
 					<dd class="mt-1 text-sm">{data.monitor.alertAfterFailures}</dd>
 				</div>
 			</dl>
@@ -293,7 +293,7 @@
 	</Card.Root>
 
 	<!-- SSL Certificate -->
-	{#if data.monitor.type === 'http' && data.monitor.sslCheckEnabled}
+	{#if data.monitor.type === "http" && data.monitor.sslCheckEnabled}
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center justify-between">
@@ -307,13 +307,13 @@
 			<Card.Content>
 				<dl class="grid gap-4 sm:grid-cols-2">
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_expires()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_expires()}</dt>
 						<dd class="mt-1 text-sm">
 							{#if latestSslInfo?.sslExpiresAt}
 								{new Date(latestSslInfo.sslExpiresAt).toLocaleDateString(undefined, {
-									year: 'numeric',
-									month: 'long',
-									day: 'numeric'
+									year: "numeric",
+									month: "long",
+									day: "numeric",
 								})}
 							{:else}
 								-
@@ -322,15 +322,15 @@
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_days_until()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_days_until()}</dt>
 						<dd class="mt-1 text-sm">
 							{#if sslDaysUntilExpiry !== null}
 								<span
 									class={sslDaysUntilExpiry <= 0
-										? 'font-medium text-status-down'
+										? "text-status-down font-medium"
 										: sslDaysUntilExpiry <= (data.monitor.sslExpiryThresholdDays ?? 14)
-											? 'font-medium text-status-degraded'
-											: ''}
+											? "text-status-degraded font-medium"
+											: ""}
 								>
 									{sslDaysUntilExpiry <= 0
 										? m.monitor_ssl_expired_ago({ days: Math.abs(sslDaysUntilExpiry) })
@@ -343,12 +343,12 @@
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_issuer()}</dt>
-						<dd class="mt-1 text-sm">{latestSslInfo?.sslIssuer || '-'}</dd>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_issuer()}</dt>
+						<dd class="mt-1 text-sm">{latestSslInfo?.sslIssuer || "-"}</dd>
 					</div>
 
 					<div>
-						<dt class="text-sm font-medium text-muted-foreground">{m.monitor_ssl_threshold()}</dt>
+						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_threshold()}</dt>
 						<dd class="mt-1 text-sm">
 							{m.monitor_ssl_days({ days: data.monitor.sslExpiryThresholdDays ?? 14 })}
 						</dd>
@@ -366,7 +366,7 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.recentChecks.length === 0}
-				<p class="py-8 text-center text-muted-foreground">{m.monitor_no_checks()}</p>
+				<p class="text-muted-foreground py-8 text-center">{m.monitor_no_checks()}</p>
 			{:else}
 				<!-- Mobile card view -->
 				<div class="space-y-2 md:hidden">
@@ -380,11 +380,11 @@
 									<span class="font-mono text-sm">{formatDate(check.checkedAt)}</span>
 									<span class="font-mono text-sm">{formatResponseTime(check.responseTimeMs)}</span>
 								</div>
-								<div class="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-									<span>{m.monitor_table_status_code()}: {check.statusCode ?? '-'}</span>
+								<div class="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
+									<span>{m.monitor_table_status_code()}: {check.statusCode ?? "-"}</span>
 								</div>
 								{#if check.errorMessage}
-									<p class="mt-1 truncate text-sm text-muted-foreground">
+									<p class="text-muted-foreground mt-1 truncate text-sm">
 										{check.errorMessage}
 									</p>
 								{/if}
@@ -416,13 +416,13 @@
 									{formatDate(check.checkedAt)}
 								</Table.Cell>
 								<Table.Cell>
-									{check.statusCode ?? '-'}
+									{check.statusCode ?? "-"}
 								</Table.Cell>
 								<Table.Cell class="text-right font-mono text-sm">
 									{formatResponseTime(check.responseTimeMs)}
 								</Table.Cell>
-								<Table.Cell class="max-w-xs truncate text-sm text-muted-foreground">
-									{check.errorMessage || '-'}
+								<Table.Cell class="text-muted-foreground max-w-xs truncate text-sm">
+									{check.errorMessage || "-"}
 								</Table.Cell>
 							</Table.Row>
 						{/each}

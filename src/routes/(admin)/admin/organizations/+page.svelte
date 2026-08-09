@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import { Plus, Search, Users } from '@lucide/svelte';
-	import Pagination from '$lib/components/pagination.svelte';
-	import { useSearchParams } from 'runed/kit';
-	import * as v from 'valibot';
-	import { formatDateShort } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
+	import { resolve } from "$app/paths";
+	import Pagination from "$lib/components/pagination.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Input } from "$lib/components/ui/input";
+	import * as Table from "$lib/components/ui/table";
+	import { formatDateShort } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { Plus, Search, Users } from "@lucide/svelte";
+	import { useSearchParams } from "runed/kit";
+	import * as v from "valibot";
 
 	let { data } = $props();
 
 	const searchSchema = v.object({
-		search: v.optional(v.string(), ''),
-		page: v.optional(v.pipe(v.unknown(), v.transform(Number)), 1)
+		search: v.optional(v.string(), ""),
+		page: v.optional(v.pipe(v.unknown(), v.transform(Number)), 1),
 	});
 
 	const params = useSearchParams(searchSchema);
@@ -31,7 +31,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-bold">{m.admin_orgs_title()}</h1>
-		<Button href={resolve('/admin/organizations/new')}>
+		<Button href={resolve("/admin/organizations/new")}>
 			<Plus class="mr-2 h-4 w-4" />
 			{m.admin_orgs_new()}
 		</Button>
@@ -41,7 +41,7 @@
 		<Card.Header>
 			<div class="flex items-center gap-4">
 				<div class="relative flex-1">
-					<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
 					<Input
 						type="search"
 						placeholder={m.admin_orgs_search()}
@@ -64,7 +64,7 @@
 				</Table.Header>
 				<Table.Body>
 					{#each data.organizations as org (org.id)}
-						<Table.Row class="cursor-pointer hover:bg-muted/50">
+						<Table.Row class="hover:bg-muted/50 cursor-pointer">
 							<Table.Cell class="font-medium">
 								<a href={resolve(`/admin/organizations/${org.id}`)} class="hover:underline">
 									{org.name}
@@ -83,7 +83,7 @@
 					{/each}
 					{#if data.organizations.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={4} class="text-center text-muted-foreground">
+							<Table.Cell colspan={4} class="text-muted-foreground text-center">
 								{m.admin_orgs_no_orgs()}
 							</Table.Cell>
 						</Table.Row>

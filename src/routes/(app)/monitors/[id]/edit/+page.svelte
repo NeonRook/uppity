@@ -1,34 +1,34 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
-	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from '$lib/constants/monitor';
-	import { m } from '$lib/paraglide/messages.js';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { Switch } from "$lib/components/ui/switch";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from "$lib/constants/monitor";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, ArrowLeft, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(
 		untrack(() => data.form),
 		{
-			resetForm: false
-		}
+			resetForm: false,
+		},
 	);
 
 	function getMonitorTypeLabel(type: string): string {
 		switch (type) {
-			case 'http':
+			case "http":
 				return m.monitor_type_http();
-			case 'tcp':
+			case "tcp":
 				return m.monitor_type_tcp();
-			case 'push':
+			case "push":
 				return m.monitor_type_push();
 			default:
 				return type;
@@ -73,7 +73,7 @@
 						bind:value={$form.name}
 						required
 						disabled={$delayed}
-						aria-invalid={$errors.name ? 'true' : undefined}
+						aria-invalid={$errors.name ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -86,7 +86,7 @@
 						placeholder={m.monitor_desc_placeholder()}
 						bind:value={$form.description}
 						disabled={$delayed}
-						aria-invalid={$errors.description ? 'true' : undefined}
+						aria-invalid={$errors.description ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.description} />
 				</Field.Field>
@@ -100,7 +100,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		{#if $form.type === 'http'}
+		{#if $form.type === "http"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.monitor_http_config()}</Card.Title>
@@ -114,9 +114,9 @@
 							type="url"
 							placeholder={m.monitor_url_placeholder()}
 							bind:value={$form.url}
-							required={$form.type === 'http'}
+							required={$form.type === "http"}
 							disabled={$delayed}
-							aria-invalid={$errors.url ? 'true' : undefined}
+							aria-invalid={$errors.url ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.url} />
 					</Field.Field>
@@ -128,7 +128,7 @@
 							name="method"
 							value={$form.method}
 							onValueChange={(v) =>
-								($form.method = v as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD')}
+								($form.method = v as "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD")}
 						>
 							<Select.Trigger class="w-full">
 								{$form.method}
@@ -158,7 +158,7 @@
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if $form.type === 'tcp'}
+		{:else if $form.type === "tcp"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.monitor_tcp_config()}</Card.Title>
@@ -172,9 +172,9 @@
 								name="hostname"
 								placeholder={m.monitor_hostname_placeholder()}
 								bind:value={$form.hostname}
-								required={$form.type === 'tcp'}
+								required={$form.type === "tcp"}
 								disabled={$delayed}
-								aria-invalid={$errors.hostname ? 'true' : undefined}
+								aria-invalid={$errors.hostname ? "true" : undefined}
 							/>
 							<Field.Error errors={$errors.hostname} />
 						</Field.Field>
@@ -188,22 +188,22 @@
 								min="1"
 								max="65535"
 								bind:value={$form.port}
-								required={$form.type === 'tcp'}
+								required={$form.type === "tcp"}
 								disabled={$delayed}
-								aria-invalid={$errors.port ? 'true' : undefined}
+								aria-invalid={$errors.port ? "true" : undefined}
 							/>
 							<Field.Error errors={$errors.port} />
 						</Field.Field>
 					</div>
 				</Card.Content>
 			</Card.Root>
-		{:else if $form.type === 'push'}
+		{:else if $form.type === "push"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.monitor_push_config()}</Card.Title>
 				</Card.Header>
 				<Card.Content class="space-y-4">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{m.monitor_push_edit_desc()}
 					</p>
 					<Field.Field>
@@ -217,7 +217,7 @@
 							min="0"
 							bind:value={$form.pushGracePeriodSeconds}
 							disabled={$delayed}
-							aria-invalid={$errors.pushGracePeriodSeconds ? 'true' : undefined}
+							aria-invalid={$errors.pushGracePeriodSeconds ? "true" : undefined}
 						/>
 						<Field.Description>
 							{m.monitor_grace_period_desc()}
@@ -265,7 +265,7 @@
 							min="1"
 							max="120"
 							disabled={$delayed}
-							aria-invalid={$errors.timeoutSeconds ? 'true' : undefined}
+							aria-invalid={$errors.timeoutSeconds ? "true" : undefined}
 						/>
 						<Field.Description>{m.monitor_timeout_seconds()}</Field.Description>
 						<Field.Error errors={$errors.timeoutSeconds} />
@@ -283,7 +283,7 @@
 							min="0"
 							max="5"
 							disabled={$delayed}
-							aria-invalid={$errors.retries ? 'true' : undefined}
+							aria-invalid={$errors.retries ? "true" : undefined}
 						/>
 						<Field.Description>{m.monitor_retries_desc()}</Field.Description>
 						<Field.Error errors={$errors.retries} />
@@ -299,7 +299,7 @@
 							min="1"
 							max="10"
 							disabled={$delayed}
-							aria-invalid={$errors.alertAfterFailures ? 'true' : undefined}
+							aria-invalid={$errors.alertAfterFailures ? "true" : undefined}
 						/>
 						<Field.Description>{m.monitor_alert_after_desc()}</Field.Description>
 						<Field.Error errors={$errors.alertAfterFailures} />

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Button } from '$lib/components/ui/button';
-	import { m } from '$lib/paraglide/messages.js';
-	import { toast } from 'svelte-sonner';
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Button } from "$lib/components/ui/button";
+	import { m } from "$lib/paraglide/messages.js";
+	import { toast } from "svelte-sonner";
 
 	interface Props {
 		/** Explicit open state (use this for detail pages) */
@@ -43,7 +43,7 @@
 			await onDelete(id);
 			onOpenChange(false);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Delete failed');
+			toast.error(e instanceof Error ? e.message : "Delete failed");
 		} finally {
 			deleting = false;
 		}

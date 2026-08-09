@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils.js';
-	import type { HTMLAttributes } from 'svelte/elements';
-	import type { Snippet } from 'svelte';
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { Snippet } from "svelte";
+	import type { HTMLAttributes } from "svelte/elements";
 
 	type ErrorInput = string | string[] | { message?: string }[] | undefined;
 
@@ -19,11 +19,11 @@
 	// Normalize errors to { message?: string }[] format
 	const errors = $derived.by(() => {
 		if (!rawErrors) return undefined;
-		if (typeof rawErrors === 'string') return [{ message: rawErrors }];
+		if (typeof rawErrors === "string") return [{ message: rawErrors }];
 		if (Array.isArray(rawErrors)) {
 			if (rawErrors.length === 0) return undefined;
 			// Check if it's string[] or { message }[]
-			if (typeof rawErrors[0] === 'string') {
+			if (typeof rawErrors[0] === "string") {
 				return (rawErrors as string[]).map((msg) => ({ message: msg }));
 			}
 			return rawErrors as { message?: string }[];
@@ -55,7 +55,7 @@
 		bind:this={ref}
 		role="alert"
 		data-slot="field-error"
-		class={cn('text-sm font-normal text-destructive', className)}
+		class={cn("text-destructive text-sm font-normal", className)}
 		{...restProps}
 	>
 		{#if children}

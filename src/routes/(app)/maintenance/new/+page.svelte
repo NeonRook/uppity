@@ -1,30 +1,30 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { m } from '$lib/paraglide/messages.js';
-	import { ArrowLeft, CircleAlert, LoaderCircle } from '@lucide/svelte';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Checkbox } from "$lib/components/ui/checkbox";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { ScrollArea } from "$lib/components/ui/scroll-area";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { m } from "$lib/paraglide/messages.js";
+	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
 	const { form, errors, enhance, delayed, message } = superForm(
 		untrack(() => data.form),
 		{
-			dataType: 'json'
-		}
+			dataType: "json",
+		},
 	);
 
 	function dateToLocalInput(d: Date | string | undefined | null): string {
-		if (!d) return '';
+		if (!d) return "";
 		const date = new Date(d);
-		if (Number.isNaN(date.getTime())) return '';
+		if (Number.isNaN(date.getTime())) return "";
 		const offset = date.getTimezoneOffset() * 60_000;
 		return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 	}
@@ -102,7 +102,7 @@
 						name="name"
 						bind:value={$form.name}
 						disabled={$delayed}
-						aria-invalid={$errors.name ? 'true' : undefined}
+						aria-invalid={$errors.name ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -115,7 +115,7 @@
 						bind:value={$form.description}
 						disabled={$delayed}
 						rows={3}
-						aria-invalid={$errors.description ? 'true' : undefined}
+						aria-invalid={$errors.description ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.description} />
 				</Field.Field>
@@ -129,7 +129,7 @@
 							type="datetime-local"
 							bind:value={startsAtStr}
 							disabled={$delayed}
-							aria-invalid={$errors.startsAt ? 'true' : undefined}
+							aria-invalid={$errors.startsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.startsAt} />
 					</Field.Field>
@@ -141,7 +141,7 @@
 							type="datetime-local"
 							bind:value={endsAtStr}
 							disabled={$delayed}
-							aria-invalid={$errors.endsAt ? 'true' : undefined}
+							aria-invalid={$errors.endsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.endsAt} />
 					</Field.Field>
@@ -159,7 +159,7 @@
 			</Card.Header>
 			<Card.Content>
 				{#if data.monitors.length === 0}
-					<p class="py-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground py-4 text-center text-sm">
 						{m.maintenance_form_no_monitors()}
 					</p>
 				{:else}
@@ -167,7 +167,7 @@
 						<div class="space-y-2">
 							{#each data.monitors as monitor (monitor.id)}
 								<label
-									class="flex cursor-pointer items-center gap-3 rounded-md border p-2 transition-colors hover:bg-muted"
+									class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-2 transition-colors"
 								>
 									<Checkbox
 										checked={($form.monitorIds ?? []).includes(monitor.id)}

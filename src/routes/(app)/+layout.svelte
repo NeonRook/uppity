@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
-	import { signOut, organization } from '$lib/auth-client';
-	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
+	import { signOut, organization } from "$lib/auth-client";
+	import { Button } from "$lib/components/ui/button";
+	import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+	import * as Tooltip from "$lib/components/ui/tooltip";
+	import { m } from "$lib/paraglide/messages.js";
 	import {
 		LayoutDashboard,
 		Monitor,
@@ -23,10 +24,9 @@
 		Moon,
 		SunMoon,
 		ShieldCheck,
-		Wrench
-	} from '@lucide/svelte';
-	import { onMount } from 'svelte';
-	import { m } from '$lib/paraglide/messages.js';
+		Wrench,
+	} from "@lucide/svelte";
+	import { onMount } from "svelte";
 
 	let { data, children } = $props();
 
@@ -36,12 +36,12 @@
 	let accountMenuOpen = $state(false);
 
 	// Theme state
-	type Theme = 'light' | 'dark' | 'system';
-	let theme = $state<Theme>('system');
+	type Theme = "light" | "dark" | "system";
+	let theme = $state<Theme>("system");
 	let mounted = $state(false);
 
 	onMount(() => {
-		const stored = localStorage.getItem('theme') as Theme | null;
+		const stored = localStorage.getItem("theme") as Theme | null;
 		if (stored) {
 			theme = stored;
 		}
@@ -50,29 +50,29 @@
 
 	function setTheme(newTheme: Theme) {
 		theme = newTheme;
-		localStorage.setItem('theme', newTheme);
+		localStorage.setItem("theme", newTheme);
 
-		if (newTheme === 'dark') {
-			document.documentElement.classList.add('dark');
-		} else if (newTheme === 'light') {
-			document.documentElement.classList.remove('dark');
+		if (newTheme === "dark") {
+			document.documentElement.classList.add("dark");
+		} else if (newTheme === "light") {
+			document.documentElement.classList.remove("dark");
 		} else {
-			if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-				document.documentElement.classList.add('dark');
+			if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+				document.documentElement.classList.add("dark");
 			} else {
-				document.documentElement.classList.remove('dark');
+				document.documentElement.classList.remove("dark");
 			}
 		}
 	}
 
 	const navigation = [
-		{ name: m.nav_dashboard(), href: '/dashboard', icon: LayoutDashboard },
-		{ name: m.nav_monitors(), href: '/monitors', icon: Monitor },
-		{ name: m.nav_incidents(), href: '/incidents', icon: TriangleAlert },
-		{ name: m.nav_status_pages(), href: '/status-pages', icon: Globe },
-		{ name: m.nav_maintenance(), href: '/maintenance', icon: Wrench },
-		{ name: m.nav_notifications(), href: '/notifications', icon: Bell },
-		{ name: m.nav_settings(), href: '/settings', icon: Settings }
+		{ name: m.nav_dashboard(), href: "/dashboard", icon: LayoutDashboard },
+		{ name: m.nav_monitors(), href: "/monitors", icon: Monitor },
+		{ name: m.nav_incidents(), href: "/incidents", icon: TriangleAlert },
+		{ name: m.nav_status_pages(), href: "/status-pages", icon: Globe },
+		{ name: m.nav_maintenance(), href: "/maintenance", icon: Wrench },
+		{ name: m.nav_notifications(), href: "/notifications", icon: Bell },
+		{ name: m.nav_settings(), href: "/settings", icon: Settings },
 	];
 
 	function isActive(href: string): boolean {
@@ -81,7 +81,7 @@
 
 	async function handleSignOut() {
 		await signOut();
-		goto(resolve('/login'));
+		goto(resolve("/login"));
 	}
 
 	async function switchOrganization(orgId: string) {
@@ -91,7 +91,7 @@
 			await organization.setActive({ organizationId: orgId });
 			window.location.reload();
 		} catch (error) {
-			console.error('Failed to switch organization:', error);
+			console.error("Failed to switch organization:", error);
 		} finally {
 			switchingOrg = false;
 		}
@@ -101,7 +101,7 @@
 <Tooltip.Provider>
 	{#if data.impersonating}
 		<div
-			class="text-destructive-foreground fixed inset-x-0 top-0 z-60 flex items-center justify-center gap-3 bg-destructive px-4 py-2 text-sm font-medium"
+			class="text-destructive-foreground bg-destructive fixed inset-x-0 top-0 z-60 flex items-center justify-center gap-3 px-4 py-2 text-sm font-medium"
 		>
 			<TriangleAlert class="h-4 w-4 shrink-0" />
 			<span>{m.impersonation_banner({ name: data.impersonating.name })}</span>
@@ -118,14 +118,14 @@
 			<div
 				class="fixed inset-0 z-40 bg-black/50 lg:hidden"
 				onclick={() => (sidebarOpen = false)}
-				onkeydown={(e) => e.key === 'Escape' && (sidebarOpen = false)}
+				onkeydown={(e) => e.key === "Escape" && (sidebarOpen = false)}
 				role="button"
 				tabindex="-1"
 			></div>
 		{/if}
 
 		<aside
-			class="fixed inset-y-0 left-0 z-50 w-64 transform border-r bg-card transition-transform duration-200 ease-in-out lg:translate-x-0 {sidebarOpen
+			class="bg-card fixed inset-y-0 left-0 z-50 w-64 transform border-r transition-transform duration-200 ease-in-out lg:translate-x-0 {sidebarOpen
 				? 'translate-x-0'
 				: '-translate-x-full'}"
 		>
@@ -134,11 +134,11 @@
 				<div class="border-b p-3">
 					<DropdownMenu.Root bind:open={orgMenuOpen}>
 						<DropdownMenu.Trigger
-							class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted"
+							class="hover:bg-muted flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left"
 							disabled={switchingOrg}
 						>
 							<div
-								class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground"
+								class="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-md"
 							>
 								<Building2 class="h-4 w-4" />
 							</div>
@@ -148,7 +148,7 @@
 								</span>
 							</div>
 							<ChevronDown
-								class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 {orgMenuOpen
+								class="text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200 {orgMenuOpen
 									? 'rotate-180'
 									: ''}"
 							/>
@@ -172,7 +172,7 @@
 							{/if}
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve('/settings')} class="flex w-full items-center">
+								<a href={resolve("/settings")} class="flex w-full items-center">
 									<Settings class="mr-2 h-4 w-4" />
 									{m.org_manage()}
 								</a>
@@ -187,7 +187,7 @@
 						<a
 							href={resolve(item.href as any)}
 							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
-								item.href
+								item.href,
 							)
 								? 'bg-primary text-primary-foreground'
 								: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
@@ -202,19 +202,19 @@
 				<div class="border-t p-4">
 					<DropdownMenu.Root bind:open={accountMenuOpen}>
 						<DropdownMenu.Trigger
-							class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-muted"
+							class="hover:bg-muted flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left"
 						>
 							<div
-								class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
+								class="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-full"
 							>
 								{data.user.name.charAt(0).toUpperCase()}
 							</div>
 							<div class="flex flex-1 flex-col items-start overflow-hidden">
 								<span class="w-full truncate text-sm font-medium">{data.user.name}</span>
-								<span class="w-full truncate text-xs text-muted-foreground">{data.user.email}</span>
+								<span class="text-muted-foreground w-full truncate text-xs">{data.user.email}</span>
 							</div>
 							<ChevronDown
-								class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 {accountMenuOpen
+								class="text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200 {accountMenuOpen
 									? 'rotate-180'
 									: ''}"
 							/>
@@ -223,41 +223,41 @@
 							<DropdownMenu.Label>{m.account_my_account()}</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve('/settings')} class="flex w-full items-center">
+								<a href={resolve("/settings")} class="flex w-full items-center">
 									<Settings class="mr-2 h-4 w-4" />
 									{m.common_settings()}
 								</a>
 							</DropdownMenu.Item>
-							{#if data.user.role === 'admin'}
+							{#if data.user.role === "admin"}
 								<DropdownMenu.Item>
-									<a href={resolve('/admin')} class="flex w-full items-center">
+									<a href={resolve("/admin")} class="flex w-full items-center">
 										<ShieldCheck class="mr-2 h-4 w-4" />
 										{m.account_admin_panel()}
 									</a>
 								</DropdownMenu.Item>
 							{/if}
 							<DropdownMenu.Separator />
-							<DropdownMenu.Label class="text-xs font-normal text-muted-foreground">
+							<DropdownMenu.Label class="text-muted-foreground text-xs font-normal">
 								{m.theme_theme()}
 							</DropdownMenu.Label>
-							<DropdownMenu.Item onSelect={() => setTheme('light')}>
+							<DropdownMenu.Item onSelect={() => setTheme("light")}>
 								<Sun class="mr-2 h-4 w-4" />
 								{m.theme_light()}
-								{#if mounted && theme === 'light'}
+								{#if mounted && theme === "light"}
 									<Check class="ml-auto h-4 w-4" />
 								{/if}
 							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => setTheme('dark')}>
+							<DropdownMenu.Item onSelect={() => setTheme("dark")}>
 								<Moon class="mr-2 h-4 w-4" />
 								{m.theme_dark()}
-								{#if mounted && theme === 'dark'}
+								{#if mounted && theme === "dark"}
 									<Check class="ml-auto h-4 w-4" />
 								{/if}
 							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => setTheme('system')}>
+							<DropdownMenu.Item onSelect={() => setTheme("system")}>
 								<SunMoon class="mr-2 h-4 w-4" />
 								{m.theme_system()}
-								{#if mounted && theme === 'system'}
+								{#if mounted && theme === "system"}
 									<Check class="ml-auto h-4 w-4" />
 								{/if}
 							</DropdownMenu.Item>
@@ -274,7 +274,7 @@
 
 		<div class="grid h-full grid-rows-[auto_1fr] lg:ml-64">
 			<!-- Mobile header -->
-			<header class="flex h-14 items-center gap-4 border-b bg-card px-4 lg:hidden">
+			<header class="bg-card flex h-14 items-center gap-4 border-b px-4 lg:hidden">
 				<Button variant="ghost" size="icon" onclick={() => (sidebarOpen = !sidebarOpen)}>
 					{#if sidebarOpen}
 						<X class="h-6 w-6" />
@@ -283,11 +283,11 @@
 					{/if}
 				</Button>
 				<span class="truncate text-sm font-medium">
-					{data.currentOrganization?.name ?? 'Uppity'}
+					{data.currentOrganization?.name ?? "Uppity"}
 				</span>
 			</header>
 
-			<main class="overflow-y-auto bg-background p-4 sm:p-6">
+			<main class="bg-background overflow-y-auto p-4 sm:p-6">
 				{@render children()}
 			</main>
 		</div>

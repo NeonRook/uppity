@@ -1,21 +1,21 @@
 <script lang="ts">
-	import { superForm } from 'sveltekit-superforms';
-	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, ArrowLeft } from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, LoaderCircle, ArrowLeft } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 
 	function getRoleLabel(role: string | undefined): string {
-		return role === 'admin' ? m.admin_role_admin() : m.admin_role_user();
+		return role === "admin" ? m.admin_role_admin() : m.admin_role_user();
 	}
 </script>
 
@@ -85,8 +85,8 @@
 					<Select.Root
 						type="single"
 						name="role"
-						value={$form.role || 'user'}
-						onValueChange={(v) => ($form.role = v as 'user' | 'admin')}
+						value={$form.role || "user"}
+						onValueChange={(v) => ($form.role = v as "user" | "admin")}
 						disabled={$delayed}
 					>
 						<Select.Trigger class="w-full">

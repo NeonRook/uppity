@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import { Users, Building2, Monitor, TriangleAlert } from '@lucide/svelte';
-	import { formatDateShort } from '$lib/format';
-	import StatCard from '$lib/components/stat-card.svelte';
-	import AuditHistory from '$lib/components/audit-history.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { resolve } from "$app/paths";
+	import AuditHistory from "$lib/components/audit-history.svelte";
+	import StatCard from "$lib/components/stat-card.svelte";
+	import * as Card from "$lib/components/ui/card";
+	import * as Table from "$lib/components/ui/table";
+	import { formatDateShort } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { Users, Building2, Monitor, TriangleAlert } from "@lucide/svelte";
 
 	let { data } = $props();
 </script>
@@ -63,7 +63,7 @@
 						{/each}
 						{#if data.stats.recentUsers.length === 0}
 							<Table.Row>
-								<Table.Cell colspan={3} class="text-center text-muted-foreground">
+								<Table.Cell colspan={3} class="text-muted-foreground text-center">
 									{m.admin_no_users()}
 								</Table.Cell>
 							</Table.Row>
@@ -104,7 +104,7 @@
 						{/each}
 						{#if data.stats.recentOrganizations.length === 0}
 							<Table.Row>
-								<Table.Cell colspan={3} class="text-center text-muted-foreground">
+								<Table.Cell colspan={3} class="text-muted-foreground text-center">
 									{m.admin_no_orgs()}
 								</Table.Cell>
 							</Table.Row>

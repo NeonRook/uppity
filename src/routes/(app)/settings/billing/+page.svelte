@@ -1,26 +1,26 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-	import { Sparkles, CreditCard, Check, LoaderCircle } from '@lucide/svelte';
-	import { authClient } from '$lib/auth-client';
-	import { m } from '$lib/paraglide/messages.js';
-	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
-	import UsageBar from '$lib/components/billing/usage-bar.svelte';
-	import PlanCard from '$lib/components/billing/plan-card.svelte';
-	import type { Plan } from '$lib/types/plans';
+	import { page } from "$app/stores";
+	import { authClient } from "$lib/auth-client";
+	import PlanCard from "$lib/components/billing/plan-card.svelte";
+	import UsageBar from "$lib/components/billing/usage-bar.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Badge } from "$lib/components/ui/badge";
+	import * as Breadcrumb from "$lib/components/ui/breadcrumb";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { m } from "$lib/paraglide/messages.js";
+	import type { Plan } from "$lib/types/plans";
+	import { Sparkles, CreditCard, Check, LoaderCircle } from "@lucide/svelte";
+	import { onMount } from "svelte";
+	import { toast } from "svelte-sonner";
 
 	let { data } = $props();
 
-	type BillingPeriod = 'monthly' | 'annual';
+	type BillingPeriod = "monthly" | "annual";
 
 	let loadingPortal = $state(false);
 	let loadingCheckout = $state<string | null>(null);
-	let billingPeriod = $state<BillingPeriod>('monthly');
+	let billingPeriod = $state<BillingPeriod>("monthly");
 
 	// Clean up URL after showing success message
 	onMount(() => {
@@ -28,8 +28,8 @@
 			toast.success(m.billing_checkout_success());
 			// Clean up the URL without triggering navigation
 			const url = new URL($page.url);
-			url.searchParams.delete('checkout');
-			window.history.replaceState({}, '', url.pathname);
+			url.searchParams.delete("checkout");
+			window.history.replaceState({}, "", url.pathname);
 		}
 	});
 
@@ -53,7 +53,7 @@
 
 	async function startCheckout(plan: Plan) {
 		if (!data.organizationId) {
-			toast.error('No active organization');
+			toast.error("No active organization");
 			return;
 		}
 
@@ -61,11 +61,11 @@
 		try {
 			// Map plan ID and billing period to Polar product slug. Dedicated is
 			// contact-sales and never reaches this path.
-			const slug = billingPeriod === 'annual' ? `${plan.id}-annual` : `${plan.id}-monthly`;
+			const slug = billingPeriod === "annual" ? `${plan.id}-annual` : `${plan.id}-monthly`;
 
 			const { data: checkoutData, error } = await authClient.checkout({
 				slug,
-				referenceId: data.organizationId
+				referenceId: data.organizationId,
 			});
 
 			if (error) {
@@ -83,34 +83,34 @@
 	}
 
 	function getStatusBadgeVariant(
-		status: string | null
-	): 'default' | 'secondary' | 'destructive' | 'outline' {
+		status: string | null,
+	): "default" | "secondary" | "destructive" | "outline" {
 		switch (status) {
-			case 'active':
-				return 'default';
-			case 'trialing':
-				return 'secondary';
-			case 'past_due':
-				return 'destructive';
-			case 'canceled':
-				return 'outline';
+			case "active":
+				return "default";
+			case "trialing":
+				return "secondary";
+			case "past_due":
+				return "destructive";
+			case "canceled":
+				return "outline";
 			default:
-				return 'secondary';
+				return "secondary";
 		}
 	}
 
 	function getStatusLabel(status: string | null): string {
 		switch (status) {
-			case 'active':
+			case "active":
 				return m.billing_status_active();
-			case 'trialing':
+			case "trialing":
 				return m.billing_status_trialing();
-			case 'past_due':
+			case "past_due":
 				return m.billing_status_past_due();
-			case 'canceled':
+			case "canceled":
 				return m.billing_status_canceled();
 			default:
-				return status ?? '';
+				return status ?? "";
 		}
 	}
 </script>
@@ -141,8 +141,8 @@
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-center gap-3">
-					<div class="rounded-full bg-primary/10 p-2">
-						<Sparkles class="h-5 w-5 text-primary" />
+					<div class="bg-primary/10 rounded-full p-2">
+						<Sparkles class="text-primary h-5 w-5" />
 					</div>
 					<div>
 						<Card.Title class="flex items-center gap-2">
@@ -163,8 +163,8 @@
 			<Card.Header>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<div class="rounded-full bg-primary/10 p-2">
-							<CreditCard class="h-5 w-5 text-primary" />
+						<div class="bg-primary/10 rounded-full p-2">
+							<CreditCard class="text-primary h-5 w-5" />
 						</div>
 						<div>
 							<Card.Title class="flex items-center gap-2">
@@ -176,7 +176,7 @@
 							{#if data.subscription.currentPeriodEnd}
 								<Card.Description>
 									{m.billing_period_ends({
-										date: new Date(data.subscription.currentPeriodEnd).toLocaleDateString()
+										date: new Date(data.subscription.currentPeriodEnd).toLocaleDateString(),
 									})}
 								</Card.Description>
 							{/if}
@@ -217,14 +217,14 @@
 		<div class="space-y-4">
 			<div class="flex items-center justify-between">
 				<h2 class="text-xl font-semibold">{m.billing_compare_plans()}</h2>
-				<div class="flex items-center gap-2 rounded-lg bg-muted p-1">
+				<div class="bg-muted flex items-center gap-2 rounded-lg p-1">
 					<button
 						type="button"
 						class="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'monthly'
 							? 'border-input bg-background'
-							: 'border-transparent text-muted-foreground hover:text-foreground'}"
-						onclick={() => (billingPeriod = 'monthly')}
+							: 'text-muted-foreground hover:text-foreground border-transparent'}"
+						onclick={() => (billingPeriod = "monthly")}
 					>
 						{m.billing_monthly()}
 					</button>
@@ -233,8 +233,8 @@
 						class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
 						'annual'
 							? 'border-input bg-background'
-							: 'border-transparent text-muted-foreground hover:text-foreground'}"
-						onclick={() => (billingPeriod = 'annual')}
+							: 'text-muted-foreground hover:text-foreground border-transparent'}"
+						onclick={() => (billingPeriod = "annual")}
 					>
 						{m.billing_annual()}
 						<Badge variant="secondary" class="text-xs"

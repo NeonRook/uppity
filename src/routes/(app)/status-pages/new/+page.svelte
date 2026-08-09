@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { SvelteSet } from 'svelte/reactivity';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from '@lucide/svelte';
-	import { generateSlug } from '$lib/format';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Checkbox } from "$lib/components/ui/checkbox";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { Switch } from "$lib/components/ui/switch";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { generateSlug } from "$lib/format";
+	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -87,7 +87,7 @@
 						oninput={handleNameChange}
 						required
 						disabled={$delayed}
-						aria-invalid={$errors.name ? 'true' : undefined}
+						aria-invalid={$errors.name ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -95,7 +95,7 @@
 				<Field.Field>
 					<Field.Label for="slug">URL Slug *</Field.Label>
 					<div class="flex items-center gap-2">
-						<span class="text-sm text-muted-foreground">/status/</span>
+						<span class="text-muted-foreground text-sm">/status/</span>
 						<Input
 							id="slug"
 							name="slug"
@@ -104,7 +104,7 @@
 							required
 							disabled={$delayed}
 							class="flex-1"
-							aria-invalid={$errors.slug ? 'true' : undefined}
+							aria-invalid={$errors.slug ? "true" : undefined}
 						/>
 					</div>
 					<Field.Description>
@@ -121,7 +121,7 @@
 						placeholder="Status updates for our services"
 						bind:value={$form.description}
 						disabled={$delayed}
-						aria-invalid={$errors.description ? 'true' : undefined}
+						aria-invalid={$errors.description ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.description} />
 				</Field.Field>
@@ -153,7 +153,7 @@
 						placeholder="https://example.com/logo.png"
 						bind:value={$form.logoUrl}
 						disabled={$delayed}
-						aria-invalid={$errors.logoUrl ? 'true' : undefined}
+						aria-invalid={$errors.logoUrl ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.logoUrl} />
 				</Field.Field>
@@ -189,14 +189,14 @@
 			</Card.Header>
 			<Card.Content>
 				{#if data.monitors.length === 0}
-					<p class="py-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground py-4 text-center text-sm">
 						No monitors available. Create monitors first to add them to your status page.
 					</p>
 				{:else}
 					<div class="space-y-3">
 						{#each data.monitors as monitor (monitor.id)}
 							<label
-								class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+								class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors"
 							>
 								<Checkbox
 									checked={selectedMonitors.has(monitor.id)}
@@ -211,7 +211,7 @@
 								/>
 								<div class="flex-1">
 									<div class="font-medium">{monitor.name}</div>
-									<div class="text-xs text-muted-foreground">
+									<div class="text-muted-foreground text-xs">
 										{monitor.type.toUpperCase()} - {monitor.url ||
 											`${monitor.hostname}:${monitor.port}`}
 									</div>

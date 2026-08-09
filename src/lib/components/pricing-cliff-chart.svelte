@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { MONITOR_BLOCK_PRICE_CENTS, MONITOR_BLOCK_SIZE, UPPITY_PLAN } from '$lib/constants/plans';
-	import { formatUsdCents } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { MONITOR_BLOCK_PRICE_CENTS, MONITOR_BLOCK_SIZE, UPPITY_PLAN } from "$lib/constants/plans";
+	import { formatUsdCents } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { getLocale } from "$lib/paraglide/runtime";
 
 	/**
 	 * Price against capacity, drawn rather than asserted.
@@ -41,7 +41,7 @@
 	 * the resulting newlines away — they stay in the accessible name and in
 	 * anything that copies the label.
 	 */
-	const competitorSummary = () => COMPETITORS.map((c) => `${c.label} ${usd(c.price)}`).join(' · ');
+	const competitorSummary = () => COMPETITORS.map((c) => `${c.label} ${usd(c.price)}`).join(" · ");
 
 	/**
 	 * Published monthly list prices, nothing interpolated (PRODUCT.md). These
@@ -50,8 +50,8 @@
 	 * private pages), never a monitor count.
 	 */
 	const COMPETITORS = [
-		{ label: 'Instatus', price: 300 },
-		{ label: 'Hyperping', price: 299 }
+		{ label: "Instatus", price: 300 },
+		{ label: "Hyperping", price: 299 },
 	];
 
 	const MAX_MONITORS = 1000;
@@ -150,7 +150,7 @@
 	 * slash satisfies both but trips the linters, which see an escape that is
 	 * redundant everywhere except here.
 	 */
-	const TAG = 'script';
+	const TAG = "script";
 	const REVEAL_SCRIPT = `<${TAG}>
 for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
 	const o = new IntersectionObserver((entries) => {
@@ -166,13 +166,13 @@ for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
 {#snippet plot(g: Geometry, monitorTicks: number[], compact: boolean)}
 	<svg
 		viewBox="0 0 {g.w} {g.h}"
-		class={compact ? 'w-full sm:hidden' : 'hidden w-full sm:block'}
+		class={compact ? "w-full sm:hidden" : "hidden w-full sm:block"}
 		role="img"
-		aria-labelledby={compact ? 'cliff-title-c cliff-desc-c' : 'cliff-title cliff-desc'}
+		aria-labelledby={compact ? "cliff-title-c cliff-desc-c" : "cliff-title cliff-desc"}
 		preserveAspectRatio="xMidYMid meet"
 	>
-		<title id={compact ? 'cliff-title-c' : 'cliff-title'}>{m.landing_chart_title()}</title>
-		<desc id={compact ? 'cliff-desc-c' : 'cliff-desc'}>{m.landing_chart_desc()}</desc>
+		<title id={compact ? "cliff-title-c" : "cliff-title"}>{m.landing_chart_title()}</title>
+		<desc id={compact ? "cliff-desc-c" : "cliff-desc"}>{m.landing_chart_desc()}</desc>
 
 		{#each priceTicks as p (p)}
 			<line
@@ -200,7 +200,7 @@ for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
 			<text
 				x={scaleX(g, mt)}
 				y={g.b + 20}
-				text-anchor={compact && mt === MAX_MONITORS ? 'end' : 'middle'}
+				text-anchor={compact && mt === MAX_MONITORS ? "end" : "middle"}
 				class="fill-muted-foreground font-mono text-xs">{mt}</text
 			>
 		{/each}
@@ -313,7 +313,7 @@ for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
 <figure class="flex flex-col gap-3" data-cliff-reveal>
 	{@render plot(COMPACT, compactMonitorTicks, true)}
 	{@render plot(WIDE, wideMonitorTicks, false)}
-	<figcaption class="max-w-[65ch] text-sm text-muted-foreground">
+	<figcaption class="text-muted-foreground max-w-[65ch] text-sm">
 		{m.landing_chart_caption()}
 	</figcaption>
 </figure>

@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { SvelteSet } from 'svelte/reactivity';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, ArrowLeft, LoaderCircle } from '@lucide/svelte';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Checkbox } from "$lib/components/ui/checkbox";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { Textarea } from "$lib/components/ui/textarea";
 	import {
 		INCIDENT_STATUS_VALUES,
 		INCIDENT_IMPACTS,
 		type IncidentStatusValue,
-		type IncidentImpact
-	} from '$lib/constants/status';
-	import { getStatusLabel, getImpactLabel, getImpactDescription } from '$lib/incidents';
-	import { m } from '$lib/paraglide/messages.js';
+		type IncidentImpact,
+	} from "$lib/constants/status";
+	import { getStatusLabel, getImpactLabel, getImpactDescription } from "$lib/incidents";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, ArrowLeft, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -72,7 +72,7 @@
 						placeholder={m.incident_title_placeholder()}
 						bind:value={$form.title}
 						disabled={$delayed}
-						aria-invalid={$errors.title ? 'true' : undefined}
+						aria-invalid={$errors.title ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.title} />
 				</Field.Field>
@@ -132,7 +132,7 @@
 						bind:value={$form.message}
 						disabled={$delayed}
 						rows={4}
-						aria-invalid={$errors.message ? 'true' : undefined}
+						aria-invalid={$errors.message ? "true" : undefined}
 					/>
 					<Field.Description>
 						{m.incident_initial_update_desc()}
@@ -149,14 +149,14 @@
 			</Card.Header>
 			<Card.Content>
 				{#if data.monitors.length === 0}
-					<p class="py-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground py-4 text-center text-sm">
 						{m.incident_no_monitors()}
 					</p>
 				{:else}
 					<div class="space-y-3">
 						{#each data.monitors as monitor (monitor.id)}
 							<label
-								class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted"
+								class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors"
 							>
 								<Checkbox
 									checked={selectedMonitors.has(monitor.id)}
@@ -171,7 +171,7 @@
 								/>
 								<div class="flex-1">
 									<div class="font-medium">{monitor.name}</div>
-									<div class="text-xs text-muted-foreground">
+									<div class="text-muted-foreground text-xs">
 										{monitor.type.toUpperCase()} - {monitor.url ||
 											`${monitor.hostname}:${monitor.port}`}
 									</div>

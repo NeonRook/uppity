@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
@@ -13,7 +13,7 @@
 <div
 	bind:this={ref}
 	data-slot="card"
-	class={cn('flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground', className)}
+	class={cn("bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6", className)}
 	{...restProps}
 >
 	{@render children?.()}

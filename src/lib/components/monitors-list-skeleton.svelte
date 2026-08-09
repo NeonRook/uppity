@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Table from '$lib/components/ui/table';
-	import { m } from '$lib/paraglide/messages.js';
+	import * as Card from "$lib/components/ui/card";
+	import { Skeleton } from "$lib/components/ui/skeleton";
+	import * as Table from "$lib/components/ui/table";
+	import { m } from "$lib/paraglide/messages.js";
 </script>
 
 <Card.Root>

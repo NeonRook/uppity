@@ -221,6 +221,6 @@
 		@apply h-full;
 	}
 	body {
-		@apply h-full bg-background font-sans text-foreground;
+		@apply bg-background text-foreground h-full font-sans;
 	}
 }

@@ -1,28 +1,28 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import { requestPasswordReset } from '$lib/auth-client';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, CircleCheck } from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { resolve } from "$app/paths";
+	import { requestPasswordReset } from "$lib/auth-client";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, LoaderCircle, CircleCheck } from "@lucide/svelte";
 
-	let email = $state('');
-	let error = $state('');
+	let email = $state("");
+	let error = $state("");
 	let loading = $state(false);
 	let submitted = $state(false);
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		error = '';
+		error = "";
 		loading = true;
 
 		try {
 			const result = await requestPasswordReset({
 				email,
-				redirectTo: '/reset-password'
+				redirectTo: "/reset-password",
 			});
 
 			if (result.error) {
@@ -86,8 +86,8 @@
 		{/if}
 	</Card.Content>
 	<Card.Footer>
-		<div class="text-sm text-muted-foreground">
-			<a href={resolve('/login')} class="text-primary underline-offset-4 hover:underline">
+		<div class="text-muted-foreground text-sm">
+			<a href={resolve("/login")} class="text-primary underline-offset-4 hover:underline">
 				{m.auth_forgot_back_to_login()}
 			</a>
 		</div>
