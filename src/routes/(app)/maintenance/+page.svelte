@@ -1,21 +1,21 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { getMaintenanceStatusBadge } from '$lib/maintenance';
-	import { m } from '$lib/paraglide/messages.js';
-	import { Activity, CheckCircle2, Clock, Plus, Wrench } from '@lucide/svelte';
-	import type { MaintenanceWindowSummary } from '$lib/server/services/maintenance-window.service';
+	import { goto } from "$app/navigation";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { getMaintenanceStatusBadge } from "$lib/maintenance";
+	import { m } from "$lib/paraglide/messages.js";
+	import type { MaintenanceWindowSummary } from "$lib/server/services/maintenance-window.service";
+	import { Activity, CheckCircle2, Clock, Plus, Wrench } from "@lucide/svelte";
 
 	let { data } = $props();
 
 	function formatRange(start: Date, end: Date): string {
 		const fmt = new Intl.DateTimeFormat(undefined, {
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
+			month: "short",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
 		});
 		return `${fmt.format(new Date(start))} → ${fmt.format(new Date(end))}`;
 	}
@@ -43,7 +43,7 @@
 
 	{#snippet rows(items: MaintenanceWindowSummary[], emptyText: string)}
 		{#if items.length === 0}
-			<p class="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>
+			<p class="text-muted-foreground py-6 text-center text-sm">{emptyText}</p>
 		{:else}
 			<ul class="divide-y">
 				{#each items as w (w.id)}
@@ -51,7 +51,7 @@
 					<li>
 						<button
 							type="button"
-							class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted"
+							class="hover:bg-muted flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors"
 							onclick={() => rowClick(w.id)}
 						>
 							<div class="min-w-0 flex-1">
@@ -59,7 +59,7 @@
 									<span class="truncate font-medium">{w.name}</span>
 									<Badge variant={sb.variant}>{sb.label}</Badge>
 								</div>
-								<div class="mt-1 text-xs text-muted-foreground">
+								<div class="text-muted-foreground mt-1 text-xs">
 									{formatRange(w.startsAt, w.endsAt)}
 								</div>
 							</div>
@@ -110,7 +110,7 @@
 	</Card.Root>
 
 	{#if data.active.length === 0 && data.upcoming.length === 0 && data.past.length === 0}
-		<div class="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+		<div class="text-muted-foreground flex flex-col items-center justify-center gap-2 py-12">
 			<Wrench class="h-8 w-8" />
 			<p>{m.maintenance_empty_global()}</p>
 		</div>

@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { page as pageState } from '$app/state';
-	import Pagination from '$lib/components/pagination.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import { formatDateTimeShort } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
-	import { ChevronDown, ChevronRight, Download } from '@lucide/svelte';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page as pageState } from "$app/state";
+	import Pagination from "$lib/components/pagination.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Table from "$lib/components/ui/table";
+	import { formatDateTimeShort } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { ChevronDown, ChevronRight, Download } from "@lucide/svelte";
 
 	let { data } = $props();
 
@@ -19,19 +19,19 @@
 
 	function targetHref(entry: (typeof data.entries)[number]): string | null {
 		if (!entry.targetId) return null;
-		if (entry.targetType === 'user') return `/admin/users/${entry.targetId}`;
-		if (entry.targetType === 'organization') return `/admin/organizations/${entry.targetId}`;
+		if (entry.targetType === "user") return `/admin/users/${entry.targetId}`;
+		if (entry.targetType === "organization") return `/admin/organizations/${entry.targetId}`;
 		return null;
 	}
 
 	// Built by hand rather than via URLSearchParams: this is a throwaway string,
 	// not reactive state, and constructing one trips svelte/prefer-svelte-reactivity.
 	function goToPage(next: number) {
-		const pairs = [...pageState.url.searchParams.entries()].filter(([key]) => key !== 'page');
-		pairs.push(['page', String(next)]);
+		const pairs = [...pageState.url.searchParams.entries()].filter(([key]) => key !== "page");
+		pairs.push(["page", String(next)]);
 		const query = pairs
 			.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-			.join('&');
+			.join("&");
 		goto(`?${query}`);
 	}
 </script>
@@ -59,10 +59,10 @@
 			<form method="GET" class="flex flex-wrap items-end gap-3">
 				<label class="flex flex-col gap-1 text-sm">
 					<span class="text-muted-foreground">{m.admin_audit_filter_action()}</span>
-					<select name="action" class="h-9 rounded-md border bg-background px-2 text-sm">
+					<select name="action" class="bg-background h-9 rounded-md border px-2 text-sm">
 						<option value="">{m.admin_audit_filter_all()}</option>
 						{#each data.actions as action (action)}
-							<option value={action} selected={pageState.url.searchParams.get('action') === action}>
+							<option value={action} selected={pageState.url.searchParams.get("action") === action}>
 								{action}
 							</option>
 						{/each}
@@ -71,12 +71,12 @@
 
 				<label class="flex flex-col gap-1 text-sm">
 					<span class="text-muted-foreground">{m.admin_audit_filter_target_type()}</span>
-					<select name="targetType" class="h-9 rounded-md border bg-background px-2 text-sm">
+					<select name="targetType" class="bg-background h-9 rounded-md border px-2 text-sm">
 						<option value="">{m.admin_audit_filter_all()}</option>
 						{#each data.targetTypes as targetType (targetType)}
 							<option
 								value={targetType}
-								selected={pageState.url.searchParams.get('targetType') === targetType}
+								selected={pageState.url.searchParams.get("targetType") === targetType}
 							>
 								{targetType}
 							</option>
@@ -89,8 +89,8 @@
 					<input
 						type="date"
 						name="from"
-						value={pageState.url.searchParams.get('from') ?? ''}
-						class="h-9 rounded-md border bg-background px-2 text-sm"
+						value={pageState.url.searchParams.get("from") ?? ""}
+						class="bg-background h-9 rounded-md border px-2 text-sm"
 					/>
 				</label>
 
@@ -99,13 +99,13 @@
 					<input
 						type="date"
 						name="to"
-						value={pageState.url.searchParams.get('to') ?? ''}
-						class="h-9 rounded-md border bg-background px-2 text-sm"
+						value={pageState.url.searchParams.get("to") ?? ""}
+						class="bg-background h-9 rounded-md border px-2 text-sm"
 					/>
 				</label>
 
 				<Button type="submit" size="sm">{m.admin_audit_filter_apply()}</Button>
-				<Button variant="ghost" size="sm" href={resolve('/admin/audit')}>
+				<Button variant="ghost" size="sm" href={resolve("/admin/audit")}>
 					{m.admin_audit_filter_clear()}
 				</Button>
 			</form>
@@ -142,7 +142,7 @@
 									</button>
 								{/if}
 							</Table.Cell>
-							<Table.Cell class="whitespace-nowrap text-muted-foreground">
+							<Table.Cell class="text-muted-foreground whitespace-nowrap">
 								{formatDateTimeShort(entry.createdAt)}
 							</Table.Cell>
 							<Table.Cell class="text-sm">{entry.actorEmail}</Table.Cell>
@@ -151,11 +151,11 @@
 								{#if href}
 									<a {href} class="hover:underline">{entry.targetLabel ?? entry.targetId}</a>
 								{:else}
-									{entry.targetLabel ?? entry.targetId ?? '—'}
+									{entry.targetLabel ?? entry.targetId ?? "—"}
 								{/if}
 							</Table.Cell>
-							<Table.Cell class="font-mono text-xs text-muted-foreground">
-								{entry.ipAddress ?? '—'}
+							<Table.Cell class="text-muted-foreground font-mono text-xs">
+								{entry.ipAddress ?? "—"}
 							</Table.Cell>
 						</Table.Row>
 						{#if expanded === entry.id && entry.metadata}
@@ -164,7 +164,7 @@
 									<pre class="overflow-x-auto text-xs">{JSON.stringify(
 											entry.metadata,
 											null,
-											2
+											2,
 										)}</pre>
 								</Table.Cell>
 							</Table.Row>
@@ -172,7 +172,7 @@
 					{/each}
 					{#if data.entries.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={6} class="text-center text-muted-foreground">
+							<Table.Cell colspan={6} class="text-muted-foreground text-center">
 								{m.admin_audit_empty()}
 							</Table.Cell>
 						</Table.Row>

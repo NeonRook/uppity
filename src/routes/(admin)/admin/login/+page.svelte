@@ -1,29 +1,29 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { signIn, signOut, getSession } from '$lib/auth-client';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, ShieldCheck } from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { signIn, signOut, getSession } from "$lib/auth-client";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, LoaderCircle, ShieldCheck } from "@lucide/svelte";
 
-	let email = $state('');
-	let password = $state('');
-	let error = $state('');
+	let email = $state("");
+	let password = $state("");
+	let error = $state("");
 	let loading = $state(false);
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		error = '';
+		error = "";
 		loading = true;
 
 		try {
 			const result = await signIn.email({
 				email,
-				password
+				password,
 			});
 
 			if (result.error) {
@@ -34,14 +34,14 @@
 
 			// Verify user has admin role
 			const session = await getSession();
-			if (session.data?.user?.role !== 'admin') {
+			if (session.data?.user?.role !== "admin") {
 				await signOut();
 				error = m.admin_login_error_access();
 				loading = false;
 				return;
 			}
 
-			goto(resolve('/admin'));
+			goto(resolve("/admin"));
 		} catch {
 			error = m.auth_login_error_unexpected();
 			loading = false;
@@ -57,7 +57,7 @@
 	<Card.Header class="space-y-4">
 		<div class="flex justify-center">
 			<div
-				class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+				class="bg-primary text-primary-foreground flex h-12 w-12 items-center justify-center rounded-xl"
 			>
 				<ShieldCheck class="h-6 w-6" />
 			</div>

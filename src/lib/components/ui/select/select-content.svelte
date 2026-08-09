@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Select as SelectPrimitive } from 'bits-ui';
-	import SelectPortal from './select-portal.svelte';
-	import SelectScrollUpButton from './select-scroll-up-button.svelte';
-	import SelectScrollDownButton from './select-scroll-down-button.svelte';
-	import { cn } from '$lib/utils.js';
-	import type { WithoutChild, WithoutChildrenOrChild } from '$lib/utils.js';
-	import type { ComponentProps } from 'svelte';
+	import { cn } from "$lib/utils.js";
+	import type { WithoutChild, WithoutChildrenOrChild } from "$lib/utils.js";
+	import { Select as SelectPrimitive } from "bits-ui";
+	import type { ComponentProps } from "svelte";
+
+	import SelectPortal from "./select-portal.svelte";
+	import SelectScrollDownButton from "./select-scroll-down-button.svelte";
+	import SelectScrollUpButton from "./select-scroll-up-button.svelte";
 
 	let {
 		ref = $bindable(null),
@@ -27,15 +28,15 @@
 		{preventScroll}
 		data-slot="select-content"
 		class={cn(
-			'relative z-50 max-h-(--bits-select-content-available-height) min-w-32 origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md data-[side=bottom]:translate-y-1 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:-translate-x-1 data-[side=left]:slide-in-from-end-2 data-[side=right]:translate-x-1 data-[side=right]:slide-in-from-start-2 data-[side=top]:-translate-y-1 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-			className
+			"bg-popover text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-end-2 data-[side=right]:slide-in-from-start-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 relative z-50 max-h-(--bits-select-content-available-height) min-w-32 origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+			className,
 		)}
 		{...restProps}
 	>
 		<SelectScrollUpButton />
 		<SelectPrimitive.Viewport
 			class={cn(
-				'h-(--bits-select-anchor-height) w-full min-w-(--bits-select-anchor-width) scroll-my-1 p-1'
+				"h-(--bits-select-anchor-height) w-full min-w-(--bits-select-anchor-width) scroll-my-1 p-1",
 			)}
 		>
 			{@render children?.()}

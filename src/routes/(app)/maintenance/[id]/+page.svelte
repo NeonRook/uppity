@@ -1,41 +1,41 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Field from '$lib/components/ui/field';
-	import { Input } from '$lib/components/ui/input';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { getMaintenanceStatusBadge } from '$lib/maintenance';
-	import { m } from '$lib/paraglide/messages.js';
-	import { ArrowLeft, CircleAlert, LoaderCircle } from '@lucide/svelte';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Checkbox } from "$lib/components/ui/checkbox";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { ScrollArea } from "$lib/components/ui/scroll-area";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { getMaintenanceStatusBadge } from "$lib/maintenance";
+	import { m } from "$lib/paraglide/messages.js";
+	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
-	type FormMessage = { type: 'success' } | { type: 'error'; text?: string };
+	type FormMessage = { type: "success" } | { type: "error"; text?: string };
 
 	let { data } = $props();
 
 	const w = $derived(data.window);
-	const isMutable = $derived(w.status === 'scheduled' || w.status === 'in_progress');
+	const isMutable = $derived(w.status === "scheduled" || w.status === "in_progress");
 
 	const { form, errors, enhance, delayed, message } = superForm<typeof data.form.data, FormMessage>(
 		untrack(() => data.form),
 		{
-			dataType: 'json',
-			resetForm: false
-		}
+			dataType: "json",
+			resetForm: false,
+		},
 	);
 
 	let cancelDialogOpen = $state(false);
 
 	function dateToLocalInput(d: Date | string | undefined | null): string {
-		if (!d) return '';
+		if (!d) return "";
 		const date = new Date(d);
-		if (Number.isNaN(date.getTime())) return '';
+		if (Number.isNaN(date.getTime())) return "";
 		const offset = date.getTimezoneOffset() * 60_000;
 		return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 	}
@@ -99,10 +99,10 @@
 
 	<form method="POST" action="?/update" use:enhance>
 		{#if $message}
-			<Alert variant={$message.type === 'success' ? 'default' : 'destructive'} class="mb-6">
+			<Alert variant={$message.type === "success" ? "default" : "destructive"} class="mb-6">
 				<CircleAlert class="h-4 w-4" />
 				<AlertDescription>
-					{$message.type === 'success' ? m.maintenance_edit_updated() : ($message.text ?? '')}
+					{$message.type === "success" ? m.maintenance_edit_updated() : ($message.text ?? "")}
 				</AlertDescription>
 			</Alert>
 		{/if}
@@ -119,7 +119,7 @@
 						name="name"
 						bind:value={$form.name}
 						disabled={inputsDisabled}
-						aria-invalid={$errors.name ? 'true' : undefined}
+						aria-invalid={$errors.name ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -132,7 +132,7 @@
 						bind:value={$form.description}
 						disabled={inputsDisabled}
 						rows={3}
-						aria-invalid={$errors.description ? 'true' : undefined}
+						aria-invalid={$errors.description ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.description} />
 				</Field.Field>
@@ -146,7 +146,7 @@
 							type="datetime-local"
 							bind:value={startsAtStr}
 							disabled={inputsDisabled}
-							aria-invalid={$errors.startsAt ? 'true' : undefined}
+							aria-invalid={$errors.startsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.startsAt} />
 					</Field.Field>
@@ -158,7 +158,7 @@
 							type="datetime-local"
 							bind:value={endsAtStr}
 							disabled={inputsDisabled}
-							aria-invalid={$errors.endsAt ? 'true' : undefined}
+							aria-invalid={$errors.endsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.endsAt} />
 					</Field.Field>
@@ -176,7 +176,7 @@
 			</Card.Header>
 			<Card.Content>
 				{#if data.monitors.length === 0}
-					<p class="py-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground py-4 text-center text-sm">
 						{m.maintenance_form_no_monitors()}
 					</p>
 				{:else}
@@ -186,7 +186,7 @@
 								<label
 									class="flex items-center gap-3 rounded-md border p-2 transition-colors {inputsDisabled
 										? 'cursor-not-allowed opacity-60'
-										: 'cursor-pointer hover:bg-muted'}"
+										: 'hover:bg-muted cursor-pointer'}"
 								>
 									<Checkbox
 										checked={($form.monitorIds ?? []).includes(monitor.id)}

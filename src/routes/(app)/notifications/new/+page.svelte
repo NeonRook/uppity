@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { m } from "$lib/paraglide/messages.js";
 	import {
 		CircleAlert,
 		ArrowLeft,
@@ -16,9 +15,10 @@
 		Mail,
 		MessageSquare,
 		Webhook,
-		Lock
-	} from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+		Lock,
+	} from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -28,8 +28,8 @@
 	const usageLimits = $derived(data.usageLimits);
 	const availableChannelTypes = $derived(
 		data.selfHosted
-			? ['email', 'slack', 'discord', 'webhook']
-			: (usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook'])
+			? ["email", "slack", "discord", "webhook"]
+			: (usageLimits?.features.notificationChannels ?? ["email", "slack", "discord", "webhook"]),
 	);
 
 	function isChannelAvailable(type: string): boolean {
@@ -38,13 +38,13 @@
 
 	function getChannelTypeLabel(type: string): string {
 		switch (type) {
-			case 'email':
+			case "email":
 				return m.notification_type_email();
-			case 'slack':
+			case "slack":
 				return m.notification_type_slack();
-			case 'discord':
+			case "discord":
 				return m.notification_type_discord();
-			case 'webhook':
+			case "webhook":
 				return m.notification_type_webhook();
 			default:
 				return type;
@@ -53,28 +53,28 @@
 
 	function getChannelTypeDesc(type: string): string {
 		switch (type) {
-			case 'email':
+			case "email":
 				return m.notification_email_desc();
-			case 'slack':
+			case "slack":
 				return m.notification_slack_desc();
-			case 'discord':
+			case "discord":
 				return m.notification_discord_desc();
-			case 'webhook':
+			case "webhook":
 				return m.notification_webhook_desc();
 			default:
-				return '';
+				return "";
 		}
 	}
 
-	const channelTypeValues = ['email', 'slack', 'discord', 'webhook'] as const;
+	const channelTypeValues = ["email", "slack", "discord", "webhook"] as const;
 	const channelTypeIcons = {
 		email: Mail,
 		slack: MessageSquare,
 		discord: MessageSquare,
-		webhook: Webhook
+		webhook: Webhook,
 	};
 
-	const httpMethods = ['POST', 'PUT', 'PATCH'] as const;
+	const httpMethods = ["POST", "PUT", "PATCH"] as const;
 </script>
 
 <svelte:head>
@@ -113,7 +113,7 @@
 						placeholder={m.notification_name_placeholder()}
 						bind:value={$form.name}
 						disabled={$delayed}
-						aria-invalid={$errors.name ? 'true' : undefined}
+						aria-invalid={$errors.name ? "true" : undefined}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -139,10 +139,10 @@
 									<div class="flex items-center gap-2 font-medium">
 										{getChannelTypeLabel(channelType)}
 										{#if !available}
-											<Lock class="h-3 w-3 text-muted-foreground" />
+											<Lock class="text-muted-foreground h-3 w-3" />
 										{/if}
 									</div>
-									<div class="text-xs text-muted-foreground">{getChannelTypeDesc(channelType)}</div>
+									<div class="text-muted-foreground text-xs">{getChannelTypeDesc(channelType)}</div>
 								</div>
 								{#if !available}
 									<Badge variant="outline" class="absolute top-2 right-2 text-[10px]">Pro</Badge>
@@ -155,7 +155,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		{#if $form.type === 'email'}
+		{#if $form.type === "email"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_email_config()}</Card.Title>
@@ -170,14 +170,14 @@
 							placeholder="alerts@example.com"
 							bind:value={$form.email}
 							disabled={$delayed}
-							aria-invalid={$errors.email ? 'true' : undefined}
+							aria-invalid={$errors.email ? "true" : undefined}
 						/>
 						<Field.Description>{m.notification_email_address_desc()}</Field.Description>
 						<Field.Error errors={$errors.email} />
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if $form.type === 'slack'}
+		{:else if $form.type === "slack"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_slack_config()}</Card.Title>
@@ -192,7 +192,7 @@
 							placeholder="https://hooks.slack.com/services/..."
 							bind:value={$form.webhookUrl}
 							disabled={$delayed}
-							aria-invalid={$errors.webhookUrl ? 'true' : undefined}
+							aria-invalid={$errors.webhookUrl ? "true" : undefined}
 						/>
 						<Field.Description>
 							{m.notification_slack_webhook_desc()}
@@ -215,7 +215,7 @@
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if $form.type === 'discord'}
+		{:else if $form.type === "discord"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_discord_config()}</Card.Title>
@@ -230,7 +230,7 @@
 							placeholder="https://discord.com/api/webhooks/..."
 							bind:value={$form.discordWebhookUrl}
 							disabled={$delayed}
-							aria-invalid={$errors.discordWebhookUrl ? 'true' : undefined}
+							aria-invalid={$errors.discordWebhookUrl ? "true" : undefined}
 						/>
 						<Field.Description>
 							{m.notification_discord_webhook_desc()}
@@ -239,7 +239,7 @@
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if $form.type === 'webhook'}
+		{:else if $form.type === "webhook"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_webhook_config()}</Card.Title>
@@ -254,7 +254,7 @@
 							placeholder="https://api.example.com/webhooks/alerts"
 							bind:value={$form.url}
 							disabled={$delayed}
-							aria-invalid={$errors.url ? 'true' : undefined}
+							aria-invalid={$errors.url ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.url} />
 					</Field.Field>
@@ -265,10 +265,10 @@
 							type="single"
 							name="method"
 							value={$form.method}
-							onValueChange={(v) => ($form.method = v as 'POST' | 'PUT' | 'PATCH')}
+							onValueChange={(v) => ($form.method = v as "POST" | "PUT" | "PATCH")}
 						>
 							<Select.Trigger class="w-full">
-								{$form.method ?? 'POST'}
+								{$form.method ?? "POST"}
 							</Select.Trigger>
 							<Select.Content>
 								{#each httpMethods as method (method)}

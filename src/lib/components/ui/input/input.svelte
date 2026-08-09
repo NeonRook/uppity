@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from 'svelte/elements';
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
 
-	type InputType = Exclude<HTMLInputTypeAttribute, 'file'>;
+	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
 
 	type Props = WithElementRef<
-		Omit<HTMLInputAttributes, 'type'> &
-			({ type: 'file'; files?: FileList } | { type?: InputType; files?: undefined })
+		Omit<HTMLInputAttributes, "type"> &
+			({ type: "file"; files?: FileList } | { type?: InputType; files?: undefined })
 	>;
 
 	let {
@@ -15,20 +15,20 @@
 		type,
 		files = $bindable(),
 		class: className,
-		'data-slot': dataSlot = 'input',
+		"data-slot": dataSlot = "input",
 		...restProps
 	}: Props = $props();
 </script>
 
-{#if type === 'file'}
+{#if type === "file"}
 	<input
 		bind:this={ref}
 		data-slot={dataSlot}
 		class={cn(
-			'flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 pt-1.5 text-sm font-medium ring-offset-background transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30',
-			'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-			'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
-			className
+			"border-input ring-offset-background selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground dark:bg-input/30 flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 pt-1.5 text-sm font-medium transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+			className,
 		)}
 		type="file"
 		bind:files
@@ -40,10 +40,10 @@
 		bind:this={ref}
 		data-slot={dataSlot}
 		class={cn(
-			'flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-base ring-offset-background transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30',
-			'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-			'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
-			className
+			"border-input bg-background ring-offset-background selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground dark:bg-input/30 flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+			"focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+			"aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+			className,
 		)}
 		{type}
 		bind:value

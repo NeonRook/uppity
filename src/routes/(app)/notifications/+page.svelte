@@ -1,17 +1,17 @@
 <script lang="ts">
-	import ChannelsListSkeleton from '$lib/components/channels-list-skeleton.svelte';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import EmptyState from '$lib/components/empty-state.svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { m } from '$lib/paraglide/messages.js';
-	import { getChannels, toggleChannel, deleteChannel } from '$lib/remote/notifications.remote';
-	import type { NotificationChannel } from '$lib/server/db/schema';
-	import { Bell, Mail, MessageSquare, Pencil, Plus, Trash2, Webhook } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
+	import ChannelsListSkeleton from "$lib/components/channels-list-skeleton.svelte";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { Switch } from "$lib/components/ui/switch";
+	import * as Tooltip from "$lib/components/ui/tooltip";
+	import { m } from "$lib/paraglide/messages.js";
+	import { getChannels, toggleChannel, deleteChannel } from "$lib/remote/notifications.remote";
+	import type { NotificationChannel } from "$lib/server/db/schema";
+	import { Bell, Mail, MessageSquare, Pencil, Plus, Trash2, Webhook } from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	let { data } = $props();
 	const channelsQuery = getChannels();
@@ -23,8 +23,8 @@
 	const usageLimits = $derived(data.usageLimits);
 	const availableChannelTypes = $derived(
 		data.selfHosted
-			? ['email', 'slack', 'discord', 'webhook']
-			: (usageLimits?.features.notificationChannels ?? ['email', 'slack', 'discord', 'webhook'])
+			? ["email", "slack", "discord", "webhook"]
+			: (usageLimits?.features.notificationChannels ?? ["email", "slack", "discord", "webhook"]),
 	);
 	const hasAllChannelTypes = $derived(data.selfHosted || availableChannelTypes.length >= 4);
 
@@ -33,13 +33,13 @@
 
 	function getChannelIcon(type: string) {
 		switch (type) {
-			case 'email':
+			case "email":
 				return Mail;
-			case 'slack':
+			case "slack":
 				return MessageSquare;
-			case 'discord':
+			case "discord":
 				return MessageSquare;
-			case 'webhook':
+			case "webhook":
 				return Webhook;
 			default:
 				return Bell;
@@ -48,13 +48,13 @@
 
 	function getChannelTypeName(type: string): string {
 		switch (type) {
-			case 'email':
+			case "email":
 				return m.notifications_type_email();
-			case 'slack':
+			case "slack":
 				return m.notifications_type_slack();
-			case 'discord':
+			case "discord":
 				return m.notifications_type_discord();
-			case 'webhook':
+			case "webhook":
 				return m.notifications_type_webhook();
 			default:
 				return type;
@@ -64,16 +64,16 @@
 	function getChannelDescription(channel: NotificationChannel): string {
 		const config = channel.config as Record<string, unknown>;
 		switch (channel.type) {
-			case 'email':
+			case "email":
 				return (config.email as string) || m.notifications_no_email();
-			case 'slack':
+			case "slack":
 				return config.channel ? `#${config.channel}` : m.notifications_slack_webhook();
-			case 'discord':
+			case "discord":
 				return m.notifications_discord_webhook();
-			case 'webhook':
+			case "webhook":
 				return (config.url as string) || m.notifications_no_url();
 			default:
-				return '';
+				return "";
 		}
 	}
 
@@ -82,11 +82,11 @@
 		try {
 			await toggleChannel({ channelId }).updates(
 				getChannels().withOverride((prev) =>
-					prev.map((ch) => (ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch))
-				)
+					prev.map((ch) => (ch.id === channelId ? { ...ch, enabled: !currentEnabled } : ch)),
+				),
 			);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Failed to toggle channel');
+			toast.error(e instanceof Error ? e.message : "Failed to toggle channel");
 		} finally {
 			togglingChannelId = null;
 		}
@@ -94,7 +94,7 @@
 
 	async function handleDelete(channelId: string) {
 		await deleteChannel({ channelId }).updates(
-			getChannels().withOverride((prev) => prev.filter((ch) => ch.id !== channelId))
+			getChannels().withOverride((prev) => prev.filter((ch) => ch.id !== channelId)),
 		);
 	}
 </script>
@@ -114,7 +114,7 @@
 				<Tooltip.Root>
 					<Tooltip.Trigger>
 						<Badge variant="outline" class="hidden text-xs font-normal sm:inline-flex">
-							{availableChannelTypes.join(', ')} only
+							{availableChannelTypes.join(", ")} only
 						</Badge>
 					</Tooltip.Trigger>
 					<Tooltip.Content>
@@ -154,7 +154,7 @@
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 							<div class="flex items-center gap-4">
 								<div
-									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted"
+									class="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
 								>
 									<Icon class="h-5 w-5" />
 								</div>
@@ -166,7 +166,7 @@
 											<Badge variant="outline">{m.common_disabled()}</Badge>
 										{/if}
 									</div>
-									<p class="truncate text-sm text-muted-foreground">
+									<p class="text-muted-foreground truncate text-sm">
 										{getChannelDescription(channel)}
 									</p>
 								</div>

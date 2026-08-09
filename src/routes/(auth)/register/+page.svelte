@@ -1,25 +1,25 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { signUp } from '$lib/auth-client';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle } from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { signUp } from "$lib/auth-client";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 
-	let name = $state('');
-	let email = $state('');
-	let password = $state('');
-	let confirmPassword = $state('');
-	let error = $state('');
+	let name = $state("");
+	let email = $state("");
+	let password = $state("");
+	let confirmPassword = $state("");
+	let error = $state("");
 	let loading = $state(false);
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		error = '';
+		error = "";
 
 		if (password !== confirmPassword) {
 			error = m.auth_register_error_mismatch();
@@ -37,7 +37,7 @@
 			const result = await signUp.email({
 				email,
 				password,
-				name
+				name,
 			});
 
 			if (result.error) {
@@ -46,7 +46,7 @@
 				return;
 			}
 
-			goto(resolve('/dashboard'));
+			goto(resolve("/dashboard"));
 		} catch {
 			error = m.auth_login_error_unexpected();
 			loading = false;
@@ -130,9 +130,9 @@
 		</form>
 	</Card.Content>
 	<Card.Footer>
-		<div class="text-sm text-muted-foreground">
+		<div class="text-muted-foreground text-sm">
 			{m.auth_register_has_account()}
-			<a href={resolve('/login')} class="text-primary underline-offset-4 hover:underline"
+			<a href={resolve("/login")} class="text-primary underline-offset-4 hover:underline"
 				>{m.auth_login_sign_in()}</a
 			>
 		</div>

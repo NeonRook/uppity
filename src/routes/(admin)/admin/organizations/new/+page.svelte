@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { superForm } from 'sveltekit-superforms';
-	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, ArrowLeft } from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { m } from "$lib/paraglide/messages.js";
+	import { CircleAlert, LoaderCircle, ArrowLeft } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -17,9 +17,9 @@
 	function generateSlug(name: string): string {
 		return name
 			.toLowerCase()
-			.replace(/[^a-z0-9\s-]/g, '')
-			.replace(/\s+/g, '-')
-			.replace(/-+/g, '-')
+			.replace(/[^a-z0-9\s-]/g, "")
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
 			.trim();
 	}
 

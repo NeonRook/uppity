@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Card from "$lib/components/ui/card";
+	import { Skeleton } from "$lib/components/ui/skeleton";
 </script>
 
 <div class="space-y-4">

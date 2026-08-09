@@ -1,62 +1,62 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import { goto } from '$app/navigation';
-	import { superForm } from 'sveltekit-superforms';
-	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Table from '$lib/components/ui/table';
-	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import AuditHistory from '$lib/components/audit-history.svelte';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, Trash2, UserPlus, RefreshCw } from '@lucide/svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import { formatDateShort } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
-	import { deleteOrganization } from '$lib/remote/admin.remote';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import AuditHistory from "$lib/components/audit-history.svelte";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import PageHeader from "$lib/components/page-header.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import * as Table from "$lib/components/ui/table";
+	import { formatDateShort } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { deleteOrganization } from "$lib/remote/admin.remote";
+	import { CircleAlert, LoaderCircle, Trash2, UserPlus, RefreshCw } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(
 		untrack(() => data.form),
 		{
-			resetForm: false
-		}
+			resetForm: false,
+		},
 	);
 
 	let showDeleteDialog = $state(false);
 	let showAddMemberDialog = $state(false);
 	let memberToRemove = $state<{ id: string; name: string } | null>(null);
 
-	let selectedUserId = $state<string>('');
-	let selectedRole = $state<string>('member');
+	let selectedUserId = $state<string>("");
+	let selectedRole = $state<string>("member");
 
 	async function handleDelete() {
 		await deleteOrganization({ organizationId: data.org.id });
-		goto(resolve('/admin/organizations'));
+		goto(resolve("/admin/organizations"));
 	}
 
 	function getRoleBadgeVariant(role: string) {
 		switch (role) {
-			case 'owner':
-				return 'default';
-			case 'admin':
-				return 'secondary';
+			case "owner":
+				return "default";
+			case "admin":
+				return "secondary";
 			default:
-				return 'outline';
+				return "outline";
 		}
 	}
 
 	function getRoleLabel(role: string): string {
 		switch (role) {
-			case 'owner':
+			case "owner":
 				return m.role_owner();
-			case 'admin':
+			case "admin":
 				return m.role_admin();
 			default:
 				return m.role_member();
@@ -122,7 +122,7 @@
 					<Field.Error errors={$errors.logo} />
 				</Field.Field>
 
-				<div class="text-sm text-muted-foreground">
+				<div class="text-muted-foreground text-sm">
 					{m.common_created()}: {formatDateShort(data.org.createdAt)}
 				</div>
 
@@ -143,14 +143,14 @@
 	<!-- Subscription -->
 	{#snippet usageBar(label: string, used: number, limit: number)}
 		<div class="space-y-1">
-			<div class="flex justify-between text-xs text-muted-foreground">
+			<div class="text-muted-foreground flex justify-between text-xs">
 				<span>{label}</span>
-				<span>{used} / {limit === -1 ? '∞' : limit}</span>
+				<span>{used} / {limit === -1 ? "∞" : limit}</span>
 			</div>
-			<div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+			<div class="bg-muted h-2 w-full overflow-hidden rounded-full">
 				<!-- -1 means unlimited, so there is no meaningful bar to fill. -->
 				<div
-					class="h-full bg-primary"
+					class="bg-primary h-full"
 					style="width: {limit === -1 ? 0 : Math.min(100, (used / Math.max(limit, 1)) * 100)}%"
 				></div>
 			</div>
@@ -178,12 +178,12 @@
 			{#if data.billing.selfHosted}
 				<Badge variant="secondary">{m.admin_org_self_hosted()}</Badge>
 			{:else if !data.billing.subscription}
-				<p class="text-sm text-muted-foreground">{m.admin_org_no_subscription()}</p>
+				<p class="text-muted-foreground text-sm">{m.admin_org_no_subscription()}</p>
 			{:else}
 				<div class="flex items-center gap-2">
 					<Badge>{data.billing.plan.name}</Badge>
 					<Badge
-						variant={data.billing.subscription.status === 'active' ? 'outline' : 'destructive'}
+						variant={data.billing.subscription.status === "active" ? "outline" : "destructive"}
 					>
 						{data.billing.subscription.status}
 					</Badge>
@@ -196,7 +196,7 @@
 						{formatDateShort(data.billing.subscription.currentPeriodEnd)}
 					</div>
 					{#if data.billing.subscription.polarCustomerId}
-						<div class="truncate text-muted-foreground">
+						<div class="text-muted-foreground truncate">
 							{m.admin_org_polar_customer()}:
 							<a
 								class="font-mono text-xs hover:underline"
@@ -217,12 +217,12 @@
 				{@render usageBar(
 					m.admin_org_usage_monitors(),
 					data.billing.usage.monitors,
-					data.billing.limits.monitors
+					data.billing.limits.monitors,
 				)}
 				{@render usageBar(
 					m.admin_org_usage_status_pages(),
 					data.billing.usage.statusPages,
-					data.billing.limits.statusPages
+					data.billing.limits.statusPages,
 				)}
 			</div>
 		</Card.Content>
@@ -278,14 +278,14 @@
 									size="icon"
 									onclick={() => (memberToRemove = { id: member.id, name: member.user.name })}
 								>
-									<Trash2 class="h-4 w-4 text-destructive" />
+									<Trash2 class="text-destructive h-4 w-4" />
 								</Button>
 							</Table.Cell>
 						</Table.Row>
 					{/each}
 					{#if data.org.members.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+							<Table.Cell colspan={5} class="text-muted-foreground text-center">
 								{m.admin_orgs_no_members()}
 							</Table.Cell>
 						</Table.Row>
@@ -375,13 +375,13 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{m.admin_orgs_remove_member_title()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				{m.admin_orgs_remove_member_desc({ name: memberToRemove?.name ?? '' })}
+				{m.admin_orgs_remove_member_desc({ name: memberToRemove?.name ?? "" })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
 			<form method="POST" action="?/removeMember">
-				<input type="hidden" name="memberId" value={memberToRemove?.id || ''} />
+				<input type="hidden" name="memberId" value={memberToRemove?.id || ""} />
 				<Button type="submit" variant="destructive">{m.common_remove()}</Button>
 			</form>
 		</AlertDialog.Footer>

@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { superForm } from 'sveltekit-superforms';
-	import { enhance } from '$app/forms';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Card from '$lib/components/ui/card';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import PageHeader from "$lib/components/page-header.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { Switch } from "$lib/components/ui/switch";
+	import * as Tabs from "$lib/components/ui/tabs";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { deleteStatusPage } from "$lib/remote/status-pages.remote";
 	import {
 		CircleAlert,
 		LoaderCircle,
@@ -20,10 +20,10 @@
 		Trash2,
 		ExternalLink,
 		GripVertical,
-		CircleCheck
-	} from '@lucide/svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import { deleteStatusPage } from '$lib/remote/status-pages.remote';
+		CircleCheck,
+	} from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
@@ -32,24 +32,24 @@
 		errors: updateErrors,
 		message: updateMessage,
 		enhance: updateEnhance,
-		delayed: updateDelayed
+		delayed: updateDelayed,
 	} = superForm(
 		untrack(() => data.updateForm),
 		{
-			resetForm: false
-		}
+			resetForm: false,
+		},
 	);
 
 	let showDeleteDialog = $state(false);
 
 	async function handleDelete() {
 		await deleteStatusPage({ statusPageId: data.statusPage.id });
-		goto(resolve('/status-pages'));
+		goto(resolve("/status-pages"));
 	}
-	let newGroupName = $state('');
+	let newGroupName = $state("");
 
 	const availableMonitors = $derived(
-		data.allMonitors.filter((m) => !data.selectedMonitorIds.includes(m.id))
+		data.allMonitors.filter((m) => !data.selectedMonitorIds.includes(m.id)),
 	);
 
 	function getStatusPageUrl(): string {
@@ -84,11 +84,11 @@
 
 	{#if $updateMessage}
 		<Alert
-			variant={$updateMessage.includes('error') || $updateMessage.includes('taken')
-				? 'destructive'
-				: 'default'}
+			variant={$updateMessage.includes("error") || $updateMessage.includes("taken")
+				? "destructive"
+				: "default"}
 		>
-			{#if $updateMessage.includes('error') || $updateMessage.includes('taken')}
+			{#if $updateMessage.includes("error") || $updateMessage.includes("taken")}
 				<CircleAlert class="h-4 w-4" />
 			{:else}
 				<CircleCheck class="h-4 w-4" />
@@ -119,7 +119,7 @@
 								bind:value={$updateForm.name}
 								required
 								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.name ? 'true' : undefined}
+								aria-invalid={$updateErrors.name ? "true" : undefined}
 							/>
 							<Field.Error errors={$updateErrors.name} />
 						</Field.Field>
@@ -127,7 +127,7 @@
 						<Field.Field>
 							<Field.Label for="slug">URL Slug *</Field.Label>
 							<div class="flex items-center gap-2">
-								<span class="text-sm text-muted-foreground">/status/</span>
+								<span class="text-muted-foreground text-sm">/status/</span>
 								<Input
 									id="slug"
 									name="slug"
@@ -135,7 +135,7 @@
 									required
 									disabled={$updateDelayed}
 									class="flex-1"
-									aria-invalid={$updateErrors.slug ? 'true' : undefined}
+									aria-invalid={$updateErrors.slug ? "true" : undefined}
 								/>
 							</div>
 							<Field.Error errors={$updateErrors.slug} />
@@ -148,7 +148,7 @@
 								name="description"
 								bind:value={$updateForm.description}
 								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.description ? 'true' : undefined}
+								aria-invalid={$updateErrors.description ? "true" : undefined}
 							/>
 							<Field.Error errors={$updateErrors.description} />
 						</Field.Field>
@@ -178,7 +178,7 @@
 								type="url"
 								bind:value={$updateForm.logoUrl}
 								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.logoUrl ? 'true' : undefined}
+								aria-invalid={$updateErrors.logoUrl ? "true" : undefined}
 							/>
 							<Field.Error errors={$updateErrors.logoUrl} />
 						</Field.Field>
@@ -221,7 +221,7 @@
 				</Card.Header>
 				<Card.Content>
 					{#if data.pageMonitors.length === 0}
-						<p class="py-4 text-center text-sm text-muted-foreground">
+						<p class="text-muted-foreground py-4 text-center text-sm">
 							No monitors added yet. Add monitors below.
 						</p>
 					{:else}
@@ -229,10 +229,10 @@
 							{#each data.pageMonitors as pm (pm.pageMonitor.id)}
 								<div class="flex items-center justify-between rounded-lg border p-3">
 									<div class="flex items-center gap-3">
-										<GripVertical class="h-4 w-4 text-muted-foreground" />
+										<GripVertical class="text-muted-foreground h-4 w-4" />
 										<div>
 											<div class="font-medium">{pm.monitor.name}</div>
-											<div class="text-xs text-muted-foreground">
+											<div class="text-muted-foreground text-xs">
 												{pm.monitor.type.toUpperCase()}
 											</div>
 										</div>
@@ -257,7 +257,7 @@
 				</Card.Header>
 				<Card.Content>
 					{#if availableMonitors.length === 0}
-						<p class="py-4 text-center text-sm text-muted-foreground">
+						<p class="text-muted-foreground py-4 text-center text-sm">
 							All monitors are already added to this status page.
 						</p>
 					{:else}
@@ -266,7 +266,7 @@
 								<div class="flex items-center justify-between rounded-lg border p-3">
 									<div>
 										<div class="font-medium">{monitor.name}</div>
-										<div class="text-xs text-muted-foreground">
+										<div class="text-muted-foreground text-xs">
 											{monitor.type.toUpperCase()} - {monitor.url ||
 												`${monitor.hostname}:${monitor.port}`}
 										</div>
@@ -294,7 +294,7 @@
 				</Card.Header>
 				<Card.Content>
 					{#if data.groups.length === 0}
-						<p class="py-4 text-center text-sm text-muted-foreground">
+						<p class="text-muted-foreground py-4 text-center text-sm">
 							No groups created yet. Create a group to organize your monitors.
 						</p>
 					{:else}
@@ -302,11 +302,11 @@
 							{#each data.groups as group (group.id)}
 								<div class="flex items-center justify-between rounded-lg border p-3">
 									<div class="flex items-center gap-3">
-										<GripVertical class="h-4 w-4 text-muted-foreground" />
+										<GripVertical class="text-muted-foreground h-4 w-4" />
 										<div>
 											<div class="font-medium">{group.name}</div>
 											{#if group.description}
-												<div class="text-xs text-muted-foreground">
+												<div class="text-muted-foreground text-xs">
 													{group.description}
 												</div>
 											{/if}
@@ -329,7 +329,7 @@
 						class="mt-4 flex gap-2"
 						use:enhance={() => {
 							return async ({ update }) => {
-								newGroupName = '';
+								newGroupName = "";
 								await update();
 							};
 						}}

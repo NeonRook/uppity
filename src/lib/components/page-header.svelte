@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { ArrowLeft } from '@lucide/svelte';
+	import { Button } from "$lib/components/ui/button";
+	import { ArrowLeft } from "@lucide/svelte";
+	import type { Snippet } from "svelte";
 
 	interface Props {
 		/** URL for the back button */

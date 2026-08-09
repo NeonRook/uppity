@@ -20,7 +20,7 @@ bun run dev                 # Start dev server at localhost:5173
 bun run check               # Type check with svelte-check
 
 # Code Quality
-bun run fmt                # Format all files (oxfmt + prettier)
+bun run fmt                 # Format all files (oxfmt, includes Svelte)
 bun run lint                # Lint with auto-fix (oxlint + eslint)
 
 # Testing
@@ -79,17 +79,17 @@ Forms use sveltekit-superforms. The correct pattern:
 
 ```svelte
 <script lang="ts">
-  import { superForm } from 'sveltekit-superforms';
-  import { untrack } from 'svelte';
+	import { superForm } from "sveltekit-superforms";
+	import { untrack } from "svelte";
 
-  let { data } = $props();
-  const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+	let { data } = $props();
+	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 </script>
 
 <form method="POST" use:enhance>
-  <input bind:value={$form.name} disabled={$delayed} />
-  {#if $errors.name}<span class="error">{$errors.name}</span>{/if}
-  {#if $message}<Alert variant="destructive">{$message}</Alert>{/if}
+	<input bind:value={$form.name} disabled={$delayed} />
+	{#if $errors.name}<span class="error">{$errors.name}</span>{/if}
+	{#if $message}<Alert variant="destructive">{$message}</Alert>{/if}
 </form>
 ```
 

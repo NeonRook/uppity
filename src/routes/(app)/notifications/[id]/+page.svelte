@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Badge } from '$lib/components/ui/badge';
+	import { enhance } from "$app/forms";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { m } from "$lib/paraglide/messages.js";
+	import { deleteChannel } from "$lib/remote/notifications.remote";
 	import {
 		CircleAlert,
 		ArrowLeft,
@@ -19,10 +20,9 @@
 		Mail,
 		MessageSquare,
 		Webhook,
-		Trash2
-	} from '@lucide/svelte';
-	import { m } from '$lib/paraglide/messages.js';
-	import { deleteChannel } from '$lib/remote/notifications.remote';
+		Trash2,
+	} from "@lucide/svelte";
+	import { untrack } from "svelte";
 
 	let { data, form } = $props();
 
@@ -31,23 +31,23 @@
 
 	async function handleDelete() {
 		await deleteChannel({ channelId: data.channel.id });
-		goto(resolve('/notifications'));
+		goto(resolve("/notifications"));
 	}
 
 	const config = $derived(data.channel.config as Record<string, unknown>);
 	const type = $derived(data.channel.type);
 	const TypeIcon = $derived(getIcon(type));
-	let method = $state(untrack(() => (config.method as string) || 'POST'));
+	let method = $state(untrack(() => (config.method as string) || "POST"));
 
 	function getChannelTypeName(t: string): string {
 		switch (t) {
-			case 'email':
+			case "email":
 				return m.notification_type_email();
-			case 'slack':
+			case "slack":
 				return m.notification_type_slack();
-			case 'discord':
+			case "discord":
 				return m.notification_type_discord();
-			case 'webhook':
+			case "webhook":
 				return m.notification_type_webhook();
 			default:
 				return t;
@@ -56,19 +56,19 @@
 
 	function getIcon(t: string) {
 		switch (t) {
-			case 'email':
+			case "email":
 				return Mail;
-			case 'slack':
-			case 'discord':
+			case "slack":
+			case "discord":
 				return MessageSquare;
-			case 'webhook':
+			case "webhook":
 				return Webhook;
 			default:
 				return Mail;
 		}
 	}
 
-	const httpMethods = ['POST', 'PUT', 'PATCH'];
+	const httpMethods = ["POST", "PUT", "PATCH"];
 </script>
 
 <svelte:head>
@@ -144,7 +144,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		{#if type === 'email'}
+		{#if type === "email"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_email_config()}</Card.Title>
@@ -157,14 +157,14 @@
 							name="email"
 							type="email"
 							placeholder="alerts@example.com"
-							value={(config.email as string) || ''}
+							value={(config.email as string) || ""}
 							required
 							disabled={loading}
 						/>
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if type === 'slack'}
+		{:else if type === "slack"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_slack_config()}</Card.Title>
@@ -177,7 +177,7 @@
 							name="webhookUrl"
 							type="url"
 							placeholder="https://hooks.slack.com/services/..."
-							value={(config.webhookUrl as string) || ''}
+							value={(config.webhookUrl as string) || ""}
 							required
 							disabled={loading}
 						/>
@@ -189,13 +189,13 @@
 							id="channel"
 							name="channel"
 							placeholder="general"
-							value={(config.channel as string) || ''}
+							value={(config.channel as string) || ""}
 							disabled={loading}
 						/>
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if type === 'discord'}
+		{:else if type === "discord"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_discord_config()}</Card.Title>
@@ -208,14 +208,14 @@
 							name="discordWebhookUrl"
 							type="url"
 							placeholder="https://discord.com/api/webhooks/..."
-							value={(config.discordWebhookUrl as string) || ''}
+							value={(config.discordWebhookUrl as string) || ""}
 							required
 							disabled={loading}
 						/>
 					</Field.Field>
 				</Card.Content>
 			</Card.Root>
-		{:else if type === 'webhook'}
+		{:else if type === "webhook"}
 			<Card.Root class="mt-6">
 				<Card.Header>
 					<Card.Title>{m.notification_webhook_config()}</Card.Title>
@@ -228,7 +228,7 @@
 							name="url"
 							type="url"
 							placeholder="https://api.example.com/webhooks/alerts"
-							value={(config.url as string) || ''}
+							value={(config.url as string) || ""}
 							required
 							disabled={loading}
 						/>
@@ -260,7 +260,7 @@
 							id="headers"
 							name="headers"
 							placeholder={'{\n  "Authorization": "Bearer token",\n  "X-Custom-Header": "value"\n}'}
-							value={config.headers ? JSON.stringify(config.headers, null, 2) : ''}
+							value={config.headers ? JSON.stringify(config.headers, null, 2) : ""}
 							class="font-mono text-sm"
 							disabled={loading}
 						/>
@@ -272,7 +272,7 @@
 							id="bodyTemplate"
 							name="bodyTemplate"
 							placeholder={'{\n  "message": "{{monitor.name}} is {{status}}",\n  "timestamp": "{{timestamp}}"\n}'}
-							value={(config.bodyTemplate as string) || ''}
+							value={(config.bodyTemplate as string) || ""}
 							class="font-mono text-sm"
 							disabled={loading}
 						/>

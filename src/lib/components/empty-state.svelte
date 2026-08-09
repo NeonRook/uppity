@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Plus } from '@lucide/svelte';
-	import type { Component } from 'svelte';
-	import type { IconProps } from '@lucide/svelte';
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Tooltip from "$lib/components/ui/tooltip";
+	import { Plus } from "@lucide/svelte";
+	import type { IconProps } from "@lucide/svelte";
+	import type { Component } from "svelte";
 
 	interface Props {
 		icon: Component<IconProps>;
@@ -28,7 +28,7 @@
 		buttonHref,
 		withCard = true,
 		buttonDisabled = false,
-		buttonDisabledMessage
+		buttonDisabledMessage,
 	}: Props = $props();
 </script>
 
@@ -59,18 +59,18 @@
 	<Card.Root>
 		<Card.Content class="pt-6">
 			<div class="flex flex-col items-center justify-center py-12 text-center">
-				<Icon class="h-12 w-12 text-muted-foreground/50" />
+				<Icon class="text-muted-foreground/50 h-12 w-12" />
 				<h3 class="mt-4 text-lg font-semibold">{title}</h3>
-				<p class="mt-2 mb-4 text-sm text-muted-foreground">{description}</p>
+				<p class="text-muted-foreground mt-2 mb-4 text-sm">{description}</p>
 				{@render actionButton()}
 			</div>
 		</Card.Content>
 	</Card.Root>
 {:else}
 	<div class="flex flex-col items-center justify-center py-12 text-center">
-		<Icon class="h-12 w-12 text-muted-foreground/50" />
+		<Icon class="text-muted-foreground/50 h-12 w-12" />
 		<h3 class="mt-4 text-lg font-semibold">{title}</h3>
-		<p class="mt-2 mb-4 text-sm text-muted-foreground">{description}</p>
+		<p class="text-muted-foreground mt-2 mb-4 text-sm">{description}</p>
 		{@render actionButton()}
 	</div>
 {/if}

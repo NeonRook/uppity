@@ -1,17 +1,21 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Field from '$lib/components/ui/field';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import * as Table from '$lib/components/ui/table';
+	import { browser } from "$app/environment";
+	import { enhance } from "$app/forms";
+	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Badge } from "$lib/components/ui/badge";
+	import * as Breadcrumb from "$lib/components/ui/breadcrumb";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import * as Table from "$lib/components/ui/table";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { m } from "$lib/paraglide/messages.js";
+	import { cancelInvitation, removeMember, deleteOrganization } from "$lib/remote/settings.remote";
 	import {
 		Building2,
 		Users,
@@ -24,13 +28,9 @@
 		UserMinus,
 		Check,
 		AlertTriangle,
-		Link as LinkIcon
-	} from '@lucide/svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
-	import { m } from '$lib/paraglide/messages.js';
-	import { cancelInvitation, removeMember, deleteOrganization } from '$lib/remote/settings.remote';
-	import { toast } from 'svelte-sonner';
-	import { browser } from '$app/environment';
+		Link as LinkIcon,
+	} from "@lucide/svelte";
+	import { toast } from "svelte-sonner";
 
 	let { data, form } = $props();
 
@@ -39,25 +39,25 @@
 	let showRemoveMemberDialog = $state(false);
 	let showDeleteOrgDialog = $state(false);
 	let memberToRemove = $state<{ id: string; name: string } | null>(null);
-	let inviteRole = $state('member');
+	let inviteRole = $state("member");
 	let cancellingInvitationId = $state<string | null>(null);
 	let removingMember = $state(false);
 	let deletingOrg = $state(false);
-	let deleteConfirmName = $state('');
+	let deleteConfirmName = $state("");
 
 	// Form state - use data directly, no local state needed since form submission reloads
 
-	const baseUrl = browser ? window.location.origin : 'https://app.uppity.io';
+	const baseUrl = browser ? window.location.origin : "https://app.uppity.io";
 	const canDelete = $derived(data.userOrgCount > 1 && data.isOwner);
 
 	function getRoleBadge(role: string) {
 		switch (role) {
-			case 'owner':
-				return { icon: Crown, variant: 'default' as const, label: m.role_owner() };
-			case 'admin':
-				return { icon: Shield, variant: 'secondary' as const, label: m.role_admin() };
+			case "owner":
+				return { icon: Crown, variant: "default" as const, label: m.role_owner() };
+			case "admin":
+				return { icon: Shield, variant: "secondary" as const, label: m.role_admin() };
 			default:
-				return { icon: User, variant: 'outline' as const, label: m.role_member() };
+				return { icon: User, variant: "outline" as const, label: m.role_member() };
 		}
 	}
 
@@ -67,7 +67,7 @@
 			await cancelInvitation({ invitationId });
 			await invalidateAll();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Failed to cancel invitation');
+			toast.error(e instanceof Error ? e.message : "Failed to cancel invitation");
 		} finally {
 			cancellingInvitationId = null;
 		}
@@ -82,7 +82,7 @@
 			memberToRemove = null;
 			await invalidateAll();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Failed to remove member');
+			toast.error(e instanceof Error ? e.message : "Failed to remove member");
 		} finally {
 			removingMember = false;
 		}
@@ -94,10 +94,10 @@
 		try {
 			await deleteOrganization({ organizationId: data.currentOrganization.id });
 			showDeleteOrgDialog = false;
-			toast.success('Organization deleted successfully');
-			goto(resolve('/settings'));
+			toast.success("Organization deleted successfully");
+			goto(resolve("/settings"));
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Failed to delete organization');
+			toast.error(e instanceof Error ? e.message : "Failed to delete organization");
 		} finally {
 			deletingOrg = false;
 		}
@@ -196,7 +196,7 @@
 						{/if}
 					</Field.Description>
 					{#if data.currentOrganization.slug}
-						<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+						<div class="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
 							<LinkIcon class="h-3 w-3" />
 							<span
 								>{m.org_slug_preview({ url: `${baseUrl}/${data.currentOrganization.slug}` })}</span
@@ -211,7 +211,7 @@
 						id="logo"
 						name="logo"
 						type="url"
-						value={data.currentOrganization.logo ?? ''}
+						value={data.currentOrganization.logo ?? ""}
 						placeholder="https://example.com/logo.png"
 						disabled={loading || !data.isAdmin}
 					/>
@@ -285,7 +285,7 @@
 							<Table.Cell class="font-medium">
 								{member.name}
 								{#if member.id === data.user.id}
-									<span class="ml-2 text-xs text-muted-foreground">{m.common_you()}</span>
+									<span class="text-muted-foreground ml-2 text-xs">{m.common_you()}</span>
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground">{member.email}</Table.Cell>
@@ -294,7 +294,7 @@
 							</Table.Cell>
 							{#if data.isOwner}
 								<Table.Cell>
-									{#if member.id !== data.user.id && member.role !== 'owner'}
+									{#if member.id !== data.user.id && member.role !== "owner"}
 										<Button
 											variant="ghost"
 											size="icon"
@@ -349,7 +349,7 @@
 	{#if data.isOwner}
 		<Card.Root class="border-destructive/50">
 			<Card.Header>
-				<Card.Title class="flex items-center gap-2 text-destructive">
+				<Card.Title class="text-destructive flex items-center gap-2">
 					<AlertTriangle class="h-5 w-5" />
 					{m.settings_danger_zone()}
 				</Card.Title>
@@ -359,7 +359,7 @@
 				<div class="space-y-4">
 					<div>
 						<h4 class="font-medium">{m.org_delete()}</h4>
-						<p class="text-sm text-muted-foreground">{m.org_delete_desc()}</p>
+						<p class="text-muted-foreground text-sm">{m.org_delete_desc()}</p>
 					</div>
 					<Button
 						variant="destructive"
@@ -369,7 +369,7 @@
 						{m.org_delete()}
 					</Button>
 					{#if !canDelete && data.isOwner}
-						<p class="text-xs text-muted-foreground">
+						<p class="text-muted-foreground text-xs">
 							You must be a member of at least one organization. Create another organization before
 							deleting this one.
 						</p>
@@ -425,7 +425,7 @@
 					-->
 					<Select.Root type="single" value={inviteRole} onValueChange={(v) => (inviteRole = v)}>
 						<Select.Trigger class="w-full">
-							{inviteRole === 'admin' ? m.role_admin() : m.role_member()}
+							{inviteRole === "admin" ? m.role_admin() : m.role_member()}
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="member">{m.role_member()}</Select.Item>
@@ -454,7 +454,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>{m.settings_dialog_remove_member()}</AlertDialog.Title>
 			<AlertDialog.Description>
-				{m.settings_dialog_remove_desc({ name: memberToRemove?.name ?? '' })}
+				{m.settings_dialog_remove_desc({ name: memberToRemove?.name ?? "" })}
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
@@ -491,7 +491,7 @@
 			/>
 		</div>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (deleteConfirmName = '')}
+			<AlertDialog.Cancel onclick={() => (deleteConfirmName = "")}
 				>{m.common_cancel()}</AlertDialog.Cancel
 			>
 			<Button

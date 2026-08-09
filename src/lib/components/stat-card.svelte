@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import type { Component } from 'svelte';
-	import type { IconProps } from '@lucide/svelte';
+	import * as Card from "$lib/components/ui/card";
+	import type { IconProps } from "@lucide/svelte";
+	import type { Component } from "svelte";
 
 	interface Props {
 		title: string;
@@ -17,7 +17,7 @@
 		value,
 		description,
 		icon: Icon,
-		iconClass = 'text-muted-foreground'
+		iconClass = "text-muted-foreground",
 	}: Props = $props();
 </script>
 
@@ -29,7 +29,7 @@
 	<Card.Content>
 		<div class="text-2xl font-bold">{value}</div>
 		{#if description}
-			<p class="text-xs text-muted-foreground">{description}</p>
+			<p class="text-muted-foreground text-xs">{description}</p>
 		{/if}
 	</Card.Content>
 </Card.Root>

@@ -1,46 +1,46 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { superForm } from 'sveltekit-superforms';
-	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Field from '$lib/components/ui/field';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import AuditHistory from '$lib/components/audit-history.svelte';
-	import DeleteDialog from '$lib/components/delete-dialog.svelte';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck, UserCheck } from '@lucide/svelte';
-	import PageHeader from '$lib/components/page-header.svelte';
-	import { formatDateTimeShort } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
-	import { deleteUser } from '$lib/remote/admin.remote';
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import AuditHistory from "$lib/components/audit-history.svelte";
+	import DeleteDialog from "$lib/components/delete-dialog.svelte";
+	import PageHeader from "$lib/components/page-header.svelte";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import * as Select from "$lib/components/ui/select";
+	import * as Table from "$lib/components/ui/table";
+	import { Textarea } from "$lib/components/ui/textarea";
+	import { formatDateTimeShort } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { deleteUser } from "$lib/remote/admin.remote";
+	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck, UserCheck } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(
 		untrack(() => data.form),
 		{
-			resetForm: false
-		}
+			resetForm: false,
+		},
 	);
 
-	let banReason = $state('');
+	let banReason = $state("");
 	let showDeleteDialog = $state(false);
 	let showBanDialog = $state(false);
 
 	async function handleDelete() {
 		await deleteUser({ userId: data.user.id });
-		goto(resolve('/admin/users'));
+		goto(resolve("/admin/users"));
 	}
 
 	function getRoleLabel(role: string | undefined): string {
-		return role === 'admin' ? m.admin_role_admin() : m.admin_role_user();
+		return role === "admin" ? m.admin_role_admin() : m.admin_role_user();
 	}
 </script>
 
@@ -57,8 +57,8 @@
 				{:else}
 					<Badge variant="outline">{m.common_active()}</Badge>
 				{/if}
-				<Badge variant={data.user.role === 'admin' ? 'default' : 'secondary'}>
-					{data.user.role === 'admin' ? m.admin_role_admin() : m.admin_role_user()}
+				<Badge variant={data.user.role === "admin" ? "default" : "secondary"}>
+					{data.user.role === "admin" ? m.admin_role_admin() : m.admin_role_user()}
 				</Badge>
 			</div>
 		{/snippet}
@@ -106,7 +106,7 @@
 						type="single"
 						name="role"
 						value={$form.role}
-						onValueChange={(v) => ($form.role = v as 'user' | 'admin')}
+						onValueChange={(v) => ($form.role = v as "user" | "admin")}
 						disabled={$delayed}
 					>
 						<Select.Trigger class="w-full">
@@ -119,7 +119,7 @@
 					</Select.Root>
 				</Field.Field>
 
-				<div class="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+				<div class="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
 					<div>{m.common_created()}: {formatDateTimeShort(data.user.createdAt)}</div>
 					<div>{m.common_updated()}: {formatDateTimeShort(data.user.updatedAt)}</div>
 				</div>
@@ -162,7 +162,7 @@
 					</Button>
 				</form>
 			{:else}
-				<p class="text-sm text-muted-foreground">
+				<p class="text-muted-foreground text-sm">
 					{m.admin_users_user_active_desc()}
 				</p>
 				<Button variant="destructive" onclick={() => (showBanDialog = true)}>
@@ -204,9 +204,9 @@
 				<Table.Body>
 					{#each data.sessions as session (session.id)}
 						<Table.Row>
-							<Table.Cell class="font-mono text-xs">{session.ipAddress ?? '—'}</Table.Cell>
-							<Table.Cell class="max-w-[16rem] truncate text-xs text-muted-foreground">
-								{session.userAgent ?? '—'}
+							<Table.Cell class="font-mono text-xs">{session.ipAddress ?? "—"}</Table.Cell>
+							<Table.Cell class="text-muted-foreground max-w-[16rem] truncate text-xs">
+								{session.userAgent ?? "—"}
 								{#if session.impersonatedBy}
 									<Badge variant="destructive" class="ml-2">
 										{m.admin_users_sessions_impersonated()}
@@ -222,7 +222,7 @@
 							<Table.Cell class="text-right">
 								<form method="POST" action="?/revokeSession">
 									<input type="hidden" name="sessionToken" value={session.token} />
-									<input type="hidden" name="ipAddress" value={session.ipAddress ?? ''} />
+									<input type="hidden" name="ipAddress" value={session.ipAddress ?? ""} />
 									<Button type="submit" variant="ghost" size="sm">
 										{m.admin_users_sessions_revoke()}
 									</Button>
@@ -232,7 +232,7 @@
 					{/each}
 					{#if data.sessions.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={5} class="text-center text-muted-foreground">
+							<Table.Cell colspan={5} class="text-muted-foreground text-center">
 								{m.admin_users_sessions_empty()}
 							</Table.Cell>
 						</Table.Row>

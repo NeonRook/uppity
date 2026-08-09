@@ -1,13 +1,13 @@
 <script lang="ts">
-	import type { Plan } from '$lib/types/plans';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Card from '$lib/components/ui/card';
-	import { Check, LoaderCircle } from '@lucide/svelte';
-	import { formatUsdCents } from '$lib/format';
-	import { m } from '$lib/paraglide/messages.js';
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { formatUsdCents } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import type { Plan } from "$lib/types/plans";
+	import { Check, LoaderCircle } from "@lucide/svelte";
 
-	type BillingPeriod = 'monthly' | 'annual';
+	type BillingPeriod = "monthly" | "annual";
 
 	interface Props {
 		plan: Plan;
@@ -21,37 +21,37 @@
 	let {
 		plan,
 		isCurrentPlan,
-		billingPeriod = 'monthly',
+		billingPeriod = "monthly",
 		onUpgrade,
 		loading = false,
-		disabled = false
+		disabled = false,
 	}: Props = $props();
 
 	const priceInfo = $derived.by(() => {
 		// Free plan
 		if (plan.monthlyPriceCents === 0) {
-			return { display: m.billing_free(), suffix: '', note: '', isFree: true };
+			return { display: m.billing_free(), suffix: "", note: "", isFree: true };
 		}
 		// Negotiated plans carry no list price
 		if (plan.monthlyPriceCents === null || plan.annualPriceCents === null) {
-			return { display: m.billing_custom_pricing(), suffix: '', note: '', isFree: false };
+			return { display: m.billing_custom_pricing(), suffix: "", note: "", isFree: false };
 		}
 		// Annual keeps the monthly-equivalent headline so the figure stays comparable
 		// across the toggle, and states the real charge underneath — the customer is
 		// billed once a year, not monthly.
-		if (billingPeriod === 'annual') {
+		if (billingPeriod === "annual") {
 			return {
 				display: formatUsdCents(plan.annualPriceCents / 12),
 				suffix: m.billing_per_month(),
 				note: m.billing_billed_annually({ amount: formatUsdCents(plan.annualPriceCents) }),
-				isFree: false
+				isFree: false,
 			};
 		}
 		return {
 			display: formatUsdCents(plan.monthlyPriceCents),
 			suffix: m.billing_per_month(),
-			note: '',
-			isFree: false
+			note: "",
+			isFree: false,
 		};
 	});
 
@@ -101,7 +101,7 @@
 		if (limits.customDomains) {
 			f.push(m.billing_features_custom_domains());
 		}
-		if (limits.apiAccess === 'full') {
+		if (limits.apiAccess === "full") {
 			f.push(m.billing_features_api_access());
 		}
 		if (limits.sso) {
@@ -116,10 +116,10 @@
 
 	// Dedicated implies provisioning isolated infrastructure, so it is never a
 	// self-serve checkout. Negotiated plans (null pricing) are contact-sales too.
-	const isContactSales = $derived(plan.id === 'dedicated' || plan.monthlyPriceCents === null);
+	const isContactSales = $derived(plan.id === "dedicated" || plan.monthlyPriceCents === null);
 </script>
 
-<Card.Root class={isCurrentPlan ? 'border-primary' : ''}>
+<Card.Root class={isCurrentPlan ? "border-primary" : ""}>
 	<Card.Header>
 		<div class="flex items-center justify-between">
 			<Card.Title>{plan.name}</Card.Title>
@@ -130,18 +130,18 @@
 		<div class="text-2xl font-bold">
 			{priceInfo.display}
 			{#if priceInfo.suffix}
-				<span class="text-sm font-normal text-muted-foreground">{priceInfo.suffix}</span>
+				<span class="text-muted-foreground text-sm font-normal">{priceInfo.suffix}</span>
 			{/if}
 		</div>
 		{#if priceInfo.note}
-			<div class="text-sm text-muted-foreground">{priceInfo.note}</div>
+			<div class="text-muted-foreground text-sm">{priceInfo.note}</div>
 		{/if}
 	</Card.Header>
 	<Card.Content class="space-y-4">
 		<ul class="space-y-2">
 			{#each features as feature, i (i)}
 				<li class="flex items-center gap-2 text-sm">
-					<Check class="h-4 w-4 text-primary" />
+					<Check class="text-primary h-4 w-4" />
 					<span>{feature}</span>
 				</li>
 			{/each}

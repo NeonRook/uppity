@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { enhance } from "$app/forms";
+	import { organization } from "$lib/auth-client";
+	import { Alert, AlertDescription } from "$lib/components/ui/alert";
+	import * as AlertDialog from "$lib/components/ui/alert-dialog";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import * as Field from "$lib/components/ui/field";
+	import { Input } from "$lib/components/ui/input";
+	import { m } from "$lib/paraglide/messages.js";
 	import {
 		User,
 		Building2,
@@ -16,10 +18,8 @@
 		Plus,
 		Check,
 		CreditCard,
-		Settings
-	} from '@lucide/svelte';
-	import { organization } from '$lib/auth-client';
-	import { m } from '$lib/paraglide/messages.js';
+		Settings,
+	} from "@lucide/svelte";
 
 	let { data, form } = $props();
 
@@ -34,7 +34,7 @@
 			await organization.setActive({ organizationId: orgId });
 			window.location.reload();
 		} catch (error) {
-			console.error('Failed to switch organization:', error);
+			console.error("Failed to switch organization:", error);
 		} finally {
 			switchingOrg = false;
 		}
@@ -42,12 +42,12 @@
 
 	function getRoleBadge(role: string) {
 		switch (role) {
-			case 'owner':
-				return { icon: Crown, variant: 'default' as const, label: m.role_owner() };
-			case 'admin':
-				return { icon: Shield, variant: 'secondary' as const, label: m.role_admin() };
+			case "owner":
+				return { icon: Crown, variant: "default" as const, label: m.role_owner() };
+			case "admin":
+				return { icon: Shield, variant: "secondary" as const, label: m.role_admin() };
 			default:
-				return { icon: User, variant: 'outline' as const, label: m.role_member() };
+				return { icon: User, variant: "outline" as const, label: m.role_member() };
 		}
 	}
 </script>
@@ -150,13 +150,13 @@
 							{@const roleInfo = getRoleBadge(org.role)}
 							{@const isActive = org.id === data.currentOrganization?.id}
 							<Button
-								variant={isActive ? 'default' : 'outline'}
+								variant={isActive ? "default" : "outline"}
 								size="sm"
 								onclick={() => switchOrganization(org.id)}
 								disabled={switchingOrg}
 							>
 								{org.name}
-								<Badge variant={isActive ? 'secondary' : roleInfo.variant} class="ml-2 text-xs">
+								<Badge variant={isActive ? "secondary" : roleInfo.variant} class="ml-2 text-xs">
 									{roleInfo.label}
 								</Badge>
 							</Button>
@@ -164,7 +164,7 @@
 					</div>
 				</Field.Field>
 			{:else}
-				<p class="text-sm text-muted-foreground">
+				<p class="text-muted-foreground text-sm">
 					{m.org_no_org_message()}
 				</p>
 			{/if}
@@ -173,12 +173,12 @@
 				<div class="flex items-center justify-between rounded-lg border p-4">
 					<div>
 						<p class="font-medium">{data.currentOrganization.name}</p>
-						<p class="text-sm text-muted-foreground">
+						<p class="text-muted-foreground text-sm">
 							{data.organizations.find((o) => o.id === data.currentOrganization?.id)?.role ===
-							'owner'
+							"owner"
 								? m.role_owner()
 								: data.organizations.find((o) => o.id === data.currentOrganization?.id)?.role ===
-									  'admin'
+									  "admin"
 									? m.role_admin()
 									: m.role_member()}
 						</p>
@@ -220,7 +220,7 @@
 		</Card.Header>
 		<Card.Content>
 			<Button variant="destructive" disabled>{m.settings_delete_account()}</Button>
-			<p class="mt-2 text-xs text-muted-foreground">
+			<p class="text-muted-foreground mt-2 text-xs">
 				{m.settings_delete_coming_soon()}
 			</p>
 		</Card.Content>

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Activity, TriangleAlert, CircleCheck, Clock, Plus } from '@lucide/svelte';
-	import { formatUptime, formatResponseTime } from '$lib/format';
-	import { getStatusColor, getStatusLabel } from '$lib/utils/status';
-	import EmptyState from '$lib/components/empty-state.svelte';
-	import StatCard from '$lib/components/stat-card.svelte';
-	import { m } from '$lib/paraglide/messages.js';
+	import { resolve } from "$app/paths";
+	import EmptyState from "$lib/components/empty-state.svelte";
+	import StatCard from "$lib/components/stat-card.svelte";
+	import { Badge } from "$lib/components/ui/badge";
+	import { Button } from "$lib/components/ui/button";
+	import * as Card from "$lib/components/ui/card";
+	import { formatUptime, formatResponseTime } from "$lib/format";
+	import { m } from "$lib/paraglide/messages.js";
+	import { getStatusColor, getStatusLabel } from "$lib/utils/status";
+	import { Activity, TriangleAlert, CircleCheck, Clock, Plus } from "@lucide/svelte";
 
 	let { data } = $props();
 </script>
@@ -83,7 +83,7 @@
 					{#each data.monitors as mon (mon.id)}
 						<a
 							href={resolve(`/monitors/${mon.id}`)}
-							class="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
+							class="hover:bg-muted/50 block rounded-lg border p-4 transition-colors"
 						>
 							<div class="flex items-start justify-between gap-3">
 								<div class="flex min-w-0 items-center gap-3">
@@ -92,7 +92,7 @@
 									></div>
 									<div class="min-w-0">
 										<div class="truncate font-medium">{mon.name}</div>
-										<div class="flex items-center gap-2 text-sm text-muted-foreground">
+										<div class="text-muted-foreground flex items-center gap-2 text-sm">
 											<span class="text-xs uppercase">{mon.type}</span>
 											{#if mon.url}
 												<span class="hidden sm:inline">·</span>
@@ -103,11 +103,11 @@
 								</div>
 								<Badge
 									class="shrink-0"
-									variant={mon.active && mon.status === 'up'
-										? 'default'
-										: mon.active && mon.status === 'down'
-											? 'destructive'
-											: 'secondary'}
+									variant={mon.active && mon.status === "up"
+										? "default"
+										: mon.active && mon.status === "down"
+											? "destructive"
+											: "secondary"}
 								>
 									{getStatusLabel(mon.status, mon.active)}
 								</Badge>
@@ -115,11 +115,11 @@
 							<div class="mt-3 flex items-center gap-4 text-sm sm:mt-2 sm:ml-6 sm:gap-6">
 								<div>
 									<span class="font-mono">{formatUptime(mon.uptimePercent24h)}</span>
-									<span class="ml-1 text-xs text-muted-foreground">{m.dashboard_uptime()}</span>
+									<span class="text-muted-foreground ml-1 text-xs">{m.dashboard_uptime()}</span>
 								</div>
 								<div>
 									<span class="font-mono">{formatResponseTime(mon.avgResponseTimeMs24h)}</span>
-									<span class="ml-1 text-xs text-muted-foreground">{m.dashboard_response()}</span>
+									<span class="text-muted-foreground ml-1 text-xs">{m.dashboard_response()}</span>
 								</div>
 							</div>
 						</a>
