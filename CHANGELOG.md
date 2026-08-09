@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+### Patch Changes
+
+- [#64](https://github.com/NeonRook/uppity/pull/64) [`87b3b2a`](https://github.com/NeonRook/uppity/commit/87b3b2a2982fb3608794b21e3865c7fd85e1b08f) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Shrink the runtime Docker image from 726MB to 169MB. The SSR graph is now fully bundled instead of externalised, so the image ships no dependency tree beyond `@opentelemetry/api` — the one package that must resolve at run time. The base image moved to `oven/bun:1-alpine`, server sourcemaps are no longer shipped, and a new build-time check (`check:externals`) fails the build if the server bundle imports anything the image will not contain.
+
 ## 0.1.2
 
 ### Patch Changes
