@@ -5,10 +5,9 @@
 FROM oven/bun:1-alpine AS base
 WORKDIR /usr/src/app
 
-# Install dependencies into a temp directory once. There used to be a second,
-# --production-only install here to build a separate runtime-only tree, but the
-# runtime image no longer ships a dependency tree at all (see the runner stage
-# below) -- it copies exactly one dependency-free package out of this one.
+# Install dependencies into a temp directory once, for the builder's use only.
+# Nothing from this tree reaches the runtime image: the SSR bundle inlines every
+# dependency it needs, so the runner stage ships no node_modules at all.
 FROM base AS install
 RUN mkdir -p /temp/deps
 COPY package.json bun.lock /temp/deps/
@@ -49,15 +48,9 @@ LABEL org.opencontainers.image.title="uppity" \
 RUN addgroup -S -g 1001 uppity && \
   adduser -S -u 1001 -G uppity uppity
 
-# The runtime tree is exactly RUNTIME_EXTERNALS from externals.config.ts -- the
-# specifiers that cannot be bundled and are actually executed. Everything else the
-# server needs is inlined into build/server. Copied by path out of the install
-# stage's one dependency tree so the version matches what the build resolved,
-# with no second install. @opentelemetry/api declares no dependencies, so this
-# directory is complete.
-COPY --from=install --chown=uppity:uppity \
-  /temp/deps/node_modules/@opentelemetry/api node_modules/@opentelemetry/api
-
+# No node_modules. Every specifier the server needs is inlined into build/server,
+# and scripts/check-externals.ts fails the build if that ever stops being true.
+# Nothing to COPY from the install stage -- it exists only to feed the builder.
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
 
 # Migration SQL. scripts/migrate.ts hardcodes ./drizzle; drizzle.config.ts is

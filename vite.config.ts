@@ -5,8 +5,6 @@ import { playwright } from "@vitest/browser-playwright";
 import devtoolsJson from "vite-plugin-devtools-json";
 import { defineConfig } from "vitest/config";
 
-import { SSR_EXTERNALS } from "./externals.config.ts";
-
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -15,11 +13,11 @@ export default defineConfig({
 		paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/lib/paraglide" }),
 	],
 
-	// Bundle the SSR graph instead of externalising it, so the runtime image needs no
-	// node_modules beyond RUNTIME_EXTERNALS. Externalised imports were what forced the
-	// whole 357MB production tree into the image. The allowlist is everything that must
-	// still resolve at run time; see externals.config.ts for why.
-	ssr: { noExternal: true, external: [...SSR_EXTERNALS] },
+	// Bundle the SSR graph instead of externalising it: externalised imports were what
+	// forced the whole 357MB production tree into the runtime image. Nothing is exempt,
+	// so the image ships no node_modules at all, and scripts/check-externals.ts fails
+	// the build if a bare import ever survives into build/server.
+	ssr: { noExternal: true },
 
 	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
 	// Diagnosis relies on the structured pino logs instead. The client build already
