@@ -16,7 +16,7 @@ export default defineConfig({
 	// Bundle the SSR graph instead of externalising it: externalised imports were what
 	// forced the whole 357MB production tree into the runtime image. Nothing is exempt,
 	// so the image ships no node_modules at all, and scripts/check-externals.ts fails
-	// the build if a bare import ever survives into build/server.
+	// the build if build/server is left importing any package, Node built-ins aside.
 	ssr: { noExternal: true },
 
 	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
