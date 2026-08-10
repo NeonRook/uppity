@@ -1,0 +1,15 @@
+{
+	"detector": {
+		"ignoreRules": [],
+		"ignoreFiles": [],
+		"ignoreValues": [
+			{
+				"rule": "design-system-color",
+				"value": "*",
+				"files": ["src/lib/server/auth.ts"],
+				"createdAt": "2026-08-10T21:01:15.977Z",
+				"reason": "Password-reset email HTML; email clients do not support CSS custom properties"
+			}
+		]
+	}
+}
