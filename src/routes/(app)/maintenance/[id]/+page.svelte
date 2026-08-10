@@ -55,11 +55,13 @@
 	 */
 	function toError(err: unknown): Error {
 		if (err instanceof Error) return err;
-		const message =
+		// Not `message`: that name is the superforms store in the enclosing scope, and
+		// shadowing it here would read as the form's message while holding a string.
+		const text =
 			typeof err === "object" && err !== null && "message" in err
 				? String((err as { message: unknown }).message)
 				: m.maintenance_error_unexpected();
-		return new Error(message);
+		return new Error(text);
 	}
 
 	async function handleCancel(id: string) {
