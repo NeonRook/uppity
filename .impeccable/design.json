@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 2,
-	"generatedAt": "2026-07-30T19:39:00Z",
+	"generatedAt": "2026-08-10T05:32:00Z",
 	"title": "Design System: Uppity",
 	"extensions": {
 		"colorMeta": {
@@ -246,7 +246,7 @@
 		"typographyMeta": {
 			"display": {
 				"displayName": "Display",
-				"purpose": "The landing hero and nothing else. Light weight at large size — the quietest possible way to be big."
+				"purpose": "The landing hero and nothing else, exposed as the text-display utility. Light weight at large size — the quietest possible way to be big. The ceiling is 4.5rem because at 3rem the headline wrapped to two lines at every breakpoint and stopped reading as the focal element."
 			},
 			"headline": {
 				"displayName": "Headline",
@@ -273,7 +273,7 @@
 			{
 				"name": "overlay",
 				"value": "0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)",
-				"purpose": "The only sanctioned resting shadow, and only for portaled elements: dialogs, sheets, dropdown menus, popovers, tooltips."
+				"purpose": "The only sanctioned resting shadow, and only for portaled elements: dialogs, sheets, dropdown menus, popovers. Tooltips are portaled too but skip the shadow, separating by inversion (bg-foreground / text-background) instead."
 			},
 			{
 				"name": "focus-ring",
@@ -458,6 +458,11 @@
 				"section": "colors"
 			},
 			{
+				"name": "The Emerald Never Takes White Rule",
+				"body": "Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink oklch(0.262 0.051 172.552), which reaches 6.14:1. Because primary is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons — primary, status-up, and sidebar-primary all take the same ink, in both themes. Where a token's fill is derived (--status-up: var(--primary)), its foreground is derived too. A literal copy is a second source of truth that will eventually disagree with the first; that is exactly how the near-white value survived a theme rewrite.",
+				"section": "colors"
+			},
+			{
 				"name": "The Measured-Value Rule",
 				"body": "If a number came from a check, a clock, or the database, it is set in mono. Uptime percentages, response times, timestamps, durations, IP addresses, monitor URLs, session IDs, audit-log record IDs. If a number was typed by a human or is a simple count (\"4 monitors\"), it is set in sans. Mono is what distinguishes a reading from a word.",
 				"section": "typography"
@@ -466,6 +471,11 @@
 				"name": "The No-Bold Rule",
 				"body": "The heaviest weight in the system is 600. Emphasis comes from size, color, and spacing before it comes from weight. A page where three things are bold has nothing emphasized.",
 				"section": "typography"
+			},
+			{
+				"name": "The Measure-Not-Membership Rule",
+				"body": "A surface gets the 896px column because its content is prose, never because it appears on a list of public routes. When a surface's dominant element is a chart, a table, or a grid, it takes the wider container and caps its prose individually.",
+				"section": "layout"
 			},
 			{
 				"name": "The Two-Column Rule",

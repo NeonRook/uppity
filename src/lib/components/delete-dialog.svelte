@@ -17,9 +17,31 @@
 		title: string;
 		/** Dialog description/warning message */
 		description: string;
+		/** Confirm button label. Defaults to "Delete" — override for other destructive confirmations. */
+		confirmText?: string;
+		/** Confirm button label while in flight. Defaults to "Deleting...". */
+		confirmingText?: string;
+		/** Dismiss button label. Defaults to "Cancel". */
+		cancelText?: string;
 	}
 
-	let { open, itemId, onOpenChange, onDelete, title, description }: Props = $props();
+	let {
+		open,
+		itemId,
+		onOpenChange,
+		onDelete,
+		title,
+		description,
+		confirmText,
+		confirmingText,
+		cancelText,
+	}: Props = $props();
+
+	// Resolved through $derived rather than as parameter defaults so the fallback copy
+	// re-reads the active locale instead of freezing whichever one was live at mount.
+	const confirmLabel = $derived(confirmText ?? m.common_delete());
+	const confirmingLabel = $derived(confirmingText ?? m.common_deleting());
+	const cancelLabel = $derived(cancelText ?? m.common_cancel());
 
 	let deleting = $state(false);
 
@@ -57,11 +79,9 @@
 			<AlertDialog.Description>{description}</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => onOpenChange(false)}
-				>{m.common_cancel()}</AlertDialog.Cancel
-			>
+			<AlertDialog.Cancel onclick={() => onOpenChange(false)}>{cancelLabel}</AlertDialog.Cancel>
 			<Button onclick={handleDelete} variant="destructive" disabled={deleting}>
-				{deleting ? m.common_deleting() : m.common_delete()}
+				{deleting ? confirmingLabel : confirmLabel}
 			</Button>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

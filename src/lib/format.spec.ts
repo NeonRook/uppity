@@ -2,12 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
 	generateSlug,
+	dateToLocalInput,
+	localInputToDate,
 	formatDate,
+	formatDateTimeRange,
+	formatDuration,
+	formatRelativeTime,
 	formatResponseTime,
 	formatInterval,
 	formatUptime,
 	formatUsdCents,
 	getRelativeTime,
+	getTimeZoneLabel,
 	truncate,
 } from "./format";
 
@@ -230,5 +236,130 @@ describe("formatUsdCents", () => {
 
 	it("uses the locale's decimal and grouping separators", () => {
 		expect(formatUsdCents(299000 / 12, "de")).toBe("249,17\u00a0$");
+	});
+});
+
+describe("formatDuration", () => {
+	// Maintenance windows call this with (startsAt, endsAt) rather than an open-ended
+	// incident, so the closed-interval behaviour is the one that matters here.
+	it("formats a sub-hour window in minutes", () => {
+		const start = new Date("2024-01-15T12:00:00Z");
+		const end = new Date("2024-01-15T12:45:00Z");
+		expect(formatDuration(start, end)).toBe("45m");
+	});
+
+	it("formats an hours-long window", () => {
+		const start = new Date("2024-01-15T12:00:00Z");
+		const end = new Date("2024-01-15T14:30:00Z");
+		expect(formatDuration(start, end)).toBe("2h 30m");
+	});
+
+	it("formats a multi-day window", () => {
+		const start = new Date("2024-01-15T12:00:00Z");
+		const end = new Date("2024-01-17T17:00:00Z");
+		expect(formatDuration(start, end)).toBe("2d 5h");
+	});
+
+	it("returns 0m for a zero-length span", () => {
+		const at = new Date("2024-01-15T12:00:00Z");
+		expect(formatDuration(at, at)).toBe("0m");
+	});
+});
+
+describe("dateToLocalInput / localInputToDate", () => {
+	it("renders local wall-clock time, not UTC", () => {
+		// Built from local components, so this holds in any runner time zone — which is
+		// the whole point of the helper.
+		expect(dateToLocalInput(new Date(2024, 0, 15, 14, 30))).toBe("2024-01-15T14:30");
+	});
+
+	it("returns empty string for missing or unparseable input", () => {
+		expect(dateToLocalInput(null)).toBe("");
+		expect(dateToLocalInput(undefined)).toBe("");
+		expect(dateToLocalInput("nope")).toBe("");
+	});
+
+	it("round-trips through the input value", () => {
+		const original = new Date(2024, 5, 3, 9, 5);
+		const parsed = localInputToDate(dateToLocalInput(original));
+		expect(parsed?.getTime()).toBe(original.getTime());
+	});
+
+	it("returns null for an empty or unparseable control value", () => {
+		expect(localInputToDate("")).toBeNull();
+		expect(localInputToDate("nope")).toBeNull();
+	});
+});
+
+describe("formatDateTimeRange", () => {
+	// Dates are built from local components rather than parsed from a Z-suffixed
+	// string, so these assertions do not shift with the runner's time zone.
+	it("prints the date once when the window starts and ends the same day", () => {
+		const start = new Date(2024, 0, 15, 14, 0);
+		const end = new Date(2024, 0, 15, 16, 30);
+		expect(formatDateTimeRange(start, end, "en-US")).toBe("Jan 15, 2:00 PM → 4:30 PM");
+	});
+
+	it("repeats the date when the window crosses midnight", () => {
+		const start = new Date(2024, 0, 15, 22, 0);
+		const end = new Date(2024, 0, 16, 2, 0);
+		expect(formatDateTimeRange(start, end, "en-US")).toBe("Jan 15, 10:00 PM → Jan 16, 2:00 AM");
+	});
+
+	it("does not collapse same day-of-month in different months", () => {
+		const start = new Date(2024, 0, 15, 14, 0);
+		const end = new Date(2024, 1, 15, 16, 0);
+		expect(formatDateTimeRange(start, end, "en-US")).toBe("Jan 15, 2:00 PM → Feb 15, 4:00 PM");
+	});
+
+	it("returns a dash when either end is unparseable", () => {
+		expect(formatDateTimeRange("nope", new Date(2024, 0, 15), "en-US")).toBe("-");
+		expect(formatDateTimeRange(new Date(2024, 0, 15), "nope", "en-US")).toBe("-");
+	});
+});
+
+describe("formatRelativeTime", () => {
+	const now = new Date("2024-01-15T12:00:00Z");
+
+	it("looks forward, which is the common case for scheduled maintenance", () => {
+		expect(formatRelativeTime(new Date("2024-01-15T15:00:00Z"), "en-US", now)).toBe("in 3 hours");
+	});
+
+	it("looks backward", () => {
+		expect(formatRelativeTime(new Date("2024-01-12T12:00:00Z"), "en-US", now)).toBe("3 days ago");
+	});
+
+	it("uses the idiomatic word for a single day in either direction", () => {
+		expect(formatRelativeTime(new Date("2024-01-16T12:00:00Z"), "en-US", now)).toBe("tomorrow");
+		expect(formatRelativeTime(new Date("2024-01-14T12:00:00Z"), "en-US", now)).toBe("yesterday");
+	});
+
+	it("collapses anything under a minute to 'now'", () => {
+		expect(formatRelativeTime(new Date("2024-01-15T12:00:30Z"), "en-US", now)).toBe("now");
+	});
+
+	it("picks the largest fitting unit", () => {
+		expect(formatRelativeTime(new Date("2024-01-15T12:05:00Z"), "en-US", now)).toBe("in 5 minutes");
+		expect(formatRelativeTime(new Date("2024-03-15T12:00:00Z"), "en-US", now)).toBe("in 2 months");
+	});
+
+	it("translates without a message key of its own", () => {
+		expect(formatRelativeTime(new Date("2024-01-15T15:00:00Z"), "de", now)).toBe("in 3 Stunden");
+		expect(formatRelativeTime(new Date("2024-01-15T15:00:00Z"), "pt-BR", now)).toBe("em 3 horas");
+	});
+
+	it("returns a dash for an unparseable date", () => {
+		expect(formatRelativeTime("not a date", "en-US", now)).toBe("-");
+	});
+});
+
+describe("getTimeZoneLabel", () => {
+	it("names a zone rather than returning nothing", () => {
+		expect(getTimeZoneLabel("en-US", new Date("2024-01-15T12:00:00Z"))).not.toBe("");
+	});
+
+	it("is stable for the same locale and instant", () => {
+		const at = new Date("2024-01-15T12:00:00Z");
+		expect(getTimeZoneLabel("en-US", at)).toBe(getTimeZoneLabel("en-US", at));
 	});
 });
