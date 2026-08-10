@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+### Patch Changes
+
+- [#68](https://github.com/NeonRook/uppity/pull/68) [`72a2ce9`](https://github.com/NeonRook/uppity/commit/72a2ce97a4f040cfda18e7a3303512dcfd735259) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Shrink the runtime Docker image from 169MB to 165MB (46.2MB to 43.8MB pulled) and drop `node_modules` from it entirely. `auth.ts` now builds from `better-auth/minimal`, which removes Kysely and its unused sqlite/mysql/mssql dialects from the server bundle, and `@opentelemetry/api` is bundled rather than externalised — Vite resolves its ESM build, so better-auth's dynamic import still gets genuine named exports. With nothing left to exempt, the runtime allowlist is empty and the image ships only `build/`, `drizzle/` and a minimal manifest.
+
+- [#66](https://github.com/NeonRook/uppity/pull/66) [`7cf5314`](https://github.com/NeonRook/uppity/commit/7cf531432894ba3a438356c521f522aecd5618b9) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Finish the maintenance window CRUD UI (NEO-11). An active window now renders in Ward Blue instead of the emerald that means "operational", and a cancelled one no longer borrows the scarlet reserved for a monitor that is down. Windows that have not started can be deleted outright; anything that has already suppressed an alert can only be cancelled, so the record of why alerting went quiet survives.
+
+  The monitor selector gained a filter, a selected count and a clear action — it was an unfiltered checkbox list, which does not survive the 2,000 monitors a Dedicated plan allows — and finished windows now list the monitors they covered instead of rendering every monitor as a disabled checkbox. Times, durations and the newly shown window length are set in mono per the Measured-Value Rule, upcoming windows sort soonest-first, and an organisation with no windows sees one empty state rather than four.
+
+  Service rejections now carry stable codes and are translated through Paraglide across `en`, `de` and `pt-br`; previously the raw English strings reached the form. `datetime-local` fields name the browser's time zone, which they never did. Cancel and delete moved to remote commands, matching every other row action in the app.
+
 ## 0.1.3
 
 ### Patch Changes
