@@ -1,6 +1,7 @@
 import { createMaintenanceWindowSchema } from "$lib/schemas/maintenance-window";
 import { db } from "$lib/server/db";
 import { monitor } from "$lib/server/db/schema";
+import { maintenanceErrorMessage } from "$lib/server/maintenance-messages";
 import { MaintenanceWindowService } from "$lib/server/services/maintenance-window.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
@@ -42,10 +43,7 @@ export const actions: Actions = {
 				monitorIds: form.data.monitorIds,
 			});
 		} catch (err) {
-			if (err instanceof Error) {
-				return message(form, err.message, { status: 400 });
-			}
-			throw err;
+			return message(form, maintenanceErrorMessage(err), { status: 400 });
 		}
 		return redirect(303, `/maintenance/${created.id}`);
 	},

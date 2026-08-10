@@ -134,6 +134,127 @@ export function getRelativeTime(date: Date | null): string {
 }
 
 /**
+ * Convert a Date into the `YYYY-MM-DDTHH:mm` string an `<input type="datetime-local">`
+ * expects, expressed in the browser's local time.
+ *
+ * `toISOString()` alone would hand the control a UTC wall-clock time, so a user in
+ * UTC+2 typing 14:00 would see 12:00 read back. Subtracting the offset first is what
+ * keeps the round trip honest.
+ */
+export function dateToLocalInput(value: Date | string | undefined | null): string {
+	if (!value) return "";
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return "";
+	const offsetMs = date.getTimezoneOffset() * 60_000;
+	return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+/**
+ * Parse a `datetime-local` value back into a Date, or null when the control is empty
+ * or mid-edit. Null is the caller's signal to let validation surface the problem
+ * rather than silently keeping the previous value.
+ */
+export function localInputToDate(value: string): Date | null {
+	if (!value) return null;
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Format the span of a maintenance window as a single readable range.
+ *
+ * A window that starts and ends on the same day — the overwhelmingly common case —
+ * prints its date once: "Jan 15, 2:00 PM → 4:30 PM". Repeating the date on both sides
+ * of the arrow is noise that makes two nearly identical strings hard to tell apart at
+ * a glance, which is exactly what the list view asks the reader to do.
+ */
+export function formatDateTimeRange(
+	start: Date | string,
+	end: Date | string,
+	locale = "en-US",
+): string {
+	const from = new Date(start);
+	const to = new Date(end);
+	if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "-";
+
+	const withDate = new Intl.DateTimeFormat(locale, {
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
+	const sameDay =
+		from.getFullYear() === to.getFullYear() &&
+		from.getMonth() === to.getMonth() &&
+		from.getDate() === to.getDate();
+
+	if (!sameDay) return `${withDate.format(from)} → ${withDate.format(to)}`;
+
+	const timeOnly = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" });
+	return `${withDate.format(from)} → ${timeOnly.format(to)}`;
+}
+
+const RELATIVE_UNITS: Array<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> = [
+	{ unit: "year", ms: 365 * 24 * 60 * 60 * 1000 },
+	{ unit: "month", ms: 30 * 24 * 60 * 60 * 1000 },
+	{ unit: "day", ms: 24 * 60 * 60 * 1000 },
+	{ unit: "hour", ms: 60 * 60 * 1000 },
+	{ unit: "minute", ms: 60 * 1000 },
+];
+
+/**
+ * Format a point in time relative to now, in either direction ("in 3 hours",
+ * "2 days ago", "now").
+ *
+ * Distinct from `getRelativeTime`, which only looks backwards and only speaks
+ * English. Maintenance windows are scheduled ahead, so the forward direction is the
+ * common case, and the label sits beside translated prose on every surface that uses
+ * it. `Intl.RelativeTimeFormat` supplies both for free across en, de and pt-br —
+ * German's "in 3 Stunden" / "vor 2 Tagen" needs no message key of its own.
+ *
+ * `now` is injectable so callers can render against a fixed clock and tests need no
+ * timer mocking.
+ */
+export function formatRelativeTime(
+	date: Date | string,
+	locale = "en-US",
+	now: Date = new Date(),
+): string {
+	const target = new Date(date).getTime();
+	if (Number.isNaN(target)) return "-";
+
+	const diffMs = target - now.getTime();
+	const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+
+	for (const { unit, ms } of RELATIVE_UNITS) {
+		if (Math.abs(diffMs) >= ms) {
+			return formatter.format(Math.trunc(diffMs / ms), unit);
+		}
+	}
+	// Under a minute in either direction. `numeric: "auto"` turns 0 into the idiomatic
+	// "now" rather than "in 0 seconds".
+	return formatter.format(0, "second");
+}
+
+/**
+ * Name the time zone the browser is rendering times in.
+ *
+ * Maintenance windows are entered through `datetime-local`, which is silently local
+ * to whoever is typing. A distributed team scheduling a window days ahead has no way
+ * to tell which zone a time is in unless the UI says so.
+ *
+ * Prefers the short zone name the locale would write ("CEST", "GMT+2") and falls back
+ * to the IANA identifier, which is always available and never ambiguous.
+ */
+export function getTimeZoneLabel(locale = "en-US", date: Date = new Date()): string {
+	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	const parts = new Intl.DateTimeFormat(locale, {
+		timeZoneName: "short",
+	}).formatToParts(date);
+	return parts.find((p) => p.type === "timeZoneName")?.value ?? zone;
+}
+
+/**
  * Truncate a string to a maximum length, adding ellipsis if needed
  */
 export function truncate(str: string, maxLength: number): string {

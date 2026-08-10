@@ -479,6 +479,60 @@ describe("MaintenanceWindowService.delete", () => {
 			.where(eq(maintenanceWindowMonitor.windowId, created.id));
 		expect(linksAfter).toHaveLength(0);
 	});
+
+	// A window that has started explains why alerting went quiet, and the public status
+	// page renders it. Deleting one would erase that record, so only the not-yet-started
+	// case is removable; everything else is cancelled instead.
+	async function expectDeleteRefused(drizzleDb: TestDb["db"], status: string): Promise<void> {
+		const service = new MaintenanceWindowService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+
+		const created = await service.create({
+			organizationId: orgId,
+			name: "Window",
+			startsAt: new Date(Date.now() + 60_000),
+			endsAt: new Date(Date.now() + 3_600_000),
+			monitorIds: [monitorId],
+		});
+
+		await drizzleDb
+			.update(maintenanceWindow)
+			.set({ status })
+			.where(eq(maintenanceWindow.id, created.id));
+
+		await expect(service.delete(created.id, orgId)).rejects.toThrow(
+			"Only a scheduled window can be deleted",
+		);
+
+		const stillThere = await drizzleDb
+			.select()
+			.from(maintenanceWindow)
+			.where(eq(maintenanceWindow.id, created.id));
+		expect(stillThere).toHaveLength(1);
+	}
+
+	test("refuses to delete an in-progress window", async ({ db }) => {
+		await expectDeleteRefused(db.db, "in_progress");
+	});
+
+	test("refuses to delete a completed window", async ({ db }) => {
+		await expectDeleteRefused(db.db, "completed");
+	});
+
+	test("refuses to delete a cancelled window", async ({ db }) => {
+		await expectDeleteRefused(db.db, "cancelled");
+	});
+
+	test("rejects an unknown id", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new MaintenanceWindowService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+
+		await expect(service.delete("does-not-exist", orgId)).rejects.toThrow(
+			"Maintenance window not found",
+		);
+	});
 });
 
 describe("MaintenanceWindowService.findActiveForMonitor", () => {

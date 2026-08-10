@@ -11,6 +11,12 @@
 				destructive:
 					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
 				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+				// Ward Blue, on the signal family's pill pair rather than its solid.
+				// layout.css defines `surface` as "the pale pill/chip tint" and `ink` as
+				// "text on that surface" — a badge is exactly what that pair is for, and
+				// it keeps a maintenance chip off the near-white-on-saturated-fill path
+				// that The Emerald Never Takes White Rule exists to prevent.
+				maintenance: "bg-status-maintenance-surface text-status-maintenance-ink border-transparent",
 			},
 		},
 		defaultVariants: {

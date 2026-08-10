@@ -1,3 +1,6 @@
+// Re-exported rather than restated: the union is derived from badgeVariants' own
+// `tv` config, so a variant added to the component cannot silently fail to exist here.
+import type { BadgeVariant } from "$lib/components/ui/badge";
 import { m } from "$lib/paraglide/messages.js";
 import {
 	Pause,
@@ -9,7 +12,7 @@ import {
 } from "@lucide/svelte";
 import type { Component } from "svelte";
 
-export type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
+export type { BadgeVariant };
 export type IconComponent = Component<IconProps>;
 
 /**

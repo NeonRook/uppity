@@ -13,6 +13,34 @@ type Db = PostgresJsDatabase<typeof schema>;
 
 export type MaintenanceWindowStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
 
+export type MaintenanceWindowErrorCode =
+	| "not_found"
+	| "name_required"
+	| "end_before_start"
+	| "end_in_past"
+	| "no_monitors"
+	| "monitor_not_found"
+	| "cannot_cancel_completed"
+	| "not_deletable";
+
+/**
+ * A rejection the user is allowed to see, carrying a stable code.
+ *
+ * The `message` stays English on purpose — it is what lands in logs and in test
+ * assertions. The `code` is what the route layer translates, so no service string
+ * ever reaches a form. Paraglide is deliberately not imported here: this module is
+ * bundled into the monitor worker, which has no locale and no need for one.
+ */
+export class MaintenanceWindowError extends Error {
+	readonly code: MaintenanceWindowErrorCode;
+
+	constructor(code: MaintenanceWindowErrorCode, message: string) {
+		super(message);
+		this.name = "MaintenanceWindowError";
+		this.code = code;
+	}
+}
+
 export interface CreateMaintenanceWindowInput {
 	organizationId: string;
 	name: string;
@@ -53,22 +81,22 @@ export class MaintenanceWindowService {
 			.from(monitor)
 			.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
 		if (found.length !== uniqueMonitorIds.length) {
-			throw new Error("Monitor not found");
+			throw new MaintenanceWindowError("monitor_not_found", "Monitor not found");
 		}
 	}
 
 	async create(input: CreateMaintenanceWindowInput): Promise<MaintenanceWindow> {
 		if (input.name.trim().length < 1) {
-			throw new Error("Name is required");
+			throw new MaintenanceWindowError("name_required", "Name is required");
 		}
 		if (input.endsAt <= input.startsAt) {
-			throw new Error("End time must be after start time");
+			throw new MaintenanceWindowError("end_before_start", "End time must be after start time");
 		}
 		if (input.endsAt <= new Date()) {
-			throw new Error("End time must be in the future");
+			throw new MaintenanceWindowError("end_in_past", "End time must be in the future");
 		}
 		if (input.monitorIds.length < 1) {
-			throw new Error("Select at least one monitor");
+			throw new MaintenanceWindowError("no_monitors", "Select at least one monitor");
 		}
 
 		const uniqueMonitorIds = Array.from(new Set(input.monitorIds));
@@ -108,23 +136,23 @@ export class MaintenanceWindowService {
 				.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
 				.limit(1);
 			if (!existing) {
-				throw new Error("Maintenance window not found");
+				throw new MaintenanceWindowError("not_found", "Maintenance window not found");
 			}
 
 			const resolvedStart = input.startsAt ?? existing.startsAt;
 			const resolvedEnd = input.endsAt ?? existing.endsAt;
 			if (resolvedEnd <= resolvedStart) {
-				throw new Error("End time must be after start time");
+				throw new MaintenanceWindowError("end_before_start", "End time must be after start time");
 			}
 
 			if (input.name !== undefined && input.name.trim().length < 1) {
-				throw new Error("Name is required");
+				throw new MaintenanceWindowError("name_required", "Name is required");
 			}
 
 			let uniqueMonitorIds: string[] | undefined;
 			if (input.monitorIds !== undefined) {
 				if (input.monitorIds.length < 1) {
-					throw new Error("Select at least one monitor");
+					throw new MaintenanceWindowError("no_monitors", "Select at least one monitor");
 				}
 				uniqueMonitorIds = Array.from(new Set(input.monitorIds));
 				const found = await tx
@@ -132,7 +160,7 @@ export class MaintenanceWindowService {
 					.from(monitor)
 					.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
 				if (found.length !== uniqueMonitorIds.length) {
-					throw new Error("Monitor not found");
+					throw new MaintenanceWindowError("monitor_not_found", "Monitor not found");
 				}
 			}
 
@@ -168,10 +196,13 @@ export class MaintenanceWindowService {
 			.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
 			.limit(1);
 		if (!existing) {
-			throw new Error("Maintenance window not found");
+			throw new MaintenanceWindowError("not_found", "Maintenance window not found");
 		}
 		if (existing.status === "completed") {
-			throw new Error("Cannot cancel a completed window");
+			throw new MaintenanceWindowError(
+				"cannot_cancel_completed",
+				"Cannot cancel a completed window",
+			);
 		}
 		if (existing.status === "cancelled") {
 			return existing;
@@ -185,7 +216,27 @@ export class MaintenanceWindowService {
 		return updated;
 	}
 
+	/**
+	 * Remove a window outright. Only legal while it is still `scheduled`.
+	 *
+	 * Once a window has started it is part of the record of why alerting went quiet:
+	 * the public status page renders it and alert suppression is justified by it.
+	 * Deleting one after the fact would erase that explanation, so anything past
+	 * `scheduled` is cancelled instead, which keeps the row and its history.
+	 */
 	async delete(id: string, orgId: string): Promise<void> {
+		const [existing] = await this.db
+			.select()
+			.from(maintenanceWindow)
+			.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)))
+			.limit(1);
+		if (!existing) {
+			throw new MaintenanceWindowError("not_found", "Maintenance window not found");
+		}
+		if (existing.status !== "scheduled") {
+			throw new MaintenanceWindowError("not_deletable", "Only a scheduled window can be deleted");
+		}
+
 		await this.db
 			.delete(maintenanceWindow)
 			.where(and(eq(maintenanceWindow.id, id), eq(maintenanceWindow.organizationId, orgId)));

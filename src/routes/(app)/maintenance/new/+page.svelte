@@ -1,13 +1,14 @@
 <script lang="ts">
+	import MonitorPicker from "$lib/components/maintenance-monitor-picker.svelte";
 	import { Alert, AlertDescription } from "$lib/components/ui/alert";
 	import { Button } from "$lib/components/ui/button";
 	import * as Card from "$lib/components/ui/card";
-	import { Checkbox } from "$lib/components/ui/checkbox";
 	import * as Field from "$lib/components/ui/field";
 	import { Input } from "$lib/components/ui/input";
-	import { ScrollArea } from "$lib/components/ui/scroll-area";
 	import { Textarea } from "$lib/components/ui/textarea";
+	import { dateToLocalInput, getTimeZoneLabel, localInputToDate } from "$lib/format";
 	import { m } from "$lib/paraglide/messages.js";
+	import { getLocale } from "$lib/paraglide/runtime";
 	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
@@ -21,48 +22,24 @@
 		},
 	);
 
-	function dateToLocalInput(d: Date | string | undefined | null): string {
-		if (!d) return "";
-		const date = new Date(d);
-		if (Number.isNaN(date.getTime())) return "";
-		const offset = date.getTimezoneOffset() * 60_000;
-		return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-	}
-
 	let startsAtStr = $state(dateToLocalInput($form.startsAt));
 	let endsAtStr = $state(dateToLocalInput($form.endsAt));
 
+	// `datetime-local` speaks strings; the schema wants Dates. Clearing the control has
+	// to clear the model too, or validation would pass against a stale value the user
+	// can no longer see.
 	$effect(() => {
-		if (!startsAtStr) {
-			// Use `undefined as never` to clear without violating the v.date() type assertion.
-			// valibot will fail validation, surfacing the error to the user.
-			$form.startsAt = undefined as unknown as Date;
-			return;
-		}
-		const d = new Date(startsAtStr);
-		if (!Number.isNaN(d.getTime())) {
-			$form.startsAt = d;
-		}
+		const parsed = localInputToDate(startsAtStr);
+		$form.startsAt = parsed as unknown as Date;
 	});
 	$effect(() => {
-		if (!endsAtStr) {
-			$form.endsAt = undefined as unknown as Date;
-			return;
-		}
-		const d = new Date(endsAtStr);
-		if (!Number.isNaN(d.getTime())) {
-			$form.endsAt = d;
-		}
+		const parsed = localInputToDate(endsAtStr);
+		$form.endsAt = parsed as unknown as Date;
 	});
 
-	function toggleMonitor(id: string) {
-		const current = $form.monitorIds ?? [];
-		if (current.includes(id)) {
-			$form.monitorIds = current.filter((mid) => mid !== id);
-		} else {
-			$form.monitorIds = [...current, id];
-		}
-	}
+	const timeZoneNote = $derived(
+		m.maintenance_form_timezone_note({ zone: getTimeZoneLabel(getLocale()) }),
+	);
 </script>
 
 <svelte:head>
@@ -75,7 +52,7 @@
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.maintenance_new_title()}</h1>
+			<h1 class="text-2xl font-semibold tracking-tight">{m.maintenance_new_title()}</h1>
 			<p class="text-muted-foreground">
 				{m.maintenance_new_description()}
 			</p>
@@ -129,6 +106,7 @@
 							type="datetime-local"
 							bind:value={startsAtStr}
 							disabled={$delayed}
+							aria-describedby="timezone-note"
 							aria-invalid={$errors.startsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.startsAt} />
@@ -141,11 +119,16 @@
 							type="datetime-local"
 							bind:value={endsAtStr}
 							disabled={$delayed}
+							aria-describedby="timezone-note"
 							aria-invalid={$errors.endsAt ? "true" : undefined}
 						/>
 						<Field.Error errors={$errors.endsAt} />
 					</Field.Field>
 				</div>
+
+				<!-- datetime-local is silently browser-local. A window scheduled days ahead by
+				     one member and read by another is ambiguous unless the zone is named. -->
+				<p id="timezone-note" class="text-muted-foreground text-xs">{timeZoneNote}</p>
 
 				{#if $errors._errors && $errors._errors.length > 0}
 					<Field.Error errors={$errors._errors} />
@@ -158,29 +141,12 @@
 				<Card.Title>{m.maintenance_form_affected_monitors()}</Card.Title>
 			</Card.Header>
 			<Card.Content>
-				{#if data.monitors.length === 0}
-					<p class="text-muted-foreground py-4 text-center text-sm">
-						{m.maintenance_form_no_monitors()}
-					</p>
-				{:else}
-					<ScrollArea class="h-96 rounded-md border p-3">
-						<div class="space-y-2">
-							{#each data.monitors as monitor (monitor.id)}
-								<label
-									class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-md border p-2 transition-colors"
-								>
-									<Checkbox
-										checked={($form.monitorIds ?? []).includes(monitor.id)}
-										onCheckedChange={() => toggleMonitor(monitor.id)}
-										disabled={$delayed}
-									/>
-									<span class="flex-1 truncate text-sm font-medium">{monitor.name}</span>
-								</label>
-							{/each}
-						</div>
-					</ScrollArea>
-					<Field.Error errors={$errors.monitorIds?._errors} />
-				{/if}
+				<MonitorPicker
+					monitors={data.monitors}
+					bind:selected={() => $form.monitorIds ?? [], (value) => ($form.monitorIds = value)}
+					disabled={$delayed}
+				/>
+				<Field.Error errors={$errors.monitorIds?._errors} />
 			</Card.Content>
 		</Card.Root>
 
