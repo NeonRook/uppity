@@ -16,8 +16,8 @@ import { subscriptionService } from "$lib/server/services/subscription.service";
 import type { PlanId, SubscriptionStatus } from "$lib/types/plans";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
-import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
+import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
@@ -94,6 +94,17 @@ export function getPlanFromSubscription(sub: {
 	return "uppity";
 }
 
+/**
+ * Built from `better-auth/minimal` rather than `better-auth`.
+ *
+ * Same core; the difference is that its init only accepts a prebuilt adapter
+ * instead of also being able to construct a Kysely dialect from a connection
+ * string. That drops Kysely and its sqlite/mysql/mssql dialects from the SSR
+ * bundle. Both capabilities it gives up were already unused: `drizzleAdapter`
+ * below has always been the only database path, and drizzle-kit owns migrations.
+ *
+ * Switching `database` to anything other than an adapter will throw at startup.
+ */
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
 		provider: "pg",
