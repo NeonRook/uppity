@@ -106,8 +106,12 @@ Full competitive analysis: `competitor-profiles/_summary.md`.
 
 **Plan tiers — confirmed 2026-07-30, implemented 2026-07-31**
 
-> Capacity blocks are not yet implemented: the Uppity ceiling is a fixed 50
-> monitors until pass 2 lands. See "Outstanding implementation work" below.
+> Capacity blocks are implemented in the product but not yet purchasable. Since
+> NEO-33 (2026-08-15) the Uppity ceiling derives as `50 + 50 × blocks` from a
+> `blocks` column on `subscription`, and every limit check reads it — but nothing
+> writes a non-zero value until the Polar meter lands, so the effective ceiling is
+> still 50 for every customer. **The "+50 per block" row is not yet publishable.**
+> See "Outstanding implementation work" below.
 
 |                      | Free  | **Uppity**                     | **Dedicated**  | Self-hosted |
 | -------------------- | ----- | ------------------------------ | -------------- | ----------- |
@@ -148,21 +152,28 @@ caps worst-case cost per monitor**; if that floor ever drops, the billing unit m
 | Paid       | Published target — **number still OPEN, see below** |
 | Enterprise | Contractual SLA with service credits                |
 
-**The published uptime target remains an open decision as of 2026-07-30.** Uppity is at
-v0.1.0 with days — not quarters — of self-measured data. Do not publish a number until one
-has been measured from the live status page. "Target" and "contractual SLA with credits"
-are different commitments; the gap between them is where Enterprise revenue lives.
+**The published uptime target remains an open decision — reviewed 2026-08-15, still open.**
+The dogfooded status page has run continuously since 2026-07-30, so the measurement channel
+now has weeks rather than the days it had when this was first written; it is still far short
+of the window a published target would need to survive a bad month. Do not publish a number
+until one has been measured from the live status page. "Target" and "contractual SLA with
+credits" are different commitments; the gap between them is where Enterprise revenue lives.
 
 **Outstanding implementation work**
 
-- **Capacity blocks.** `PlanLimits.monitors` is still a static 50 for Uppity. Blocks need a
-  `blocks` column on `subscription`, a `monitor_blocks` meter in Polar, a metered price
-  stacked on both Uppity products, and a ceiling derived as `50 + 50 × blocks` in
-  `getEffectiveLimits`. Polar supports stacking metered prices on fixed ones, which is why
-  this mechanism was chosen over the beta seat-pricing feature.
-- **First retention sweep after deploy is large.** Retention is now per-plan, so every Free
-  organization that accumulated more than 30 days of checks under the old global window loses
-  the excess in one statement against the largest table. Schedule the first run in a quiet
+- **Capacity blocks — half done.** The product side shipped in NEO-33 (2026-08-15): a
+  `blocks` column on `subscription`, and a ceiling derived as `50 + 50 × blocks` in
+  `getEffectiveLimits`, which every limit check already reads through. Still outstanding is
+  the billing side — a `monitor_blocks` meter in Polar, a metered price stacked on both
+  Uppity products, and the UI to add and remove blocks. Polar supports stacking metered
+  prices on fixed ones, which is why this mechanism was chosen over the beta seat-pricing
+  feature. **Until the meter exists nothing writes a non-zero `blocks`, so no customer can
+  exceed 50 monitors and the pricing row must not be published.**
+- **First per-plan retention sweep has run.** It executed on the first `UPPITY_CRON_CLEANUP`
+  after the 2026-07-31 deploy, at the low volumes this instance held. The hazard it warned
+  about is not retired, only spent here: on a populated instance the first sweep after
+  switching to per-plan retention still deletes everything held beyond each organization's
+  window in one statement against the largest table, and should be scheduled in a quiet
   period. The `(monitor_id, checked_at)` index added in `0011` mitigates but does not remove
   this.
 - **Enterprise Polar product.** Enterprise has no product and no self-serve path. It is
@@ -184,9 +195,9 @@ Two consequences worth remembering:
   per-plan path there since the code deployed, independently of the server's configuration.
   Anything that gates worker behaviour on self-hosted mode must be set on that service too,
   not only on `uppity-server`.
-- **The first per-plan retention sweep runs at the next `UPPITY_CRON_CLEANUP`** (`0 2 * * *`,
-  UTC), deleting whatever each organization holds beyond its plan's window. At current
-  volumes this is small; it would not be on a populated instance.
+- **The first per-plan retention sweep ran at the `UPPITY_CRON_CLEANUP` following the deploy**
+  (`0 2 * * *`, UTC), deleting whatever each organization held beyond its plan's window. At
+  this instance's volumes it was small; it would not be on a populated one.
 
 **Technical constraints**
 
@@ -217,7 +228,7 @@ Name: **Uppity**, by NeonRook (`hello@neonrook.com`). No confirmed voice or tone
 - Real product assets: `src/lib/assets/logo.svg`, `static/apple-touch-icon.webp`, `static/icons/`, `static/manifest.webmanifest`.
 - Real repository presence: public GitHub repo under `NeonRook/uppity`, AGPL-3.0-only license, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`.
 - Real internal planning record: `docs/superpowers/specs/` and `docs/superpowers/plans/`, plus `docs/rfc-001-monitor-scheduler-architecture.md`. Local artifacts, not published material.
-- Real pricing: the table above is a confirmed product decision and is safe to display once implemented.
+- Real pricing: the table above is a confirmed product decision. The Free, Uppity base and Dedicated rows are backed by enforced limits and safe to display. **The "+50 per block" row is not** — the ceiling derives from blocks, but no purchase path exists, so publishing it would advertise something a customer cannot buy.
 - **Live dogfooded status page: <https://uppity.cloud/status/uppity>** (since 2026-07-30).
   Uppity monitoring itself, publicly. This is the first real evidence asset — self-
   demonstrating rather than asserted, and it compounds: every month it runs is proof that
@@ -226,7 +237,7 @@ Name: **Uppity**, by NeonRook (`hello@neonrook.com`). No confirmed voice or tone
 - Real unit economics: `docs/pricing-cost-model.md` — Railway-measured infrastructure
   baseline plus a derived cost model. Internal; not for publication.
 
-**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.1.0`. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
+**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.1.5` (2026-08-15); every release so far has been a patch, and nothing about the version implies maturity that can be claimed. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
 
 ## Product Principles
 
