@@ -11,6 +11,7 @@ import {
 	index,
 	uniqueIndex,
 	foreignKey,
+	check,
 } from "drizzle-orm/pg-core";
 
 // Import auth tables for foreign key references
@@ -661,6 +662,15 @@ export const subscription = pgTable(
 		planId: text("plan_id").notNull().default("free"), // 'free' | 'uppity' | 'dedicated' | 'enterprise'
 		status: text("status").notNull().default("active"), // 'active' | 'canceled' | 'past_due' | 'trialing'
 
+		/**
+		 * Purchased capacity blocks, each worth `MONITOR_BLOCK_SIZE` extra monitors on
+		 * top of the Uppity plan's included allowance. Only the Uppity plan sells them;
+		 * a non-zero value on any other plan is inert — see `applyCapacityBlocks`.
+		 *
+		 * Written from Polar subscription state, never by hand.
+		 */
+		blocks: integer("blocks").notNull().default(0),
+
 		// Billing period
 		currentPeriodStart: timestamp("current_period_start"),
 		currentPeriodEnd: timestamp("current_period_end"),
@@ -676,6 +686,10 @@ export const subscription = pgTable(
 	(table) => [
 		index("subscription_org_idx").on(table.organizationId),
 		index("subscription_polar_customer_idx").on(table.polarCustomerId),
+		// A negative block count would silently *shrink* the ceiling below the allowance
+		// the customer paid for. `applyCapacityBlocks` clamps too; this stops the bad
+		// value from ever landing.
+		check("subscription_blocks_non_negative", sql`${table.blocks} >= 0`),
 	],
 );
 
