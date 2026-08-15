@@ -104,6 +104,28 @@ Tests use Vitest with two projects:
 
 All tests require assertions (`expect.requireAssertions: true`).
 
+## Changesets
+
+A changeset becomes a CHANGELOG entry. **It is release notes, not developer documentation.**
+
+There are exactly two readers, and neither has seen the diff:
+
+- **Self-hosted operators** — they run the instance. They care about what breaks, what they must do on upgrade, what they can now configure, and what an upgrade costs them operationally (migrations that lock, image size, new required env vars).
+- **Customers using the hosted service** — they read it as "what's new". They care about what they can now do that they could not do yesterday.
+
+Write for those two. Lead with what changed for them; give the reason only when it helps them decide something.
+
+**Never in a changeset:**
+
+- Column, table, and migration names; function, method, class, and file names; type or symbol names
+- Internal refactors, test counts, code structure, or how the fix was implemented
+- Issue keys as the subject ("Implements NEO-33") — name the capability instead
+- Anything whose only audience is someone reading the source
+
+That material belongs in the PR description and in comments next to the code, where the reader has the diff open. The commit body is the third place for it. Never the changelog.
+
+**When a change is invisible to both readers, say so in one line, or use `bun changeset --empty`.** Groundwork that ships no user-facing behavior should produce a short honest entry, not a long technical one dressed up as news. Padding an entry to look substantial is the failure this rule exists to prevent.
+
 ## Svelte MCP Tools
 
 Use the Svelte MCP server for documentation and code validation:
