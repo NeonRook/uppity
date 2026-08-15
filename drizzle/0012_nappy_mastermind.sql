@@ -1,0 +1,2 @@
+ALTER TABLE "subscription" ADD COLUMN "blocks" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "subscription" ADD CONSTRAINT "subscription_blocks_non_negative" CHECK ("subscription"."blocks" >= 0);

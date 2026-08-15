@@ -55,6 +55,51 @@ export const MONITOR_BLOCK_PRICE_CENTS = 800; // $8/month per +50 monitors
 export const MONITOR_BLOCK_ANNUAL_PRICE_CENTS = 8000; // $80/year (two months free)
 
 /**
+ * Plan ids whose monitor ceiling is extended by purchased capacity blocks.
+ *
+ * Uppity is the only plan sold by capacity. Free has no billing relationship, and
+ * Dedicated's 2,000 is a fair-use figure on isolated infrastructure rather than a
+ * metered allowance. Enterprise is Dedicated plus an SLA, support, onboarding and
+ * invoicing — zero feature unlocks — so it carries Dedicated's ceiling and is out of
+ * the capacity calculus for the same reason.
+ *
+ * Blocks stored against an ineligible plan are inert rather than an error — Polar is
+ * the source of truth, and a plan change must not require a cleanup pass over the
+ * column.
+ */
+const BLOCK_ELIGIBLE_PLAN_IDS: ReadonlySet<PlanId> = new Set<PlanId>(["uppity"]);
+
+/**
+ * Resolves a plan's effective limits for an organization holding `blocks` purchased
+ * capacity blocks.
+ *
+ * The monitor ceiling is the only limit blocks move, to the plan's included allowance
+ * plus `MONITOR_BLOCK_SIZE × blocks` — 50 + 50 × blocks on today's Uppity, though the
+ * two 50s are independent numbers and only the second is the block size. Everything
+ * else is copied through untouched.
+ *
+ * Two guards keep the arithmetic honest. `-1` is the unlimited sentinel, not a count —
+ * adding to it would turn "unlimited" into 49. And a negative `blocks` would shrink the
+ * ceiling below the allowance the customer already paid for, so it clamps to zero; the
+ * `subscription_blocks_non_negative` constraint should make that unreachable, but the
+ * failure is silent enough to be worth defending twice.
+ *
+ * Returns a fresh object in every branch so callers never hold a reference to a
+ * module-level plan constant. The copy is shallow: `notificationChannels` is still the
+ * shared array, and callers that need to own it copy it themselves (see
+ * `getUsageLimitsData`).
+ */
+export function applyCapacityBlocks(plan: Plan, blocks: number): PlanLimits {
+	const { limits } = plan;
+
+	if (!BLOCK_ELIGIBLE_PLAN_IDS.has(plan.id) || limits.monitors === -1) {
+		return { ...limits };
+	}
+
+	return { ...limits, monitors: limits.monitors + MONITOR_BLOCK_SIZE * Math.max(0, blocks) };
+}
+
+/**
  * Uppity — the base paid unit. $12/month or $120/year (two months free).
  *
  * The 50-monitor allowance is the *included* capacity; further capacity is

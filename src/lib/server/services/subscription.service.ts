@@ -1,5 +1,11 @@
 import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
-import { DEFAULT_PLAN_ID, isSelfHosted, PLANS, SELF_HOSTED_LIMITS } from "$lib/constants/plans";
+import {
+	applyCapacityBlocks,
+	DEFAULT_PLAN_ID,
+	isSelfHosted,
+	PLANS,
+	SELF_HOSTED_LIMITS,
+} from "$lib/constants/plans";
 import { db } from "$lib/server/db";
 import { invitation, member } from "$lib/server/db/auth-schema";
 import * as schema from "$lib/server/db/schema";
@@ -81,7 +87,11 @@ export class SubscriptionService {
 
 	/**
 	 * Gets the effective plan limits for an organization.
-	 * Returns self-hosted limits if in self-hosted mode, otherwise returns plan limits.
+	 *
+	 * Returns self-hosted limits if in self-hosted mode. Otherwise resolves the plan
+	 * and layers the organization's purchased capacity blocks on top, so every caller
+	 * — monitor creation caps included — sees the ceiling the customer actually paid
+	 * for rather than the plan's included allowance.
 	 */
 	async getEffectiveLimits(organizationId: string): Promise<PlanLimits> {
 		if (isSelfHosted()) {
@@ -89,10 +99,10 @@ export class SubscriptionService {
 		}
 
 		const sub = await this.getOrCreateSubscription(organizationId);
-		const plan = getPlanById(sub.planId as PlanId);
+		// Fall back to the free plan if the stored id is one we no longer ship.
+		const plan = getPlanById(sub.planId as PlanId) ?? PLANS[DEFAULT_PLAN_ID];
 
-		// Fall back to free plan limits if plan not found
-		return plan?.limits ?? PLANS[DEFAULT_PLAN_ID].limits;
+		return applyCapacityBlocks(plan, sub.blocks);
 	}
 
 	/**

@@ -126,6 +126,26 @@ describe("SubscriptionService", () => {
 			expect(atLimit.message).toMatch(/limit of 20 monitors/);
 		});
 
+		test("enforcement reports the block-derived ceiling, not the plan's base 50", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 2,
+			});
+
+			const result = await service.canAddMonitor(orgId);
+			expect(result.allowed).toBe(true);
+			expect(result.limit).toBe(150);
+		});
+
 		test("self-hosted mode (limits.monitors = -1) short-circuits without a usage query", async ({
 			db,
 		}) => {
@@ -375,6 +395,79 @@ describe("SubscriptionService", () => {
 			const limits = await service.getEffectiveLimits(orgId);
 			expect(limits.monitors).toBe(2000);
 			expect(limits.retentionDays).toBe(-1);
+		});
+
+		test("uppity's ceiling grows by 50 for every purchased capacity block", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			const limits = await service.getEffectiveLimits(orgId);
+			expect(limits.monitors).toBe(200);
+		});
+
+		test("a subscription created without blocks defaults to the included 50", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			const stored = await service.getSubscription(orgId);
+			expect(stored?.blocks).toBe(0);
+			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(50);
+		});
+
+		test("blocks on a free-plan row do not raise the free ceiling", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "free",
+				status: "active",
+				blocks: 4,
+			});
+
+			const limits = await service.getEffectiveLimits(orgId);
+			expect(limits.monitors).toBe(20);
+		});
+
+		test("self-hosted stays unlimited regardless of stored blocks", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 4,
+			});
+
+			vi.stubEnv("SELF_HOSTED", "true");
+			try {
+				const limits = await service.getEffectiveLimits(orgId);
+				expect(limits.monitors).toBe(-1);
+			} finally {
+				vi.stubEnv("SELF_HOSTED", "");
+			}
 		});
 
 		test("an unknown plan id falls back to free limits", async ({ db }) => {
