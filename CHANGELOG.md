@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.5
+
+### Patch Changes
+
+- [#71](https://github.com/NeonRook/uppity/pull/71) [`8c8e36c`](https://github.com/NeonRook/uppity/commit/8c8e36c9ab258496971839cdec9929e053d763d7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Update internal dependencies
+
+- [#73](https://github.com/NeonRook/uppity/pull/73) [`5569de0`](https://github.com/NeonRook/uppity/commit/5569de09643a475ad3ab0a56fd49beba6103049d) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Fix the container image build, which had been failing since `@inlang/paraglide-js` moved to 2.24.0.
+  That release pulls in `@inlang/sdk` 3, which replaced the WASM SQLite in `@lix-js/sdk` with a native
+  addon whose prebuilt binaries are glibc-only, so message compilation could not run under Alpine. The
+  build stages now use the Debian-based `oven/bun:1`; the runtime image is unchanged, still Alpine and
+  still 165MB, because it only ever copies `build/` and `drizzle/` out of the builder.
+
 ## 0.1.4
 
 ### Patch Changes
