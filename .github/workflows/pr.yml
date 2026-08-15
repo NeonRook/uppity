@@ -35,29 +35,11 @@ jobs:
             MPL-1.1, CDDL-1.0, CDDL-1.1, EPL-1.0, CPL-1.0, NPL-1.1,
             SSPL-1.0, BUSL-1.1, Elastic-2.0, CC-BY-NC-4.0
 
-  changeset:
-    name: Changeset
-    runs-on: ubuntu-26.04
-    # Skip on the Version Packages pull request. It bumps package.json and deletes
-    # every changeset — that is its whole purpose — so `changeset status` correctly
-    # reports "packages changed but no changesets found" and exits 1. The check can
-    # never pass there, by construction. A skipped job counts as success for a
-    # required status check, so this unblocks that PR without weakening the gate on
-    # any other.
-    if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          # `changeset status --since` compares against the base branch, which a
-          # shallow clone does not contain.
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-        with:
-          paraglide: "false"
-      - env:
-          BASE_REF: ${{ github.base_ref }}
-        run: bun changeset status --since="origin/$BASE_REF"
+  # A blocking `changeset status` check used to live here. Changesets' own guidance is
+  # not to block on a missing changeset — not every change warrants a release — so the
+  # prompt now comes from the Changesets GitHub App, which comments on the pull request
+  # instead of failing it. Nothing in this repository configures that; it is installed
+  # at the repository level.
 
   zizmor:
     name: Workflow Lint
