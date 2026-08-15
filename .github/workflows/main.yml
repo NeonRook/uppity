@@ -3,6 +3,11 @@ name: Main
 on:
   push:
     branches: [main]
+  # Safe to run by hand: select-mode derives what to do from the repository's own
+  # state, so a dispatch with nothing pending resolves to `none` and does nothing
+  # beyond rebuilding the edge image. Needed because a run that fails at startup
+  # cannot be re-run, and without this there is no other way to retrigger a release.
+  workflow_dispatch:
 
 permissions:
   contents: read

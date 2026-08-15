@@ -1,21 +1,36 @@
-# Stage 1: Install dependencies
-# Alpine rather than the Debian-based default: same bun binary (84.5MB), on an
-# 11MB userland instead of a 132MB one, and both amd64 and arm64 are published.
-# Not distroless -- sh is needed for docker exec and for HEALTHCHECK's CMD-SHELL.
+# Runtime base. Alpine rather than the Debian-based default: same bun binary
+# (84.5MB), on an 11MB userland instead of a 132MB one, and both amd64 and arm64
+# are published. Not distroless -- sh is needed for docker exec and for
+# HEALTHCHECK's CMD-SHELL.
 FROM oven/bun:1-alpine AS base
+WORKDIR /usr/src/app
+
+# Build-time base, Debian. @inlang/paraglide-js 2.24 pulls @inlang/sdk 3, which
+# replaced the WASM SQLite in @lix-js/sdk with a native addon. Its prebuilt
+# binaries are glibc-only -- darwin-arm64, linux-arm64, linux-x64, win32-x64, no
+# musl -- so under Alpine `paraglide-js compile` cannot load it and the build
+# dies on a missing ld-linux-x86-64.so.2. gcompat does not rescue it: the loader
+# then resolves, but relocation fails on __isoc23_strtoull, a glibc 2.38 symbol
+# gcompat does not implement.
+#
+# This costs the shipped image nothing. The runner stage copies only build/ and
+# drizzle/ from here -- no node_modules, no binaries -- and both variants measure
+# 165MB. Revisit only if @lix-js/sdk ships a musl binary and the toolchain can go
+# back to a single base.
+FROM oven/bun:1 AS build-base
 WORKDIR /usr/src/app
 
 # Install dependencies into a temp directory once, for the builder's use only.
 # Nothing from this tree reaches the runtime image: the SSR bundle inlines every
 # dependency it needs, so the runner stage ships no node_modules at all.
-FROM base AS install
+FROM build-base AS install
 RUN mkdir -p /temp/deps
 COPY package.json bun.lock /temp/deps/
 WORKDIR /temp/deps
 RUN bun install --frozen-lockfile
 
 # Stage 2: Build application
-FROM base AS builder
+FROM build-base AS builder
 WORKDIR /usr/src/app
 COPY --from=install /temp/deps/node_modules node_modules
 COPY . .
