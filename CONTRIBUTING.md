@@ -122,14 +122,16 @@ Pick a bump level, write a short user-facing description, and commit the generat
 `.changeset/`. Bump levels: `patch` for fixes, `minor` for new features, `major` for breaking
 changes.
 
-Pull requests that change no behaviour — documentation, CI, tests, refactors — still need a
-changeset file so the check passes, but an empty one:
+Pull requests that change no behaviour — documentation, CI, tests, refactors — do not need a
+release. Add an empty changeset to record that decision:
 
 ```bash
 bun changeset --empty
 ```
 
-The `Changeset` check on your pull request fails until one is present.
+A bot comments on your pull request with the bump it detected, or a note that it found none. The
+comment is a prompt, not a gate: nothing blocks on it, and a maintainer can add a changeset for you
+from a link in that comment.
 
 ### Pull Requests
 

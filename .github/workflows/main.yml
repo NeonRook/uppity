@@ -17,58 +17,71 @@ jobs:
   checks:
     uses: ./.github/workflows/checks.yml
 
-  release:
-    name: Release
+  select-mode:
+    name: Select Mode
     runs-on: ubuntu-26.04
-    needs: checks
-    permissions:
-      contents: write
-      pull-requests: write
     outputs:
-      published: ${{ steps.changesets.outputs.published }}
+      mode: ${{ steps.select-mode.outputs.mode }}
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # changeset version reads git history to attribute changelog entries.
-          fetch-depth: 0
-          # The ONLY checkout in this repository that keeps credentials:
-          # changesets/action pushes the branch it opens the version pull request from.
-          persist-credentials: true
+          persist-credentials: false
 
       - uses: ./.github/actions/setup-bun
         with:
           paraglide: "false"
 
-      # With pending changesets: opens or updates a "Version Packages" pull request.
-      # With none left (the version PR just merged): runs `changeset tag` and sets
-      # published=true. The tag is NOT pushed from here — `announce` creates it
-      # server-side once the image exists. See createGithubReleases below.
-      - name: Version or tag
-        id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
-        with:
-          version: bun run changeset:version
-          publish: bun run changeset:tag
-          title: "chore: version packages"
-          commit: "chore: version packages"
-          # This action's own createGithubReleases defaults to true, which would have
-          # it call repos.createRelease as soon as `changeset tag` prints "New tag:" —
-          # before `publish` has even started. `announce` would then hit HTTP 422
-          # (already_exists) on every release, and the release notes that actually
-          # shipped would be this action's, missing the digest and the
-          # `gh attestation verify` command README.md promises. Leave release creation
-          # to `announce`, which runs only after the image is published.
-          createGithubReleases: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # `version` when non-empty changesets are pending, `publish` when the version
+      # pull request has just merged and the resulting `v<version>` tag does not exist
+      # yet, `none` otherwise (including when only empty changesets are pending —
+      # nothing to release, so no version pull request is opened for them).
+      #
+      # Under the hood this is `changeset publish-plan`, which consults local and
+      # remote tags. That makes the release decision available BEFORE anything is
+      # built, rather than inferred afterwards from what the release step printed —
+      # which is how the v1 action worked, and how it silently stopped working when
+      # the v3 CLI dropped the "New tag:" line it parsed.
+      - name: Select mode
+        id: select-mode
+        uses: changesets/action/select-mode@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
 
       - name: Read package version
         id: version
         run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
 
+  version:
+    name: Version
+    runs-on: ubuntu-26.04
+    needs: [checks, select-mode]
+    if: needs.select-mode.outputs.mode == 'version'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # changeset version reads git history to attribute changelog entries.
+          fetch-depth: 0
+          # v2 pushes the version branch through the GitHub API instead of the git
+          # CLI, so no checkout in this repository has to keep credentials on disk any
+          # more. It also means the "chore: version packages" commit lands signed with
+          # GitHub's GPG key.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun
+        with:
+          paraglide: "false"
+
+      - name: Open or update the version pull request
+        uses: changesets/action/version@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        with:
+          script: bun run changeset:version
+          pr-title: "chore: version packages"
+          commit-message: "chore: version packages"
+
   publish:
-    needs: [checks, release]
+    needs: [checks, select-mode]
     # A caller job's permissions are the ceiling for the workflow it calls — a reusable
     # workflow can narrow them but never widen them. These are the union of what
     # publish-image.yml's build, merge and scan jobs request; each job there still
@@ -84,15 +97,15 @@ jobs:
       tags: |
         type=edge,branch=main
         type=sha,prefix=main-,format=short
-        type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }},enable=${{ needs.release.outputs.published == 'true' }}
-        type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }},enable=${{ needs.release.outputs.published == 'true' }}
-        type=raw,value=latest,enable=${{ needs.release.outputs.published == 'true' }}
+        type=semver,pattern={{version}},value=v${{ needs.select-mode.outputs.version }},enable=${{ needs.select-mode.outputs.mode == 'publish' }}
+        type=semver,pattern={{major}}.{{minor}},value=v${{ needs.select-mode.outputs.version }},enable=${{ needs.select-mode.outputs.mode == 'publish' }}
+        type=raw,value=latest,enable=${{ needs.select-mode.outputs.mode == 'publish' }}
 
-  announce:
-    name: GitHub Release
+  release:
+    name: Release
     runs-on: ubuntu-26.04
-    needs: [release, publish]
-    if: needs.release.outputs.published == 'true'
+    needs: [select-mode, publish]
+    if: needs.select-mode.outputs.mode == 'publish'
     permissions:
       contents: write
     steps:
@@ -102,10 +115,32 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: ./.github/actions/setup-bun
+        with:
+          paraglide: "false"
+
+      # Tagging waits until publish has pushed the manifest list: a `v<version>` tag
+      # with no image behind it is exactly what this workflow's cancel-in-progress:
+      # false setting exists to avoid. The tag goes up through the GitHub API, so it
+      # arrives signed.
+      #
+      # push-git-tags has to be set explicitly. v2 decoupled it from
+      # create-github-releases and defaults it to true, so leaving it off would have
+      # tagged from wherever this step ran regardless of the setting below.
+      - name: Push the git tag
+        uses: changesets/action/publish@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        with:
+          script: bun run changeset:tag
+          push-git-tags: true
+          # The release notes below carry the digest and the `gh attestation verify`
+          # command README.md promises, neither of which this action can know about.
+          # Let it tag; the release is written by the next step.
+          create-github-releases: false
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.select-mode.outputs.version }}
           IMAGE: ${{ needs.publish.outputs.image }}
           DIGEST: ${{ needs.publish.outputs.digest }}
           REPO: ${{ github.repository }}
@@ -136,4 +171,7 @@ jobs:
             echo "gh attestation verify oci://${IMAGE}:${VERSION} --repo ${REPO}"
             echo '```'
           } >> "$notes"
-          gh release create "v${VERSION}" --target "$GITHUB_SHA" --title "v${VERSION}" --notes-file "$notes"
+          # --verify-tag rather than --target: the previous step is what creates the
+          # tag now, so a missing one means that step did not do its job and the
+          # release should fail loudly instead of quietly tagging github.sha itself.
+          gh release create "v${VERSION}" --verify-tag --title "v${VERSION}" --notes-file "$notes"
