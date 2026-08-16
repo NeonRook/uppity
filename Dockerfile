@@ -3,6 +3,8 @@
 # are published. Not distroless -- sh is needed for docker exec and for
 # HEALTHCHECK's CMD-SHELL.
 FROM oven/bun:1-alpine AS base
+# Pick up Alpine security fixes the bun image lags behind.
+RUN apk -U upgrade --no-cache
 WORKDIR /usr/src/app
 
 # Build-time base, Debian. @inlang/paraglide-js 2.24 pulls @inlang/sdk 3, which
