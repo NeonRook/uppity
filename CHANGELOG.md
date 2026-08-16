@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+### Patch Changes
+
+- [#75](https://github.com/NeonRook/uppity/pull/75) [`ae1a88b`](https://github.com/NeonRook/uppity/commit/ae1a88bb6d646911b86a5e1aa191fea41c2d54a6) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Groundwork for buying extra monitor capacity on the Uppity plan. Nothing changes yet: plan limits are exactly what they were, and self-hosted instances remain unlimited as always. Upgrading runs one quick database migration and needs nothing from you.
+
+- [#77](https://github.com/NeonRook/uppity/pull/77) [`dd3891d`](https://github.com/NeonRook/uppity/commit/dd3891d233a9f3eb2378f0b02154d2a46af113a6) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The Docker image now applies Alpine security updates at build time, clearing the openssl advisory CVE-2026-45447.
+
 ## 0.1.5
 
 ### Patch Changes
