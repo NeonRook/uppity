@@ -134,6 +134,20 @@ Use the Svelte MCP server for documentation and code validation:
 
 2. **get-documentation** - Fetch full documentation for specific sections. Analyze use_cases from list-sections to fetch ALL relevant docs.
 
-3. **svelte-autofixer** - Validate Svelte code before committing. Call repeatedly until no issues are returned.
+3. **svelte-autofixer** - Validate any Svelte code you write before showing it or committing it. Keep calling until no issues or suggestions are returned.
 
-4. **playground-link** - Generate Svelte Playground links. Only use after user confirmation and never for code written to project files.
+4. **playground-link** - Generate Svelte Playground links. Offer one after finishing standalone code, but only call it once the user confirms, and never for code written to project files.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear, team NeonRook, prefix `NEO-`, reached through the Linear MCP tools. GitHub Issues is not the queue. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Four Linear labels, plus the `Canceled` state standing in for `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. `PRODUCT.md` and `DESIGN.md` are the domain record and are read-only outside `/impeccable`; `CONTEXT.md` and `docs/adr/` are reserved for what they do not cover. See `docs/agents/domain.md`.
