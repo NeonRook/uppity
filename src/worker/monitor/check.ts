@@ -162,8 +162,13 @@ async function getSslInfo(url: string): Promise<{ sslExpiresAt?: Date; sslIssuer
 
 	return {
 		sslExpiresAt: new Date(result.cert.valid_to),
-		sslIssuer: result.cert.issuer?.O || result.cert.issuer?.CN,
+		sslIssuer: firstValue(result.cert.issuer?.O) || firstValue(result.cert.issuer?.CN),
 	};
+}
+
+/** A distinguished-name field repeated in the certificate arrives as an array. */
+function firstValue(field: string | string[] | undefined): string | undefined {
+	return Array.isArray(field) ? field[0] : field;
 }
 
 async function performPushCheck(m: Monitor, db: Db): Promise<CheckResult> {

@@ -1,7 +1,7 @@
-name: Set up Bun
+name: Set up the toolchain
 description: >-
-  Installs the mise-pinned Bun toolchain, restores the dependency cache, installs dependencies and
-  optionally compiles Paraglide messages. Assumes the repository is already checked out.
+  Installs the mise-pinned toolchain, restores the dependency cache, installs dependencies with
+  aube and optionally compiles Paraglide messages. Assumes the repository is already checked out.
 
 inputs:
   paraglide:
@@ -14,21 +14,18 @@ inputs:
 runs:
   using: composite
   steps:
-    # Installs from mise.toml so the Bun version is declared in exactly one place.
-    # install_args limits this to bun — mise.toml also pins actionlint, which CI
-    # jobs other than the workflow lint have no use for.
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
       with:
-        install_args: bun
+        install_args: bun aube node
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
-        path: ~/.bun/install/cache
-        key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+        path: ~/.local/share/aube/store
+        key: aube-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('aube-lock.yaml') }}
         restore-keys: |
-          bun-${{ runner.os }}-${{ runner.arch }}-
+          aube-${{ runner.os }}-${{ runner.arch }}-
 
-    - run: bun install --frozen-lockfile
+    - run: aube ci
       shell: bash
 
     - if: inputs.paraglide == 'true'
