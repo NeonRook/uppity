@@ -34,7 +34,7 @@ import type {
 	SslExpiryEventPayload,
 } from "../../lib/server/notifications/events";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
-import { tcpConnect, type TcpSocket } from "../../lib/server/tcp";
+import { probeTcp, probeTls } from "../../lib/server/tcp";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
@@ -124,149 +124,46 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 		return { status: "down", responseTimeMs: 0, errorMessage: "No hostname or port configured" };
 	}
 
-	const startTime = Date.now();
 	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
-	const timeoutMs = timeoutSeconds * 1000;
+	const startTime = Date.now();
+	const result = await probeTcp(m.hostname, m.port, timeoutSeconds * 1000);
+	const responseTimeMs = Date.now() - startTime;
 
-	return new Promise((resolve) => {
-		let resolved = false;
-		let socket: TcpSocket;
+	if (!result.ok) {
+		return {
+			status: "down",
+			responseTimeMs,
+			errorMessage: result.timedOut ? `Connection timeout after ${timeoutSeconds}s` : result.error,
+		};
+	}
 
-		const timer = setTimeout(() => {
-			if (!resolved) {
-				resolved = true;
-				socket?.end();
-				resolve({
-					status: "down",
-					responseTimeMs: Date.now() - startTime,
-					errorMessage: `Connection timeout after ${timeoutSeconds}s`,
-				});
-			}
-		}, timeoutMs);
-
-		tcpConnect({
-			hostname: m.hostname!,
-			port: m.port!,
-			socket: {
-				open(s) {
-					socket = s;
-					if (!resolved) {
-						resolved = true;
-						clearTimeout(timer);
-						const responseTimeMs = Date.now() - startTime;
-						s.end();
-						resolve({
-							status: responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up",
-							responseTimeMs,
-						});
-					}
-				},
-				data() {},
-				close() {},
-				error(_, err) {
-					if (!resolved) {
-						resolved = true;
-						clearTimeout(timer);
-						resolve({
-							status: "down",
-							responseTimeMs: Date.now() - startTime,
-							errorMessage: err?.message || "Connection failed",
-						});
-					}
-				},
-				connectError(_, err) {
-					if (!resolved) {
-						resolved = true;
-						clearTimeout(timer);
-						resolve({
-							status: "down",
-							responseTimeMs: Date.now() - startTime,
-							errorMessage: err?.message || "Connection failed",
-						});
-					}
-				},
-			},
-		}).catch((err) => {
-			if (!resolved) {
-				resolved = true;
-				clearTimeout(timer);
-				resolve({
-					status: "down",
-					responseTimeMs: Date.now() - startTime,
-					errorMessage: err?.message || "Connection failed",
-				});
-			}
-		});
-	});
+	return {
+		status: responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up",
+		responseTimeMs,
+	};
 }
 
 async function getSslInfo(url: string): Promise<{ sslExpiresAt?: Date; sslIssuer?: string }> {
+	let target: { hostname: string; port: number };
 	try {
-		const urlObj = new URL(url);
-		const { hostname } = urlObj;
-		const port = urlObj.port ? parseInt(urlObj.port, 10) : DEFAULT_HTTPS_PORT;
-
-		return new Promise((resolve) => {
-			let resolved = false;
-
-			const timer = setTimeout(() => {
-				if (!resolved) {
-					resolved = true;
-					resolve({});
-				}
-			}, SSL_INFO_TIMEOUT_MS);
-
-			tcpConnect({
-				hostname,
-				port,
-				tls: { rejectUnauthorized: false },
-				socket: {
-					open(socket) {
-						if (!resolved) {
-							resolved = true;
-							clearTimeout(timer);
-
-							const cert = socket.getPeerCertificate();
-							socket.end();
-
-							if (cert && cert.valid_to) {
-								resolve({
-									sslExpiresAt: new Date(cert.valid_to),
-									sslIssuer: cert.issuer?.O || cert.issuer?.CN,
-								});
-							} else {
-								resolve({});
-							}
-						}
-					},
-					data() {},
-					close() {},
-					error() {
-						if (!resolved) {
-							resolved = true;
-							clearTimeout(timer);
-							resolve({});
-						}
-					},
-					connectError() {
-						if (!resolved) {
-							resolved = true;
-							clearTimeout(timer);
-							resolve({});
-						}
-					},
-				},
-			}).catch(() => {
-				if (!resolved) {
-					resolved = true;
-					clearTimeout(timer);
-					resolve({});
-				}
-			});
-		});
+		const parsed = new URL(url);
+		target = {
+			hostname: parsed.hostname,
+			port: parsed.port ? parseInt(parsed.port, 10) : DEFAULT_HTTPS_PORT,
+		};
 	} catch {
 		return {};
 	}
+
+	const result = await probeTls(target.hostname, target.port, SSL_INFO_TIMEOUT_MS);
+	if (!result.ok || !result.cert?.valid_to) {
+		return {};
+	}
+
+	return {
+		sslExpiresAt: new Date(result.cert.valid_to),
+		sslIssuer: result.cert.issuer?.O || result.cert.issuer?.CN,
+	};
 }
 
 async function performPushCheck(m: Monitor, db: Db): Promise<CheckResult> {
