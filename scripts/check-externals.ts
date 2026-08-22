@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fails the build if build/server contains a bare import that the runtime image
- * will not be able to resolve.
+ * Fails the build if the built output contains a bare import that the runtime
+ * image will not be able to resolve.
  *
  * Without this, a dependency bump that introduces something Vite cannot bundle
  * leaves an externalised specifier pointing at a package the image no longer
@@ -15,16 +15,23 @@ import { pathToFileURL } from "node:url";
 import { init, parse } from "es-module-lexer";
 
 /**
- * Specifiers build/server may leave unresolved.
+ * Specifiers the build may leave unresolved.
  *
  * Empty, and worth keeping that way — an empty allowlist is what lets the runtime
- * image ship no node_modules at all. Adding an entry is a three-place change:
- * here, `ssr.external` in vite.config.ts, and a COPY into the Dockerfile's runner
- * stage. Miss the third and it fails at request time in production, not in CI.
+ * image ship no node_modules at all. The failure path below says what adding one
+ * costs.
  */
 const RUNTIME_EXTERNALS: readonly string[] = [];
 
-const DEFAULT_ROOT = "build/server";
+/**
+ * build/client is deliberately absent: it is browser code the image serves rather
+ * than resolves, so its bare imports are not offences.
+ */
+const SCAN_TARGETS: ReadonlyArray<readonly [string, string]> = [
+	["build/server", "**/*.js"],
+	["build", "*.js"],
+	["build/chunks", "*.js"],
+];
 
 /** `@scope/name/deep` becomes `@scope/name`; `name/deep` becomes `name`. */
 export function packageNameOf(specifier: string): string {
@@ -60,14 +67,14 @@ export async function scanSpecifiers(source: string): Promise<string[]> {
 	return imports.map((record) => record.n).filter((name) => name !== undefined);
 }
 
-/** Maps each file under `root` that imports something disallowed to those specifiers. */
 export async function findOffences(
 	root: string,
 	allowed: readonly string[],
+	pattern = "**/*.js",
 ): Promise<Map<string, string[]>> {
 	const offences = new Map<string, string[]>();
 
-	for await (const file of glob("**/*.js", { cwd: root })) {
+	for await (const file of glob(pattern, { cwd: root })) {
 		const path = `${root}/${file}`;
 		const found = disallowedFrom(await scanSpecifiers(await readFile(path, "utf8")), allowed);
 		if (found.length > 0) offences.set(path, found);
@@ -88,25 +95,31 @@ function invokedDirectly(): boolean {
 }
 
 if (invokedDirectly()) {
-	// The root is an argument so the failure path can be exercised against a
-	// fixture directory; the build always uses the default.
-	const root = process.argv[2] ?? DEFAULT_ROOT;
-	const offences = await findOffences(root, RUNTIME_EXTERNALS);
+	const [, , override] = process.argv;
+	const targets = override ? [[override, "**/*.js"] as const] : SCAN_TARGETS;
+
+	const offences = new Map<string, string[]>();
+	for (const [root, pattern] of targets) {
+		for (const entry of await findOffences(root, RUNTIME_EXTERNALS, pattern)) {
+			offences.set(entry[0], entry[1]);
+		}
+	}
 
 	if (offences.size > 0) {
-		console.error(`${root} imports packages the runtime image will not contain:\n`);
+		console.error("the build imports packages the runtime image will not contain:\n");
 		for (const [path, specifiers] of offences) {
 			console.error(`  ${path}`);
 			for (const specifier of specifiers) console.error(`    ${specifier}`);
 		}
 		console.error(
-			"\nEither let Vite bundle them, or add them to RUNTIME_EXTERNALS above and to" +
-				"\n`ssr.external` in vite.config.ts — and COPY them into the Dockerfile's runner stage.",
+			"\nEither let the bundler inline them, or add them to RUNTIME_EXTERNALS above and to" +
+				"\n`ssr.external` in the vite config that emitted the file — and COPY them into the" +
+				"\nDockerfile's runner stage.",
 		);
 		process.exit(1);
 	}
 
 	console.log(
-		`${root} resolves cleanly against ${RUNTIME_EXTERNALS.length} allowlisted specifiers`,
+		`${targets.length} build targets resolve cleanly against ${RUNTIME_EXTERNALS.length} allowlisted specifiers`,
 	);
 }

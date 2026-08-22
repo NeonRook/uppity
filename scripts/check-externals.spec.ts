@@ -120,6 +120,17 @@ describe("findOffences", () => {
 		await expect(findOffences(root, [])).resolves.toEqual(new Map());
 	});
 
+	it("honours a non-recursive pattern", async () => {
+		const root = await buildTree({
+			"worker.js": 'import pg from "pg";',
+			"client/asset.js": 'import vue from "vue";',
+		});
+
+		const offences = await findOffences(root, [], "*.js");
+
+		expect([...offences.keys()]).toEqual([`${root}/worker.js`]);
+	});
+
 	it("passes a bare import whose package is allowlisted", async () => {
 		const root = await buildTree({ "a.js": 'import api from "@opentelemetry/api/trace";' });
 
@@ -147,6 +158,6 @@ describe("the command", () => {
 
 		const { stdout } = await run(process.execPath, ["scripts/check-externals.ts", root]);
 
-		expect(stdout).toContain("resolves cleanly");
+		expect(stdout).toContain("resolve cleanly");
 	});
 });

@@ -26,21 +26,10 @@ function buildPinoOptions(): pino.LoggerOptions {
 		timestamp: pino.stdTimeFunctions.isoTime,
 	};
 
-	// Vite's types promise a boolean, and under Vite that holds: it substitutes a
-	// literal, so this branch is eliminated from the production server bundle.
-	//
-	// The workers are bundled by `bun build`, which does not substitute it. There
-	// this stays a runtime read, and Bun maps import.meta.env onto process.env,
-	// where every value is a string. Hence the wider type - it describes what the
-	// worker actually sees, and makes the `=== true` check below meaningful rather
-	// than the tautology the Vite-only types would suggest.
-	const viteDev = import.meta.env.DEV as boolean | string | undefined;
-
-	// Only a real boolean true means "Vite dev server". A stray DEV=1 in a
-	// worker's environment arrives as "1" and must not match: pino-pretty is a
-	// devDependency, absent from production images, so activating this transport
-	// there would fail to resolve rather than merely look untidy.
-	if (viteDev === true) {
+	// pino-pretty is a devDependency and is absent from production images. Vite
+	// substitutes a literal here, so every production bundle drops this branch and
+	// the unresolvable target with it.
+	if (import.meta.env.DEV) {
 		options.transport = {
 			target: "pino-pretty",
 			options: {
