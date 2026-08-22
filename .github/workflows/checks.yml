@@ -14,8 +14,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-      - run: bun run lint:ci
+      - uses: ./.github/actions/setup-toolchain
+      - run: aubr lint:ci
 
   typecheck:
     name: Type Check
@@ -24,8 +24,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-      - run: bun run check
+      - uses: ./.github/actions/setup-toolchain
+      - run: aubr check
 
   unit:
     name: Unit Tests
@@ -50,11 +50,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-toolchain
       # The "client" vitest project runs in a real browser but pins chromium alone,
       # so installing firefox and webkit is pure runner time.
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run test:unit run
+      - run: aube x playwright install --with-deps chromium
+      - run: aubr test:unit run
 
   e2e:
     name: E2E Tests
@@ -83,10 +83,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-      - run: bunx playwright install --with-deps chromium
-      - run: bun run db:migrate
-      - run: bun run test:e2e
+      - uses: ./.github/actions/setup-toolchain
+      - run: aube x playwright install --with-deps chromium
+      - run: aubr db:migrate
+      - run: aubr test:e2e
 
   build:
     name: Build
@@ -98,8 +98,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-bun
-      - run: bun run build:all
+      - uses: ./.github/actions/setup-toolchain
+      - run: aubr build:all
 
 # Dependency auditing does not live here. A PR-only audit learns nothing during a quiet
 # week with no dependency-touching PRs, so it runs on a schedule (plus pull requests) in

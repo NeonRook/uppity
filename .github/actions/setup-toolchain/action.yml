@@ -1,7 +1,8 @@
 name: Set up the toolchain
 description: >-
-  Installs the mise-pinned toolchain, restores the dependency cache, installs dependencies with
-  aube and optionally compiles Paraglide messages. Assumes the repository is already checked out.
+  Installs the mise-pinned Node and aube toolchain, restores the dependency cache, installs
+  dependencies and optionally compiles Paraglide messages. Assumes the repository is already
+  checked out.
 
 inputs:
   paraglide:
@@ -16,8 +17,10 @@ runs:
   steps:
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
       with:
-        install_args: bun aube node
+        install_args: node aube
 
+    # aube's content-addressable store, not pnpm's ~/.pnpm-store — aube neither
+    # reads nor writes that one.
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: ~/.local/share/aube/store
@@ -29,5 +32,5 @@ runs:
       shell: bash
 
     - if: inputs.paraglide == 'true'
-      run: bun run i18n:generate
+      run: aubr i18n:generate
       shell: bash

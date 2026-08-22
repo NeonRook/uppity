@@ -58,12 +58,9 @@ jobs:
           sarif_file: trivy-deps.sarif
           category: trivy-dependencies
 
-      # Trivy's bun.lock parser reads only top-level/hoisted entries, so nested
-      # duplicate resolutions (e.g. unplugin/picomatch) are invisible to it.
-      # bun audit does see them. Log-only: this is a second pair of eyes, not a gate.
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-toolchain
         with:
           paraglide: "false"
-      - name: Audit nested resolutions
+      - name: Audit resolved dependencies
         continue-on-error: true
-        run: bun audit --audit-level=high
+        run: aube audit --audit-level high

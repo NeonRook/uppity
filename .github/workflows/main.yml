@@ -33,7 +33,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-toolchain
         with:
           paraglide: "false"
 
@@ -74,14 +74,14 @@ jobs:
           # GitHub's GPG key.
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-toolchain
         with:
           paraglide: "false"
 
       - name: Open or update the version pull request
         uses: changesets/action/version@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
         with:
-          script: bun run changeset:version
+          script: aubr changeset:version
           pr-title: "chore: version packages"
           commit-message: "chore: version packages"
 
@@ -120,7 +120,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/setup-toolchain
         with:
           paraglide: "false"
 
@@ -135,7 +135,7 @@ jobs:
       - name: Push the git tag
         uses: changesets/action/publish@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
         with:
-          script: bun run changeset:tag
+          script: aubr changeset:tag
           push-git-tags: true
           # The release notes below carry the digest and the `gh attestation verify`
           # command README.md promises, neither of which this action can know about.
