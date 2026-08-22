@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-	webServer: { command: "bun run build && bun run preview", port: 4173 },
+	webServer: { command: "node --run build && node --run preview", port: 4173 },
 	testDir: "e2e",
 });
