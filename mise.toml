@@ -1,13 +1,13 @@
 [tools]
 actionlint = "1"
+aube = "1.41.0"
+node = "26"
+# Still installed because .github/actions/setup-bun pins the CI toolchain from
+# this file. Removed once CI runs on node and aube.
 bun = "1.3.14"
 
-[tasks.test]
-description = "Run unit tests with DATABASE_URL loaded from .env"
-run = '''
-#!/usr/bin/env bash
-set -a
-source .env
-set +a
-bun run test:unit run "$@"
-'''
+[env]
+_.path = ["{{config_root}}/node_modules/.bin"]
+
+# Absent in CI, which sets these in the workflow. mise skips a missing file.
+_.file = ".env"

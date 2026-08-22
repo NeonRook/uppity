@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun
-      - run: bun --bun run check
+      - run: bun run check
 
   unit:
     name: Unit Tests
@@ -85,7 +85,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun
       - run: bunx playwright install --with-deps chromium
-      - run: bun --bun run db:migrate
+      - run: bun run db:migrate
       - run: bun run test:e2e
 
   build:
@@ -99,7 +99,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bun
-      - run: bun --bun run build:all
+      - run: bun run build:all
 
 # Dependency auditing does not live here. A PR-only audit learns nothing during a quiet
 # week with no dependency-touching PRs, so it runs on a schedule (plus pull requests) in
