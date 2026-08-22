@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * Fails the build if build/server contains a bare import that the runtime image
  * will not be able to resolve.
@@ -7,12 +7,12 @@
  * leaves an externalised specifier pointing at a package the image no longer
  * contains. That does not fail in CI — it fails at request time in production.
  * This converts that runtime 500 into a build error.
- *
- * The policy functions below are pure and unit-tested. Parsing is delegated to
- * Bun's transpiler and kept out of them, because the Vitest server project runs
- * under Node where the `Bun` global does not exist.
  */
+import { glob, readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
+import { pathToFileURL } from "node:url";
+
+import { init, parse } from "es-module-lexer";
 
 /**
  * Specifiers build/server may leave unresolved.
@@ -23,6 +23,8 @@ import { isBuiltin } from "node:module";
  * stage. Miss the third and it fails at request time in production, not in CI.
  */
 const RUNTIME_EXTERNALS: readonly string[] = [];
+
+const DEFAULT_ROOT = "build/server";
 
 /** `@scope/name/deep` becomes `@scope/name`; `name/deep` becomes `name`. */
 export function packageNameOf(specifier: string): string {
@@ -45,26 +47,54 @@ export function disallowedFrom(specifiers: Iterable<string>, allowed: readonly s
 }
 
 /**
- * Every import, dynamic import and require in `source`.
+ * Every import, re-export and dynamic import in `source`.
  *
- * Uses Bun's transpiler rather than a regex: the bundle contains SQL string
- * literals with the word `from` in them, which defeats pattern matching.
+ * Uses a lexer rather than a regex: the bundle contains SQL string literals with
+ * the word `from` in them, which defeats pattern matching. A dynamic import over
+ * a computed expression has no literal specifier and is skipped, because there is
+ * no package name to check and no parser could supply one.
  */
-export function scanSpecifiers(source: string): string[] {
-	return new Bun.Transpiler({ loader: "js" }).scanImports(source).map((record) => record.path);
+export async function scanSpecifiers(source: string): Promise<string[]> {
+	await init;
+	const [imports] = parse(source);
+	return imports.map((record) => record.n).filter((name) => name !== undefined);
 }
 
-if (import.meta.main) {
+/** Maps each file under `root` that imports something disallowed to those specifiers. */
+export async function findOffences(
+	root: string,
+	allowed: readonly string[],
+): Promise<Map<string, string[]>> {
 	const offences = new Map<string, string[]>();
 
-	for await (const file of new Bun.Glob("**/*.js").scan({ cwd: "build/server" })) {
-		const path = `build/server/${file}`;
-		const found = disallowedFrom(scanSpecifiers(await Bun.file(path).text()), RUNTIME_EXTERNALS);
+	for await (const file of glob("**/*.js", { cwd: root })) {
+		const path = `${root}/${file}`;
+		const found = disallowedFrom(await scanSpecifiers(await readFile(path, "utf8")), allowed);
 		if (found.length > 0) offences.set(path, found);
 	}
 
+	return offences;
+}
+
+/**
+ * True only when this file is the process entry point.
+ *
+ * Getting this wrong skips the main block silently: the check then reports
+ * success while scanning nothing.
+ */
+function invokedDirectly(): boolean {
+	const [, entry] = process.argv;
+	return entry !== undefined && import.meta.url === pathToFileURL(entry).href;
+}
+
+if (invokedDirectly()) {
+	// The root is an argument so the failure path can be exercised against a
+	// fixture directory; the build always uses the default.
+	const root = process.argv[2] ?? DEFAULT_ROOT;
+	const offences = await findOffences(root, RUNTIME_EXTERNALS);
+
 	if (offences.size > 0) {
-		console.error("build/server imports packages the runtime image will not contain:\n");
+		console.error(`${root} imports packages the runtime image will not contain:\n`);
 		for (const [path, specifiers] of offences) {
 			console.error(`  ${path}`);
 			for (const specifier of specifiers) console.error(`    ${specifier}`);
@@ -77,6 +107,6 @@ if (import.meta.main) {
 	}
 
 	console.log(
-		`build/server resolves cleanly against ${RUNTIME_EXTERNALS.length} allowlisted specifiers`,
+		`${root} resolves cleanly against ${RUNTIME_EXTERNALS.length} allowlisted specifiers`,
 	);
 }
