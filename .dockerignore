@@ -21,4 +21,3 @@ vitest.config.ts
 .vscode
 .idea
 railway.toml
-mise.toml

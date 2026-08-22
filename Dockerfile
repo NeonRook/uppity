@@ -14,22 +14,30 @@ WORKDIR /usr/src/app
 # dies on a missing ld-linux-x86-64.so.2. gcompat does not rescue it: the loader
 # then resolves, but relocation fails on __isoc23_strtoull, a glibc 2.38 symbol
 # gcompat does not implement.
-#
-# This costs the shipped image nothing. The runner stage copies only build/ and
-# drizzle/ from here -- no node_modules, no binaries -- and both variants measure
-# 165MB. Revisit only if @lix-js/sdk ships a musl binary and the toolchain can go
-# back to a single base.
-FROM oven/bun:1 AS build-base
+FROM node:26 AS build-base
 WORKDIR /usr/src/app
+
+ENV MISE_DATA_DIR=/mise \
+  MISE_CONFIG_DIR=/mise \
+  MISE_CACHE_DIR=/mise/cache \
+  MISE_INSTALL_PATH=/usr/local/bin/mise \
+  MISE_TRUSTED_CONFIG_PATHS=/usr/src/app \
+  PATH=/mise/shims:$PATH
+COPY mise.toml /mise/config.toml
+RUN curl https://mise.run | sh && mise install aube
 
 # Install dependencies into a temp directory once, for the builder's use only.
 # Nothing from this tree reaches the runtime image: the SSR bundle inlines every
 # dependency it needs, so the runner stage ships no node_modules at all.
 FROM build-base AS install
 RUN mkdir -p /temp/deps
-COPY package.json bun.lock /temp/deps/
+COPY package.json aube-lock.yaml .npmrc /temp/deps/
 WORKDIR /temp/deps
-RUN bun install --frozen-lockfile
+# Without this, node_modules/.aube/* are absolute symlinks into a per-user store
+# at ~/.cache/aube/virtual-store, and the builder's COPY brings the links but not
+# their targets. aube disables the shared store when CI is set; a docker build has
+# no CI, so ask for per-project materialization explicitly.
+RUN aube ci --disable-global-virtual-store
 
 # Stage 2: Build application
 FROM build-base AS builder
@@ -45,7 +53,7 @@ ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
 # Track: https://station.railway.com/feedback/support-docker-build-secrets-0b8787b2
 ARG BETTER_AUTH_SECRET
 ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-RUN bun --bun run prepare && bun --bun run build:all
+RUN aubr prepare && aubr build:all
 
 # Stage 3: Production image
 FROM base AS runner
