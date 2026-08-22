@@ -22,5 +22,6 @@
 		"yarn.lock",
 		"bun.lock",
 		"bun.lockb",
+		"aube-lock.yaml",
 	],
 }
