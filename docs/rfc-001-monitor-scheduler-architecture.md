@@ -1,6 +1,10 @@
 # RFC-001: Monitor Scheduler Architecture
 
-**Status:** Draft **Author:** Claude **Created:** 2026-01-20
+**Status:** Accepted (Option E); historical **Author:** Claude **Created:** 2026-01-20
+
+> The chosen option shipped. Code samples here assume the Bun runtime this
+> project has since left, so read them as reasoning rather than as a template.
+> `docs/adr/0001-node-aube-build-deno-runtime.md` records the current toolchain.
 
 ## Summary
 

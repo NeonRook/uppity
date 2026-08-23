@@ -61,17 +61,19 @@ body:
       options:
         - Docker
         - Docker Compose
-        - Bare metal (bun run)
+        - Bare metal (from source)
         - Other
     validations:
       required: true
 
   - type: input
-    id: bun-version
+    id: runtime-version
     attributes:
-      label: Bun Version
-      description: Output of `bun --version`
-      placeholder: "1.1.0"
+      label: Runtime Version
+      description: >-
+        For Docker, the image tag. For a build from source, the output of
+        `node --version`.
+      placeholder: "v26.7.0"
 
   - type: input
     id: os

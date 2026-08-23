@@ -23,8 +23,12 @@ import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
 import nodemailer from "nodemailer";
 
-// $env/dynamic/private gets baked in at build time by svelte-adapter-bun
-// Note: svelte-adapter-bun presents requests as HTTPS, so defaults must use https://
+// process.env rather than $env/dynamic/private, which the build can inline.
+//
+// The https:// fallbacks describe the documented deployment, which sits behind a
+// TLS-terminating proxy. Set BETTER_AUTH_URL to the URL users actually visit;
+// the fallback is a last resort, not a guess at the scheme. The server itself
+// serves plain HTTP and learns its public origin from ORIGIN.
 const baseURL = process.env.BETTER_AUTH_URL || "https://localhost:3000";
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
 	"https://localhost:3000",

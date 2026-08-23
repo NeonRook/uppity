@@ -1,6 +1,6 @@
 import { Polar } from "@polar-sh/sdk";
 
-// $env/dynamic/private gets baked in at build time by svelte-adapter-bun
+// process.env rather than $env/dynamic/private, which the build can inline.
 const { POLAR_ACCESS_TOKEN, POLAR_SERVER } = process.env;
 
 /**
