@@ -1,9 +1,9 @@
-# Runtime base. Alpine rather than the Debian-based default: same bun binary
-# (84.5MB), on an 11MB userland instead of a 132MB one, and both amd64 and arm64
+# Runtime base. Alpine rather than the Debian-based default: same deno binary
+# (91.2MB), on an 11MB userland instead of a 132MB one, and both amd64 and arm64
 # are published. Not distroless -- sh is needed for docker exec and for
 # HEALTHCHECK's CMD-SHELL.
-FROM oven/bun:1-alpine AS base
-# Pick up Alpine security fixes the bun image lags behind.
+FROM denoland/deno:alpine AS base
+# Pick up Alpine security fixes the deno image lags behind.
 RUN apk -U upgrade --no-cache
 WORKDIR /usr/src/app
 
@@ -81,21 +81,27 @@ LABEL org.opencontainers.image.title="uppity" \
 RUN addgroup -S -g 1001 uppity && \
   adduser -S -u 1001 -G uppity uppity
 
-# No node_modules. Every specifier the server needs is inlined into build/server,
-# and scripts/check-externals.ts fails the build if that ever stops being true.
-# Nothing to COPY from the install stage -- it exists only to feed the builder.
+# No node_modules. Every specifier the server needs is inlined into these two
+# trees, and scripts/check-externals.ts fails the build if that ever stops being
+# true. Nothing to COPY from the install stage -- it exists only to feed the
+# builder.
+#
+# The split is by role: .deno-deploy is what the SvelteKit adapter emits and the
+# app loads (server chunks and static assets), build/ is the entry points a
+# process actually starts. They must stay siblings -- build/serve.js reaches the
+# server as ../.deno-deploy/server/index.js, and the paths inside
+# .deno-deploy/deploy.json resolve against the working directory.
+COPY --from=builder --chown=uppity:uppity /usr/src/app/.deno-deploy ./.deno-deploy
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
 
 # Migration SQL. scripts/migrate.ts hardcodes ./drizzle; drizzle.config.ts is
 # drizzle-kit's config and drizzle-kit is not in this image, so it is not copied.
 COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle ./drizzle
 
-# A minimal manifest rather than the project's. Two reasons: "type": "module" so
-# Bun treats build/*.js as ESM, and a full manifest would declare ~40 packages
-# that are not present, which vulnerability scanners report as findings against
-# code that does not ship.
-RUN printf '{"type":"module","private":true}' > package.json && \
-  chown uppity:uppity package.json
+# No package.json at all. Deno reads module type from the file extension rather
+# than a manifest, so .js is ESM without being told. Shipping the project's would
+# declare ~40 packages that are not present, which vulnerability scanners report
+# as findings against code that does not ship.
 
 USER uppity
 EXPOSE 3000/tcp
@@ -104,13 +110,27 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 # Image-level healthcheck — runs inside the container, no curl/wget required.
+#
+# No --allow-* flags, and adding one breaks the probe rather than tightening it:
+# deno eval runs with implicit access to every permission and rejects the
+# permission flags outright, unlike deno run. The failure is quiet in the worst
+# way -- the container reports unhealthy while the app serves fine. Sandboxing a
+# fixed string that takes no input buys nothing, so eval is the right tool here;
+# a probe that grew arguments would belong in deno run instead.
+#
 # Workers run the same image but override CMD and don't serve HTTP, so this
 # probe will fail for them — disable the healthcheck on worker containers in
 # your deployment config.
+# PORT is read here rather than hardcoded, so overriding it does not leave the
+# probe dialling a port nothing listens on.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD bun -e 'fetch("http://127.0.0.1:3000/api/health").then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))'
+  CMD deno eval 'const p = Deno.env.get("PORT") ?? "3000"; const r = await fetch(`http://127.0.0.1:${p}/api/health`); if (!r.ok) Deno.exit(1);'
 
 # Default to web server, override for workers:
-#   docker run ... [image] bun run ./build/worker-monitor.js
-#   docker run ... [image] bun run ./build/worker-notifier.js
-CMD ["bun", "--bun", "run", "./build/index.js"]
+#   docker run ... [image] deno run -A ./build/worker-monitor.js
+#   docker run ... [image] deno run -A ./build/worker-notifier.js
+#
+# -A because a monitoring product dials hosts its users supply, reads the built
+# tree off disk, and takes its whole configuration from the environment. The web
+# tier is the internet-facing one and is worth scoping tighter than this.
+CMD ["deno", "run", "-A", "./build/serve.js"]

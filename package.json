@@ -16,7 +16,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"build:strip-maps": "find build/server -name '*.map' -delete",
+		"build:strip-maps": "find .deno-deploy/server -name '*.map' -delete",
 		"build:bundles": "vite build --config vite.workers.config.ts",
 		"check:externals": "node scripts/check-externals.ts",
 		"build:all": "aubr build && aubr build:strip-maps && aubr build:bundles && aubr check:externals",
@@ -70,6 +70,7 @@
 	"devDependencies": {
 		"@changesets/changelog-github": "^1.0.0",
 		"@changesets/cli": "^3.0.1",
+		"@deno/svelte-adapter": "^0.2.1",
 		"@eslint/compat": "^2.1.0",
 		"@eslint/js": "^10.0.1",
 		"@inlang/paraglide-js": "^2.24.1",
@@ -98,7 +99,6 @@
 		"playwright": "^1.62.1",
 		"sv": "^0.17.0",
 		"svelte": "^5.56.9",
-		"svelte-adapter-bun": "^1.0.1",
 		"svelte-check": "^4.7.6",
 		"svelte-sonner": "^1.2.1",
 		"sveltekit-superforms": "^2.30.2",
