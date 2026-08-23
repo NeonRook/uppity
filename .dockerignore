@@ -10,6 +10,7 @@ docker-compose*
 !.env.example
 .svelte-kit
 build
+.deno-deploy
 tests
 *.spec.ts
 playwright.config.ts
