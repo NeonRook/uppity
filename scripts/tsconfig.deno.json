@@ -1,0 +1,31 @@
+// Type checks the one file that runs under Deno rather than Node.
+//
+// Separate from the root config on purpose. Its `types` names Deno and not
+// Node, so `Deno.*` resolves here and nowhere else: an accidental `Deno.` in
+// src/ still fails to compile, which is what keeps the application code on the
+// runtime the dev loop and the tests actually use.
+//
+// Runs after the build, not with `check`, because the entry imports the
+// adapter's generated output under .deno-deploy/ and those files do not exist
+// in a fresh checkout.
+{
+	"compilerOptions": {
+		"strict": true,
+		"noEmit": true,
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["esnext", "DOM"],
+		"types": ["deno"],
+		// The adapter's generated handler.ts is third-party output that imports the
+		// SvelteKit bundle, which ships no declarations. Both settings exist to stop
+		// it reporting errors in code we neither wrote nor can fix; our own file is
+		// checked in full.
+		"skipLibCheck": true,
+		"noImplicitAny": false,
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": ["./deno-serve.ts"]
+}
