@@ -26,6 +26,14 @@ ENV MISE_DATA_DIR=/mise \
 COPY mise.toml /mise/config.toml
 RUN curl https://mise.run | sh && mise install aube
 
+# The .npmrc build jail wraps dependency scripts with Landlock and seccomp, and
+# aube fails a script outright when the kernel cannot enforce them rather than
+# run it unjailed. Builder kernels do not always ship Landlock, and the build
+# container already confines these scripts, so drop the jail for image builds
+# and keep it for dev installs. Stage-wide because aubr installs again before
+# running scripts, so the builder stage jails too, not just the install stage.
+ENV AUBE_JAIL_BUILDS=false
+
 # Install dependencies into a temp directory once, for the builder's use only.
 # Nothing from this tree reaches the runtime image: the SSR bundle inlines every
 # dependency it needs, so the runner stage ships no node_modules at all.
@@ -37,12 +45,7 @@ WORKDIR /temp/deps
 # at ~/.cache/aube/virtual-store, and the builder's COPY brings the links but not
 # their targets. aube disables the shared store when CI is set; a docker build has
 # no CI, so ask for per-project materialization explicitly.
-# AUBE_JAIL_BUILDS=false: the .npmrc build jail needs Landlock and seccomp, and
-# aube fails a dependency script outright when the kernel cannot enforce them
-# rather than run it unjailed. Builder kernels do not always ship Landlock, and
-# the build container already confines these scripts, so drop the jail here and
-# keep it for dev installs.
-RUN AUBE_JAIL_BUILDS=false aube ci --disable-global-virtual-store
+RUN aube ci --disable-global-virtual-store
 
 # Stage 2: Build application
 FROM build-base AS builder
