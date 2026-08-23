@@ -144,6 +144,32 @@ export interface FeaturedUptime {
 	uptimePercent: number | null;
 }
 
+/**
+ * The last `count` day keys as `YYYY-MM-DD`, oldest first.
+ *
+ * Uptime bands are UTC days. That is the boundary Postgres already applies:
+ * `checked_at` is a timestamp without time zone holding a UTC wall clock, so
+ * `DATE(checked_at)` yields the UTC calendar date whatever timezone the
+ * database session or the Node process runs in. Building the keys with local
+ * `getDate`/`setDate` and then formatting them with `toISOString` mixed the two
+ * calendars and shifted the whole array by a day for anyone whose local date
+ * differed from UTC's.
+ *
+ * A reader far from UTC therefore sees a day boundary offset from their own.
+ * Making that configurable is a product decision, not a default to drift into.
+ */
+function recentUtcDayKeys(count: number): string[] {
+	const today = new Date();
+	const keys: string[] = [];
+	for (let i = count - 1; i >= 0; i--) {
+		const date = new Date(today);
+		date.setUTCDate(date.getUTCDate() - i);
+		const [dateStr] = date.toISOString().split("T");
+		keys.push(dateStr);
+	}
+	return keys;
+}
+
 export class StatusPageService {
 	private db: Db;
 
@@ -583,10 +609,7 @@ export class StatusPageService {
 			const dailyHistory: PublicMonitorStatus["dailyHistory"] = [];
 
 			// Generate history for configured number of days
-			for (let i = STATUS_PAGE_HISTORY_DAYS - 1; i >= 0; i--) {
-				const date = new Date();
-				date.setDate(date.getDate() - i);
-				const [dateStr] = date.toISOString().split("T");
+			for (const dateStr of recentUtcDayKeys(STATUS_PAGE_HISTORY_DAYS)) {
 				const dayData = history.get(dateStr);
 
 				if (dayData) {
@@ -936,10 +959,7 @@ export class StatusPageService {
 		let totalChecks = 0;
 		let upChecks = 0;
 
-		for (let i = STATUS_PAGE_HISTORY_DAYS - 1; i >= 0; i--) {
-			const date = new Date();
-			date.setDate(date.getDate() - i);
-			const [dateStr] = date.toISOString().split("T");
+		for (const dateStr of recentUtcDayKeys(STATUS_PAGE_HISTORY_DAYS)) {
 			const row = byDate.get(dateStr);
 
 			if (!row || row.total === 0) {
