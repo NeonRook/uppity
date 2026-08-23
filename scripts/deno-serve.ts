@@ -1,8 +1,7 @@
 /**
  * Web tier entry point for the Deno runner.
  *
- * The Deno adapter emits its own `.deno-deploy/server.ts`, which this replaces
- * for three reasons.
+ * The Deno adapter emits its own `.deno-deploy/server.ts`, which this replaces.
  *
  * It calls `Deno.serve(handler)` with no options, which binds port 8000 and
  * ignores `PORT`. Railway injects `PORT` and routes to it, so the adapter's
@@ -13,54 +12,37 @@
  * `urlpattern-polyfill`. Resolving that at runtime would put a `node_modules`
  * back in the runner image, which is the thing `scripts/check-externals.ts`
  * exists to prevent. Going through the bundler inlines it instead.
- *
- * And it offers no way to set ORIGIN, which a proxied deployment cannot run
- * without. See `deriveOrigin` below.
- *
- * The SvelteKit server under `.deno-deploy/server/` stays external: it is
- * already bundled, and re-bundling it would only risk breaking it.
- *
- * This is the only file in the project that may use `Deno.*`. Its types come
- * from `@types/deno` via `scripts/tsconfig.deno.json`, which the build runs
- * after the adapter has emitted the files imported below. That config is
- * separate from the root one so `Deno` resolves here and nowhere else —
- * application code runs on Node in dev and under test, so a stray `Deno.` in
- * `src/` should fail to compile rather than work only in production.
  */
+
+import { prepareServer } from "adapter-handler";
+
 import rawDeployConfig from "../.deno-deploy/deploy.json" with { type: "json" };
-import { prepareServer } from "../.deno-deploy/handler.ts";
 import rawSvelteData from "../.deno-deploy/svelte.json" with { type: "json" };
 
-/**
- * Derives ORIGIN from BETTER_AUTH_URL when it is not set explicitly.
- *
- * Behind a proxy that terminates TLS, the server receives a plain HTTP request
- * on its own port and has no way to learn the public URL. SvelteKit then
- * compares the browser's Origin header against that internal address, they
- * disagree, and every form submission is rejected as cross-site — including
- * login, so the instance locks everyone out with a 403.
- *
- * BETTER_AUTH_URL already means "the public URL of the application", which is
- * exactly what ORIGIN needs, and a proxied deployment has to set it anyway. So
- * the common case needs no second variable. An explicit ORIGIN always wins.
- *
- * A malformed BETTER_AUTH_URL leaves ORIGIN unset rather than throwing: it is
- * the wrong variable to fail startup on, and the adapter validates ORIGIN
- * itself when it is set deliberately.
- *
- * Must run before prepareServer, which reads ORIGIN once at construction.
- */
-function deriveOrigin(): void {
-	if (Deno.env.get("ORIGIN")) return;
+function publicOrigin(): string | undefined {
+	const explicit = Deno.env.get("ORIGIN");
+	if (explicit) return explicit;
 
 	const authUrl = Deno.env.get("BETTER_AUTH_URL");
-	if (!authUrl) return;
+	if (!authUrl) return undefined;
 
 	try {
-		Deno.env.set("ORIGIN", new URL(authUrl).origin);
+		return new URL(authUrl).origin;
 	} catch {
-		// Not a URL. Leave ORIGIN unset and let the request URL stand.
+		throw new Error(`BETTER_AUTH_URL must be a valid URL, received: ${authUrl}`);
 	}
+}
+
+/**
+ * `prepareServer` reads ORIGIN from the environment once, at construction, and
+ * accepts no argument for it. Setting it inside the same call is what stops the
+ * two being reordered into a server that ignores the value.
+ */
+function createHandler(): Deno.ServeHandler {
+	const origin = publicOrigin();
+	if (origin) Deno.env.set("ORIGIN", origin);
+
+	return prepareServer(rawSvelteData, rawDeployConfig, Deno.cwd());
 }
 
 const port = Number(Deno.env.get("PORT") ?? 3000);
@@ -68,14 +50,6 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 	throw new Error(`PORT must be an integer between 1 and 65535, received: ${Deno.env.get("PORT")}`);
 }
 
-// Containers reach the app from outside their own network namespace, so the
-// loopback default would make it unreachable.
 const hostname = Deno.env.get("HOST") ?? "0.0.0.0";
 
-deriveOrigin();
-
-// Relative paths in deploy.json resolve against this, so the process must be
-// started from the directory holding .deno-deploy/.
-const handler = prepareServer(rawSvelteData, rawDeployConfig, Deno.cwd());
-
-Deno.serve({ port, hostname }, handler);
+Deno.serve({ port, hostname }, createHandler());
