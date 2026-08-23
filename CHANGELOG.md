@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- [#92](https://github.com/NeonRook/uppity/pull/92) [`0ba0e94`](https://github.com/NeonRook/uppity/commit/0ba0e9438dff6f3868cc752b2ec6b9e3cd7c07dd) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Fixed uptime bands on status pages shifting by a day on instances running in a non-UTC timezone. A day on the band chart has always meant a UTC day, and it now stays one no matter what clock the host is set to. Instances left on UTC were never affected.
+
 ## 0.2.0
 
 ### Minor Changes
