@@ -23,13 +23,6 @@ import { init, parse } from "es-module-lexer";
  */
 const RUNTIME_EXTERNALS: readonly string[] = [];
 
-/**
- * `.deno-deploy` holds the SvelteKit output, `build` the entry points the runner
- * executes. Both ship, so both are scanned.
- *
- * `.deno-deploy/static` is deliberately absent: it is browser code the image
- * serves rather than resolves, so its bare imports are not offences.
- */
 const SCAN_TARGETS: ReadonlyArray<readonly [string, string]> = [
 	[".deno-deploy/server", "**/*.js"],
 	["build", "*.js"],

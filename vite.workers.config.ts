@@ -4,15 +4,7 @@ import { defineConfig, type Plugin } from "vite";
 
 const ADAPTER_OUT = ".deno-deploy";
 
-/**
- * Keeps the SvelteKit server out of the bundle and points the import at where
- * the runner image actually puts it.
- *
- * The adapter's handler reaches its server as `./server/index.js`, correct from
- * `.deno-deploy/`. The bundle lands in `build/` instead, so the specifier has to
- * cross back over. Rollup emits an external's specifier verbatim, so rewriting
- * it needs a resolver rather than an `external` entry.
- */
+/** Rollup emits an external's specifier verbatim, so rewriting it needs a resolver rather than an `external` entry. */
 function externalAdapterServer(): Plugin {
 	return {
 		name: "external-adapter-server",
@@ -30,7 +22,14 @@ export default defineConfig({
 	// $lib is declared in the generated .svelte-kit tsconfig, which only the app
 	// build reads. These entry points avoid the alias but reach modules under
 	// src/lib that use it.
-	resolve: { alias: { $lib: fileURLToPath(new URL("src/lib", import.meta.url)) } },
+	resolve: {
+		alias: {
+			$lib: fileURLToPath(new URL("src/lib", import.meta.url)),
+			// Paired with scripts/adapter-handler.d.ts, which declares this specifier
+			// so the type checker stops there instead of following into generated code.
+			"adapter-handler": fileURLToPath(new URL(`${ADAPTER_OUT}/handler.ts`, import.meta.url)),
+		},
+	},
 
 	// The runner image ships no node_modules, so nothing may be left external.
 	ssr: { noExternal: true },

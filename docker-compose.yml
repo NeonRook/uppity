@@ -11,22 +11,16 @@ services:
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
       BETTER_AUTH_URL: "${BETTER_AUTH_URL:-https://localhost:3000}"
       BETTER_AUTH_TRUSTED_ORIGINS: "${BETTER_AUTH_TRUSTED_ORIGINS:-https://localhost:3000}"
-      # Set when a reverse proxy terminates TLS, otherwise absolute URLs and
-      # form actions are built against the container's own http:// address.
       ORIGIN: "${ORIGIN:-}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM: "${SMTP_FROM:-}"
-    # The bundled entry points, not package.json scripts — the image ships no
-    # manifest to look them up in.
     command: ["sh", "-c", "deno run -A ./build/migrate.js && deno run -A ./build/serve.js"]
     depends_on:
       db:
         condition: service_healthy
-    # Healthcheck comes from the image, which probes itself without needing curl
-    # or wget on the runner.
 
   worker-monitor:
     image: ghcr.io/neonrook/uppity:latest
