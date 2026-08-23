@@ -5,8 +5,9 @@ on:
     # 06:17 UTC daily. Deliberately off the hour: GitHub's scheduler is congested at
     # :00 and queues jobs scheduled there, sometimes by tens of minutes.
     - cron: "17 6 * * *"
+  # No `branches` filter: it matches the base branch, so filtering to main leaves
+  # a pull request stacked on another branch unscanned until it retargets.
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
