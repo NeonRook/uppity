@@ -37,7 +37,12 @@ WORKDIR /temp/deps
 # at ~/.cache/aube/virtual-store, and the builder's COPY brings the links but not
 # their targets. aube disables the shared store when CI is set; a docker build has
 # no CI, so ask for per-project materialization explicitly.
-RUN aube ci --disable-global-virtual-store
+# AUBE_JAIL_BUILDS=false: the .npmrc build jail needs Landlock and seccomp, and
+# aube fails a dependency script outright when the kernel cannot enforce them
+# rather than run it unjailed. Builder kernels do not always ship Landlock, and
+# the build container already confines these scripts, so drop the jail here and
+# keep it for dev installs.
+RUN AUBE_JAIL_BUILDS=false aube ci --disable-global-virtual-store
 
 # Stage 2: Build application
 FROM build-base AS builder
