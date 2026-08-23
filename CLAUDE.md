@@ -14,38 +14,61 @@ Uppity is a self-hosted monitoring and status page application built with Svelte
 
 ## Common Commands
 
+`aubr` is aube's script runner, the equivalent of `npm run`. npm itself is blocked
+by `devEngines` and will refuse to run.
+
 ```bash
 # Development
-bun run dev                 # Start dev server at localhost:5173
-bun run check               # Type check with svelte-check
+aubr dev                    # Start dev server at localhost:5173
+aubr check                  # Type check with svelte-check
 
 # Code Quality
-bun run fmt                 # Format all files (oxfmt, includes Svelte)
-bun run lint                # Lint with auto-fix (oxlint + eslint)
+aubr fmt                    # Format all files (oxfmt, includes Svelte)
+aubr lint                   # Lint with auto-fix (oxlint + eslint)
+aubr lint:ci                # What CI runs — checks without fixing
 
 # Testing
-bun run test:unit           # Run all unit tests
-bun run test:unit run src/lib/format.spec.ts  # Run single test file
+aubr test:unit run          # Run all unit tests
+aubr test:unit run src/lib/format.spec.ts  # Run single test file
 
 # Database (requires DATABASE_URL in .env)
-bun run db:push             # Push schema changes to database
-bun run db:studio           # Open Drizzle Studio GUI
+aubr db:push                # Push schema changes to database
+aubr db:studio              # Open Drizzle Studio GUI
 
 # Build
-bun run build               # Production build (uses svelte-adapter-bun)
+aubr build:all              # Production build, as the image runs it
 ```
 
 ## Architecture
 
 ### Tech Stack
 
-- **Runtime:** Bun (use Bun APIs like `Bun.connect()` instead of Node.js `net`/`tls`)
+- **Runtime:** Node for everything you run; Deno only inside the production image
+- **Package manager:** aube, invoked as `aube` and `aubr`
 - **Framework:** SvelteKit 2 with Svelte 5
 - **Database:** PostgreSQL via Drizzle ORM
 - **Auth:** better-auth with organization support
 - **UI:** shadcn/svelte components in `src/lib/components/ui/`
-- **Forms:** sveltekit-superforms with Zod validation
+- **Forms:** sveltekit-superforms with valibot validation
 - **i18n:** Paraglide for internationalization (`src/lib/paraglide/`)
+
+### Two runtimes, one dev loop
+
+The build toolchain and the production runtime are chosen against different
+criteria, and no single runtime currently wins both. Deno cannot build this
+project; Node ships a runner image 73MB larger. So the build is Node and the
+image is Deno. `docs/adr/0001-node-aube-build-deno-runtime.md` has the
+measurements and the rejected options.
+
+What this means in practice: **write plain Node.** Every command above runs on
+Node, and Deno appears only in the Dockerfile's runner stage. Nothing you write
+should reach for a runtime-specific API — `node:net` and `node:tls` over any
+`Bun.*` or `Deno.*` equivalent. `scripts/deno-serve.ts` is the one deliberate
+exception, and it is the container's entry point rather than application code.
+
+The runner image ships no `node_modules`. `scripts/check-externals.ts` fails the
+build if a bare import survives bundling, so a new dependency that Vite cannot
+inline is a build error rather than a production 500.
 
 ### Directory Structure
 
@@ -55,10 +78,15 @@ src/lib/
 │   ├── db/schema.ts              # Drizzle schema (monitors, incidents, etc.)
 │   ├── services/                 # Business logic layer
 │   ├── notifications/            # Channel implementations (email, slack, discord, webhook)
-│   ├── jobs/scheduler.ts         # node-cron background health checks
+│   ├── tcp.ts                    # TCP probe over node:net/node:tls
 │   └── auth.ts                   # better-auth configuration
-├── schemas/                      # Zod validation schemas for forms/API
+├── schemas/                      # valibot validation schemas for forms/API
 └── components/ui/                # shadcn/svelte components
+
+src/worker/                       # Long-lived processes, separate from the web tier
+├── monitor/                      # Schedules and runs health checks
+├── notifier/                     # Drains the notification queue on LISTEN
+└── shared/
 
 src/routes/
 ├── (app)/                        # Protected routes (dashboard, monitors, incidents, etc.)
@@ -70,12 +98,13 @@ src/routes/
 ### Key Patterns
 
 - **Service Layer:** Routes delegate to services in `src/lib/server/services/`
-- **Schema Validation:** Zod schemas in `src/lib/schemas/` used by superforms
-- **Background Jobs:** Monitor checks scheduled via node-cron in `scheduler.ts`
+- **Schema Validation:** valibot schemas in `src/lib/schemas/` used by superforms
+- **Background Jobs:** Health checks and notifications run in separate worker
+  processes under `src/worker/`, not in the web tier
 
 ### Superforms Pattern
 
-Forms use sveltekit-superforms. The correct pattern:
+Forms use sveltekit-superforms with valibot. The correct pattern:
 
 ```svelte
 <script lang="ts">
@@ -124,7 +153,7 @@ Write for those two. Lead with what changed for them; give the reason only when 
 
 That material belongs in the PR description and in comments next to the code, where the reader has the diff open. The commit body is the third place for it. Never the changelog.
 
-**When a change is invisible to both readers, say so in one line, or use `bun changeset --empty`.** Groundwork that ships no user-facing behavior should produce a short honest entry, not a long technical one dressed up as news. Padding an entry to look substantial is the failure this rule exists to prevent.
+**When a change is invisible to both readers, say so in one line, or use `aubr changeset --empty`.** Groundwork that ships no user-facing behavior should produce a short honest entry, not a long technical one dressed up as news. Padding an entry to look substantial is the failure this rule exists to prevent.
 
 ## Svelte MCP Tools
 

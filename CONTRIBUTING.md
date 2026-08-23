@@ -22,9 +22,15 @@ CLA Assistant.
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.0+
+- [mise](https://mise.jdx.dev) — `mise install` reads
+  [`mise.toml`](mise.toml) and gives you Node and
+  [aube](https://aube.jdx.dev) at the pinned versions
 - [PostgreSQL](https://www.postgresql.org) v15+ (or use Docker)
-- [pnpm](https://pnpm.io) (for formatting commands only)
+
+The production image runs on Deno, but the dev loop does not: every command
+below runs on Node, and you never invoke Deno directly.
+[ADR 0001](docs/adr/0001-node-aube-build-deno-runtime.md) explains why the two
+differ.
 
 ### Development Setup
 
@@ -35,10 +41,11 @@ CLA Assistant.
    cd uppity
    ```
 
-2. Install dependencies
+2. Install the toolchain and dependencies
 
    ```bash
-   bun install
+   mise install
+   aube install
    ```
 
 3. Start PostgreSQL
@@ -57,13 +64,13 @@ CLA Assistant.
 5. Push database schema
 
    ```bash
-   bun run db:push
+   aubr db:push
    ```
 
 6. Start development server
 
    ```bash
-   bun run dev
+   aubr dev
    ```
 
 ## Development Workflow
@@ -79,10 +86,12 @@ CLA Assistant.
 
 1. Create a new branch from `main`
 2. Make your changes
-3. Ensure tests pass: `bun run test:unit run`
-4. Ensure linting passes: `bun run lint`
-5. Ensure type checking passes: `bun run check`
-6. Format your code: `pnpm run fmt`
+3. Ensure tests pass: `aubr test:unit run`
+4. Ensure type checking passes: `aubr check`
+5. Ensure linting and formatting pass as CI checks them: `aubr lint:ci`
+
+`aubr lint` fixes what it can, which hides problems CI reports. Run `lint:ci`
+after your last edit.
 
 ### Commit Messages
 
@@ -115,7 +124,7 @@ hand-edited — entries from 0.1.1 onward are all generated this way; earlier en
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ```bash
-bun changeset
+aubr changeset
 ```
 
 Pick a bump level, write a short user-facing description, and commit the generated file in
@@ -126,7 +135,7 @@ Pull requests that change no behaviour — documentation, CI, tests, refactors �
 release. Add an empty changeset to record that decision:
 
 ```bash
-bun changeset --empty
+aubr changeset --empty
 ```
 
 A bot comments on your pull request with the bump it detected, or a note that it found none. The
@@ -152,34 +161,40 @@ from a link in that comment.
 
 ```bash
 # Format all files
-pnpm run fmt
+aubr fmt
 
 # Lint with auto-fix
-bun run lint
+aubr lint
+
+# Check both without fixing, the way CI does
+aubr lint:ci
 
 # Type check
-bun run check
+aubr check
 ```
 
 ## Testing
 
 ### Unit Tests
 
+Unit tests need a PostgreSQL reachable at `DATABASE_URL`; each file runs against
+its own database created from a migrated template.
+
 ```bash
 # Run all unit tests
-bun run test:unit
+aubr test:unit run
 
 # Run specific test file
-bun run test:unit run src/lib/format.spec.ts
+aubr test:unit run src/lib/format.spec.ts
 
 # Run tests in watch mode
-bun run test:unit --watch
+aubr test:unit
 ```
 
 ### E2E Tests
 
 ```bash
-bun run test:e2e
+aubr test:e2e
 ```
 
 ## Reporting Issues
@@ -188,7 +203,7 @@ bun run test:e2e
 
 - Use the bug report issue template
 - Include steps to reproduce
-- Include environment details (OS, Bun version, browser)
+- Include environment details (OS, Node version, browser)
 - Include relevant logs or screenshots
 
 ### Feature Requests

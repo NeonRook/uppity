@@ -337,10 +337,10 @@ the code deployed.
 
 ## Verify before merging
 
-- [ ] `bun run check` — passes (0 errors)
-- [ ] `bun run lint:ci` — exits 0
-- [ ] `mise run test` — 197 tests pass
-- [ ] Local dev still reaches sandbox: `bun run dev`, open `/settings/billing`,
+- [ ] `aubr check` — passes (0 errors)
+- [ ] `aubr lint:ci` — exits 0
+- [ ] `aubr test:unit run` — all tests pass
+- [ ] Local dev still reaches sandbox: `aubr dev`, open `/settings/billing`,
       confirm plan cards render and the upgrade button opens a Polar sandbox
       checkout
 - [ ] Admin resync still works: `/admin/organizations/<id>` → "Resync subscription"

@@ -20,12 +20,12 @@
 ## Checklist
 
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md)
-- [ ] I have added a changeset (`bun changeset`, or `bun changeset --empty` if no release is needed)
+- [ ] I have added a changeset (`aubr changeset`, or `aubr changeset --empty` if no release is needed)
 - [ ] My code follows the project's code style
 - [ ] I have added tests that prove my fix/feature works
-- [ ] All new and existing tests pass (`bun run test:unit run`)
-- [ ] Linting passes (`bun run lint`)
-- [ ] Type checking passes (`bun run check`)
+- [ ] All new and existing tests pass (`aubr test:unit run`)
+- [ ] Linting and formatting pass (`aubr lint:ci`)
+- [ ] Type checking passes (`aubr check`)
 - [ ] I have updated documentation if needed
 
 ## Screenshots (if applicable)

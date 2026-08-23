@@ -18,7 +18,11 @@ Svelte 5.
 
 ## Tech Stack
 
-- **Runtime**: [Bun](https://bun.sh)
+- **Runtime**: [Node](https://nodejs.org) for development and the build,
+  [Deno](https://deno.com) inside the production image. See
+  [ADR 0001](docs/adr/0001-node-aube-build-deno-runtime.md) for why the two
+  differ; contributors only need Node.
+- **Package manager**: [aube](https://aube.jdx.dev)
 - **Framework**: [SvelteKit 2](https://svelte.dev/docs/kit) with
   [Svelte 5](https://svelte.dev)
 - **Database**: PostgreSQL via [Drizzle ORM](https://orm.drizzle.team)
@@ -33,8 +37,9 @@ Svelte 5.
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) — the version pinned in [`mise.toml`](mise.toml).
-  `mise install` reproduces it locally, and CI installs from the same file.
+- [mise](https://mise.jdx.dev) — `mise install` reads [`mise.toml`](mise.toml)
+  and gives you Node and aube at the pinned versions. CI installs from the same
+  file. You do not need Deno: it only runs inside the production image.
 - [PostgreSQL](https://www.postgresql.org) (v15+) or use Docker
 
 ### Quick Start
@@ -46,10 +51,11 @@ Svelte 5.
    cd uppity
    ```
 
-2. **Install dependencies**
+2. **Install the toolchain and dependencies**
 
    ```bash
-   bun install
+   mise install
+   aube install
    ```
 
 3. **Start PostgreSQL** (using Docker)
@@ -71,13 +77,13 @@ Svelte 5.
 5. **Push database schema**
 
    ```bash
-   bun run db:push
+   aubr db:push
    ```
 
 6. **Start the development server**
 
    ```bash
-   bun run dev
+   aubr dev
    ```
 
    Open [http://localhost:5173](http://localhost:5173) in your browser.
@@ -86,27 +92,32 @@ Svelte 5.
 
 ### Commands
 
+`aubr` is aube's script runner, the equivalent of `npm run`.
+
 ```bash
 # Start dev server
-bun run dev
+aubr dev
 
 # Type checking
-bun run check
+aubr check
 
 # Linting (with auto-fix)
-bun run lint
+aubr lint
 
-# Formatting (use pnpm for this command)
-pnpm run fmt
+# Linting and formatting as CI checks them, without fixing
+aubr lint:ci
+
+# Formatting
+aubr fmt
 
 # Run unit tests
-bun run test:unit
+aubr test:unit run
 
 # Run e2e tests
-bun run test:e2e
+aubr test:e2e
 
 # Database GUI
-bun run db:studio
+aubr db:studio
 ```
 
 ### Project Structure
@@ -118,7 +129,6 @@ src/
 │   │   ├── db/schema.ts        # Drizzle database schema
 │   │   ├── services/           # Business logic layer
 │   │   ├── notifications/      # Notification channel implementations
-│   │   ├── jobs/scheduler.ts   # Background job scheduler
 │   │   └── auth.ts             # Authentication configuration
 │   ├── schemas/                # Validation schemas
 │   └── components/ui/          # shadcn-svelte components
@@ -134,6 +144,10 @@ src/
     ├── (admin)/                # Admin panel
     ├── (public)/status/[slug]/ # Public status pages
     └── api/                    # API endpoints
+
+worker/                         # Long-lived processes, deployed separately
+├── monitor/                    # Schedules and runs health checks
+└── notifier/                   # Delivers queued notifications
 ```
 
 ## Deployment
@@ -147,6 +161,11 @@ Build and run with Docker Compose:
 export BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 export BETTER_AUTH_URL=https://your-domain.com
 export BETTER_AUTH_TRUSTED_ORIGINS=https://your-domain.com
+
+# Only when a reverse proxy terminates TLS in front of Uppity. The server sees a
+# plain http:// request on its own port, so without this it builds links and form
+# actions against the container's internal address.
+export ORIGIN=https://your-domain.com
 
 # Start the full stack
 docker compose up -d

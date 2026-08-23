@@ -4,7 +4,7 @@ import postgres from "postgres";
 
 import * as schema from "./schema";
 
-// $env/dynamic/private can get baked in at build time by svelte-adapter-bun
+// process.env rather than $env/dynamic/private, which the build can inline.
 const { DATABASE_URL } = process.env;
 
 if (!DATABASE_URL && !building) throw new Error("DATABASE_URL is not set");

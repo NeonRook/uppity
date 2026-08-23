@@ -1,7 +1,13 @@
 # Worker Scheduler Implementation Plan
 
 **Based on:** RFC-001 Option E (Database Polling with Distributed Locking)
-**Status:** Not Started **Created:** 2026-01-20
+**Status:** Implemented; superseded as a reference **Created:** 2026-01-20
+
+> Historical. The workers described here shipped and now live under
+> `src/worker/`, but the runtime and build commands in this plan are the Bun
+> ones and no longer work. Read `CONTRIBUTING.md` for how to build and run, and
+> `docs/adr/0001-node-aube-build-deno-runtime.md` for the current toolchain.
+> Kept for the design reasoning, not as instructions.
 
 ---
 
