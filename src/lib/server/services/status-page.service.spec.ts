@@ -104,10 +104,14 @@ async function seedCheck(
 	});
 }
 
+// UTC, because the service buckets uptime bands by the UTC calendar date. Built
+// from local components these seeds landed in a neighbouring bucket for any
+// contributor whose local date differed from UTC's, and the suite failed on a
+// clock rather than on a regression.
 function daysAgo(n: number, hour = 12): Date {
 	const d = new Date();
-	d.setDate(d.getDate() - n);
-	d.setHours(hour, 0, 0, 0);
+	d.setUTCDate(d.getUTCDate() - n);
+	d.setUTCHours(hour, 0, 0, 0);
 	return d;
 }
 
