@@ -30,6 +30,14 @@ RUN curl https://mise.run | sh && mise install aube
 # running scripts, so the builder stage jails too, not just the install stage.
 ENV AUBE_JAIL_BUILDS=false
 
+# Materialize the virtual store inside node_modules instead of symlinking into
+# the per-user store at ~/.cache/aube/virtual-store, so the install stage's
+# tree survives the COPY into the builder stage and aubr's up-to-date check
+# passes there instead of re-downloading every package. Set through the
+# environment: the --disable-global-virtual-store flag parses but does not
+# apply the setting.
+ENV AUBE_ENABLE_GLOBAL_VIRTUAL_STORE=false
+
 # Install dependencies into a temp directory once, for the builder's use only.
 # Nothing from this tree reaches the runtime image: the SSR bundle inlines every
 # dependency it needs, so the runner stage ships no node_modules at all.
@@ -37,11 +45,7 @@ FROM build-base AS install
 RUN mkdir -p /temp/deps
 COPY package.json aube-lock.yaml .npmrc /temp/deps/
 WORKDIR /temp/deps
-# Without this, node_modules/.aube/* are absolute symlinks into a per-user store
-# at ~/.cache/aube/virtual-store, and the builder's COPY brings the links but not
-# their targets. aube disables the shared store when CI is set; a docker build has
-# no CI, so ask for per-project materialization explicitly.
-RUN aube ci --disable-global-virtual-store
+RUN aube ci
 
 # Stage 2: Build application
 FROM build-base AS builder
