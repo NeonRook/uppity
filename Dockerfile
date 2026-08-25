@@ -88,6 +88,11 @@ COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
 # drizzle-kit's config and drizzle-kit is not in this image, so it is not copied.
 COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle ./drizzle
 
+# Derives each process's Deno permission set from the environment and execs it.
+# Taken from the build context rather than the builder stage: it is shipped
+# as-is and never passes through the bundler.
+COPY --chown=uppity:uppity scripts/entrypoint.sh ./entrypoint.sh
+
 USER uppity
 EXPOSE 3000/tcp
 ENV NODE_ENV=production
@@ -106,6 +111,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD deno eval 'const p = Deno.env.get("PORT") ?? "3000"; const r = await fetch(`http://127.0.0.1:${p}/api/health`); if (!r.ok) Deno.exit(1);'
 
 # Default to web server, override for workers:
-#   docker run ... [image] deno run -A ./build/worker-monitor.js
-#   docker run ... [image] deno run -A ./build/worker-notifier.js
-CMD ["deno", "run", "-A", "./build/serve.js"]
+#   docker run ... [image] ./entrypoint.sh worker-monitor
+#   docker run ... [image] ./entrypoint.sh worker-notifier
+CMD ["./entrypoint.sh", "serve"]

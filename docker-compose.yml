@@ -17,7 +17,7 @@ services:
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM: "${SMTP_FROM:-}"
-    command: ["sh", "-c", "deno run -A ./build/migrate.js && deno run -A ./build/serve.js"]
+    command: ["sh", "-c", "./entrypoint.sh migrate && ./entrypoint.sh serve"]
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
     environment:
       DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
       UPPITY_WORKER_BATCH_SIZE: "${UPPITY_WORKER_BATCH_SIZE:-10}"
-    command: ["deno", "run", "-A", "./build/worker-monitor.js"]
+    command: ["./entrypoint.sh", "worker-monitor"]
     healthcheck:
       disable: true
     depends_on:
@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
-    command: ["deno", "run", "-A", "./build/worker-notifier.js"]
+    command: ["./entrypoint.sh", "worker-notifier"]
     healthcheck:
       disable: true
     depends_on:
