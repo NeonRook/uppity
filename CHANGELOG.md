@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#94](https://github.com/NeonRook/uppity/pull/94) [`3bfe414`](https://github.com/NeonRook/uppity/commit/3bfe4145f12ac422f5e8cb8ddf4a3d4f911cbadd) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The container now runs on Deno instead of Bun.
+
+  If you run Uppity behind a reverse proxy that terminates TLS, check that `BETTER_AUTH_URL` is set to the public URL your users visit before upgrading. The previous runtime assumed HTTPS on its own; the new one takes the public URL from `BETTER_AUTH_URL`, or from `ORIGIN` if you prefer to set it separately. With neither, the server believes it is reachable at its internal address, and every form submission — including login — is rejected as cross-site. Nothing to do if Uppity is reachable directly, or if you already set `BETTER_AUTH_URL`, which the published `docker-compose.yml` does.
+
+  If you override the container command to run the monitor or notifier workers, or you run migrations as a separate pre-deploy step, update those commands: `bun run ./build/worker-monitor.js` becomes `./entrypoint.sh worker-monitor`, and the same shape applies to the notifier and the migration step. The bundled web server is now started with `./entrypoint.sh serve`. The published `docker-compose.yml` and the Railway configs are already updated.
+
+  The image grows from 165MB to 179MB, which is the cost of the move and was expected.
+
+- [#99](https://github.com/NeonRook/uppity/pull/99) [`6542f2e`](https://github.com/NeonRook/uppity/commit/6542f2efde4628594dd29bbc809224540ba1ab28) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Container processes now start with only the access they need, instead of full access to the machine. The web server can reach your database, your mail server and the billing API, and nothing else on the network. It cannot write files, start subprocesses or load native code. Both workers keep unrestricted outbound network access, because checking monitors and delivering webhooks means connecting to whatever address you configure, but they give up everything else.
+
+  The point of this is the web tier. Uppity's job is fetching addresses your users supply, so a flaw that tricks the server into fetching an address it should not is the failure worth guarding against. A request like that now fails at the runtime, before it reaches the network.
+
+  Nothing new to configure. The list of permitted hosts is assembled when the container starts, from `DATABASE_URL`, `SMTP_HOST` and `SMTP_PORT`. If you later point Uppity at a service it did not previously contact, the connection is refused and the log names the host that was wanted.
+
+  If you override the container command, to run one of the workers or to run migrations as a separate pre-deploy step, update it: `deno run -A ./build/worker-monitor.js` becomes `./entrypoint.sh worker-monitor`, and the same shape applies to the notifier (`worker-notifier`), the migration step (`migrate`) and the web server (`serve`). The published `docker-compose.yml` is already updated. Commands that invoke the bundles directly still work, but they run without any of the restrictions above.
+
+### Patch Changes
+
+- [#96](https://github.com/NeonRook/uppity/pull/96) [`a417341`](https://github.com/NeonRook/uppity/commit/a417341c21478751cfe979ac2e2cd89baf816c88) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Building the image from source no longer downloads every dependency twice; the dependency layer now caches the way the Dockerfile always intended.
+
+- [#100](https://github.com/NeonRook/uppity/pull/100) [`5b7390c`](https://github.com/NeonRook/uppity/commit/5b7390c9aba89ab9880af9b47aaf0de53d6368e6) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The hosted service now applies pending database migrations as part of each deploy, before the new version takes traffic. Self-hosted installs already did this, through the published `docker-compose.yml`.
+
 ## 0.2.1
 
 ### Patch Changes
