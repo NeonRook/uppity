@@ -86,7 +86,6 @@ export default defineRailway(() => {
 			preDeployCommand: ["./entrypoint.sh migrate"],
 		},
 		domains: ["uppity.cloud"],
-		networking: { privateNetworkEndpoint: "uppity-server" },
 		env: {
 			BETTER_AUTH_SECRET: preserve(),
 			BETTER_AUTH_TRUSTED_ORIGINS: preserve(),
