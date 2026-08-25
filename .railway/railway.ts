@@ -73,6 +73,11 @@ export default defineRailway(() => {
 		source: uppity,
 		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
 		replicas: { "europe-west4-drams3a": 1 },
+		// Railway does not read the Dockerfile's HEALTHCHECK, so without this a
+		// deploy counts as healthy the moment the process starts and takes traffic
+		// before it can serve. The endpoint answers 503 while Postgres is
+		// unreachable, which is the state worth catching here.
+		healthcheck: "/api/health",
 		// Migrations run between build and deploy, so a failure aborts the deploy and
 		// leaves the running version serving. Only this service runs them, for the
 		// reason scripts/migrate.ts records. The workers deploy alongside and run
