@@ -99,16 +99,17 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# No --allow-* flags, and adding one breaks the probe rather than tightening it:
-# deno eval runs with implicit access to every permission and rejects the
-# permission flags outright, unlike deno run. The failure is quiet in the worst
-# way -- the container reports unhealthy while the app serves fine.
+# busybox wget, not `deno eval`. eval runs with implicit access to every
+# permission and rejects the permission flags outright, so a probe written that
+# way would be the one process in the image still running unrestricted, every
+# thirty seconds. wget exits non-zero on a non-2xx status, which is the whole
+# job. Shell form, so PORT expands.
 #
 # Workers run the same image but override CMD and don't serve HTTP, so this
 # probe will fail for them — disable the healthcheck on worker containers in
 # your deployment config.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD deno eval 'const p = Deno.env.get("PORT") ?? "3000"; const r = await fetch(`http://127.0.0.1:${p}/api/health`); if (!r.ok) Deno.exit(1);'
+  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/api/health"
 
 # Default to web server, override for workers:
 #   docker run ... [image] ./entrypoint.sh worker-monitor
