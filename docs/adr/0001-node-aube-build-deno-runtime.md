@@ -97,9 +97,12 @@ The 165MB image grows to roughly 180MB. This is the price of leaving Bun and it 
 Deno's permission flags become available on the runner. The benefit is per-process rather than
 global: `worker-monitor` connects to arbitrary user-supplied hosts by design, so its
 `--allow-net` must stay broad. The web tier is internet-facing and is the one worth scoping
-tightly. Whether it can be scoped to Postgres alone depends on whether Polar and nodemailer
-calls originate there or only in `worker-notifier`, which must be confirmed during
-implementation.
+tightly.
+
+The open question above has since been answered. Polar and nodemailer calls do originate in the
+web tier, so its `--allow-net` is Postgres, the SMTP host and the Polar API rather than Postgres
+alone. It is still a closed list: the code paths that dial user-supplied addresses all live in
+the two workers. `docs/runtime-permissions.md` records the resulting sets.
 
 Two runtimes appear in the repo, but the day-to-day surface is one. Every developer-facing
 command (`dev`, `check`, `lint`, `test:unit`, `test:e2e`, `db:*`) runs on Node with aube.
