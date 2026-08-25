@@ -26,11 +26,14 @@ export default defineRailway(() => {
 		region: "europe-west4-drams3a",
 		sizeMB: 5000,
 	});
+	// Every service runs the same image, so each needs its start command spelled
+	// out. A service without one inherits the Dockerfile's CMD and comes up as a
+	// second web server instead of the process it is named for.
 	const workerNotifier = service("worker-notifier", {
 		source: uppity,
 		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
 		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { restartPolicyMaxRetries: 3 },
+		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-notifier" },
 		env: {
 			BETTER_AUTH_SECRET: preserve(),
 			DATABASE_URL: preserve(),
@@ -42,7 +45,7 @@ export default defineRailway(() => {
 		source: uppity,
 		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
 		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { restartPolicyMaxRetries: 3 },
+		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-monitor" },
 		networking: { privateNetworkEndpoint: "uppity-worker" },
 		env: {
 			BETTER_AUTH_SECRET: preserve(),
@@ -70,6 +73,7 @@ export default defineRailway(() => {
 		source: uppity,
 		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
 		replicas: { "europe-west4-drams3a": 1 },
+		deploy: { startCommand: "./entrypoint.sh serve" },
 		domains: ["uppity.cloud"],
 		networking: { privateNetworkEndpoint: "uppity-server" },
 		env: {
