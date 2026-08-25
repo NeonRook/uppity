@@ -73,7 +73,14 @@ export default defineRailway(() => {
 		source: uppity,
 		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
 		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { startCommand: "./entrypoint.sh serve" },
+		// Migrations run between build and deploy, so a failure aborts the deploy and
+		// leaves the running version serving. Only this service runs them, for the
+		// reason scripts/migrate.ts records. The workers deploy alongside and run
+		// against the old schema until this finishes.
+		deploy: {
+			startCommand: "./entrypoint.sh serve",
+			preDeployCommand: ["./entrypoint.sh migrate"],
+		},
 		domains: ["uppity.cloud"],
 		networking: { privateNetworkEndpoint: "uppity-server" },
 		env: {

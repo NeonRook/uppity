@@ -15,8 +15,11 @@ import postgres from "postgres";
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error("DATABASE_URL is not set");
 
-// max: 1 — the migrator runs statements sequentially and takes an advisory lock.
-// A pool would let a second connection observe a half-applied migration.
+// The migrator takes no lock of its own, so two copies pointed at one database
+// race. Exactly one process may run this.
+//
+// It also issues a single statement sequence on a single connection, so max: 1.
+// A pool would add nothing here but idle sockets to close on the way out.
 const client = postgres(DATABASE_URL, { max: 1 });
 
 try {
