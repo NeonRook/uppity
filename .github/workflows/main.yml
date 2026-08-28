@@ -49,7 +49,7 @@ jobs:
       # the v3 CLI dropped the "New tag:" line it parsed.
       - name: Select mode
         id: select-mode
-        uses: changesets/action/select-mode@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        uses: changesets/action/select-mode@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
 
       - name: Read package version
         id: version
@@ -79,7 +79,7 @@ jobs:
           paraglide: "false"
 
       - name: Open or update the version pull request
-        uses: changesets/action/version@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        uses: changesets/action/version@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
           script: aubr changeset:version
           pr-title: "chore: version packages"
@@ -133,7 +133,7 @@ jobs:
       # create-github-releases and defaults it to true, so leaving it off would have
       # tagged from wherever this step ran regardless of the setting below.
       - name: Push the git tag
-        uses: changesets/action/publish@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        uses: changesets/action/publish@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
           script: aubr changeset:tag
           push-git-tags: true
