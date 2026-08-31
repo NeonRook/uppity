@@ -1,0 +1,100 @@
+# Throwaway. Answers one question: can aube's build jail be enforced on
+# Blacksmith runners, and if not, is the cause the Ubuntu release or the image?
+# Delete this file and .github/probe/ once the question is settled.
+name: Sandbox Probe
+
+on:
+  push:
+    branches: [ci/blacksmith-landlock-probe]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The cell under test.
+          - label: blacksmith 24.04
+            runner: blacksmith-4vcpu-ubuntu-2404
+          # Isolates the Ubuntu release: same version, GitHub's image. A pass
+          # here with a failure above indicts the image, not the release.
+          - label: github 24.04
+            runner: ubuntu-24.04
+          # The baseline main runs on today, so a failure here would mean the
+          # probe itself is wrong.
+          - label: github 26.04
+            runner: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Kernel and image
+        run: |
+          uname -srvm
+          . /etc/os-release && echo "distro   : $PRETTY_NAME"
+
+      - name: Active LSM stack
+        run: |
+          # The boot-time list. Landlock absent here but present in the kernel
+          # config is exactly the "compiled in, switched off" case.
+          echo "lsm      : $(cat /sys/kernel/security/lsm 2>/dev/null || echo '<securityfs not mounted>')"
+          if [ -r "/boot/config-$(uname -r)" ]; then
+            grep -E 'CONFIG_SECURITY_LANDLOCK|CONFIG_SECCOMP' "/boot/config-$(uname -r)" || true
+          else
+            echo "config   : /boot/config-$(uname -r) not readable on this image"
+          fi
+
+      - name: User namespace policy
+        run: |
+          # Ubuntu 24.04 shipped an AppArmor restriction on unprivileged user
+          # namespaces that breaks sandboxes which nest one. A 1 here is a
+          # strong suspect independent of Landlock.
+          for k in kernel.apparmor_restrict_unprivileged_userns \
+                   kernel.unprivileged_userns_clone \
+                   user.max_user_namespaces; do
+            printf '%-46s %s\n' "$k" "$(sysctl -n $k 2>/dev/null || echo '<unset>')"
+          done
+
+      - name: Syscall probe
+        run: |
+          gcc -Wall -Wextra -O1 -o sandbox-probe .github/probe/sandbox-probe.c
+          ./sandbox-probe || echo "^ probe reported at least one mechanism unusable"
+
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
+        with:
+          install_args: node aube
+
+      - name: Install with the jail on
+        id: jailed
+        continue-on-error: true
+        run: aube ci
+
+      - name: Trace the failing spawn
+        if: steps.jailed.outcome == 'failure'
+        run: |
+          # Only the sandbox-establishing calls, so the log stays readable.
+          sudo apt-get install -y -qq strace
+          rm -rf node_modules
+          strace -f -o trace.log \
+            -e trace=landlock_create_ruleset,landlock_add_rule,landlock_restrict_self,seccomp,unshare,clone,clone3 \
+            aube ci || true
+          echo "=== sandbox syscalls that failed ==="
+          grep -E 'landlock|seccomp|unshare|clone' trace.log | grep -E '= -1' | head -40 || echo "(none failed)"
+
+      - name: Install with the jail off
+        if: steps.jailed.outcome == 'failure'
+        env:
+          AUBE_JAIL_BUILDS: "false"
+        run: |
+          # Confirms the jail is the only thing standing between this runner and
+          # a green install, rather than a second unrelated fault.
+          rm -rf node_modules
+          aube ci
