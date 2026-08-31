@@ -24,7 +24,7 @@ jobs:
 
   select-mode:
     name: Select Mode
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       mode: ${{ steps.select-mode.outputs.mode }}
       version: ${{ steps.version.outputs.version }}
@@ -57,7 +57,7 @@ jobs:
 
   version:
     name: Version
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [checks, select-mode]
     if: needs.select-mode.outputs.mode == 'version'
     permissions:
@@ -108,7 +108,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [select-mode, publish]
     if: needs.select-mode.outputs.mode == 'publish'
     permissions:

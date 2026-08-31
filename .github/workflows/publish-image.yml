@@ -31,10 +31,10 @@ jobs:
         include:
           - slug: amd64
             platform: linux/amd64
-            runner: ubuntu-26.04
+            runner: blacksmith-4vcpu-ubuntu-2404
           - slug: arm64
             platform: linux/arm64
-            runner: ubuntu-26.04-arm
+            runner: blacksmith-4vcpu-ubuntu-2404-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -99,7 +99,7 @@ jobs:
 
   merge:
     name: Merge and attest
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: build
     permissions:
       contents: read
@@ -186,7 +186,7 @@ jobs:
 
   scan:
     name: Vulnerability Scan
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: merge
     permissions:
       contents: read
