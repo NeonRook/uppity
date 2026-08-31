@@ -1,6 +1,6 @@
 [tools]
 actionlint = "1"
-aube = "1.41.0"
+aube = "2"
 node = "26"
 
 [env]
