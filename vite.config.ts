@@ -5,7 +5,7 @@ import { playwright } from "@vitest/browser-playwright";
 import devtoolsJson from "vite-plugin-devtools-json";
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -17,12 +17,20 @@ export default defineConfig({
 	// forced the whole 357MB production tree into the runtime image. Nothing is exempt,
 	// so the image ships no node_modules at all, and scripts/check-externals.ts fails
 	// the build if build/server is left importing any package, Node built-ins aside.
-	ssr: { noExternal: true },
+	//
+	// Build only. The dev server runs on Node, which loads CommonJS packages such
+	// as pino and nodemailer natively; inlined, they reach Vite's ESM module runner
+	// and fail on their first `require`.
+	ssr: { noExternal: command === "build" ? true : undefined },
 
 	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
 	// Diagnosis relies on the structured pino logs instead. The client build already
 	// emits none, so this changes only the server.
 	build: { sourcemap: false },
+
+	server: {
+		allowedHosts: process.env.VITE_ALLOWED_HOSTS?.split(",") ?? [],
+	},
 
 	test: {
 		expect: { requireAssertions: true },
@@ -60,4 +68,4 @@ export default defineConfig({
 			},
 		],
 	},
-});
+}));
