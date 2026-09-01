@@ -750,6 +750,72 @@ describe("SubscriptionService", () => {
 			expect(downgraded.blocks).toBe(0);
 		});
 
+		test("moving to a plan that does not sell blocks clears the count", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			// Kept, the count would re-arm billing the moment the plan became eligible
+			// again — on a later switch back, or on resubscribe after a missed revoke —
+			// charging for capacity nobody re-ordered.
+			const upgraded = await service.syncFromPolar(orgId, {
+				planId: "dedicated",
+				status: "active",
+			});
+			expect(upgraded.blocks).toBe(0);
+		});
+
+		test("returning to an eligible plan does not resurrect a cleared count", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			await service.syncFromPolar(orgId, { planId: "dedicated", status: "active" });
+			const returned = await service.syncFromPolar(orgId, { planId: "uppity", status: "active" });
+
+			expect(returned.blocks).toBe(0);
+			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(50);
+		});
+
+		test("a renewal on the same eligible plan keeps the count", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			// Every `subscription.updated` webhook routes through here; only a change of
+			// eligibility clears.
+			const renewed = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "active",
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
+			expect(renewed.blocks).toBe(3);
+		});
+
 		test("a past_due sync leaves purchased capacity alone", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);

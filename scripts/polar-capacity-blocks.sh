@@ -83,13 +83,58 @@ if [ "$CODE" != "200" ]; then
 	exit 1
 fi
 
-METER_ID=$(printf '%s' "$EXISTING" | python3 -c "
+# Prints "<verdict>\n<id-or-reason>". A meter found by name is only adopted once its
+# filter and aggregation are confirmed to match: a hand-made "Monitor Blocks" summing
+# the wrong property would otherwise be adopted silently and misbill every customer,
+# and nothing downstream would report an error.
+LOOKUP=$(printf '%s' "$EXISTING" | python3 -c "
 import json, sys
-for m in json.load(sys.stdin)['items']:
-    if m['name'] == sys.argv[1] and m['archived_at'] is None:
+
+name, event_name, prop = sys.argv[1], sys.argv[2], sys.argv[3]
+payload = json.load(sys.stdin)
+
+total = payload.get('pagination', {}).get('total_count')
+if isinstance(total, int) and total > len(payload['items']):
+    print('ABORT')
+    print('meters listing truncated (%d of %d); cannot rule out an existing meter' % (len(payload['items']), total))
+    sys.exit(0)
+
+for m in payload['items']:
+    if m['name'] != name or m['archived_at'] is not None:
+        continue
+    clauses = (m.get('filter') or {}).get('clauses') or []
+    agg = m.get('aggregation') or {}
+    matches = (
+        any(c.get('property') == 'name' and c.get('operator') == 'eq' and c.get('value') == event_name
+            for c in clauses)
+        and agg.get('func') == 'max'
+        and agg.get('property') == prop
+    )
+    if matches:
+        print('OK')
         print(m['id'])
-        break
-" "$METER_NAME")
+    else:
+        print('ABORT')
+        print('meter %s exists but filters/aggregates differently: filter=%s aggregation=%s'
+              % (m['id'], json.dumps(m.get('filter')), json.dumps(agg)))
+    sys.exit(0)
+
+print('NONE')
+print('')
+" "$METER_NAME" "$EVENT_NAME" "$AGGREGATION_PROPERTY")
+
+LOOKUP_VERDICT=$(printf '%s' "$LOOKUP" | head -n 1)
+LOOKUP_DETAIL=$(printf '%s' "$LOOKUP" | tail -n +2)
+
+if [ "$LOOKUP_VERDICT" = "ABORT" ]; then
+	echo "ABORT: $LOOKUP_DETAIL" >&2
+	exit 1
+fi
+
+METER_ID=""
+if [ "$LOOKUP_VERDICT" = "OK" ]; then
+	METER_ID="$LOOKUP_DETAIL"
+fi
 
 if [ -n "$METER_ID" ]; then
 	echo "skip   $METER_NAME (already exists, $METER_ID)"
@@ -134,9 +179,21 @@ prices = [p for p in product['prices'] if not p.get('is_archived')]
 def meter_of(price):
     return price.get('meter_id') or (price.get('meter') or {}).get('id')
 
-if any(p.get('amount_type') == 'metered_unit' and meter_of(p) == meter_id for p in prices):
+metered = [p for p in prices if p.get('amount_type') == 'metered_unit']
+
+if any(meter_of(p) == meter_id for p in metered):
     print('SKIP')
     print('already carries a metered price for this meter')
+    sys.exit(0)
+
+# A metered price bound to some other meter is not ours to reason about. Keeping it and
+# appending would leave two metered prices on the product, and if the other one also
+# filters on monitor_blocks events every block is billed twice. Reachable by archiving
+# or renaming the meter and re-running, which looks like a repair.
+if metered:
+    print('ABORT')
+    print('carries %d metered price(s) bound to another meter: %s'
+          % (len(metered), ', '.join(sorted(str(meter_of(p)) for p in metered))))
     sys.exit(0)
 
 static = [p for p in prices if p.get('amount_type') in ('fixed', 'custom', 'free')]

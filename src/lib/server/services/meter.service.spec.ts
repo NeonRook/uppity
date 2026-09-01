@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 import { organization } from "../db/auth-schema";
 import * as schema from "../db/schema";
 import { monitor, subscription } from "../db/schema";
+import { logger } from "../logger";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { MeterService } from "./meter.service";
@@ -283,9 +284,10 @@ describe("MeterService", () => {
 			});
 
 			const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
-			const ingested = await new MeterService(db.db, ingest, 100).reportBlocks(polarCustomerId);
+			const result = await new MeterService(db.db, ingest, 100).reportBlocks(polarCustomerId);
 
-			expect(ingested).toBe(0);
+			// Nothing to send is a success with nothing sent, not a failure.
+			expect(result).toEqual({ ok: true, ingested: 0 });
 			expect(ingest).not.toHaveBeenCalled();
 		});
 
@@ -305,14 +307,61 @@ describe("MeterService", () => {
 			});
 		});
 
-		test("a rejected ingest resolves to zero instead of throwing", async ({ db }) => {
+		test("a rejected ingest reports failure rather than throwing or reading as empty", async ({
+			db,
+		}) => {
 			const polarCustomerId = `polar-cust-${nanoid()}`;
 			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 1 });
 
 			const ingest = vi.fn().mockRejectedValue(new Error("Polar unavailable"));
 			const service = new MeterService(db.db, ingest, 100);
 
-			await expect(service.reportBlocks(polarCustomerId)).resolves.toBe(0);
+			// The route that calls this right after a purchase has to be able to retry.
+			// Collapsing this into 0 would let an outage at a period boundary under-bill
+			// the whole period, with the daily heartbeat already past the rollover.
+			await expect(service.reportBlocks(polarCustomerId)).resolves.toEqual({
+				ok: false,
+				reason: "ingest_failed",
+			});
+		});
+
+		test("one failed chunk fails the report even when others ingested", async ({ db }) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 1 });
+			await seedOrganizationWithCustomer(db.db, `polar-cust-${nanoid()}`, { blocks: 1 });
+
+			const ingest = vi
+				.fn()
+				.mockRejectedValueOnce(new Error("Polar unavailable"))
+				.mockResolvedValue({ inserted: 1, duplicates: 0 });
+			// chunkSize 1 puts each customer in its own request.
+			const service = new MeterService(db.db, ingest, 1);
+
+			const result = await service.reportBlocks();
+			expect(result.ok).toBe(false);
+		});
+
+		test("a customer spanning several organizations is only flagged once it holds blocks", async ({
+			db,
+		}) => {
+			const quiet = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, quiet, { blocks: 0 });
+			await seedOrganizationWithCustomer(db.db, quiet, { blocks: 0 });
+
+			const errors = vi.spyOn(logger, "error").mockImplementation(() => {});
+			try {
+				const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+				await new MeterService(db.db, ingest, 100).reportBlocks(quiet);
+
+				// Two organizations, no blocks: there is no charge to duplicate. Alerting
+				// here would fire daily forever and wear out the channel the design leans on.
+				const duplicateWarnings = errors.mock.calls.filter(([, message]) =>
+					String(message).includes("charges may be duplicated"),
+				);
+				expect(duplicateWarnings).toHaveLength(0);
+			} finally {
+				errors.mockRestore();
+			}
 		});
 	});
 });

@@ -50,9 +50,19 @@ additionally report immediately, because the daily job may not run again before 
 rolls over and a customer who buys capacity an hour before renewal would otherwise get the
 period free.
 
-**Zero is reported explicitly.** A customer who removes their last block needs a `0` in the
-new period. Filtering those rows out looks like an optimisation and is a billing bug: to a
-`max` aggregation, no event and no purchase are the same thing.
+**Zero is reported explicitly, as insurance rather than as a fix.** Organizations holding
+no blocks are still reported. Be honest about what this buys: under a `max` aggregation a
+zero sample can never lower the aggregate, so it cannot undo a previous period's peak. If
+windows reset, absence already yields zero and the event is redundant; if they do not,
+`max(peak, 0)` is still the peak and the event is impotent. What it actually does is keep
+the customer's meter row current and leave the checked-and-found-nothing case visible in
+the event stream, for the price of one event per customer per day.
+
+An earlier draft of this decision claimed the zero was needed or the previous period's
+peak would keep being billed. That is wrong, and it contradicted the heartbeat rationale
+directly above it — only one of "meters reset each period" and "a stale peak carries" can
+be true. Polar's rollover semantics remain unverified here; the zero is cheap enough to
+keep while that is so.
 
 ## Consequences
 

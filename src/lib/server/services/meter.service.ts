@@ -51,6 +51,17 @@ export interface UsageSnapshotReport {
 const EMPTY_REPORT: UsageSnapshotReport = { customerSnapshots: 0, organizationSnapshots: 0 };
 
 /**
+ * Outcome of a capacity-block report.
+ *
+ * `ingested: 0` on the success branch means there was nothing to send — metering off,
+ * or no block-eligible customer. That is a different thing from a failed send, and the
+ * caller that reports immediately after a purchase has to be able to tell them apart.
+ */
+export type BlockReportResult =
+	| { ok: true; ingested: number }
+	| { ok: false; reason: "collect_failed" | "ingest_failed" };
+
+/**
  * Reports organization usage to Polar meters.
  *
  * Local limit checking remains the source of truth for enforcement; this exists
@@ -115,12 +126,12 @@ export class MeterService {
 		}
 		if (rows.length === 0) return EMPTY_REPORT;
 
-		const customerSnapshots = await this.ingestInChunks(
+		const { ingested: customerSnapshots } = await this.ingestInChunks(
 			sumByCustomer(rows),
 			toIngestEvent,
 			METER_EVENTS.USAGE_SNAPSHOT,
 		);
-		const organizationSnapshots = await this.ingestInChunks(
+		const { ingested: organizationSnapshots } = await this.ingestInChunks(
 			rows,
 			toOrgIngestEvent,
 			METER_EVENTS.USAGE_SNAPSHOT_ORG,
@@ -130,13 +141,19 @@ export class MeterService {
 	}
 
 	/**
-	 * Reports purchased capacity to the `monitor_blocks` meter and returns how many
-	 * events were ingested. `polarCustomerId` narrows it to one customer's total across
-	 * every block-eligible organization they own; omitting it reports every customer.
-	 * Resolves 0 rather than throwing when metering fails.
+	 * Reports purchased capacity to the `monitor_blocks` meter. `polarCustomerId` narrows
+	 * it to one customer's total across every block-eligible organization they own;
+	 * omitting it reports every customer.
+	 *
+	 * Never throws, but unlike `reportUsageSnapshots` it distinguishes failure from
+	 * having nothing to send. The targeted call is what a route makes right after
+	 * `setBlocks`, and it exists for the case where waiting for tomorrow's heartbeat is
+	 * too late — a purchase an hour before renewal. A silent zero there would let a
+	 * transient Polar outage under-bill a whole period, so the caller gets a result it
+	 * can retry on. The daily heartbeat has a second chance and simply logs.
 	 */
-	async reportBlocks(polarCustomerId?: string): Promise<number> {
-		if (!this.enabled) return 0;
+	async reportBlocks(polarCustomerId?: string): Promise<BlockReportResult> {
+		if (!this.enabled) return { ok: true, ingested: 0 };
 
 		let rows: OrganizationBlockSnapshot[];
 		try {
@@ -146,17 +163,19 @@ export class MeterService {
 				{ error, polar_customer_id: polarCustomerId },
 				"Failed to collect capacity blocks for Polar metering",
 			);
-			return 0;
+			return { ok: false, reason: "collect_failed" };
 		}
-		if (rows.length === 0) return 0;
+		if (rows.length === 0) return { ok: true, ingested: 0 };
 
 		const snapshots = sumBlocksByCustomer(rows);
 
 		// Polar scopes a meter to the customer, not the subscription, so a customer holding
 		// block-eligible subscriptions in several organizations is charged the combined
-		// total once per subscription. See POLAR_SETUP.md.
+		// total once per subscription. Only worth saying when there is a charge to
+		// duplicate: without the block check every multi-organization customer on zero
+		// blocks would emit this daily and wear out the alert. See POLAR_SETUP.md.
 		for (const snapshot of snapshots) {
-			if (snapshot.organizationCount > 1) {
+			if (snapshot.organizationCount > 1 && snapshot.blocks > 0) {
 				logger.error(
 					{
 						polar_customer_id: snapshot.polarCustomerId,
@@ -168,7 +187,13 @@ export class MeterService {
 			}
 		}
 
-		return this.ingestInChunks(snapshots, toBlocksIngestEvent, METER_EVENTS.MONITOR_BLOCKS);
+		const { ingested, failedChunks } = await this.ingestInChunks(
+			snapshots,
+			toBlocksIngestEvent,
+			METER_EVENTS.MONITOR_BLOCKS,
+		);
+
+		return failedChunks > 0 ? { ok: false, reason: "ingest_failed" } : { ok: true, ingested };
 	}
 
 	/**
@@ -179,13 +204,19 @@ export class MeterService {
 	 * equals the item count: `toIngestEvent`/`toOrgIngestEvent` set neither
 	 * `externalId` nor `timestamp`, so Polar's dedup-on-`external_id` never
 	 * matches and nothing is ever skipped as a duplicate.
+	 *
+	 * `failedChunks` is reported alongside so a caller that cannot afford a silent
+	 * shortfall can tell "nothing to send" from "sending failed" — the ingested count
+	 * alone is zero in both cases. `reportUsageSnapshots` ignores it; `reportBlocks`
+	 * does not.
 	 */
 	private async ingestInChunks<T>(
 		items: T[],
 		toEvent: (item: T) => IngestEvent,
 		streamName: string,
-	): Promise<number> {
+	): Promise<{ ingested: number; failedChunks: number }> {
 		let ingested = 0;
+		let failedChunks = 0;
 
 		for (let offset = 0; offset < items.length; offset += this.chunkSize) {
 			const chunk = items.slice(offset, offset + this.chunkSize);
@@ -196,6 +227,7 @@ export class MeterService {
 				// silently reporting zero for a chunk that did ingest.
 				ingested += typeof response.inserted === "number" ? response.inserted : chunk.length;
 			} catch (error) {
+				failedChunks += 1;
 				logger.error(
 					{ error, chunk_size: chunk.length, offset, stream: streamName },
 					"Failed to ingest Polar usage events",
@@ -203,7 +235,7 @@ export class MeterService {
 			}
 		}
 
-		return ingested;
+		return { ingested, failedChunks };
 	}
 }
 
