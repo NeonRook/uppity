@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [#107](https://github.com/NeonRook/uppity/pull/107) [`011299b`](https://github.com/NeonRook/uppity/commit/011299b6a24b56fe0225680c5484fb144373d0d8) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The billing page shows the new plan as soon as you return from checkout. It no longer needs a manual reload to catch up.
+
+- [#106](https://github.com/NeonRook/uppity/pull/106) [`aa58479`](https://github.com/NeonRook/uppity/commit/aa584797b442ebe7a6542e6226605ff5f1917895) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Groundwork for capacity blocks. Nothing changes in this release — blocks still cannot be bought.
+
 ## 0.3.0
 
 ### Minor Changes
