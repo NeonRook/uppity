@@ -1,4 +1,5 @@
 import { isSelfHosted, PLANS, PUBLIC_PLAN_IDS } from "$lib/constants/plans";
+import { syncCheckout } from "$lib/server/polar-subscription";
 import { subscriptionService } from "$lib/server/services/subscription.service";
 import { usageService } from "$lib/server/services/usage.service";
 import { redirect } from "@sveltejs/kit";
@@ -29,7 +30,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	// Get subscription and usage data
+	const checkoutId = url.searchParams.get("checkout_id");
+	if (checkoutId) {
+		try {
+			await syncCheckout(checkoutId, organizationId);
+		} catch (error) {
+			// The webhook delivers the same subscription; a Polar failure here
+			// costs a stale page, not the purchase.
+			locals.event.setError(error);
+		}
+	}
+
 	const [subscription, usageSummary] = await Promise.all([
 		subscriptionService.getOrCreateSubscription(organizationId),
 		usageService.getUsageSummary(organizationId),

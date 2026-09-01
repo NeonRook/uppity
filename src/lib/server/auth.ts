@@ -240,7 +240,9 @@ export const auth = betterAuth({
 							slug: "dedicated-annual",
 						},
 					].filter(Boolean) as { productId: string; slug: string }[],
-					successUrl: `${baseURL}/settings/billing?checkout=success`,
+					// Polar substitutes the placeholder. The billing page uses it to pull the
+					// new subscription on return instead of waiting for the webhook.
+					successUrl: `${baseURL}/settings/billing?checkout=success&checkout_id={CHECKOUT_ID}`,
 					returnUrl: `${baseURL}/settings/billing`,
 				}),
 				portal({
