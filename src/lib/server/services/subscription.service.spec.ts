@@ -63,6 +63,24 @@ async function seedInvitation(
 	});
 }
 
+async function seedMonitors(
+	drizzleDb: TestDb["db"],
+	orgId: string,
+	howMany: number,
+): Promise<void> {
+	for (let i = 0; i < howMany; i++) {
+		await drizzleDb.insert(monitor).values({
+			id: nanoid(),
+			organizationId: orgId,
+			name: `Monitor ${i}`,
+			type: "http",
+			url: "https://example.com",
+			intervalSeconds: 300,
+			timeoutSeconds: 30,
+		});
+	}
+}
+
 describe("SubscriptionService", () => {
 	// Local dev's .env might set SELF_HOSTED=true, which short-circuits every limit check to the
 	// unlimited self-hosted plan. Force the plan-based code path.
@@ -600,6 +618,157 @@ describe("SubscriptionService", () => {
 			expect(capacity.used).toBe(8);
 			expect(capacity.limit).toBe(5);
 			expect(capacity.canInvite).toBe(false);
+		});
+	});
+
+	describe("setBlocks", () => {
+		test("raising the count persists it and widens the ceiling", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			const result = await service.setBlocks(orgId, 2);
+			expect(result.ok).toBe(true);
+			expect((await service.getSubscription(orgId))?.blocks).toBe(2);
+			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(150);
+		});
+
+		test("a reduction that would strand existing monitors is refused, naming both counts", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 2,
+			});
+			await seedMonitors(drizzleDb, orgId, 68);
+
+			expect((await service.setBlocks(orgId, 1)).ok).toBe(true);
+
+			expect(await service.setBlocks(orgId, 0)).toStrictEqual({
+				ok: false,
+				reason: "over_capacity",
+				currentUsage: 68,
+				limit: 50,
+			});
+			expect((await service.getSubscription(orgId))?.blocks).toBe(1);
+		});
+
+		test("a reduction the organization already fits under is applied", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 4,
+			});
+			await seedMonitors(drizzleDb, orgId, 60);
+
+			const result = await service.setBlocks(orgId, 1);
+			expect(result.ok).toBe(true);
+			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(100);
+		});
+
+		test("a plan that is not sold by capacity is refused", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "dedicated",
+				status: "active",
+			});
+
+			expect(await service.setBlocks(orgId, 3)).toStrictEqual({
+				ok: false,
+				reason: "plan_ineligible",
+			});
+			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
+		});
+
+		test("negative and fractional counts are refused before reaching the database", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			expect(await service.setBlocks(orgId, -1)).toStrictEqual({
+				ok: false,
+				reason: "invalid_count",
+			});
+			expect(await service.setBlocks(orgId, 1.5)).toStrictEqual({
+				ok: false,
+				reason: "invalid_count",
+			});
+			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
+		});
+	});
+
+	describe("blocks across plan changes", () => {
+		test("downgradeToFree clears the purchased capacity", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			const downgraded = await service.downgradeToFree(orgId);
+			expect(downgraded.planId).toBe("free");
+			expect(downgraded.blocks).toBe(0);
+		});
+
+		test("a past_due sync leaves purchased capacity alone", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+			});
+
+			const synced = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "past_due",
+			});
+			expect(synced.status).toBe("past_due");
+			expect(synced.blocks).toBe(3);
 		});
 	});
 });

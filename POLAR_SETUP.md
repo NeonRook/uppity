@@ -171,6 +171,87 @@ Each filters on event name `usage_snapshot`. `max` reports peak usage within
 the billing period — defensible on an invoice — rather than `avg`, which
 prorates mid-period changes and is easier to game.
 
+## Capacity blocks
+
+The one meter that is actually billed. `Monitor Blocks` aggregates `max` over the
+`blocks` property of the `monitor_blocks` event, and a `metered_unit` price on each
+Uppity product bills against it — 800 cents per block on monthly, 8000 on annual,
+mirroring `MONITOR_BLOCK_PRICE_CENTS` and `MONITOR_BLOCK_ANNUAL_PRICE_CENTS` in
+`src/lib/constants/plans.ts`. `scripts/polar-capacity-blocks.sh` provisions both,
+once per environment.
+
+### Uppity owns the count, Polar only bills it
+
+This runs the opposite direction from `planId` and `status`, which Polar owns and
+webhooks carry inbound. A metered price bills `unit_amount × meter_value`, and that
+meter value comes only from events Uppity ingests — Polar holds no block count, has
+no API to set one, and emits no webhook carrying one. `subscription.blocks` is the
+source of truth; `SubscriptionService.setBlocks` is its only writer, plus
+`downgradeToFree` clearing it. `syncFromPolar` deliberately has no `blocks` field and
+must never grow one. `docs/adr/0002` records the whole decision.
+
+The practical consequence: **the Polar dashboard is not where you look up a
+customer's capacity.** It shows what was last metered. The database is the answer.
+
+### Reporting is a heartbeat
+
+Polar meters reset at the start of every billing period. A customer who bought three
+blocks in January and never touched the setting again would meter zero in February
+and be billed nothing. So the daily `usage-snapshot` job re-reports every
+block-eligible customer's current count unconditionally, forever — it is not a change
+feed, and switching it to one would stop billing standing purchases.
+
+Routes that call `setBlocks` also call `MeterService.reportBlocks`
+immediately, because the daily job may not run again before a period rolls over and a
+customer buying capacity an hour before renewal would otherwise get that period free.
+
+Organizations holding zero blocks are still reported. To a `max` aggregation, no event
+and no purchase are indistinguishable, so a customer who removes their last block
+needs an explicit `0` or the meter carries the previous period's peak.
+
+Only `BLOCK_ELIGIBLE_PLAN_IDS` (Uppity today) is reported, because those are the only
+products carrying the price that reads the meter. A count reported against Dedicated
+would sit in the event stream with nothing billing against it.
+
+### Annual blocks bill over a full year
+
+`meter_interval` is settable on neither product create nor product update, so metered
+usage bills on the subscription's own interval. On the annual product the meter's
+window is a year: `max(blocks) × $80` is charged at renewal however briefly the blocks
+were held, so five blocks added in month three and removed in month four still bill
+$400. That matches the published $80/yr price and is a real property of an annual
+commitment, but it is a surprise nine months later — **the billing UI has to say so.**
+
+### One customer, several paid organizations
+
+A Polar customer is the better-auth user, who may own up to
+`ORGANIZATION_LIMIT_PER_USER` (default 5) organizations. If two of them hold
+block-eligible subscriptions, both carry the metered price and both bill against the
+same customer meter, which has no per-subscription scoping —
+`polar_customer_meters_list` exposes no `subscription_id`. That plausibly charges the
+same capacity twice.
+
+There is no clean fix inside Polar's model. `MeterService` logs at **error** level
+whenever it reports a customer spanning more than one organization, on the same
+reasoning as the `without org reference` handlers: the failure is an incorrect
+invoice, and nobody finds those by reading a warning stream. Grep for
+`block charges may be duplicated`. Settle it empirically in sandbox before it matters
+in production.
+
+### Provisioning token
+
+`scripts/polar-capacity-blocks.sh` needs **products write**, which the runtime token
+deliberately does not have (see "Token scopes" above) so that a leaked runtime token
+cannot re-price the live catalogue. Issue a separate short-lived token, run the
+script, delete the token.
+
+The script rewrites a product's price list, and `PATCH /v1/products/{id}` _replaces_
+that list rather than appending to it — every price to keep has to be re-sent by ID.
+Getting that wrong on a live product drops the base price and makes the plan free, so
+the script refuses to touch a product that does not have exactly one unarchived static
+price rather than guessing which one to preserve, and skips a product that already
+carries a metered price bound to this meter.
+
 ### `usage_snapshot_org` — the per-organization audit trail, deliberately unmetered
 
 One event per organization, unsummed, carrying `organization_id`, `monitors`,

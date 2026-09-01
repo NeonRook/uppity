@@ -48,9 +48,11 @@ const jobHandlers: Record<string, JobHandler> = {
 		event.set("windows_completed", result.completed);
 	},
 	"usage-snapshot": async (event) => {
-		const report = await new MeterService(db).reportUsageSnapshots();
+		const meterService = new MeterService(db);
+		const report = await meterService.reportUsageSnapshots();
 		event.set("records_processed", report.customerSnapshots);
 		event.set("org_records_processed", report.organizationSnapshots);
+		event.set("block_records_processed", await meterService.reportBlocks());
 	},
 };
 

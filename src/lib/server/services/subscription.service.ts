@@ -1,6 +1,7 @@
 import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
 import {
 	applyCapacityBlocks,
+	BLOCK_ELIGIBLE_PLAN_IDS,
 	DEFAULT_PLAN_ID,
 	isSelfHosted,
 	PLANS,
@@ -30,6 +31,13 @@ type Db = PostgresJsDatabase<typeof schema>;
 export function getPlanById(planId: PlanId): Plan | undefined {
 	return PLANS[planId];
 }
+
+/** Outcome of a capacity-block change. */
+export type SetBlocksResult =
+	| { ok: true; subscription: Subscription }
+	| { ok: false; reason: "plan_ineligible" }
+	| { ok: false; reason: "invalid_count" }
+	| { ok: false; reason: "over_capacity"; currentUsage: number; limit: number };
 
 /** A subscription as read live from the Polar API, normalized to our plan ids. */
 export interface PolarSubscriptionSnapshot {
@@ -103,6 +111,41 @@ export class SubscriptionService {
 		const plan = getPlanById(sub.planId as PlanId) ?? PLANS[DEFAULT_PLAN_ID];
 
 		return applyCapacityBlocks(plan, sub.blocks);
+	}
+
+	/**
+	 * Sets an organization's purchased capacity blocks, refusing a reduction that would
+	 * leave the organization over the resulting monitor ceiling.
+	 *
+	 * A successful write must be followed by `MeterService.reportBlocks`;
+	 * nothing here reaches Polar.
+	 */
+	async setBlocks(organizationId: string, blocks: number): Promise<SetBlocksResult> {
+		if (!Number.isInteger(blocks) || blocks < 0) {
+			return { ok: false, reason: "invalid_count" };
+		}
+
+		const sub = await this.getOrCreateSubscription(organizationId);
+		const plan = getPlanById(sub.planId as PlanId);
+		if (!plan || !BLOCK_ELIGIBLE_PLAN_IDS.has(plan.id)) {
+			return { ok: false, reason: "plan_ineligible" };
+		}
+
+		if (blocks < sub.blocks) {
+			const { monitors: limit } = applyCapacityBlocks(plan, blocks);
+			const usage = await this.getUsage(organizationId);
+			if (limit !== -1 && usage.monitors > limit) {
+				return { ok: false, reason: "over_capacity", currentUsage: usage.monitors, limit };
+			}
+		}
+
+		const [updated] = await this.db
+			.update(subscription)
+			.set({ blocks, updatedAt: new Date() })
+			.where(eq(subscription.organizationId, organizationId))
+			.returning();
+
+		return { ok: true, subscription: updated };
 	}
 
 	/**
@@ -349,8 +392,8 @@ export class SubscriptionService {
 	 * Takes an already-fetched snapshot rather than reaching for the Polar SDK
 	 * itself: the client and the product-id-to-plan mapping live in auth.ts, and
 	 * pulling them in here would drag Polar configuration into a class that is
-	 * otherwise pure Drizzle. Polar stays the single source of truth — there is
-	 * deliberately no manual plan override.
+	 * otherwise pure Drizzle. Polar stays the single source of truth for the plan and
+	 * its status — there is deliberately no manual plan override.
 	 */
 	async resyncFromPolar(
 		organizationId: string,
@@ -364,10 +407,18 @@ export class SubscriptionService {
 	 * Called when a subscription is canceled or payment fails.
 	 */
 	async downgradeToFree(organizationId: string): Promise<Subscription> {
-		return this.syncFromPolar(organizationId, {
+		await this.syncFromPolar(organizationId, {
 			planId: "free",
 			status: "active",
 		});
+
+		const [cleared] = await this.db
+			.update(subscription)
+			.set({ blocks: 0, updatedAt: new Date() })
+			.where(eq(subscription.organizationId, organizationId))
+			.returning();
+
+		return cleared;
 	}
 }
 

@@ -138,6 +138,8 @@ export interface MaintenanceWideEvent extends WideEventBase {
 	 * separately from `records_processed` because it counts organizations
 	 * rather than the billable Polar customers `records_processed` counts. */
 	org_records_processed?: number;
+	/** `usage-snapshot` job only: `monitor_blocks` events ingested. */
+	block_records_processed?: number;
 	next_run_at?: Date;
 }
 

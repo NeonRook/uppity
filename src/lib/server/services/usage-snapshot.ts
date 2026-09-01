@@ -1,8 +1,8 @@
-import { DEFAULT_PLAN_ID } from "$lib/constants/plans";
+import { BLOCK_ELIGIBLE_PLAN_IDS, DEFAULT_PLAN_ID } from "$lib/constants/plans";
 import { member } from "$lib/server/db/auth-schema";
 import * as schema from "$lib/server/db/schema";
 import { monitor, statusPage, subscription } from "$lib/server/db/schema";
-import { and, getTableName, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, getTableName, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -114,6 +114,86 @@ export function sumByCustomer(rows: OrganizationUsageSnapshot[]): CustomerUsageS
 				monitors: row.monitors,
 				statusPages: row.statusPages,
 				teamMembers: row.teamMembers,
+				organizationCount: 1,
+			});
+		}
+	}
+
+	return Array.from(byCustomer.values());
+}
+
+/** Purchased capacity blocks held by one organization. */
+export interface OrganizationBlockSnapshot {
+	organizationId: string;
+	polarCustomerId: string;
+	blocks: number;
+}
+
+/**
+ * Purchased capacity blocks held by one Polar customer, summed across every
+ * block-eligible organization it owns.
+ */
+export interface CustomerBlockSnapshot {
+	polarCustomerId: string;
+	blocks: number;
+	/** How many organizations this customer's total spans. */
+	organizationCount: number;
+}
+
+/**
+ * Reads the current block count for every organization whose plan is billed by
+ * capacity, one row per organization. `polarCustomerId` narrows the read to one
+ * customer.
+ *
+ * Rows holding zero blocks are deliberately **kept**, and this must keep being called
+ * for organizations whose count has not changed. Polar meters reset every billing
+ * period and aggregate `max`, so a value absent from a period is indistinguishable
+ * from never having been reported: a standing purchase would stop being billed, and a
+ * dropped last block would keep being billed at the previous period's peak.
+ */
+export async function collectBlockSnapshots(
+	db: Db,
+	polarCustomerId?: string,
+): Promise<OrganizationBlockSnapshot[]> {
+	const rows = await db
+		.select({
+			organizationId: subscription.organizationId,
+			polarCustomerId: subscription.polarCustomerId,
+			blocks: subscription.blocks,
+		})
+		.from(subscription)
+		.where(
+			and(
+				isNotNull(subscription.polarCustomerId),
+				inArray(subscription.planId, [...BLOCK_ELIGIBLE_PLAN_IDS]),
+				polarCustomerId ? eq(subscription.polarCustomerId, polarCustomerId) : undefined,
+			),
+		);
+
+	return rows.map((row) => ({
+		organizationId: row.organizationId,
+		polarCustomerId: row.polarCustomerId as string,
+		blocks: row.blocks,
+	}));
+}
+
+/**
+ * Sums per-organization block counts into one row per Polar customer, the same collapse
+ * `sumByCustomer` performs: Polar aggregates a meter per customer, and one customer may
+ * own several organizations.
+ */
+export function sumBlocksByCustomer(rows: OrganizationBlockSnapshot[]): CustomerBlockSnapshot[] {
+	const byCustomer = new Map<string, CustomerBlockSnapshot>();
+
+	for (const row of rows) {
+		const existing = byCustomer.get(row.polarCustomerId);
+		if (existing) {
+			existing.blocks += row.blocks;
+			existing.organizationCount += 1;
+		} else {
+			byCustomer.set(row.polarCustomerId, {
+				polarCustomerId: row.polarCustomerId,
+				blocks: row.blocks,
 				organizationCount: 1,
 			});
 		}
