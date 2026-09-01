@@ -6,7 +6,9 @@ import { monitor, statusPage, subscription } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import {
+	collectBlockSnapshots,
 	collectUsageSnapshots,
+	sumBlocksByCustomer,
 	sumByCustomer,
 	type OrganizationUsageSnapshot,
 } from "./usage-snapshot";
@@ -27,13 +29,14 @@ async function seedSubscription(
 	drizzleDb: TestDb["db"],
 	orgId: string,
 	polarCustomerId: string | null,
-	overrides: { planId?: string; status?: string } = {},
+	overrides: { planId?: string; status?: string; blocks?: number } = {},
 ): Promise<void> {
 	await drizzleDb.insert(subscription).values({
 		id: nanoid(),
 		organizationId: orgId,
 		planId: overrides.planId ?? "uppity",
 		status: overrides.status ?? "active",
+		blocks: overrides.blocks ?? 0,
 		polarCustomerId,
 	});
 }
@@ -294,5 +297,114 @@ describe("sumByCustomer", () => {
 
 	it("returns an empty array for no rows", () => {
 		expect(sumByCustomer([])).toEqual([]);
+	});
+});
+
+describe("collectBlockSnapshots", () => {
+	test("reports the stored block count for a block-eligible organization", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const polarCustomerId = `polar-cust-${nanoid()}`;
+		const orgId = await seedOrganization(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 3 });
+
+		const rows = await collectBlockSnapshots(drizzleDb, polarCustomerId);
+
+		expect(rows).toEqual([{ organizationId: orgId, polarCustomerId, blocks: 3 }]);
+	});
+
+	test("keeps an organization holding zero blocks", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const polarCustomerId = `polar-cust-${nanoid()}`;
+		const orgId = await seedOrganization(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 0 });
+
+		expect(await collectBlockSnapshots(drizzleDb, polarCustomerId)).toEqual([
+			{ organizationId: orgId, polarCustomerId, blocks: 0 },
+		]);
+	});
+
+	test("excludes plans that carry no metered block price", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const dedicatedCustomer = `polar-cust-${nanoid()}`;
+		const freeCustomer = `polar-cust-${nanoid()}`;
+
+		await seedSubscription(drizzleDb, await seedOrganization(drizzleDb), dedicatedCustomer, {
+			planId: "dedicated",
+			blocks: 4,
+		});
+		await seedSubscription(drizzleDb, await seedOrganization(drizzleDb), freeCustomer, {
+			planId: "free",
+			blocks: 4,
+		});
+
+		expect(await collectBlockSnapshots(drizzleDb, dedicatedCustomer)).toEqual([]);
+		expect(await collectBlockSnapshots(drizzleDb, freeCustomer)).toEqual([]);
+	});
+
+	test("excludes organizations with no Polar customer", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, null, { blocks: 2 });
+
+		const rows = await collectBlockSnapshots(drizzleDb);
+
+		expect(rows.some((row) => row.organizationId === orgId)).toBe(false);
+	});
+
+	test("returns one row per organization when several share one Polar customer", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const polarCustomerId = `polar-cust-${nanoid()}`;
+		const first = await seedOrganization(drizzleDb);
+		const second = await seedOrganization(drizzleDb);
+		await seedSubscription(drizzleDb, first, polarCustomerId, { blocks: 1 });
+		await seedSubscription(drizzleDb, second, polarCustomerId, { blocks: 2 });
+
+		const rows = await collectBlockSnapshots(drizzleDb, polarCustomerId);
+
+		expect(rows).toHaveLength(2);
+		expect(new Map(rows.map((row) => [row.organizationId, row.blocks]))).toEqual(
+			new Map([
+				[first, 1],
+				[second, 2],
+			]),
+		);
+	});
+
+	test("omitting the customer filter reports every block-eligible organization", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const polarCustomerId = `polar-cust-${nanoid()}`;
+		const orgId = await seedOrganization(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 5 });
+
+		const rows = await collectBlockSnapshots(drizzleDb);
+
+		expect(rows.find((row) => row.organizationId === orgId)?.blocks).toBe(5);
+	});
+});
+
+describe("sumBlocksByCustomer", () => {
+	it("sums the blocks a customer holds across its organizations", () => {
+		const summed = sumBlocksByCustomer([
+			{ organizationId: "org-1", polarCustomerId: "polar-cust-a", blocks: 2 },
+			{ organizationId: "org-2", polarCustomerId: "polar-cust-a", blocks: 3 },
+		]);
+
+		expect(summed).toEqual([{ polarCustomerId: "polar-cust-a", blocks: 5, organizationCount: 2 }]);
+	});
+
+	it("keeps distinct customers separate", () => {
+		const summed = sumBlocksByCustomer([
+			{ organizationId: "org-1", polarCustomerId: "polar-cust-a", blocks: 1 },
+			{ organizationId: "org-2", polarCustomerId: "polar-cust-b", blocks: 4 },
+		]);
+
+		expect(summed).toEqual([
+			{ polarCustomerId: "polar-cust-a", blocks: 1, organizationCount: 1 },
+			{ polarCustomerId: "polar-cust-b", blocks: 4, organizationCount: 1 },
+		]);
+	});
+
+	it("returns an empty array for no rows", () => {
+		expect(sumBlocksByCustomer([])).toEqual([]);
 	});
 });

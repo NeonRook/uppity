@@ -26,6 +26,7 @@ import { MeterService } from "./meter.service";
 async function seedOrganizationWithCustomer(
 	drizzleDb: TestDb["db"],
 	polarCustomerId: string,
+	overrides: { planId?: string; blocks?: number } = {},
 ): Promise<string> {
 	const suffix = nanoid();
 	const orgId = `test-org-${suffix}`;
@@ -38,8 +39,9 @@ async function seedOrganizationWithCustomer(
 	await drizzleDb.insert(subscription).values({
 		id: nanoid(),
 		organizationId: orgId,
-		planId: "uppity",
+		planId: overrides.planId ?? "uppity",
 		status: "active",
+		blocks: overrides.blocks ?? 0,
 		polarCustomerId,
 	});
 	return orgId;
@@ -235,5 +237,82 @@ describe("MeterService", () => {
 			ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]).map((e) => e.name),
 		);
 		expect(eventNames).toEqual(new Set(["usage_snapshot", "usage_snapshot_org"]));
+	});
+
+	describe("capacity blocks", () => {
+		test("emits monitor_blocks carrying the customer's summed block count", async ({ db }) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 2 });
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 3 });
+
+			const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+			await new MeterService(db.db, ingest, 100).reportBlocks(polarCustomerId);
+
+			const events = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
+			expect(events).toEqual([
+				{
+					name: "monitor_blocks",
+					customerId: polarCustomerId,
+					metadata: { blocks: 5, organization_count: 2 },
+				},
+			]);
+		});
+
+		test("reports an explicit zero once the last block is removed", async ({ db }) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 0 });
+
+			const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+			await new MeterService(db.db, ingest, 100).reportBlocks(polarCustomerId);
+
+			const events = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
+			expect(events).toEqual([
+				{
+					name: "monitor_blocks",
+					customerId: polarCustomerId,
+					metadata: { blocks: 0, organization_count: 1 },
+				},
+			]);
+		});
+
+		test("does not report a plan whose product carries no block price", async ({ db }) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, {
+				planId: "dedicated",
+				blocks: 4,
+			});
+
+			const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+			const ingested = await new MeterService(db.db, ingest, 100).reportBlocks(polarCustomerId);
+
+			expect(ingested).toBe(0);
+			expect(ingest).not.toHaveBeenCalled();
+		});
+
+		test("the daily heartbeat reports every block-eligible customer, not only changed ones", async ({
+			db,
+		}) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 7 });
+
+			const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+			await new MeterService(db.db, ingest, 100).reportBlocks();
+
+			const events = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
+			expect(events.find((e) => e.customerId === polarCustomerId)?.metadata).toEqual({
+				blocks: 7,
+				organization_count: 1,
+			});
+		});
+
+		test("a rejected ingest resolves to zero instead of throwing", async ({ db }) => {
+			const polarCustomerId = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, polarCustomerId, { blocks: 1 });
+
+			const ingest = vi.fn().mockRejectedValue(new Error("Polar unavailable"));
+			const service = new MeterService(db.db, ingest, 100);
+
+			await expect(service.reportBlocks(polarCustomerId)).resolves.toBe(0);
+		});
 	});
 });

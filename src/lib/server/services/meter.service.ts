@@ -4,9 +4,13 @@ import { polarClient } from "$lib/server/polar";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
+	collectBlockSnapshots,
 	collectUsageSnapshots,
+	sumBlocksByCustomer,
 	sumByCustomer,
+	type CustomerBlockSnapshot,
 	type CustomerUsageSnapshot,
+	type OrganizationBlockSnapshot,
 	type OrganizationUsageSnapshot,
 } from "./usage-snapshot";
 
@@ -14,18 +18,23 @@ type Db = PostgresJsDatabase<typeof schema>;
 
 /** Return shape of the Polar SDK's `events.ingest`, isolated so tests can supply a double. */
 type IngestResult = Awaited<ReturnType<typeof polarClient.events.ingest>>;
-type IngestEvent = ReturnType<typeof toIngestEvent> | ReturnType<typeof toOrgIngestEvent>;
+type IngestEvent =
+	| ReturnType<typeof toIngestEvent>
+	| ReturnType<typeof toOrgIngestEvent>
+	| ReturnType<typeof toBlocksIngestEvent>;
 type IngestFn = (events: IngestEvent[]) => Promise<IngestResult>;
 
 /**
- * Meter event names. `USAGE_SNAPSHOT` must match the meter filters configured
- * in Polar; `scripts/polar-usage-meters.sh` provisions them.
+ * Meter event names. `USAGE_SNAPSHOT` and `MONITOR_BLOCKS` must match the meter
+ * filters configured in Polar; `scripts/polar-usage-meters.sh` and
+ * `scripts/polar-capacity-blocks.sh` provision them respectively.
  *
  * `USAGE_SNAPSHOT_ORG` has no meter pointed at it — see `toOrgIngestEvent`.
  */
 export const METER_EVENTS = {
 	USAGE_SNAPSHOT: "usage_snapshot",
 	USAGE_SNAPSHOT_ORG: "usage_snapshot_org",
+	MONITOR_BLOCKS: "monitor_blocks",
 } as const;
 
 /** Keep ingest batches well clear of Polar's per-request limit. */
@@ -121,6 +130,48 @@ export class MeterService {
 	}
 
 	/**
+	 * Reports purchased capacity to the `monitor_blocks` meter and returns how many
+	 * events were ingested. `polarCustomerId` narrows it to one customer's total across
+	 * every block-eligible organization they own; omitting it reports every customer.
+	 * Resolves 0 rather than throwing when metering fails.
+	 */
+	async reportBlocks(polarCustomerId?: string): Promise<number> {
+		if (!this.enabled) return 0;
+
+		let rows: OrganizationBlockSnapshot[];
+		try {
+			rows = await collectBlockSnapshots(this.db, polarCustomerId);
+		} catch (error) {
+			logger.error(
+				{ error, polar_customer_id: polarCustomerId },
+				"Failed to collect capacity blocks for Polar metering",
+			);
+			return 0;
+		}
+		if (rows.length === 0) return 0;
+
+		const snapshots = sumBlocksByCustomer(rows);
+
+		// Polar scopes a meter to the customer, not the subscription, so a customer holding
+		// block-eligible subscriptions in several organizations is charged the combined
+		// total once per subscription. See POLAR_SETUP.md.
+		for (const snapshot of snapshots) {
+			if (snapshot.organizationCount > 1) {
+				logger.error(
+					{
+						polar_customer_id: snapshot.polarCustomerId,
+						organization_count: snapshot.organizationCount,
+						blocks: snapshot.blocks,
+					},
+					"Polar customer holds capacity blocks across several organizations — block charges may be duplicated",
+				);
+			}
+		}
+
+		return this.ingestInChunks(snapshots, toBlocksIngestEvent, METER_EVENTS.MONITOR_BLOCKS);
+	}
+
+	/**
 	 * Ingests one stream of events in chunks, tolerating a failed chunk
 	 * without losing the others or throwing.
 	 *
@@ -178,6 +229,22 @@ function toOrgIngestEvent(row: OrganizationUsageSnapshot) {
 			monitors: row.monitors,
 			status_pages: row.statusPages,
 			team_members: row.teamMembers,
+		},
+	};
+}
+
+/**
+ * The `Monitor Blocks` meter in Polar keys on this event name and on the `blocks`
+ * property. Renaming either without re-provisioning the meter
+ * (`scripts/polar-capacity-blocks.sh`) silently stops billing capacity.
+ */
+function toBlocksIngestEvent(snapshot: CustomerBlockSnapshot) {
+	return {
+		name: METER_EVENTS.MONITOR_BLOCKS,
+		customerId: snapshot.polarCustomerId,
+		metadata: {
+			blocks: snapshot.blocks,
+			organization_count: snapshot.organizationCount,
 		},
 	};
 }

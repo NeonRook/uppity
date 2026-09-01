@@ -667,7 +667,9 @@ export const subscription = pgTable(
 		 * top of the Uppity plan's included allowance. Only the Uppity plan sells them;
 		 * a non-zero value on any other plan is inert — see `applyCapacityBlocks`.
 		 *
-		 * Written from Polar subscription state, never by hand.
+		 * This column is the source of truth for the count, not Polar. A metered price
+		 * bills `unit_amount × meter_value`, and that meter value comes only from events
+		 * Uppity ingests, so nothing flows back the other way; `docs/adr/0002` records why.
 		 */
 		blocks: integer("blocks").notNull().default(0),
 

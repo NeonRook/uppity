@@ -63,11 +63,15 @@ export const MONITOR_BLOCK_ANNUAL_PRICE_CENTS = 8000; // $80/year (two months fr
  * invoicing — zero feature unlocks — so it carries Dedicated's ceiling and is out of
  * the capacity calculus for the same reason.
  *
- * Blocks stored against an ineligible plan are inert rather than an error — Polar is
- * the source of truth, and a plan change must not require a cleanup pass over the
- * column.
+ * Blocks stored against an ineligible plan are inert rather than an error, so a plan
+ * change never requires a cleanup pass over the column.
+ *
+ * This set also decides who is *billed* for blocks: `collectBlockSnapshots` reports only
+ * these plans to the `monitor_blocks` meter, because only these products carry the
+ * metered price that reads it. Extending the set without stacking that price on the new
+ * plan's product would raise a ceiling nobody pays for.
  */
-const BLOCK_ELIGIBLE_PLAN_IDS: ReadonlySet<PlanId> = new Set<PlanId>(["uppity"]);
+export const BLOCK_ELIGIBLE_PLAN_IDS: ReadonlySet<PlanId> = new Set<PlanId>(["uppity"]);
 
 /**
  * Resolves a plan's effective limits for an organization holding `blocks` purchased
