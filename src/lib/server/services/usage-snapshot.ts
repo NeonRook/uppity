@@ -145,11 +145,15 @@ export interface CustomerBlockSnapshot {
  * capacity, one row per organization. `polarCustomerId` narrows the read to one
  * customer.
  *
- * Rows holding zero blocks are deliberately **kept**, and this must keep being called
- * for organizations whose count has not changed. Polar meters reset every billing
- * period and aggregate `max`, so a value absent from a period is indistinguishable
- * from never having been reported: a standing purchase would stop being billed, and a
- * dropped last block would keep being billed at the previous period's peak.
+ * This must keep being called for organizations whose count has not changed: Polar
+ * meters reset every billing period and aggregate `max`, so a standing purchase that
+ * goes unreported in a period meters zero and stops being billed.
+ *
+ * Rows holding zero blocks are kept, but not because a zero can correct anything —
+ * `max` is monotone, so a zero sample can never lower an aggregate in any window. It
+ * keeps the customer's meter row current and leaves the checked-and-found-nothing case
+ * visible in Polar's event stream, and it costs one event. Treat it as insurance
+ * against rollover semantics nobody here has verified, not as a fix.
  */
 export async function collectBlockSnapshots(
 	db: Db,

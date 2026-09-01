@@ -205,9 +205,11 @@ Routes that call `setBlocks` also call `MeterService.reportBlocks`
 immediately, because the daily job may not run again before a period rolls over and a
 customer buying capacity an hour before renewal would otherwise get that period free.
 
-Organizations holding zero blocks are still reported. To a `max` aggregation, no event
-and no purchase are indistinguishable, so a customer who removes their last block
-needs an explicit `0` or the meter carries the previous period's peak.
+Organizations holding zero blocks are still reported, but do not mistake this for a
+correction: `max` is monotone, so a zero can never lower an aggregate. If windows reset
+the zero is redundant, and if they do not it is impotent. It keeps the meter row current
+and leaves the checked-and-found-nothing case visible in the event stream, which is worth
+one event a day while Polar's rollover behaviour is unverified here.
 
 Only `BLOCK_ELIGIBLE_PLAN_IDS` (Uppity today) is reported, because those are the only
 products carrying the price that reads the meter. A count reported against Dedicated

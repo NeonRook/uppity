@@ -52,7 +52,10 @@ const jobHandlers: Record<string, JobHandler> = {
 		const report = await meterService.reportUsageSnapshots();
 		event.set("records_processed", report.customerSnapshots);
 		event.set("org_records_processed", report.organizationSnapshots);
-		event.set("block_records_processed", await meterService.reportBlocks());
+		// The heartbeat gets a second chance tomorrow, so a failed report is logged inside
+		// the service and recorded here as zero rather than failing the job.
+		const blocks = await meterService.reportBlocks();
+		event.set("block_records_processed", blocks.ok ? blocks.ingested : 0);
 	},
 };
 

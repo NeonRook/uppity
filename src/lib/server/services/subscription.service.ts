@@ -335,6 +335,9 @@ export class SubscriptionService {
 	/**
 	 * Updates the subscription from Polar webhook data.
 	 * Called when receiving Polar webhook events.
+	 *
+	 * `blocks` is absent from `data` and never read from a payload — Polar does not know
+	 * the count. It is only ever cleared here, when the plan leaves block eligibility.
 	 */
 	async syncFromPolar(
 		organizationId: string,
@@ -350,11 +353,23 @@ export class SubscriptionService {
 		const existing = await this.getSubscription(organizationId);
 
 		if (existing) {
+			// Leaving a block-eligible plan clears the count. Keeping it would let billing
+			// re-arm without a purchase: `collectBlockSnapshots` reports any organization
+			// whose plan is eligible, so a subscription that moved to Dedicated and later
+			// back to Uppity — or one whose revocation webhook was missed and which then
+			// resubscribed — would be charged for blocks nobody re-ordered. The customer
+			// buys capacity again through `setBlocks`, which is the only path that should
+			// ever start a charge.
+			const leavingBlockEligibility =
+				BLOCK_ELIGIBLE_PLAN_IDS.has(existing.planId as PlanId) &&
+				!BLOCK_ELIGIBLE_PLAN_IDS.has(data.planId);
+
 			const [updated] = await this.db
 				.update(subscription)
 				.set({
 					planId: data.planId,
 					status: data.status,
+					blocks: leavingBlockEligibility ? 0 : existing.blocks,
 					polarCustomerId: data.polarCustomerId ?? existing.polarCustomerId,
 					polarSubscriptionId: data.polarSubscriptionId ?? existing.polarSubscriptionId,
 					currentPeriodStart: data.currentPeriodStart ?? existing.currentPeriodStart,
@@ -405,20 +420,15 @@ export class SubscriptionService {
 	/**
 	 * Downgrades an organization to the free plan.
 	 * Called when a subscription is canceled or payment fails.
+	 *
+	 * Free is not block-eligible, so `syncFromPolar` clears the purchased count as part
+	 * of the same write. This needs no clearing of its own.
 	 */
 	async downgradeToFree(organizationId: string): Promise<Subscription> {
-		await this.syncFromPolar(organizationId, {
+		return this.syncFromPolar(organizationId, {
 			planId: "free",
 			status: "active",
 		});
-
-		const [cleared] = await this.db
-			.update(subscription)
-			.set({ blocks: 0, updatedAt: new Date() })
-			.where(eq(subscription.organizationId, organizationId))
-			.returning();
-
-		return cleared;
 	}
 }
 

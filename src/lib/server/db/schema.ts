@@ -670,6 +670,9 @@ export const subscription = pgTable(
 		 * This column is the source of truth for the count, not Polar. A metered price
 		 * bills `unit_amount × meter_value`, and that meter value comes only from events
 		 * Uppity ingests, so nothing flows back the other way; `docs/adr/0002` records why.
+		 *
+		 * `setBlocks` is the only path that raises it. Leaving a block-eligible plan
+		 * clears it, so that returning to one cannot re-arm billing without a purchase.
 		 */
 		blocks: integer("blocks").notNull().default(0),
 
