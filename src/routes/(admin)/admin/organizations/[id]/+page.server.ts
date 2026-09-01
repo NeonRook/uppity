@@ -2,39 +2,16 @@ import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
 import { isSelfHosted } from "$lib/constants/plans";
 import { updateOrganizationSchema, addMemberSchema } from "$lib/schemas/admin";
 import { getActor } from "$lib/server/audit-actor";
-import { getPlanFromSubscription, mapPolarStatus } from "$lib/server/auth";
 import { db } from "$lib/server/db";
-import { polarClient } from "$lib/server/polar";
+import { fetchPolarSnapshot } from "$lib/server/polar-subscription";
 import { adminService } from "$lib/server/services/admin.service";
 import { auditService } from "$lib/server/services/audit.service";
-import {
-	subscriptionService,
-	type PolarSubscriptionSnapshot,
-} from "$lib/server/services/subscription.service";
+import { subscriptionService } from "$lib/server/services/subscription.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import type { Actions, PageServerLoad } from "./$types";
-
-/**
- * Reads the live subscription from Polar.
- *
- * Lives here rather than in SubscriptionService so the Polar client and the
- * product-id mapping stay together with the rest of the Polar configuration.
- */
-async function fetchPolarSnapshot(polarSubscriptionId: string): Promise<PolarSubscriptionSnapshot> {
-	const sub = await polarClient.subscriptions.get({ id: polarSubscriptionId });
-
-	return {
-		planId: getPlanFromSubscription(sub),
-		status: mapPolarStatus(sub.status),
-		polarCustomerId: sub.customerId,
-		polarSubscriptionId: sub.id,
-		currentPeriodStart: sub.currentPeriodStart ? new Date(sub.currentPeriodStart) : undefined,
-		currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
-	};
-}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const org = await adminService.getOrganizationById(params.id);
