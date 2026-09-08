@@ -17,7 +17,7 @@ runs:
   steps:
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
       with:
-        install_args: node aube
+        install_args: node github:aubepkg/aube
 
     # aube's content-addressable store, not pnpm's ~/.pnpm-store — aube neither
     # reads nor writes that one.

@@ -19,8 +19,9 @@ ENV MISE_DATA_DIR=/mise \
   MISE_INSTALL_PATH=/usr/local/bin/mise \
   MISE_TRUSTED_CONFIG_PATHS=/usr/src/app \
   PATH=/mise/shims:$PATH
+ARG MISE_VERSION=v2026.9.3
 COPY mise.toml /mise/config.toml
-RUN curl https://mise.run | sh && mise install aube
+RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install github:aubepkg/aube
 
 # The .npmrc build jail wraps dependency scripts with Landlock and seccomp, and
 # aube fails a script outright when the kernel cannot enforce them rather than

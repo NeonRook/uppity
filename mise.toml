@@ -1,6 +1,8 @@
 [tools]
 actionlint = "1"
-aube = "2"
+# The registry short name resolves to aube's packslip, which lists aube as its
+# only executable, so aubr and aubx get no shims.
+"github:aubepkg/aube" = "2"
 node = "26"
 
 [env]
