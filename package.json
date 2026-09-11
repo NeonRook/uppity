@@ -60,7 +60,7 @@
 		"drizzle-orm": "^0.45.2",
 		"mode-watcher": "^1.1.0",
 		"nanoid": "^6.0.1",
-		"nodemailer": "^9.1.1",
+		"nodemailer": "^10.0.1",
 		"pino": "^10.3.1",
 		"postgres": "^3.4.9",
 		"runed": "^0.37.1",
