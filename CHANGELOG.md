@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [`ce9808d`](https://github.com/NeonRook/uppity/commit/ce9808d611452d9e62ffa3e81288e61cda130629) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The account issuer column added in the last release is gone again. The auth library that required it withdrew the requirement in its 1.7.3 release, and this upgrade drops the column and its index. The migration is quick and does not touch any other table.
+
+- [#107](https://github.com/NeonRook/uppity/pull/107) [`011299b`](https://github.com/NeonRook/uppity/commit/011299b6a24b56fe0225680c5484fb144373d0d8) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The billing page shows the new plan as soon as you return from checkout. It no longer needs a manual reload to catch up.
+
+- [#106](https://github.com/NeonRook/uppity/pull/106) [`aa58479`](https://github.com/NeonRook/uppity/commit/aa584797b442ebe7a6542e6226605ff5f1917895) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Groundwork for capacity blocks. Nothing changes in this release — blocks still cannot be bought.
+
+- [`e83e3ec`](https://github.com/NeonRook/uppity/commit/e83e3ec70e1e28c6eca8197263872302aa755afe) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Building the image from source works again. aube, the package manager the build uses, moved to a new repository, and the build now fetches it from there.
+
 ## 0.3.0
 
 ### Minor Changes
