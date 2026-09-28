@@ -89,14 +89,13 @@ jobs:
     needs: [checks, select-mode]
     # A caller job's permissions are the ceiling for the workflow it calls — a reusable
     # workflow can narrow them but never widen them. These are the union of what
-    # publish-image.yml's build, merge and scan jobs request; each job there still
-    # narrows to its own subset.
+    # publish-image.yml's build and merge jobs request; each job there still narrows
+    # to its own subset.
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-      security-events: write
     uses: ./.github/workflows/publish-image.yml
     with:
       tags: |
@@ -105,6 +104,17 @@ jobs:
         type=semver,pattern={{version}},value=v${{ needs.select-mode.outputs.version }},enable=${{ needs.select-mode.outputs.mode == 'publish' }}
         type=semver,pattern={{major}}.{{minor}},value=v${{ needs.select-mode.outputs.version }},enable=${{ needs.select-mode.outputs.mode == 'publish' }}
         type=raw,value=latest,enable=${{ needs.select-mode.outputs.mode == 'publish' }}
+
+  # Rescans the tags as published rather than the build digest, uploading to the
+  # same per-tag categories as the weekly run, so a fixed CVE closes its alert.
+  # Non-blocking: release does not wait on it, and a finding cannot un-cut a tag.
+  scan:
+    needs: publish
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: ./.github/workflows/scan-image.yml
 
   release:
     name: Release

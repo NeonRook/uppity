@@ -183,34 +183,3 @@ jobs:
           subject-name: ${{ steps.image.outputs.ref }}
           subject-digest: ${{ steps.inspect.outputs.digest }}
           push-to-registry: true
-
-  scan:
-    name: Vulnerability Scan
-    runs-on: ubuntu-26.04
-    needs: merge
-    permissions:
-      contents: read
-      packages: read
-      security-events: write
-    steps:
-      # Non-blocking by design: the artifact already exists and is tagged. A CVE
-      # disclosed in a base-image package should be recorded, not used to cancel a
-      # release that cannot be un-cut.
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ needs.merge.outputs.image }}@${{ needs.merge.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: HIGH,CRITICAL
-          # Without this, entrypoint.sh unsets TRIVY_SEVERITY whenever format=sarif and
-          # reports every severity, silently ignoring the line above.
-          limit-severities-for-sarif: true
-          exit-code: "0"
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy-image

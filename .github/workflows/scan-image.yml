@@ -5,6 +5,9 @@ on:
     # Mondays at 05:41 UTC. Base-image CVEs move more slowly than npm advisories,
     # so weekly rather than daily.
     - cron: "41 5 * * 1"
+  # Called by main.yml after every publish, so an alert closes on the first image
+  # built after its fix instead of waiting for Monday.
+  workflow_call:
   workflow_dispatch:
 
 permissions:
