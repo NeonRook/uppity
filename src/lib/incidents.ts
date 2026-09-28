@@ -6,15 +6,12 @@ import {
 	CircleCheckBig,
 	TriangleAlert,
 	FileText,
-	type IconProps,
+	type LucideIcon,
 } from "@lucide/svelte";
-import type { Component } from "svelte";
-
-type IconComponent = Component<IconProps>;
 
 export interface StatusInfo {
 	label: string;
-	icon: IconComponent;
+	icon: LucideIcon;
 	variant: "destructive" | "secondary" | "outline";
 	color: string;
 	bg: string;

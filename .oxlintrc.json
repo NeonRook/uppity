@@ -10,7 +10,7 @@
 		"builtin": true,
 		"browser": true,
 		"node": true,
-		"commonjs": true
+		"svelte": true
 	},
 	"ignorePatterns": [
 		"**/node_modules",

@@ -1,13 +1,12 @@
 <script lang="ts">
 	import * as Card from "$lib/components/ui/card";
-	import type { IconProps } from "@lucide/svelte";
-	import type { Component } from "svelte";
+	import type { LucideIcon } from "@lucide/svelte";
 
 	interface Props {
 		title: string;
 		value: string | number;
 		description?: string;
-		icon: Component<IconProps>;
+		icon: LucideIcon;
 		/** Optional signal token class for the icon (e.g., "text-status-up") */
 		iconClass?: string;
 	}

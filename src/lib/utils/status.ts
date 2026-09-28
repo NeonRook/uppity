@@ -8,12 +8,10 @@ import {
 	CircleX,
 	Clock,
 	TriangleAlert,
-	type IconProps,
+	type LucideIcon,
 } from "@lucide/svelte";
-import type { Component } from "svelte";
 
 export type { BadgeVariant };
-export type IconComponent = Component<IconProps>;
 
 /**
  * Get the background color class for a monitor status indicator
@@ -77,7 +75,7 @@ export function getStatusBadge(
 export function getStatusBadgeWithIcon(
 	status: string | null,
 	active: boolean,
-): { variant: BadgeVariant; label: string; icon: IconComponent } {
+): { variant: BadgeVariant; label: string; icon: LucideIcon } {
 	if (!active) {
 		return { variant: "secondary", label: m.status_paused(), icon: Pause };
 	}
@@ -97,7 +95,7 @@ export function getStatusBadgeWithIcon(
  * Get icon component and color class for check result status
  */
 export function getCheckIcon(status: string): {
-	component: IconComponent;
+	component: LucideIcon;
 	class: string;
 } {
 	switch (status) {

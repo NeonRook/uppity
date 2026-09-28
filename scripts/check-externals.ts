@@ -58,9 +58,13 @@ export function disallowedFrom(specifiers: Iterable<string>, allowed: readonly s
  * no package name to check and no parser could supply one.
  */
 export async function scanSpecifiers(source: string): Promise<string[]> {
-	await init;
+	await init();
 	const [imports] = parse(source);
-	return imports.map((record) => record.n).filter((name) => name !== undefined);
+	return imports.flatMap((record) =>
+		typeof record.specifier === "string" && !(record.type === "dynamic" && record.glob)
+			? [record.specifier]
+			: [],
+	);
 }
 
 export async function findOffences(

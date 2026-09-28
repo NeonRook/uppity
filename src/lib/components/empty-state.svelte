@@ -2,12 +2,10 @@
 	import { Button } from "$lib/components/ui/button";
 	import * as Card from "$lib/components/ui/card";
 	import * as Tooltip from "$lib/components/ui/tooltip";
-	import { Plus } from "@lucide/svelte";
-	import type { IconProps } from "@lucide/svelte";
-	import type { Component } from "svelte";
+	import { Plus, type LucideIcon } from "@lucide/svelte";
 
 	interface Props {
-		icon: Component<IconProps>;
+		icon: LucideIcon;
 		title: string;
 		description: string;
 		buttonText?: string;

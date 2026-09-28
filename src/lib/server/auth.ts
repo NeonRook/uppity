@@ -21,7 +21,7 @@ import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
-import nodemailer from "nodemailer";
+import { createTransport } from "nodemailer";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
 //
@@ -133,7 +133,7 @@ export const auth = betterAuth({
 				return;
 			}
 
-			const transporter = nodemailer.createTransport({
+			const transporter = createTransport({
 				host: SMTP_HOST,
 				port: parseInt(SMTP_PORT, 10),
 				secure: SMTP_PORT === String(DEFAULT_SMTP_SECURE_PORT),

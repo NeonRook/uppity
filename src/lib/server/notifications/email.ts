@@ -1,5 +1,5 @@
 import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "$lib/constants/defaults";
-import nodemailer from "nodemailer";
+import { createTransport, type Transporter } from "nodemailer";
 
 import type {
 	NotificationPayload,
@@ -25,7 +25,7 @@ function escapeHtml(input: string): string {
 }
 
 export class EmailNotificationProvider implements NotificationProvider {
-	private transporter: nodemailer.Transporter | null = null;
+	private transporter: Transporter | null = null;
 	private config: EmailConfig;
 
 	constructor(config: EmailConfig) {
@@ -35,7 +35,7 @@ export class EmailNotificationProvider implements NotificationProvider {
 
 	private initTransporter() {
 		if (SMTP_HOST && SMTP_PORT) {
-			this.transporter = nodemailer.createTransport({
+			this.transporter = createTransport({
 				host: SMTP_HOST,
 				port: parseInt(SMTP_PORT, 10),
 				secure: SMTP_PORT === SMTP_SECURE_PORT,

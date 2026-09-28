@@ -118,32 +118,32 @@ describe("AuditService.record", () => {
 	});
 });
 
+/** Seeds three entries owned by a fresh actor: two `user.ban`, one `org.delete`. */
+async function seedEntries(drizzleDb: TestDb["db"]) {
+	const service = new AuditService(drizzleDb);
+	const actor = await seedActor(drizzleDb);
+	const tag = nanoid(6);
+
+	await service.record(drizzleDb, actor, {
+		action: "user.ban",
+		targetType: "user",
+		targetId: `u1-${tag}`,
+	});
+	await service.record(drizzleDb, actor, {
+		action: "org.delete",
+		targetType: "organization",
+		targetId: `o1-${tag}`,
+	});
+	await service.record(drizzleDb, actor, {
+		action: "user.ban",
+		targetType: "user",
+		targetId: `u2-${tag}`,
+	});
+
+	return { service, actor, tag };
+}
+
 describe("AuditService.list", () => {
-	/** Seeds three entries owned by a fresh actor: two `user.ban`, one `org.delete`. */
-	async function seedEntries(drizzleDb: TestDb["db"]) {
-		const service = new AuditService(drizzleDb);
-		const actor = await seedActor(drizzleDb);
-		const tag = nanoid(6);
-
-		await service.record(drizzleDb, actor, {
-			action: "user.ban",
-			targetType: "user",
-			targetId: `u1-${tag}`,
-		});
-		await service.record(drizzleDb, actor, {
-			action: "org.delete",
-			targetType: "organization",
-			targetId: `o1-${tag}`,
-		});
-		await service.record(drizzleDb, actor, {
-			action: "user.ban",
-			targetType: "user",
-			targetId: `u2-${tag}`,
-		});
-
-		return { service, actor, tag };
-	}
-
 	test("returns newest first", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const { service, actor, tag } = await seedEntries(drizzleDb);

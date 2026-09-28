@@ -37,8 +37,6 @@ export default defineConfig(({ command }) => ({
 
 		projects: [
 			{
-				extends: "./vite.config.ts",
-
 				test: {
 					name: "client",
 
@@ -54,8 +52,6 @@ export default defineConfig(({ command }) => ({
 			},
 
 			{
-				extends: "./vite.config.ts",
-
 				test: {
 					name: "server",
 					environment: "node",
