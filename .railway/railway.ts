@@ -101,7 +101,6 @@ export default defineRailway(() => {
 			POLAR_SERVER: preserve(),
 			POLAR_WEBHOOK_SECRET: preserve(),
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
-			VITE_BETTER_AUTH_URL: preserve(),
 		},
 	});
 	const Application = group("Application", [workerNotifier, workerMonitor, uppityServer]);

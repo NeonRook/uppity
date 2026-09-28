@@ -80,8 +80,6 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.slug }}
           provenance: mode=max
           sbom: true
-          build-args: |
-            BETTER_AUTH_SECRET=ci-placeholder-not-a-real-secret
 
       - name: Export digest
         env:

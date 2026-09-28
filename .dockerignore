@@ -17,6 +17,7 @@ playwright.config.ts
 playwright-report
 test-results
 vitest.config.ts
+skills-lock.json
 .mcp.json
 .claude
 .vscode

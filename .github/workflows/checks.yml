@@ -75,7 +75,6 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      VITE_BETTER_AUTH_URL: http://localhost:4173
       # better-auth reads this from process.env at runtime; the build only needs a
       # non-empty value to be present. Never the real secret.
       BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
@@ -92,7 +91,6 @@ jobs:
     name: Build
     runs-on: ubuntu-26.04
     env:
-      VITE_BETTER_AUTH_URL: http://localhost:5173
       BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

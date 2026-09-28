@@ -1,12 +1,17 @@
 [tools]
 actionlint = "1"
-# The registry short name resolves to aube's packslip, which lists aube as its
-# only executable, so aubr and aubx get no shims.
-"github:aubepkg/aube" = "2"
+aube = "2"
 node = "26"
 
 [env]
 _.path = ["{{config_root}}/node_modules/.bin"]
-
-# Absent in CI, which sets these in the workflow. mise skips a missing file.
 _.file = ".env"
+
+[tasks."docker:build"]
+description = "Build the production image as ghcr.io/neonrook/uppity:dev"
+run = """
+docker build \
+  -t ghcr.io/neonrook/uppity:dev \
+  -t ghcr.io/neonrook/uppity:$(git rev-parse --short HEAD) \
+  .
+"""

@@ -19,9 +19,10 @@ ENV MISE_DATA_DIR=/mise \
   MISE_INSTALL_PATH=/usr/local/bin/mise \
   MISE_TRUSTED_CONFIG_PATHS=/usr/src/app \
   PATH=/mise/shims:$PATH
-ARG MISE_VERSION=v2026.9.3
+ARG MISE_VERSION=v2026.9.16
 COPY mise.toml /mise/config.toml
-RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install github:aubepkg/aube
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install
 
 # The .npmrc build jail wraps dependency scripts with Landlock and seccomp, and
 # aube fails a script outright when the kernel cannot enforce them rather than
@@ -53,16 +54,10 @@ FROM build-base AS builder
 WORKDIR /usr/src/app
 COPY --from=install /temp/deps/node_modules node_modules
 COPY . .
-# VITE_ prefixed vars are client-side and must be set at build time
-ARG VITE_BETTER_AUTH_URL="https://localhost:3000"
-ENV VITE_BETTER_AUTH_URL=$VITE_BETTER_AUTH_URL
-# Railway has no docker build-secret support, so the real secret lands in this stage's build cache
-# and logs. It does not reach the runtime image (the runner stage is separate) and is not baked
-# into the bundle — auth.ts reads process.env at runtime.
-# Track: https://station.railway.com/feedback/support-docker-build-secrets-0b8787b2
-ARG BETTER_AUTH_SECRET
-ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-RUN aubr prepare && aubr build:all
+# The build imports the auth module, which refuses to load without a secret.
+# The real one is read from process.env at runtime.
+RUN export BETTER_AUTH_SECRET=build-placeholder-not-a-real-secret && \
+  aubr prepare && aubr build:all
 
 # Stage 3: Production image
 FROM base AS runner
@@ -94,7 +89,7 @@ COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle ./drizzle
 # as-is and never passes through the bundler.
 COPY --chown=uppity:uppity scripts/entrypoint.sh ./entrypoint.sh
 
-USER uppity
+USER 1001:1001
 EXPOSE 3000/tcp
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
@@ -110,7 +105,7 @@ ENV PORT=3000
 # probe will fail for them — disable the healthcheck on worker containers in
 # your deployment config.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${PORT}/api/health"
+  CMD ["/bin/sh", "-c", "wget -q -O /dev/null \"http://127.0.0.1:${PORT}/api/health\""]
 
 # Default to web server, override for workers:
 #   docker run ... [image] ./entrypoint.sh worker-monitor

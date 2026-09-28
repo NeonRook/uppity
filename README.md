@@ -174,9 +174,7 @@ docker compose up -d
 Or build the image manually:
 
 ```bash
-docker build \
-  --build-arg VITE_BETTER_AUTH_URL=https://your-domain.com \
-  -t uppity .
+docker build -t uppity .
 ```
 
 ### Verifying the image
