@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+### Patch Changes
+
+- [`66c337a`](https://github.com/NeonRook/uppity/commit/66c337a07ee392ec1640eea1ee530fd954d533a7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Building the image no longer takes a `VITE_BETTER_AUTH_URL` build argument, and the app no longer reads that variable. You can remove it from your build command and environment. `BETTER_AUTH_URL` is unchanged.
+
 ## 0.3.1
 
 ### Patch Changes
