@@ -87,7 +87,12 @@ case "$target" in
 serve)
 	# .deno-deploy holds the SSR chunks and the static assets named in
 	# deploy.json; build/ holds this bundle and its chunks.
+	#
+	# --unstable-no-legacy-abort makes request.signal abort only when the client
+	# disconnects, as it does on Node. Without it Deno also aborts after every
+	# successful response and logs a warning for each one.
 	run \
+		--unstable-no-legacy-abort \
 		--allow-env \
 		--allow-sys=hostname \
 		--allow-read=./.deno-deploy,./build \
