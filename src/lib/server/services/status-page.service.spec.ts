@@ -491,6 +491,11 @@ describe("StatusPageService.getPublicStatusPage — aggregation", () => {
 			"Looking",
 		]);
 
+		// Carries an offset, so a viewer outside UTC reads the same instant.
+		expect(new Date(result!.activeIncidents[0].updates[1].createdAt).getTime()).toBe(
+			daysAgo(0, 1).getTime(),
+		);
+
 		const detail = await service.getPublicIncident(slug, incidentId);
 		expect(detail!.incident.updates).toHaveLength(2);
 	});

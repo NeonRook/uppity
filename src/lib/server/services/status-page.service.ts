@@ -208,7 +208,7 @@ const incidentUpdates = sql<PublicIncidentData["updates"]>`COALESCE(
 			'id', ${incidentUpdate.id},
 			'status', ${incidentUpdate.status},
 			'message', ${incidentUpdate.message},
-			'createdAt', ${incidentUpdate.createdAt}
+			'createdAt', ${incidentUpdate.createdAt} AT TIME ZONE 'UTC'
 		) ORDER BY ${incidentUpdate.createdAt} DESC
 	) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
 	'[]'
