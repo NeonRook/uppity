@@ -14,6 +14,7 @@ export const AUDIT_ACTIONS = [
 	"org.member_add",
 	"org.member_remove",
 	"org.subscription_resync",
+	"monitor.dead_letter_reset",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -24,6 +25,7 @@ export const AUDIT_TARGET_TYPES = [
 	"member",
 	"session",
 	"subscription",
+	"monitor",
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];

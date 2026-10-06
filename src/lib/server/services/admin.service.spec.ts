@@ -3,10 +3,10 @@ import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
 import { member, organization } from "../db/auth-schema";
-import { auditLog } from "../db/schema";
+import { auditLog, monitor } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
-import { seedOrg, seedUser } from "../test/seed";
+import { seedMonitor, seedOrg, seedUser } from "../test/seed";
 import { AdminService } from "./admin.service";
 import { AuditService, type Actor } from "./audit.service";
 
@@ -247,5 +247,70 @@ describe("AdminService.stopImpersonating", () => {
 		expect(row.action).toBe("user.impersonate_stop");
 		expect(row.actorId).toBe(adminActor.id);
 		expect(row.targetId).toBe(victimId);
+	});
+});
+
+async function seedDeadLettered(drizzleDb: TestDb["db"]) {
+	const orgId = await seedOrg(drizzleDb);
+	const id = await seedMonitor(drizzleDb, orgId);
+	const later = new Date(Date.now() + 5 * 60_000);
+	await drizzleDb
+		.update(monitor)
+		.set({
+			deadLetteredAt: new Date(),
+			checkLastError: "boom",
+			nextCheckAt: later,
+			checkBackoffUntil: later,
+		})
+		.where(eq(monitor.id, id));
+	return { orgId, id };
+}
+
+describe("AdminService dead letter", () => {
+	test("lists active dead-lettered monitors across organizations", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const first = await seedDeadLettered(drizzleDb);
+		const second = await seedDeadLettered(drizzleDb);
+		const paused = await seedDeadLettered(drizzleDb);
+		await drizzleDb.update(monitor).set({ active: false }).where(eq(monitor.id, paused.id));
+		const healthy = await seedMonitor(drizzleDb, first.orgId);
+
+		const ids = (await service.listDeadLetterMonitors()).map((r) => r.id);
+
+		expect(ids).toEqual(expect.arrayContaining([first.id, second.id]));
+		expect(ids).not.toContain(paused.id);
+		expect(ids).not.toContain(healthy);
+	});
+
+	test("reset makes the monitor due now and records one audit row", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		const { orgId, id } = await seedDeadLettered(drizzleDb);
+
+		expect(await service.resetDeadLetter(actor, id)).toBe(true);
+
+		const [row] = await drizzleDb.select().from(monitor).where(eq(monitor.id, id));
+		expect(row.nextCheckAt!.getTime()).toBeLessThanOrEqual(Date.now());
+		expect(row.checkBackoffUntil).toBeNull();
+		// Stays dead-lettered until a check succeeds, so recovery still notifies.
+		expect(row.deadLetteredAt).not.toBeNull();
+
+		const audit = await auditRowsFor(drizzleDb, actor);
+		expect(audit).toHaveLength(1);
+		expect(audit[0].action).toBe("monitor.dead_letter_reset");
+		expect(audit[0].targetId).toBe(id);
+		expect(audit[0].metadata).toEqual({ orgId });
+	});
+
+	test("reset refuses a monitor that is not dead-lettered and audits nothing", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		const id = await seedMonitor(drizzleDb, await seedOrg(drizzleDb));
+
+		expect(await service.resetDeadLetter(actor, id)).toBe(false);
+		expect(await auditRowsFor(drizzleDb, actor)).toHaveLength(0);
 	});
 });

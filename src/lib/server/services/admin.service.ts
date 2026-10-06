@@ -1,4 +1,4 @@
-import { eq, desc, ilike, or, count, sql } from "drizzle-orm";
+import { and, asc, eq, desc, ilike, isNotNull, or, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { auth } from "#lib/server/auth.js";
@@ -292,6 +292,50 @@ export class AdminService {
 			});
 
 			return result.length > 0;
+		});
+	}
+
+	/** Active dead-lettered monitors across every organization, longest stopped first. */
+	async listDeadLetterMonitors() {
+		return this.db
+			.select({
+				id: monitor.id,
+				name: monitor.name,
+				organizationId: monitor.organizationId,
+				organizationName: organization.name,
+				lastError: monitor.checkLastError,
+				deadLetteredAt: monitor.deadLetteredAt,
+				nextCheckAt: monitor.nextCheckAt,
+			})
+			.from(monitor)
+			.innerJoin(organization, eq(organization.id, monitor.organizationId))
+			.where(and(isNotNull(monitor.deadLetteredAt), eq(monitor.active, true)))
+			.orderBy(asc(monitor.deadLetteredAt));
+	}
+
+	/**
+	 * Makes a dead-lettered monitor due now. It stays dead-lettered until a check
+	 * succeeds, so the recovery notification still fires.
+	 */
+	async resetDeadLetter(actor: Actor, id: string): Promise<boolean> {
+		return this.db.transaction(async (tx) => {
+			const [row] = await tx
+				.update(monitor)
+				.set({ nextCheckAt: sql`NOW()`, checkBackoffUntil: null })
+				.where(and(eq(monitor.id, id), isNotNull(monitor.deadLetteredAt)))
+				.returning({ name: monitor.name, organizationId: monitor.organizationId });
+
+			if (!row) return false;
+
+			await this.audit.record(tx, actor, {
+				action: "monitor.dead_letter_reset",
+				targetType: "monitor",
+				targetId: id,
+				targetLabel: row.name,
+				metadata: { orgId: row.organizationId },
+			});
+
+			return true;
 		});
 	}
 
