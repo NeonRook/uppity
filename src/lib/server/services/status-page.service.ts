@@ -115,6 +115,7 @@ export interface PublicStatusPageData {
 		| "degraded"
 		| "partial_outage"
 		| "major_outage"
+		| "unmonitored"
 		| "under_maintenance";
 	activeIncidents: PublicIncidentData[];
 	resolvedIncidents: PublicIncidentData[];
@@ -474,6 +475,7 @@ export class StatusPageService {
 						description: monitor.description,
 						type: monitor.type,
 						url: monitor.url,
+						deadLetteredAt: monitor.deadLetteredAt,
 					},
 					status: {
 						status: monitorStatus.status,
@@ -633,6 +635,13 @@ export class StatusPageService {
 
 		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
 
+		// A dead-lettered monitor's last status is stale, so it reads as unknown.
+		const statusOf = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus["status"] => {
+			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
+			if (pm.monitor.deadLetteredAt) return "unknown";
+			return (pm.status?.status as PublicMonitorStatus["status"] | undefined) || "unknown";
+		};
+
 		const buildMonitorStatus = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus => {
 			const rows = checksByMonitor.get(pm.monitor.id) ?? [];
 			const byDate = new Map(rows.map((r) => [r.date, r]));
@@ -651,15 +660,11 @@ export class StatusPageService {
 			const totalChecks = rows.reduce((sum, r) => sum + r.total, 0);
 			const upChecks = rows.reduce((sum, r) => sum + r.up, 0);
 
-			const status: PublicMonitorStatus["status"] = activeMonitorIdSet.has(pm.monitor.id)
-				? "maintenance"
-				: (pm.status?.status as "up" | "down" | "degraded") || "unknown";
-
 			return {
 				id: pm.pageMonitor.id,
 				name: pm.pageMonitor.displayName || pm.monitor.name,
 				description: pm.monitor.description,
-				status,
+				status: statusOf(pm),
 				uptimePercent90d: totalChecks > 0 ? (upChecks / totalChecks) * 100 : null,
 				dailyHistory,
 			};
@@ -676,9 +681,7 @@ export class StatusPageService {
 		}));
 
 		// Calculate overall status
-		const allMonitorStatuses = pageMonitors.map((pm) =>
-			activeMonitorIdSet.has(pm.monitor.id) ? "maintenance" : pm.status?.status || "unknown",
-		);
+		const allMonitorStatuses = pageMonitors.map(statusOf);
 		let overallStatus: PublicStatusPageData["overallStatus"] = "operational";
 		const downCount = allMonitorStatuses.filter((s) => s === "down").length;
 		const degradedCount = allMonitorStatuses.filter((s) => s === "degraded").length;
@@ -690,6 +693,9 @@ export class StatusPageService {
 			overallStatus = "partial_outage";
 		} else if (degradedCount > 0) {
 			overallStatus = "degraded";
+		} else if (allMonitorStatuses.includes("unknown")) {
+			// "All systems operational" would claim more than the checks can show.
+			overallStatus = "unmonitored";
 		} else if (maintenanceCount > 0 && maintenanceCount === allMonitorStatuses.length) {
 			overallStatus = "under_maintenance";
 		}

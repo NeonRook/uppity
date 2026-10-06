@@ -3,6 +3,7 @@ import {
 	CircleCheckBig,
 	CircleX,
 	Clock,
+	EyeOff,
 	TriangleAlert,
 	type LucideIcon,
 } from "@lucide/svelte";
@@ -10,7 +11,9 @@ import {
 // Re-exported rather than restated: the union is derived from badgeVariants' own
 // `tv` config, so a variant added to the component cannot silently fail to exist here.
 import type { BadgeVariant } from "#lib/components/ui/badge/index.js";
+import { formatRelativeTime } from "#lib/format.js";
 import { m } from "#lib/paraglide/messages.js";
+import { getLocale } from "#lib/paraglide/runtime.js";
 
 export type { BadgeVariant };
 
@@ -55,11 +58,20 @@ const STATES: Record<string, StateStyle> = {
 		bg: "bg-status-down",
 		text: "text-status-down",
 	},
+	// Dead-lettered: the last recorded status is stale, so it is not shown.
+	unchecked: { ...UNKNOWN, label: m.status_unchecked, icon: EyeOff },
 };
 
 function styleOf(status: string | null, active = true): StateStyle {
 	if (!active) return PAUSED;
 	return (status !== null && Object.hasOwn(STATES, status) ? STATES[status] : undefined) ?? UNKNOWN;
+}
+
+/** Why a dead-lettered monitor shows no status, and when the next attempt runs. */
+export function uncheckedSummary(nextCheckAt: Date | null): string {
+	return m.monitor_unchecked_summary({
+		next: nextCheckAt ? formatRelativeTime(nextCheckAt, getLocale()) : "-",
+	});
 }
 
 /**

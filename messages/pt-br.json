@@ -733,5 +733,18 @@
 	"monitors_limit_reached": "Você atingiu seu limite de {limit} monitores.",
 	"monitors_limit_add_capacity": "Adicionar capacidade",
 	"billing_block_error_multi_org_unnamed": "A capacidade extra da sua conta já é cobrada em outra organização. Remova esses blocos lá antes de adicioná-los aqui.",
-	"billing_block_interval_unknown": "Não foi possível confirmar seu período de cobrança, então a capacidade não pode ser alterada agora. Recarregue a página para tentar novamente."
+	"billing_block_interval_unknown": "Não foi possível confirmar seu período de cobrança, então a capacidade não pode ser alterada agora. Recarregue a página para tentar novamente.",
+	"status_unchecked": "Não verificado",
+	"monitor_unchecked_summary": "O Uppity não consegue executar as verificações deste monitor. Próxima tentativa {next}.",
+	"monitor_unchecked_title": "Este monitor não está sendo verificado",
+	"monitor_unchecked_since": "Sem verificação desde {since}. Os canais de notificação vinculados são avisados quando as verificações forem retomadas.",
+	"public_status_unmonitored": "Alguns sistemas não estão sendo monitorados no momento",
+	"admin_dead_letter_title": "Monitores em dead letter",
+	"admin_dead_letter_desc": "Monitores cujas verificações continuam falhando dentro do Uppity. Cada um é tentado novamente no backoff máximo até uma verificação dar certo.",
+	"admin_dead_letter_empty": "Nenhum monitor em dead letter",
+	"admin_dead_letter_col_org": "Organização",
+	"admin_dead_letter_col_error": "Último erro",
+	"admin_dead_letter_col_since": "Desde",
+	"admin_dead_letter_col_next": "Próxima tentativa",
+	"admin_dead_letter_retry": "Tentar agora"
 }

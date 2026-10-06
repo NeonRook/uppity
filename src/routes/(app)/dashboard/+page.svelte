@@ -9,7 +9,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { formatUptime, formatResponseTime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
-	import { getStatusBadge, getStatusColor } from "#lib/utils/status.js";
+	import { getStatusBadge, getStatusColor, uncheckedSummary } from "#lib/utils/status.js";
 
 	let { data } = $props();
 
@@ -110,6 +110,11 @@
 								</div>
 								<Badge class="shrink-0" variant={statusInfo.variant}>{statusInfo.label}</Badge>
 							</div>
+							{#if mon.status === "unchecked"}
+								<p class="text-muted-foreground mt-2 text-xs sm:ml-6">
+									{uncheckedSummary(mon.nextCheckAt)}
+								</p>
+							{/if}
 							<div class="mt-3 flex items-center gap-4 text-sm sm:mt-2 sm:ml-6 sm:gap-6">
 								<div>
 									<span class="font-mono">{formatUptime(mon.uptimePercent24h)}</span>

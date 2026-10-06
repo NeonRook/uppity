@@ -733,5 +733,18 @@
 	"monitors_limit_reached": "Du hast dein Limit von {limit} Monitoren erreicht.",
 	"monitors_limit_add_capacity": "Kapazität hinzufügen",
 	"billing_block_error_multi_org_unnamed": "Zusätzliche Kapazität für dein Konto wird bereits in einer anderen Organisation abgerechnet. Entferne die Blöcke dort, bevor du sie hier hinzufügst.",
-	"billing_block_interval_unknown": "Dein Abrechnungszeitraum konnte nicht bestätigt werden, daher lässt sich die Kapazität gerade nicht ändern. Lade die Seite neu, um es erneut zu versuchen."
+	"billing_block_interval_unknown": "Dein Abrechnungszeitraum konnte nicht bestätigt werden, daher lässt sich die Kapazität gerade nicht ändern. Lade die Seite neu, um es erneut zu versuchen.",
+	"status_unchecked": "Nicht geprüft",
+	"monitor_unchecked_summary": "Uppity kann die Prüfungen dieses Monitors nicht ausführen. Nächster Versuch {next}.",
+	"monitor_unchecked_title": "Dieser Monitor wird nicht geprüft",
+	"monitor_unchecked_since": "Nicht geprüft seit {since}. Verknüpfte Benachrichtigungskanäle erfahren es, sobald die Prüfungen wieder laufen.",
+	"public_status_unmonitored": "Einige Systeme werden gerade nicht überwacht",
+	"admin_dead_letter_title": "Dead-Letter-Monitore",
+	"admin_dead_letter_desc": "Monitore, deren Prüfungen innerhalb von Uppity wiederholt fehlschlagen. Jeder wird im maximalen Backoff erneut versucht, bis eine Prüfung gelingt.",
+	"admin_dead_letter_empty": "Keine Dead-Letter-Monitore",
+	"admin_dead_letter_col_org": "Organisation",
+	"admin_dead_letter_col_error": "Letzter Fehler",
+	"admin_dead_letter_col_since": "Seit",
+	"admin_dead_letter_col_next": "Nächster Versuch",
+	"admin_dead_letter_retry": "Jetzt erneut versuchen"
 }

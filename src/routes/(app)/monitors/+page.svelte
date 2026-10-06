@@ -23,7 +23,7 @@
 	import { formatResponseTime, formatUptime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getMonitors, toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
-	import { getStatusBadge, getStatusColor } from "#lib/utils/status.js";
+	import { getStatusBadge, getStatusColor, uncheckedSummary } from "#lib/utils/status.js";
 
 	type MonitorWithStatus = Awaited<ReturnType<typeof getMonitors>>[number];
 
@@ -194,6 +194,11 @@
 									<span class="mx-1">·</span>
 									<span>{getEndpoint(mon)}</span>
 								</p>
+								{#if mon.status === "unchecked"}
+									<p class="text-muted-foreground mt-1 text-xs">
+										{uncheckedSummary(mon.nextCheckAt)}
+									</p>
+								{/if}
 								<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
 									<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
 									<span class="text-muted-foreground font-mono">
@@ -243,6 +248,9 @@
 
 								{#if mon.description}
 									<p class="text-muted-foreground text-xs">{mon.description}</p>
+								{/if}
+								{#if mon.status === "unchecked"}
+									<p class="text-muted-foreground text-xs">{uncheckedSummary(mon.nextCheckAt)}</p>
 								{/if}
 							</Table.Cell>
 							<Table.Cell>
