@@ -1,0 +1,4 @@
+ALTER TABLE "subscription" ADD COLUMN "scheduled_blocks" integer;--> statement-breakpoint
+CREATE INDEX "subscription_scheduled_period_end_idx" ON "subscription" USING btree ("current_period_end") WHERE "subscription"."scheduled_blocks" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "subscription" ADD CONSTRAINT "subscription_scheduled_blocks_non_negative" CHECK ("subscription"."scheduled_blocks" IS NULL OR "subscription"."scheduled_blocks" >= 0);--> statement-breakpoint
+ALTER TABLE "subscription" ADD CONSTRAINT "subscription_scheduled_blocks_below_blocks" CHECK ("subscription"."scheduled_blocks" IS NULL OR "subscription"."scheduled_blocks" < "subscription"."blocks");

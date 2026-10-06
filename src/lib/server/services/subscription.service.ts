@@ -1,4 +1,4 @@
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -37,8 +37,7 @@ export function getPlanById(planId: PlanId): Plan | undefined {
 export type SetBlocksResult =
 	| { ok: true; subscription: Subscription }
 	| { ok: false; reason: "plan_ineligible" }
-	| { ok: false; reason: "invalid_count" }
-	| { ok: false; reason: "over_capacity"; currentUsage: number; limit: number };
+	| { ok: false; reason: "invalid_count" };
 
 /** A subscription as read live from the Polar API, normalized to our plan ids. */
 export interface PolarSubscriptionSnapshot {
@@ -48,6 +47,32 @@ export interface PolarSubscriptionSnapshot {
 	polarSubscriptionId?: string;
 	currentPeriodStart?: Date;
 	currentPeriodEnd?: Date;
+}
+
+/**
+ * Slack allowed between a stored period end and the next period's start. A missed roll
+ * is never repaired: the renewal webhook has already moved `currentPeriodEnd` forward, so
+ * the sweep never sees the reduction as due either.
+ */
+const PERIOD_BOUNDARY_TOLERANCE_MS = 60_000;
+
+/**
+ * Whether a Polar sync carries the subscription into a new billing period, which is
+ * when a scheduled reduction lands.
+ */
+function periodRolled(
+	existing: Pick<Subscription, "currentPeriodStart" | "currentPeriodEnd">,
+	incoming: { currentPeriodStart?: Date; currentPeriodEnd?: Date },
+): boolean {
+	if (incoming.currentPeriodEnd == null || incoming.currentPeriodStart == null) return false;
+	if (
+		existing.currentPeriodEnd != null &&
+		incoming.currentPeriodStart.getTime() >=
+			existing.currentPeriodEnd.getTime() - PERIOD_BOUNDARY_TOLERANCE_MS
+	) {
+		return true;
+	}
+	return false;
 }
 
 export class SubscriptionService {
@@ -115,8 +140,13 @@ export class SubscriptionService {
 	}
 
 	/**
-	 * Sets an organization's purchased capacity blocks, refusing a reduction that would
-	 * leave the organization over the resulting monitor ceiling.
+	 * Sets an organization's purchased capacity blocks.
+	 *
+	 * An increase applies immediately and drops any scheduled reduction. A reduction is
+	 * scheduled for the end of the billing period instead, because the meter bills the
+	 * period's peak whatever happens after it; `docs/adr/0004` records why. Asking for
+	 * the count already held cancels a scheduled reduction. A subscription with no known
+	 * period end has no date to schedule against, so a reduction there applies immediately.
 	 *
 	 * A successful write must be followed by `MeterService.reportBlocks`;
 	 * nothing here reaches Polar.
@@ -132,21 +162,47 @@ export class SubscriptionService {
 			return { ok: false, reason: "plan_ineligible" };
 		}
 
-		if (blocks < sub.blocks) {
-			const { monitors: limit } = applyCapacityBlocks(plan, blocks);
-			const usage = await this.getUsage(organizationId);
-			if (limit !== -1 && usage.monitors > limit) {
-				return { ok: false, reason: "over_capacity", currentUsage: usage.monitors, limit };
-			}
-		}
+		// Without a period end nothing would ever apply the reduction, so it lands now.
+		const schedule = blocks < sub.blocks && sub.currentPeriodEnd !== null;
+		const change = schedule ? { scheduledBlocks: blocks } : { blocks, scheduledBlocks: null };
 
 		const [updated] = await this.db
 			.update(subscription)
-			.set({ blocks, updatedAt: new Date() })
+			.set({ ...change, updatedAt: new Date() })
 			.where(eq(subscription.organizationId, organizationId))
 			.returning();
 
 		return { ok: true, subscription: updated };
+	}
+
+	/**
+	 * Applies every scheduled reduction whose billing period has ended.
+	 *
+	 * The renewal webhook normally applies these through `syncFromPolar`; this catches
+	 * the ones whose webhook never arrived. It must run before `MeterService.reportBlocks`
+	 * in the same pass, or the new period meters the old peak and the reduction costs the
+	 * customer another full period.
+	 *
+	 * Organizations that have outgrown the smaller ceiling are reduced anyway. Enforcement
+	 * only refuses new monitors, so they keep what they have.
+	 */
+	async applyScheduledReductions(at?: Date): Promise<number> {
+		const applied = await this.db
+			.update(subscription)
+			.set({
+				blocks: sql`${subscription.scheduledBlocks}`,
+				scheduledBlocks: null,
+				updatedAt: new Date(),
+			})
+			.where(
+				and(
+					isNotNull(subscription.scheduledBlocks),
+					lte(subscription.currentPeriodEnd, at ?? new Date()),
+				),
+			)
+			.returning({ id: subscription.id });
+
+		return applied.length;
 	}
 
 	/**
@@ -338,7 +394,8 @@ export class SubscriptionService {
 	 * Called when receiving Polar webhook events.
 	 *
 	 * `blocks` is absent from `data` and never read from a payload — Polar does not know
-	 * the count. It is only ever cleared here, when the plan leaves block eligibility.
+	 * the count. It changes here in two cases only: it is cleared when the plan leaves
+	 * block eligibility, and a scheduled reduction lands when the period rolls.
 	 */
 	async syncFromPolar(
 		organizationId: string,
@@ -365,12 +422,19 @@ export class SubscriptionService {
 				BLOCK_ELIGIBLE_PLAN_IDS.has(existing.planId as PlanId) &&
 				!BLOCK_ELIGIBLE_PLAN_IDS.has(data.planId);
 
+			let blocks: Partial<Pick<Subscription, "blocks" | "scheduledBlocks">> = {};
+			if (leavingBlockEligibility) {
+				blocks = { blocks: 0, scheduledBlocks: null };
+			} else if (existing.scheduledBlocks !== null && periodRolled(existing, data)) {
+				blocks = { blocks: existing.scheduledBlocks, scheduledBlocks: null };
+			}
+
 			const [updated] = await this.db
 				.update(subscription)
 				.set({
 					planId: data.planId,
 					status: data.status,
-					blocks: leavingBlockEligibility ? 0 : existing.blocks,
+					...blocks,
 					polarCustomerId: data.polarCustomerId ?? existing.polarCustomerId,
 					polarSubscriptionId: data.polarSubscriptionId ?? existing.polarSubscriptionId,
 					currentPeriodStart: data.currentPeriodStart ?? existing.currentPeriodStart,
@@ -422,8 +486,8 @@ export class SubscriptionService {
 	 * Downgrades an organization to the free plan.
 	 * Called when a subscription is canceled or payment fails.
 	 *
-	 * Free is not block-eligible, so `syncFromPolar` clears the purchased count as part
-	 * of the same write. This needs no clearing of its own.
+	 * Free is not block-eligible, so `syncFromPolar` clears the purchased count and any
+	 * scheduled reduction as part of the same write. This needs no clearing of its own.
 	 */
 	async downgradeToFree(organizationId: string): Promise<Subscription> {
 		return this.syncFromPolar(organizationId, {
