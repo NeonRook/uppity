@@ -742,5 +742,6 @@
 	"billing_block_upgrade_action": "Fazer upgrade para o Uppity",
 	"monitors_limit_reached": "Você atingiu seu limite de {limit} monitores.",
 	"monitors_limit_add_capacity": "Adicionar capacidade",
-	"billing_block_error_multi_org_unnamed": "A capacidade extra da sua conta já é cobrada em outra organização. Remova esses blocos lá antes de adicioná-los aqui."
+	"billing_block_error_multi_org_unnamed": "A capacidade extra da sua conta já é cobrada em outra organização. Remova esses blocos lá antes de adicioná-los aqui.",
+	"billing_block_interval_unknown": "Não foi possível confirmar seu período de cobrança, então a capacidade não pode ser alterada agora. Recarregue a página para tentar novamente."
 }

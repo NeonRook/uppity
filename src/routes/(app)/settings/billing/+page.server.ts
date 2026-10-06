@@ -6,7 +6,7 @@ import {
 	PLANS,
 	PUBLIC_PLAN_IDS,
 } from "#lib/constants/plans.js";
-import { syncCheckout } from "#lib/server/polar-subscription.js";
+import { fetchPolarSnapshot, syncCheckout } from "#lib/server/polar-subscription.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import { usageService } from "#lib/server/services/usage.service.js";
 import type { PlanId } from "#lib/types/plans.js";
@@ -34,6 +34,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			plans: publicPlans,
 			checkoutSuccess,
 			organizationId: null,
+			canManageBilling: false,
 			capacity: null,
 		};
 	}
@@ -49,13 +50,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	const [subscription, usageSummary, canManageBilling] = await Promise.all([
+	const [initialSubscription, usageSummary, canManageBilling] = await Promise.all([
 		subscriptionService.getOrCreateSubscription(organizationId),
 		usageService.getUsageSummary(organizationId),
 		subscriptionService.canManageBilling(organizationId, locals.user.id),
 	]);
 
+	let subscription = initialSubscription;
 	const sellsBlocks = !selfHosted && BLOCK_ELIGIBLE_PLAN_IDS.has(subscription.planId as PlanId);
+
+	// Subscriptions that predate the interval column have none until Polar next sends a
+	// webhook. The card prices and confirms by interval, so fetch it rather than guess.
+	if (sellsBlocks && subscription.billingInterval === null && subscription.polarSubscriptionId) {
+		try {
+			const snapshot = await fetchPolarSnapshot(subscription.polarSubscriptionId);
+			subscription = await subscriptionService.resyncFromPolar(organizationId, snapshot);
+		} catch (error) {
+			locals.event.setError(error);
+		}
+	}
 
 	return {
 		selfHosted,
@@ -79,11 +92,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		checkoutSuccess,
 		organizationId,
 		currentPlanName: usageSummary.plan.name,
+		canManageBilling,
 		capacity: sellsBlocks
 			? {
 					blocks: subscription.blocks,
 					scheduledBlocks: subscription.scheduledBlocks,
-					annual: subscription.billingInterval === "year",
+					// Null when Polar could not be asked; the card refuses changes until known.
+					annual:
+						subscription.billingInterval === null ? null : subscription.billingInterval === "year",
 					canManage: canManageBilling,
 				}
 			: null,
