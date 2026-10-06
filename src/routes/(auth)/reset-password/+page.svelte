@@ -23,11 +23,6 @@
 		e.preventDefault();
 		error = "";
 
-		if (newPassword.length < 8) {
-			error = m.auth_reset_error_min_length();
-			return;
-		}
-
 		if (newPassword !== confirmPassword) {
 			error = m.auth_reset_error_mismatch();
 			return;
@@ -43,7 +38,6 @@
 
 			if (result.error) {
 				error = result.error.message || m.auth_reset_error_failed();
-				loading = false;
 				return;
 			}
 
