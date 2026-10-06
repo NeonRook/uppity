@@ -1,7 +1,7 @@
 import { getCheckouts } from "@polar-sh/sdk/2026-10/services/checkouts";
 import { getSubscriptions } from "@polar-sh/sdk/2026-10/services/subscriptions";
 
-import { getPlanFromSubscription, mapPolarStatus } from "#lib/server/auth.js";
+import { snapshotFrom } from "#lib/server/auth.js";
 import { polarClient } from "#lib/server/polar.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import type { PolarSubscriptionSnapshot } from "#lib/server/services/subscription.service.js";
@@ -18,14 +18,10 @@ export async function fetchPolarSnapshot(
 	const sub = await getSubscriptions(polarClient)(polarSubscriptionId);
 
 	return {
-		planId: getPlanFromSubscription(sub),
-		status: mapPolarStatus(sub.status),
+		...snapshotFrom(sub),
 		polarCustomerId: sub.customer_id,
 		polarSubscriptionId: sub.id,
-		billingInterval: sub.recurring_interval,
 		payerUserId: sub.customer.external_id ?? undefined,
-		currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start) : undefined,
-		currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : undefined,
 	};
 }
 

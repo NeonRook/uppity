@@ -12,7 +12,10 @@ describe("sendWebhook body template", () => {
 		const result = await sendWebhook(
 			{
 				url: "https://example.test/hook",
-				bodyTemplate: JSON.stringify({ text: "{{type}} {{errorMessage}} {{nope}}", tags: ["{{type}}"] }),
+				bodyTemplate: JSON.stringify({
+					text: "{{type}} {{errorMessage}} {{nope}}",
+					tags: ["{{type}}"],
+				}),
 			},
 			{ type: "monitor_down", timestamp: new Date(0) },
 		);

@@ -1,8 +1,4 @@
-import {
-	childLogger,
-	wideEvent,
-	type NotifierWideEvent,
-} from "../../lib/server/logger";
+import { childLogger, wideEvent, type NotifierWideEvent } from "../../lib/server/logger";
 import { NotificationService } from "../../lib/server/notifications/service";
 import { client, db } from "../shared/db";
 import { processBacklog, processOne } from "./processor";
@@ -11,8 +7,7 @@ const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const consumerLogger = childLogger("consumer");
 
-const newEvent = (id?: string) =>
-	wideEvent<NotifierWideEvent>("consumer", "notifier", "ntr", id);
+const newEvent = (id?: string) => wideEvent<NotifierWideEvent>("consumer", "notifier", "ntr", id);
 const notificationService = new NotificationService(db, consumerLogger);
 
 let running = true;

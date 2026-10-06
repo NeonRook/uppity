@@ -37,7 +37,7 @@ function send(
 	channel: NotificationChannel,
 	payload: NotificationPayload,
 ): Promise<NotificationResult> | null {
-	const config = channel.config;
+	const { config } = channel;
 	switch (channel.type) {
 		case "email":
 			if (config.email) return sendEmail({ email: config.email }, payload);
