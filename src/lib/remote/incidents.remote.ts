@@ -1,20 +1,17 @@
-import { command, query, getRequestEvent } from "$app/server";
+import { command, query } from "$app/server";
 import * as v from "valibot";
 
+import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
 import { incidentService } from "#lib/server/services/incident.service.js";
 
 // Query: List incidents for the current organization
 export const getIncidents = query(
 	v.object({ includeResolved: v.optional(v.boolean()) }),
 	async ({ includeResolved = false }) => {
-		const { locals } = getRequestEvent();
-		if (!locals.session?.activeOrganizationId) {
-			return [];
-		}
+		const organizationId = getActiveOrganizationId();
+		if (!organizationId) return [];
 
-		return incidentService.findByOrganization(locals.session.activeOrganizationId, {
-			includeResolved,
-		});
+		return incidentService.findByOrganization(organizationId, { includeResolved });
 	},
 );
 
@@ -23,12 +20,9 @@ const incidentIdSchema = v.object({
 });
 
 export const deleteIncident = command(incidentIdSchema, async ({ incidentId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const deleted = await incidentService.delete(incidentId, locals.session.activeOrganizationId);
+	const deleted = await incidentService.delete(incidentId, organizationId);
 
 	if (!deleted) {
 		throw new Error("Incident not found");

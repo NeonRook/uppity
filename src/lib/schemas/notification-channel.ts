@@ -46,18 +46,3 @@ export const notificationChannelSchema = v.variant("type", [
 	discordSchema,
 	webhookSchema,
 ]);
-
-export type NotificationChannelForm = v.InferInput<typeof notificationChannelSchema>;
-
-// List page actions
-export const toggleChannelSchema = v.object({
-	channelId: v.pipe(v.string(), v.minLength(1, "Channel ID is required")),
-});
-
-export type ToggleChannelForm = v.InferInput<typeof toggleChannelSchema>;
-
-export const deleteChannelSchema = v.object({
-	channelId: v.pipe(v.string(), v.minLength(1, "Channel ID is required")),
-});
-
-export type DeleteChannelForm = v.InferInput<typeof deleteChannelSchema>;

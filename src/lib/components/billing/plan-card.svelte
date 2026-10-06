@@ -31,11 +31,11 @@
 	const priceInfo = $derived.by(() => {
 		// Free plan
 		if (plan.monthlyPriceCents === 0) {
-			return { display: m.billing_free(), suffix: "", note: "", isFree: true };
+			return { display: m.billing_free(), suffix: "", note: "" };
 		}
 		// Negotiated plans carry no list price
 		if (plan.monthlyPriceCents === null || plan.annualPriceCents === null) {
-			return { display: m.billing_custom_pricing(), suffix: "", note: "", isFree: false };
+			return { display: m.billing_custom_pricing(), suffix: "", note: "" };
 		}
 		// Annual keeps the monthly-equivalent headline so the figure stays comparable
 		// across the toggle, and states the real charge underneath — the customer is
@@ -45,74 +45,39 @@
 				display: formatUsdCents(plan.annualPriceCents / 12),
 				suffix: m.billing_per_month(),
 				note: m.billing_billed_annually({ amount: formatUsdCents(plan.annualPriceCents) }),
-				isFree: false,
 			};
 		}
 		return {
 			display: formatUsdCents(plan.monthlyPriceCents),
 			suffix: m.billing_per_month(),
 			note: "",
-			isFree: false,
 		};
 	});
 
 	const features = $derived.by(() => {
-		const f: string[] = [];
 		const { limits } = plan;
-
-		// Monitors
-		if (limits.monitors === -1) {
-			f.push(m.billing_features_monitors_unlimited());
-		} else {
-			f.push(m.billing_features_monitors({ count: limits.monitors }));
-		}
-
-		// Status Pages
-		if (limits.statusPages === -1) {
-			f.push(m.billing_features_status_pages_unlimited());
-		} else {
-			f.push(m.billing_features_status_pages({ count: limits.statusPages }));
-		}
-
-		// Check interval
-		f.push(m.billing_features_check_interval({ seconds: limits.checkIntervalSeconds }));
-
-		// Data retention
-		if (limits.retentionDays === -1) {
-			f.push(m.billing_features_retention_unlimited());
-		} else {
-			f.push(m.billing_features_retention({ days: limits.retentionDays }));
-		}
-
-		// Team members
-		if (limits.teamMembers === -1) {
-			f.push(m.billing_features_team_members_unlimited());
-		} else {
-			f.push(m.billing_features_team_members({ count: limits.teamMembers }));
-		}
-
-		// Notifications
-		if (limits.notificationChannels.length > 1) {
-			f.push(m.billing_features_all_notifications());
-		} else {
-			f.push(m.billing_features_email_notifications());
-		}
-
-		// Premium features
-		if (limits.customDomains) {
-			f.push(m.billing_features_custom_domains());
-		}
-		if (limits.apiAccess === "full") {
-			f.push(m.billing_features_api_access());
-		}
-		if (limits.sso) {
-			f.push(m.billing_features_sso());
-		}
-		if (limits.auditLogs) {
-			f.push(m.billing_features_audit_logs());
-		}
-
-		return f;
+		return [
+			limits.monitors === -1
+				? m.billing_features_monitors_unlimited()
+				: m.billing_features_monitors({ count: limits.monitors }),
+			limits.statusPages === -1
+				? m.billing_features_status_pages_unlimited()
+				: m.billing_features_status_pages({ count: limits.statusPages }),
+			m.billing_features_check_interval({ seconds: limits.checkIntervalSeconds }),
+			limits.retentionDays === -1
+				? m.billing_features_retention_unlimited()
+				: m.billing_features_retention({ days: limits.retentionDays }),
+			limits.teamMembers === -1
+				? m.billing_features_team_members_unlimited()
+				: m.billing_features_team_members({ count: limits.teamMembers }),
+			limits.notificationChannels.length > 1
+				? m.billing_features_all_notifications()
+				: m.billing_features_email_notifications(),
+			...(limits.customDomains ? [m.billing_features_custom_domains()] : []),
+			...(limits.apiAccess === "full" ? [m.billing_features_api_access()] : []),
+			...(limits.sso ? [m.billing_features_sso()] : []),
+			...(limits.auditLogs ? [m.billing_features_audit_logs()] : []),
+		];
 	});
 
 	// Dedicated implies provisioning isolated infrastructure, so it is never a

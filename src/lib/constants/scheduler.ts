@@ -20,12 +20,3 @@ export const CRON_MAINTENANCE_WINDOW_TRANSITIONS = envString(
 
 /** Number of days to keep individual check records before cleanup deletes them. */
 export const CHECK_RETENTION_DAYS = envInt("UPPITY_CHECK_RETENTION_DAYS", 30);
-
-/** How frequently the scheduler polls for queued monitor checks to execute. */
-export const QUEUE_POLL_INTERVAL_MS = envInt("UPPITY_QUEUE_POLL_INTERVAL_MS", 100);
-
-/** Intervals shorter than this use second-precision scheduling via minute-based cron. */
-export const MINUTE_THRESHOLD_SECONDS = 60;
-
-/** Intervals shorter than this use minute-based cron; longer intervals use hourly cron. */
-export const HOUR_THRESHOLD_SECONDS = 3600;

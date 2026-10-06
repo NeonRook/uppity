@@ -14,38 +14,66 @@ import { m } from "#lib/paraglide/messages.js";
 
 export type { BadgeVariant };
 
+interface StateStyle {
+	label: () => string;
+	variant: BadgeVariant;
+	icon: LucideIcon;
+	bg: string;
+	text: string;
+}
+
+// Full class names, so Tailwind can see them.
+const UNKNOWN: StateStyle = {
+	label: m.status_unknown,
+	variant: "secondary",
+	icon: Clock,
+	bg: "bg-status-unknown",
+	text: "text-status-unknown",
+};
+
+const PAUSED: StateStyle = { ...UNKNOWN, label: m.status_paused, icon: Pause };
+
+const STATES: Record<string, StateStyle> = {
+	up: {
+		label: m.status_operational,
+		variant: "default",
+		icon: CircleCheckBig,
+		bg: "bg-status-up",
+		text: "text-status-up",
+	},
+	degraded: {
+		label: m.status_degraded,
+		variant: "outline",
+		icon: TriangleAlert,
+		bg: "bg-status-degraded",
+		text: "text-status-degraded",
+	},
+	down: {
+		label: m.status_down,
+		variant: "destructive",
+		icon: CircleX,
+		bg: "bg-status-down",
+		text: "text-status-down",
+	},
+};
+
+function styleOf(status: string | null, active = true): StateStyle {
+	if (!active) return PAUSED;
+	return (status !== null && Object.hasOwn(STATES, status) ? STATES[status] : undefined) ?? UNKNOWN;
+}
+
 /**
  * Get the background color class for a monitor status indicator
  */
 export function getStatusColor(status: string | null, active: boolean): string {
-	if (!active) return "bg-status-unknown";
-	switch (status) {
-		case "up":
-			return "bg-status-up";
-		case "degraded":
-			return "bg-status-degraded";
-		case "down":
-			return "bg-status-down";
-		default:
-			return "bg-status-unknown";
-	}
+	return styleOf(status, active).bg;
 }
 
 /**
  * Get the text label for a monitor status
  */
 export function getStatusLabel(status: string | null, active: boolean): string {
-	if (!active) return m.status_paused();
-	switch (status) {
-		case "up":
-			return m.status_operational();
-		case "degraded":
-			return m.status_degraded();
-		case "down":
-			return m.status_down();
-		default:
-			return m.status_unknown();
-	}
+	return styleOf(status, active).label();
 }
 
 /**
@@ -55,19 +83,8 @@ export function getStatusBadge(
 	status: string | null,
 	active: boolean,
 ): { variant: BadgeVariant; label: string } {
-	if (!active) {
-		return { variant: "secondary", label: m.status_paused() };
-	}
-	switch (status) {
-		case "up":
-			return { variant: "default", label: m.status_operational() };
-		case "degraded":
-			return { variant: "outline", label: m.status_degraded() };
-		case "down":
-			return { variant: "destructive", label: m.status_down() };
-		default:
-			return { variant: "secondary", label: m.status_unknown() };
-	}
+	const { variant, label } = getStatusBadgeWithIcon(status, active);
+	return { variant, label };
 }
 
 /**
@@ -77,19 +94,8 @@ export function getStatusBadgeWithIcon(
 	status: string | null,
 	active: boolean,
 ): { variant: BadgeVariant; label: string; icon: LucideIcon } {
-	if (!active) {
-		return { variant: "secondary", label: m.status_paused(), icon: Pause };
-	}
-	switch (status) {
-		case "up":
-			return { variant: "default", label: m.status_operational(), icon: CircleCheckBig };
-		case "degraded":
-			return { variant: "outline", label: m.status_degraded(), icon: TriangleAlert };
-		case "down":
-			return { variant: "destructive", label: m.status_down(), icon: CircleX };
-		default:
-			return { variant: "secondary", label: m.status_unknown(), icon: Clock };
-	}
+	const { variant, label, icon } = styleOf(status, active);
+	return { variant, label: label(), icon };
 }
 
 /**
@@ -99,16 +105,8 @@ export function getCheckIcon(status: string): {
 	component: LucideIcon;
 	class: string;
 } {
-	switch (status) {
-		case "up":
-			return { component: CircleCheckBig, class: "text-status-up" };
-		case "degraded":
-			return { component: TriangleAlert, class: "text-status-degraded" };
-		case "down":
-			return { component: CircleX, class: "text-status-down" };
-		default:
-			return { component: Clock, class: "text-status-unknown" };
-	}
+	const { icon, text } = styleOf(status);
+	return { component: icon, class: text };
 }
 
 /**
@@ -116,18 +114,7 @@ export function getCheckIcon(status: string): {
  * Used for public status pages
  */
 export function getMonitorStatusColor(status: string): string {
-	switch (status) {
-		case "up":
-			return "bg-status-up";
-		case "down":
-			return "bg-status-down";
-		case "degraded":
-			return "bg-status-degraded";
-		case "maintenance":
-			return "bg-status-maintenance";
-		default:
-			return "bg-status-unknown";
-	}
+	return status === "maintenance" ? "bg-status-maintenance" : styleOf(status).bg;
 }
 
 /**
@@ -136,16 +123,5 @@ export function getMonitorStatusColor(status: string): string {
  * lighten-one-step behaviour works identically in both themes.
  */
 export function getDayStatusColor(status: string): string {
-	switch (status) {
-		case "up":
-			return "bg-status-up";
-		case "down":
-			return "bg-status-down";
-		case "degraded":
-			return "bg-status-degraded";
-		case "partial":
-			return "bg-status-partial";
-		default:
-			return "bg-status-unknown";
-	}
+	return status === "partial" ? "bg-status-partial" : styleOf(status).bg;
 }

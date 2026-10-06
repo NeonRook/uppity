@@ -1,6 +1,7 @@
 import { command, getRequestEvent } from "$app/server";
 import * as v from "valibot";
 
+import { requireOrganizationId } from "#lib/remote/organization.js";
 import { auth } from "#lib/server/auth.js";
 
 const invitationIdSchema = v.object({
@@ -12,10 +13,8 @@ const memberIdSchema = v.object({
 });
 
 export const cancelInvitation = command(invitationIdSchema, async ({ invitationId }) => {
-	const { request, locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	requireOrganizationId();
+	const { request } = getRequestEvent();
 
 	try {
 		await auth.api.cancelInvitation({

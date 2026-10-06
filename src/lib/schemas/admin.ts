@@ -7,8 +7,6 @@ export const createUserSchema = v.object({
 	role: v.optional(v.picklist(["user", "admin"]), "user"),
 });
 
-export type CreateUserForm = v.InferInput<typeof createUserSchema>;
-
 export const updateUserSchema = v.object({
 	name: v.optional(v.pipe(v.string(), v.minLength(1, "Name is required"))),
 	email: v.optional(v.pipe(v.string(), v.email("Valid email is required"))),
@@ -16,8 +14,6 @@ export const updateUserSchema = v.object({
 	banned: v.optional(v.boolean()),
 	banReason: v.optional(v.string()),
 });
-
-export type UpdateUserForm = v.InferInput<typeof updateUserSchema>;
 
 export const createOrganizationSchema = v.object({
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
@@ -28,8 +24,6 @@ export const createOrganizationSchema = v.object({
 	),
 	logo: v.optional(v.pipe(v.string(), v.url("Logo must be a valid URL"))),
 });
-
-export type CreateOrganizationForm = v.InferInput<typeof createOrganizationSchema>;
 
 export const updateOrganizationSchema = v.object({
 	name: v.optional(v.pipe(v.string(), v.minLength(1, "Name is required"))),
@@ -43,11 +37,7 @@ export const updateOrganizationSchema = v.object({
 	logo: v.optional(v.nullable(v.pipe(v.string(), v.url("Logo must be a valid URL")))),
 });
 
-export type UpdateOrganizationForm = v.InferInput<typeof updateOrganizationSchema>;
-
 export const addMemberSchema = v.object({
 	userId: v.pipe(v.string(), v.minLength(1, "User ID is required")),
 	role: v.optional(v.picklist(["owner", "admin", "member"]), "member"),
 });
-
-export type AddMemberForm = v.InferInput<typeof addMemberSchema>;
