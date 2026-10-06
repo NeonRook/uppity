@@ -3,6 +3,7 @@ import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
+import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -66,36 +67,9 @@ export const actions: Actions = {
 
 		const { data } = form;
 
-		// Build config based on type
-		let config: Record<string, unknown> = {};
-
-		switch (data.type) {
-			case "email":
-				config = { email: data.email };
-				break;
-			case "slack":
-				config = { webhookUrl: data.webhookUrl, channel: data.channel };
-				break;
-			case "discord":
-				config = { discordWebhookUrl: data.discordWebhookUrl };
-				break;
-			case "webhook": {
-				let headers: Record<string, string> | undefined;
-				if (data.headers) {
-					try {
-						headers = JSON.parse(data.headers);
-					} catch {
-						return message(form, "Invalid headers JSON", { status: 400 });
-					}
-				}
-				config = {
-					url: data.url,
-					method: data.method,
-					headers,
-					bodyTemplate: data.bodyTemplate,
-				};
-				break;
-			}
+		const config = buildChannelConfig(data);
+		if (!config) {
+			return message(form, "Invalid headers JSON", { status: 400 });
 		}
 
 		// Enrich wide event with action context
@@ -113,30 +87,6 @@ export const actions: Actions = {
 		} catch (err) {
 			locals.event.setError(err);
 			return message(form, "Failed to update notification channel", { status: 500 });
-		}
-
-		return redirect(302, "/notifications");
-	},
-
-	delete: async ({ params, locals }) => {
-		if (!locals.session?.activeOrganizationId) {
-			return fail(401, { error: "Not authenticated" });
-		}
-
-		// Enrich wide event with action context
-		locals.event.merge({
-			action: "delete_notification_channel",
-			resource_type: "notification_channel",
-			resource_id: params.id,
-		});
-
-		const deleted = await notificationChannelService.delete(
-			params.id,
-			locals.session.activeOrganizationId,
-		);
-
-		if (!deleted) {
-			return fail(404, { error: "Channel not found" });
 		}
 
 		return redirect(302, "/notifications");

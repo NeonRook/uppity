@@ -4,6 +4,7 @@ import { valibot } from "sveltekit-superforms/adapters";
 
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
 import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -31,36 +32,9 @@ export const actions: Actions = {
 
 		const { data } = form;
 
-		// Build config based on type
-		let config: Record<string, unknown> = {};
-
-		switch (data.type) {
-			case "email":
-				config = { email: data.email };
-				break;
-			case "slack":
-				config = { webhookUrl: data.webhookUrl, channel: data.channel };
-				break;
-			case "discord":
-				config = { discordWebhookUrl: data.discordWebhookUrl };
-				break;
-			case "webhook": {
-				let headers: Record<string, string> | undefined;
-				if (data.headers) {
-					try {
-						headers = JSON.parse(data.headers);
-					} catch {
-						return message(form, "Invalid headers JSON", { status: 400 });
-					}
-				}
-				config = {
-					url: data.url,
-					method: data.method,
-					headers,
-					bodyTemplate: data.bodyTemplate,
-				};
-				break;
-			}
+		const config = buildChannelConfig(data);
+		if (!config) {
+			return message(form, "Invalid headers JSON", { status: 400 });
 		}
 
 		// Enrich wide event with action context
