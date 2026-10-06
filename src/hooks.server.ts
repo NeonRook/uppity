@@ -3,6 +3,7 @@ import { sequence, type Handle } from "@sveltejs/kit/hooks";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
+import { handleAdminGate } from "#lib/server/admin-gate.js";
 import { auth } from "#lib/server/auth.js";
 import { createRequestWideEvent } from "#lib/server/logger/index.js";
 
@@ -86,4 +87,4 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-export const handle: Handle = sequence(handleLogging, handleParaglide, handleAuth);
+export const handle: Handle = sequence(handleLogging, handleParaglide, handleAuth, handleAdminGate);
