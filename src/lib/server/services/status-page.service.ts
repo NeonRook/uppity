@@ -22,7 +22,7 @@ import {
 	type StatusPageMonitor,
 } from "#lib/server/db/schema.js";
 import { SubscriptionLimitError, FeatureNotAvailableError } from "#lib/server/errors.js";
-import { subscriptionService } from "#lib/server/services/subscription.service.js";
+import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

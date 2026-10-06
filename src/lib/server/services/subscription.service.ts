@@ -12,7 +12,6 @@ import {
 	SELF_HOSTED_LIMITS,
 } from "#lib/constants/plans.js";
 import { invitation, member } from "#lib/server/db/auth-schema.js";
-import { db } from "#lib/server/db/index.js";
 import * as schema from "#lib/server/db/schema.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
@@ -502,5 +501,3 @@ export class SubscriptionService {
 		});
 	}
 }
-
-export const subscriptionService = new SubscriptionService(db);

@@ -1,4 +1,4 @@
-import { subscriptionService } from "./subscription.service";
+import { subscriptionService } from "./subscription.instance";
 
 /**
  * Usage limits data to be passed to the UI.

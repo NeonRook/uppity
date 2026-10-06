@@ -3,10 +3,8 @@ import { getSubscriptions } from "@polar-sh/sdk/2026-10/services/subscriptions";
 
 import { getPlanFromSubscription, mapPolarStatus } from "#lib/server/auth.js";
 import { polarClient } from "#lib/server/polar.js";
-import {
-	subscriptionService,
-	type PolarSubscriptionSnapshot,
-} from "#lib/server/services/subscription.service.js";
+import { subscriptionService } from "#lib/server/services/subscription.instance.js";
+import type { PolarSubscriptionSnapshot } from "#lib/server/services/subscription.service.js";
 
 /**
  * Reads the live subscription from Polar.
