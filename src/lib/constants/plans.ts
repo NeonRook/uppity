@@ -1,23 +1,6 @@
 import type { Plan, PlanId, PlanLimits } from "#lib/types/plans.js";
 
 /**
- * Plan limits for self-hosted instances.
- * All features unlocked, no artificial limits.
- */
-export const SELF_HOSTED_LIMITS: PlanLimits = {
-	monitors: -1, // Unlimited
-	checkIntervalSeconds: 30, // Most frequent available
-	statusPages: -1, // Unlimited
-	retentionDays: -1, // Unlimited
-	teamMembers: -1, // Unlimited
-	notificationChannels: ["email", "slack", "discord", "webhook"],
-	customDomains: true,
-	apiAccess: "full",
-	sso: true,
-	auditLogs: true,
-};
-
-/**
  * Free tier plan configuration.
  *
  * Deliberately generous: the free tier is a positioning claim, not a lead magnet.
@@ -135,6 +118,16 @@ export const UPPITY_PLAN: Plan = {
 };
 
 /**
+ * Plan limits for self-hosted instances.
+ * All features unlocked, no artificial limits.
+ */
+export const SELF_HOSTED_LIMITS: PlanLimits = {
+	...UPPITY_PLAN.limits,
+	monitors: -1, // Unlimited
+	retentionDays: -1, // Unlimited
+};
+
+/**
  * Dedicated — an isolated instance. $299/month or $2,990/year.
  *
  * Sold on data residency, dedicated infrastructure and compliance, not on price:
@@ -148,16 +141,9 @@ export const DEDICATED_PLAN: Plan = {
 	monthlyPriceCents: 29900, // $299/month
 	annualPriceCents: 299000, // $2,990/year
 	limits: {
+		...UPPITY_PLAN.limits,
 		monitors: 2000,
-		checkIntervalSeconds: 30,
-		statusPages: -1, // Unlimited
 		retentionDays: -1, // Unlimited
-		teamMembers: -1, // Unlimited
-		notificationChannels: ["email", "slack", "discord", "webhook"],
-		customDomains: true,
-		apiAccess: "full",
-		sso: true,
-		auditLogs: true,
 	},
 };
 
@@ -237,28 +223,12 @@ export interface RetentionGroup {
  * organization. Windows that coincide merge into a single group.
  */
 export function retentionGroups(fallbackDays: number): RetentionGroup[] {
-	const byDays = new Map<number, PlanId[]>();
+	const byDays = Map.groupBy(Object.values(PLANS), (plan) =>
+		plan.limits.retentionDays === -1 ? fallbackDays : plan.limits.retentionDays,
+	);
 
-	for (const plan of Object.values(PLANS)) {
-		const days = plan.limits.retentionDays === -1 ? fallbackDays : plan.limits.retentionDays;
-		const existing = byDays.get(days);
-		if (existing) existing.push(plan.id);
-		else byDays.set(days, [plan.id]);
-	}
-
-	return [...byDays.entries()].map(([days, planIds]) => ({
-		days,
-		planIds,
-		catchAll: planIds.includes(DEFAULT_PLAN_ID),
-	}));
+	return [...byDays.entries()].map(([days, plans]) => {
+		const planIds = plans.map((plan) => plan.id);
+		return { days, planIds, catchAll: planIds.includes(DEFAULT_PLAN_ID) };
+	});
 }
-
-/**
- * Usage warning thresholds (percentages).
- */
-export const USAGE_THRESHOLDS = {
-	/** Percentage at which to show a warning. */
-	WARNING: 80,
-	/** Percentage at which to block the action. */
-	LIMIT: 100,
-} as const;
