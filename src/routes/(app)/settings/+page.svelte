@@ -1,18 +1,7 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-	import {
-		User,
-		Building2,
-		Crown,
-		Shield,
-		LoaderCircle,
-		Plus,
-		Check,
-		CreditCard,
-		Settings,
-	} from "@lucide/svelte";
+	import { User, Building2, LoaderCircle, Plus, Check, CreditCard, Settings } from "@lucide/svelte";
 
-	import { organization } from "#lib/auth-client.js";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
@@ -20,7 +9,9 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { switchOrganization } from "#lib/org.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { getRoleBadge } from "#lib/roles.js";
 
 	let { data, form } = $props();
 
@@ -28,28 +19,10 @@
 	let showCreateOrgDialog = $state(false);
 	let switchingOrg = $state(false);
 
-	async function switchOrganization(orgId: string) {
-		if (orgId === data.currentOrganization?.id) return;
+	async function handleSwitch(orgId: string) {
 		switchingOrg = true;
-		try {
-			await organization.setActive({ organizationId: orgId });
-			window.location.reload();
-		} catch (error) {
-			console.error("Failed to switch organization:", error);
-		} finally {
-			switchingOrg = false;
-		}
-	}
-
-	function getRoleBadge(role: string) {
-		switch (role) {
-			case "owner":
-				return { icon: Crown, variant: "default" as const, label: m.role_owner() };
-			case "admin":
-				return { icon: Shield, variant: "secondary" as const, label: m.role_admin() };
-			default:
-				return { icon: User, variant: "outline" as const, label: m.role_member() };
-		}
+		await switchOrganization(orgId, data.currentOrganization?.id);
+		switchingOrg = false;
 	}
 </script>
 
@@ -153,7 +126,7 @@
 							<Button
 								variant={isActive ? "default" : "outline"}
 								size="sm"
-								onclick={() => switchOrganization(org.id)}
+								onclick={() => handleSwitch(org.id)}
 								disabled={switchingOrg}
 							>
 								{org.name}
@@ -175,13 +148,7 @@
 					<div>
 						<p class="font-medium">{data.currentOrganization.name}</p>
 						<p class="text-muted-foreground text-sm">
-							{data.organizations.find((o) => o.id === data.currentOrganization?.id)?.role ===
-							"owner"
-								? m.role_owner()
-								: data.organizations.find((o) => o.id === data.currentOrganization?.id)?.role ===
-									  "admin"
-									? m.role_admin()
-									: m.role_member()}
+							{getRoleBadge(data.currentOrganization.role).label}
 						</p>
 					</div>
 					<Button variant="outline" size="sm" href="/settings/organisation">

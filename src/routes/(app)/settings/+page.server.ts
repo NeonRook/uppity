@@ -1,68 +1,12 @@
-import { fail, redirect } from "@sveltejs/kit";
-import { eq } from "drizzle-orm";
+import { fail } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
-import { isSelfHosted } from "#lib/constants/plans.js";
+import { generateSlug } from "#lib/format.js";
 import { updateProfileSchema, createOrganizationSchema } from "#lib/schemas/settings.js";
 import { auth } from "#lib/server/auth.js";
-import { member } from "#lib/server/db/auth-schema.js";
-import { db } from "#lib/server/db/index.js";
 
-import type { Actions, PageServerLoad } from "./$types";
-
-export const load: PageServerLoad = async ({ locals, request }) => {
-	if (locals.user === null) redirect(302, "/login");
-
-	// Get user's organizations using better-auth API
-	const orgsResult = await auth.api.listOrganizations({
-		headers: request.headers,
-	});
-
-	const organizations = orgsResult || [];
-
-	// Get user's membership roles for all organizations
-	const userMemberships = await db
-		.select({ organizationId: member.organizationId, role: member.role })
-		.from(member)
-		.where(eq(member.userId, locals.user.id));
-
-	const roleByOrgId = new Map(userMemberships.map((m) => [m.organizationId, m.role]));
-
-	// Get current organization basic info
-	let currentOrganization = null;
-	let isAdmin = false;
-
-	if (locals.session?.activeOrganizationId) {
-		const org = organizations.find((o) => o.id === locals.session!.activeOrganizationId);
-		if (org) {
-			currentOrganization = {
-				id: org.id,
-				name: org.name,
-				slug: org.slug,
-			};
-			const role = roleByOrgId.get(org.id);
-			isAdmin = role === "owner" || role === "admin";
-		}
-	}
-
-	return {
-		user: {
-			id: locals.user.id,
-			name: locals.user.name,
-			email: locals.user.email,
-		},
-		organizations: organizations.map((o) => ({
-			id: o.id,
-			name: o.name,
-			slug: o.slug,
-			role: roleByOrgId.get(o.id) ?? "member",
-		})),
-		currentOrganization,
-		isAdmin,
-		selfHosted: isSelfHosted(),
-	};
-};
+import type { Actions } from "./$types";
 
 export const actions: Actions = {
 	updateProfile: async ({ request }) => {
@@ -92,10 +36,7 @@ export const actions: Actions = {
 			return fail(400, { error: "Organization name is required" });
 		}
 
-		const slug = form.data.name
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/(^-|-$)/g, "");
+		const slug = generateSlug(form.data.name);
 
 		try {
 			await auth.api.createOrganization({

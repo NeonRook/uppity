@@ -9,9 +9,9 @@
 	import CapacityCard from "#lib/components/billing/capacity-card.svelte";
 	import PlanCard from "#lib/components/billing/plan-card.svelte";
 	import UsageBar from "#lib/components/billing/usage-bar.svelte";
+	import SettingsHeader from "#lib/components/settings-header.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
-	import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { MONITOR_BLOCK_SIZE, UPPITY_PLAN } from "#lib/constants/plans.js";
@@ -28,14 +28,11 @@
 
 	const uppityPlan = $derived(data.plans.find((plan) => plan.id === "uppity"));
 
-	// Clean up URL after showing success message
 	onMount(() => {
 		if (data.checkoutSuccess) {
 			toast.success(m.billing_checkout_success());
-			// Clean up the URL without triggering navigation
-			const url = new URL(page.url.href);
-			url.searchParams.delete("checkout");
-			goto(url.pathname, { shallow: true, replace: true });
+			// Drop the checkout query parameter so a reload does not repeat the toast
+			goto(page.url.pathname, { replaceState: true });
 		}
 	});
 
@@ -88,37 +85,17 @@
 		}
 	}
 
-	function getStatusBadgeVariant(
-		status: string | null,
-	): "default" | "secondary" | "destructive" | "outline" {
-		switch (status) {
-			case "active":
-				return "default";
-			case "trialing":
-				return "secondary";
-			case "past_due":
-				return "destructive";
-			case "canceled":
-				return "outline";
-			default:
-				return "secondary";
-		}
-	}
-
-	function getStatusLabel(status: string | null): string {
-		switch (status) {
-			case "active":
-				return m.billing_status_active();
-			case "trialing":
-				return m.billing_status_trialing();
-			case "past_due":
-				return m.billing_status_past_due();
-			case "canceled":
-				return m.billing_status_canceled();
-			default:
-				return status ?? "";
-		}
-	}
+	const statusBadges: Partial<
+		Record<
+			string,
+			{ variant: "default" | "secondary" | "destructive" | "outline"; label: () => string }
+		>
+	> = {
+		active: { variant: "default", label: m.billing_status_active },
+		trialing: { variant: "secondary", label: m.billing_status_trialing },
+		past_due: { variant: "destructive", label: m.billing_status_past_due },
+		canceled: { variant: "outline", label: m.billing_status_canceled },
+	};
 </script>
 
 <svelte:head>
@@ -126,21 +103,11 @@
 </svelte:head>
 
 <div class="mx-auto max-w-4xl space-y-6">
-	<div>
-		<Breadcrumb.Root class="mb-2">
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/settings">{m.nav_settings()}</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{m.settings_billing()}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-		<h1 class="text-3xl font-bold tracking-tight">{m.billing_title()}</h1>
-		<p class="text-muted-foreground">{m.billing_subtitle()}</p>
-	</div>
+	<SettingsHeader
+		section={m.settings_billing()}
+		title={m.billing_title()}
+		description={m.billing_subtitle()}
+	/>
 
 	{#if data.selfHosted}
 		<!-- Self-Hosted Mode -->
@@ -175,8 +142,9 @@
 						<div>
 							<Card.Title class="flex items-center gap-2">
 								{m.billing_current_plan()}: {data.currentPlanName}
-								<Badge variant={getStatusBadgeVariant(data.subscription.status)}>
-									{getStatusLabel(data.subscription.status)}
+								{@const statusBadge = statusBadges[data.subscription.status ?? ""]}
+								<Badge variant={statusBadge?.variant ?? "secondary"}>
+									{statusBadge?.label() ?? data.subscription.status ?? ""}
 								</Badge>
 							</Card.Title>
 							{#if data.subscription.currentPeriodEnd}
