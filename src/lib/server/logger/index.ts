@@ -59,7 +59,11 @@ export function wideEvent<T extends WideEventBase>(
 	idPrefix: string,
 	id?: string,
 ): WideEventBuilder<T> {
-	return new WideEventBuilder<T>(childLogger(context), eventType, id ?? `${idPrefix}_${nanoid(12)}`);
+	return new WideEventBuilder<T>(
+		childLogger(context),
+		eventType,
+		id ?? `${idPrefix}_${nanoid(12)}`,
+	);
 }
 
 export function createRequestWideEvent(requestId?: string): WideEventBuilder<RequestWideEvent> {

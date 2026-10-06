@@ -81,7 +81,8 @@ function templateVars(payload: NotificationPayload): Record<string, string> {
 function interpolate(template: unknown, vars: Record<string, string>): unknown {
 	if (typeof template === "string") {
 		return template.replace(/\{\{([\w.]+)\}\}/g, (match, name: string) =>
-			Object.hasOwn(vars, name) ? vars[name] : match,);
+			Object.hasOwn(vars, name) ? vars[name] : match,
+		);
 	}
 	if (Array.isArray(template)) {
 		return template.map((item) => interpolate(item, vars));

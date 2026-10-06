@@ -163,24 +163,24 @@ describe("StatsService.cleanupOldChecks", () => {
 	});
 });
 
-describe("StatsService aggregation", () => {
-	async function seedChecks(
-		drizzleDb: TestDb["db"],
-		monitorId: string,
-		checkedAt: Date,
-		checks: [status: string, responseTimeMs: number | null][],
-	): Promise<void> {
-		await drizzleDb.insert(monitorCheck).values(
-			checks.map(([status, responseTimeMs]) => ({
-				id: nanoid(),
-				monitorId,
-				status,
-				responseTimeMs,
-				checkedAt,
-			})),
-		);
-	}
+async function seedChecks(
+	drizzleDb: TestDb["db"],
+	monitorId: string,
+	checkedAt: Date,
+	checks: [status: string, responseTimeMs: number | null][],
+): Promise<void> {
+	await drizzleDb.insert(monitorCheck).values(
+		checks.map(([status, responseTimeMs]) => ({
+			id: nanoid(),
+			monitorId,
+			status,
+			responseTimeMs,
+			checkedAt,
+		})),
+	);
+}
 
+describe("StatsService aggregation", () => {
 	test("aggregateDailyStats counts statuses and ignores down checks in response times", async ({
 		db,
 	}) => {

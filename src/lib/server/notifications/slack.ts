@@ -2,6 +2,8 @@ import { postJson } from "./http";
 import { describeNotification } from "./message";
 import type { NotificationPayload, NotificationResult } from "./types";
 
+const mrkdwn = (text: string) => ({ type: "mrkdwn", text });
+
 export function sendSlack(
 	config: { webhookUrl: string; channel?: string },
 	payload: NotificationPayload,
@@ -10,7 +12,6 @@ export function sendSlack(
 	const seconds = Math.floor(payload.timestamp.getTime() / 1000);
 	const time = `<!date^${seconds}^{date_short_pretty} {time}|${payload.timestamp.toISOString()}>`;
 
-	const mrkdwn = (text: string) => ({ type: "mrkdwn", text });
 	const blocks = [
 		{ type: "header", text: { type: "plain_text", text: title, emoji: true } },
 		{

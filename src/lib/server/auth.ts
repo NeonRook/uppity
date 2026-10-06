@@ -6,7 +6,6 @@ import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
-import { createTransport } from "nodemailer";
 
 import {
 	ORGANIZATION_CREATOR_ROLE,
@@ -14,16 +13,23 @@ import {
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
-import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "#lib/constants/defaults.js";
 import { DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
 import * as authSchema from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { subscription } from "#lib/server/db/schema.js";
-import { createWebhookWideEvent } from "#lib/server/logger/index.js";
+import {
+	wideEvent,
+	type WebhookWideEvent,
+	type WideEventBuilder,
+} from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
-import type { HeldPolarSubscription } from "#lib/server/services/subscription.service.js";
+import type {
+	HeldPolarSubscription,
+	PolarSubscriptionSnapshot,
+} from "#lib/server/services/subscription.service.js";
+import { smtpFrom, smtpTransport } from "#lib/server/smtp.js";
 import type { PlanId, SubscriptionStatus } from "#lib/types/plans.js";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
@@ -37,48 +43,42 @@ const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [
 	"https://localhost:3000",
 ];
 
-// Polar product IDs from environment (different for sandbox vs production)
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM } = process.env;
-
-const {
-	POLAR_PRODUCT_FREE,
-	POLAR_PRODUCT_UPPITY_MONTHLY,
-	POLAR_PRODUCT_UPPITY_ANNUAL,
-	POLAR_PRODUCT_DEDICATED_MONTHLY,
-	POLAR_PRODUCT_DEDICATED_ANNUAL,
-} = process.env;
-
 /**
- * Maps Polar product IDs to our internal plan IDs.
- * Built dynamically from environment variables.
+ * Polar products by environment variable (IDs differ between sandbox and
+ * production). Only products with a slug are offered at checkout. Dedicated is
+ * contact-sales in the UI; its slugs exist so a checkout link can be sent
+ * manually once provisioning is agreed.
  */
-const POLAR_PRODUCT_TO_PLAN: Record<string, PlanId> = {
-	...(POLAR_PRODUCT_FREE && { [POLAR_PRODUCT_FREE]: "free" as const }),
-	...(POLAR_PRODUCT_UPPITY_MONTHLY && { [POLAR_PRODUCT_UPPITY_MONTHLY]: "uppity" as const }),
-	...(POLAR_PRODUCT_UPPITY_ANNUAL && { [POLAR_PRODUCT_UPPITY_ANNUAL]: "uppity" as const }),
-	...(POLAR_PRODUCT_DEDICATED_MONTHLY && {
-		[POLAR_PRODUCT_DEDICATED_MONTHLY]: "dedicated" as const,
-	}),
-	...(POLAR_PRODUCT_DEDICATED_ANNUAL && { [POLAR_PRODUCT_DEDICATED_ANNUAL]: "dedicated" as const }),
-};
+const POLAR_PRODUCTS: [envId: string | undefined, plan: PlanId, slug?: string][] = [
+	[process.env.POLAR_PRODUCT_FREE, "free"],
+	[process.env.POLAR_PRODUCT_UPPITY_MONTHLY, "uppity", "uppity-monthly"],
+	[process.env.POLAR_PRODUCT_UPPITY_ANNUAL, "uppity", "uppity-annual"],
+	[process.env.POLAR_PRODUCT_DEDICATED_MONTHLY, "dedicated", "dedicated-monthly"],
+	[process.env.POLAR_PRODUCT_DEDICATED_ANNUAL, "dedicated", "dedicated-annual"],
+];
+
+/** Maps Polar product IDs to our internal plan IDs. */
+const POLAR_PRODUCT_TO_PLAN: Record<string, PlanId> = Object.fromEntries(
+	POLAR_PRODUCTS.flatMap(([productId, plan]) => (productId ? [[productId, plan]] : [])),
+);
 
 /**
  * Maps Polar subscription status to our internal status.
  */
+const POLAR_STATUS: Record<string, SubscriptionStatus> = {
+	canceled: "canceled",
+	past_due: "past_due",
+	unpaid: "past_due",
+	trialing: "trialing",
+};
+
 export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
-	switch (polarStatus) {
-		case "active":
-			return "active";
-		case "canceled":
-			return "canceled";
-		case "past_due":
-		case "unpaid":
-			return "past_due";
-		case "trialing":
-			return "trialing";
-		default:
-			return "active";
-	}
+	return POLAR_STATUS[polarStatus] ?? "active";
+}
+
+/** The subscription a webhook is about, which must be the one the organization holds. */
+function heldBy(sub: { id: string; customer_id: string }): HeldPolarSubscription {
+	return { polarSubscriptionId: sub.id, polarCustomerId: sub.customer_id };
 }
 
 /**
@@ -89,11 +89,6 @@ export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
  * downgrading a paying customer to free mid-period is a far worse outcome than
  * briefly granting the base tier to someone who bought Dedicated.
  */
-/** The subscription a webhook is about, which must be the one the organization holds. */
-function heldBy(sub: { id: string; customer_id: string }): HeldPolarSubscription {
-	return { polarSubscriptionId: sub.id, polarCustomerId: sub.customer_id };
-}
-
 export function getPlanFromSubscription(sub: {
 	product_id?: string;
 	product?: { id?: string };
@@ -104,6 +99,98 @@ export function getPlanFromSubscription(sub: {
 	}
 	// Default to the base paid unit for any unmapped subscription
 	return "uppity";
+}
+
+/** The plan, status, interval and period a Polar subscription carries. */
+export function snapshotFrom(sub: {
+	product_id?: string;
+	product?: { id?: string };
+	status: string;
+	recurring_interval: PolarSubscriptionSnapshot["billingInterval"];
+	current_period_start?: string | Date | null;
+	current_period_end?: string | Date | null;
+}): Pick<
+	PolarSubscriptionSnapshot,
+	"planId" | "status" | "billingInterval" | "currentPeriodStart" | "currentPeriodEnd"
+> {
+	return {
+		planId: getPlanFromSubscription(sub),
+		status: mapPolarStatus(sub.status),
+		billingInterval: sub.recurring_interval,
+		currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start) : undefined,
+		currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : undefined,
+	};
+}
+
+const NOT_BILLED_THROUGH = "for a subscription the org is not billed through";
+
+/**
+ * Builds a Polar webhook handler that emits one wide event per delivery. `run`
+ * returns why it declined to apply the event, or undefined on success. Errors are
+ * recorded and rethrown so Polar retries.
+ */
+function polarHandler<T>(
+	name: string,
+	fields: (data: T) => Partial<WebhookWideEvent>,
+	run: (data: T, event: WideEventBuilder<WebhookWideEvent>) => Promise<string | undefined>,
+) {
+	const label = name.replace(/[._]/g, " ");
+	return async ({ data }: { data: T }): Promise<void> => {
+		const event = wideEvent<WebhookWideEvent>("webhook", "webhook", "whk");
+		event.merge({ webhook_source: "polar", webhook_event: name, ...fields(data) });
+		try {
+			const declined = await run(data, event);
+			if (declined) {
+				event.setStatus("error");
+				event.emit(`${label} ${declined}`);
+				return;
+			}
+			event.setSuccess();
+			event.emit(label);
+		} catch (error) {
+			event.setError(error);
+			event.emit(label);
+			throw error;
+		}
+	};
+}
+
+/**
+ * `polarHandler` for events that carry the organization in `metadata.referenceId`.
+ *
+ * A payload without one is a paid event this app cannot attribute to an
+ * organization: the customer is charged and granted nothing, and no retry can fix
+ * it because the reference is absent from the payload itself. It is logged at
+ * error level so it alerts, and returns instead of throwing, since a Polar retry
+ * would replay the same payload forever.
+ */
+function polarOrgHandler<T extends { metadata?: Record<string, unknown> }>(
+	name: string,
+	fields: (data: T) => Partial<WebhookWideEvent>,
+	run: (
+		data: T,
+		orgId: string,
+		event: WideEventBuilder<WebhookWideEvent>,
+	) => Promise<string | undefined>,
+) {
+	return polarHandler<T>(name, fields, async (data, event) => {
+		const orgId = data.metadata?.referenceId as string | undefined;
+		if (!orgId) return "without org reference";
+		event.set("org_id", orgId);
+		return run(data, orgId, event);
+	});
+}
+
+function subscriptionFields(
+	sub: { id: string; customer_id: string; product_id?: string },
+	status: string,
+): Partial<WebhookWideEvent> {
+	return {
+		polar_subscription_id: sub.id,
+		polar_customer_id: sub.customer_id,
+		plan_id: getPlanFromSubscription(sub),
+		subscription_status: status,
+	};
 }
 
 /**
@@ -136,22 +223,13 @@ export const auth = betterAuth({
 		enabled: true,
 		requireEmailVerification: false,
 		async sendResetPassword({ user, url }) {
-			if (!SMTP_HOST || !SMTP_PORT) {
+			if (!smtpTransport) {
 				console.warn("[auth] SMTP not configured — skipping password reset email");
 				return;
 			}
 
-			const transporter = createTransport({
-				host: SMTP_HOST,
-				port: parseInt(SMTP_PORT, 10),
-				secure: SMTP_PORT === String(DEFAULT_SMTP_SECURE_PORT),
-				auth: SMTP_USER && SMTP_PASSWORD ? { user: SMTP_USER, pass: SMTP_PASSWORD } : undefined,
-			});
-
-			const from = SMTP_FROM || DEFAULT_EMAIL_FROM;
-
-			await transporter.sendMail({
-				from,
+			await smtpTransport.sendMail({
+				from: smtpFrom,
 				to: user.email,
 				subject: "Reset your password — Uppity",
 				html: `
@@ -239,26 +317,9 @@ export const auth = betterAuth({
 			use: [
 				checkout({
 					authenticatedUsersOnly: true,
-					products: [
-						POLAR_PRODUCT_UPPITY_MONTHLY && {
-							productId: POLAR_PRODUCT_UPPITY_MONTHLY,
-							slug: "uppity-monthly",
-						},
-						POLAR_PRODUCT_UPPITY_ANNUAL && {
-							productId: POLAR_PRODUCT_UPPITY_ANNUAL,
-							slug: "uppity-annual",
-						},
-						// Dedicated is contact-sales in the UI; these slugs exist so a
-						// checkout link can be sent manually once provisioning is agreed.
-						POLAR_PRODUCT_DEDICATED_MONTHLY && {
-							productId: POLAR_PRODUCT_DEDICATED_MONTHLY,
-							slug: "dedicated-monthly",
-						},
-						POLAR_PRODUCT_DEDICATED_ANNUAL && {
-							productId: POLAR_PRODUCT_DEDICATED_ANNUAL,
-							slug: "dedicated-annual",
-						},
-					].filter(Boolean) as { productId: string; slug: string }[],
+					products: POLAR_PRODUCTS.flatMap(([productId, , slug]) =>
+						productId && slug ? [{ productId, slug }] : [],
+					),
 					// Polar substitutes the placeholder. The billing page uses it to pull the
 					// new subscription on return instead of waiting for the webhook.
 					successUrl: `${baseURL}/settings/billing?checkout=success&checkout_id={CHECKOUT_ID}`,
@@ -271,259 +332,105 @@ export const auth = betterAuth({
 				// meter events as their own Polar customer. MeterService ingests server-side.
 				webhooks({
 					secret: process.env.POLAR_WEBHOOK_SECRET ?? "",
-					onSubscriptionCreated: async ({ data: sub }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "subscription.created",
-							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customer_id,
-							plan_id: getPlanFromSubscription(sub),
-							subscription_status: sub.status,
-						});
-
-						try {
-							const orgId = sub.metadata?.referenceId as string | undefined;
-							if (!orgId) {
-								// A paid subscription this app cannot attribute to an organization:
-								// the customer is charged and granted nothing, and no retry can fix
-								// it because the reference is absent from the payload itself. Logged
-								// at error level so it alerts rather than sitting in a warning
-								// stream. Returns instead of throwing - a Polar retry would replay
-								// the same referenceId-less payload forever.
-								event.setStatus("error");
-								event.emit("subscription created without org reference");
-								return;
-							}
-
-							event.set("org_id", orgId);
-
+					onSubscriptionCreated: polarOrgHandler(
+						"subscription.created",
+						(sub) => subscriptionFields(sub, sub.status),
+						async (sub, orgId) => {
 							// The checkout endpoint already refuses this; checked again here because
 							// this write is what attaches a subscription to an organization.
 							const payer = sub.customer.external_id;
 							if (!payer || !(await subscriptionService.canManageBilling(orgId, payer))) {
-								event.setStatus("error");
-								event.emit("subscription created by someone who does not manage the org");
-								return;
+								return "by someone who does not manage the org";
 							}
 
 							await subscriptionService.syncFromPolar(orgId, {
-								planId: getPlanFromSubscription(sub),
-								status: mapPolarStatus(sub.status),
+								...snapshotFrom(sub),
 								polarCustomerId: sub.customer_id,
 								polarSubscriptionId: sub.id,
-								billingInterval: sub.recurring_interval,
-								currentPeriodStart: sub.current_period_start
-									? new Date(sub.current_period_start)
-									: undefined,
-								currentPeriodEnd: sub.current_period_end
-									? new Date(sub.current_period_end)
-									: undefined,
 							});
-
-							event.setSuccess();
-							event.emit("subscription created");
-						} catch (error) {
-							event.setError(error);
-							event.emit("subscription created");
-							throw error;
-						}
-					},
-					onSubscriptionUpdated: async ({ data: sub }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "subscription.updated",
-							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customer_id,
-							plan_id: getPlanFromSubscription(sub),
-							subscription_status: sub.status,
-						});
-
-						try {
-							const orgId = sub.metadata?.referenceId as string | undefined;
-							if (!orgId) {
-								event.setStatus("error");
-								event.emit("subscription updated without org reference");
-								return;
-							}
-
-							event.set("org_id", orgId);
-
+							return undefined;
+						},
+					),
+					onSubscriptionUpdated: polarOrgHandler(
+						"subscription.updated",
+						(sub) => subscriptionFields(sub, sub.status),
+						async (sub, orgId) => {
+							const synced = await subscriptionService.syncHeldFromPolar(
+								orgId,
+								heldBy(sub),
+								snapshotFrom(sub),
+							);
+							return synced ? undefined : NOT_BILLED_THROUGH;
+						},
+					),
+					onSubscriptionCanceled: polarOrgHandler(
+						"subscription.canceled",
+						(sub) => subscriptionFields(sub, "canceled"),
+						async (sub, orgId) => {
 							const synced = await subscriptionService.syncHeldFromPolar(orgId, heldBy(sub), {
-								planId: getPlanFromSubscription(sub),
-								status: mapPolarStatus(sub.status),
-								billingInterval: sub.recurring_interval,
-								currentPeriodStart: sub.current_period_start
-									? new Date(sub.current_period_start)
-									: undefined,
-								currentPeriodEnd: sub.current_period_end
-									? new Date(sub.current_period_end)
-									: undefined,
-							});
-							if (!synced) {
-								event.setStatus("error");
-								event.emit("subscription updated for a subscription the org is not billed through");
-								return;
-							}
-
-							event.setSuccess();
-							event.emit("subscription updated");
-						} catch (error) {
-							event.setError(error);
-							event.emit("subscription updated");
-							throw error;
-						}
-					},
-					onSubscriptionCanceled: async ({ data: sub }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "subscription.canceled",
-							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customer_id,
-							plan_id: getPlanFromSubscription(sub),
-							subscription_status: "canceled",
-						});
-
-						try {
-							const orgId = sub.metadata?.referenceId as string | undefined;
-							if (!orgId) {
-								event.setStatus("error");
-								event.emit("subscription canceled without org reference");
-								return;
-							}
-
-							event.set("org_id", orgId);
-
-							const synced = await subscriptionService.syncHeldFromPolar(orgId, heldBy(sub), {
-								planId: getPlanFromSubscription(sub),
+								...snapshotFrom(sub),
 								status: "canceled",
-								billingInterval: sub.recurring_interval,
-								currentPeriodEnd: sub.current_period_end
-									? new Date(sub.current_period_end)
-									: undefined,
 							});
-							if (!synced) {
-								event.setStatus("error");
-								event.emit(
-									"subscription canceled for a subscription the org is not billed through",
-								);
-								return;
-							}
-
-							event.setSuccess();
-							event.emit("subscription canceled");
-						} catch (error) {
-							event.setError(error);
-							event.emit("subscription canceled");
-							throw error;
-						}
-					},
+							return synced ? undefined : NOT_BILLED_THROUGH;
+						},
+					),
 					// Fires for every paid order: first purchase, renewal and seat change
 					// alike. Plan state is already maintained by the subscription.*
 					// handlers above, which carry the period boundaries this event does
 					// not, so this exists as a payment audit trail rather than a second
 					// path into SubscriptionService.
-					onOrderPaid: async ({ data: order }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "order.paid",
+					//
+					// TODO(NEO-?): one-time purchases (credit packs, setup fees) have no
+					// subscription.* event, so they will need to be granted here once such
+					// a product exists. Every product sold today is a subscription.
+					onOrderPaid: polarOrgHandler(
+						"order.paid",
+						(order) => ({
 							polar_order_id: order.id,
 							polar_customer_id: order.customer_id,
 							polar_product_id: order.product_id ?? undefined,
 							polar_subscription_id: order.subscription_id ?? undefined,
-						});
-
-						try {
-							const orgId = order.metadata?.referenceId as string | undefined;
-							if (!orgId) {
-								event.setStatus("error");
-								event.emit("order paid without org reference");
-								return;
-							}
-
-							event.set("org_id", orgId);
-
-							// TODO(NEO-?): one-time purchases (credit packs, setup fees) have no
-							// subscription.* event, so they will need to be granted here once such
-							// a product exists. Every product sold today is a subscription.
-							await Promise.resolve();
-
-							event.setSuccess();
-							event.emit("order paid");
-						} catch (error) {
-							event.setError(error);
-							event.emit("order paid");
-							throw error;
-						}
-					},
+						}),
+						async () => undefined,
+					),
 					// Polar's authoritative snapshot of everything a customer currently has.
 					// Useful as a reconciliation source when an individual subscription.*
 					// event is missed or arrives out of order.
-					onCustomerStateChanged: async ({ data: customer }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "customer.state_changed",
+					//
+					// No org_id on purpose. A Polar customer is keyed to a better-auth
+					// user (the plugin hardcodes externalCustomerId to session.user.id),
+					// and a user may own several organizations, so the customer alone
+					// cannot identify one. Org identity lives on each subscription's
+					// metadata.referenceId, not on the customer.
+					//
+					// TODO(NEO-?): reconcile drift against activeSubscriptions, reading
+					// referenceId from each subscription's own metadata. This is the only
+					// event able to repair a subscription whose webhook was never
+					// received. Deliberately not wired up yet - a reconciler that
+					// disagrees with the subscription.* handlers would silently overwrite
+					// them on every benefit grant, so precedence needs its own design pass.
+					onCustomerStateChanged: polarHandler(
+						"customer.state_changed",
+						(customer) => ({
 							polar_customer_id: customer.id,
 							active_subscription_count: customer.active_subscriptions.length,
-						});
-
-						try {
-							// No org_id on purpose. A Polar customer is keyed to a better-auth
-							// user (the plugin hardcodes externalCustomerId to session.user.id),
-							// and a user may own several organizations, so the customer alone
-							// cannot identify one. Org identity lives on each subscription's
-							// metadata.referenceId, not on the customer.
-
-							// TODO(NEO-?): reconcile drift against activeSubscriptions, reading
-							// referenceId from each subscription's own metadata. This is the only
-							// event able to repair a subscription whose webhook was never
-							// received. Deliberately not wired up yet - a reconciler that
-							// disagrees with the subscription.* handlers would silently overwrite
-							// them on every benefit grant, so precedence needs its own design pass.
-							await Promise.resolve();
-
-							event.setSuccess();
-							event.emit("customer state changed");
-						} catch (error) {
-							event.setError(error);
-							event.emit("customer state changed");
-							throw error;
-						}
-					},
-					onSubscriptionRevoked: async ({ data: sub }) => {
-						const event = createWebhookWideEvent("polar");
-						event.merge({
-							webhook_event: "subscription.revoked",
+						}),
+						async () => undefined,
+					),
+					onSubscriptionRevoked: polarOrgHandler(
+						"subscription.revoked",
+						(sub) => ({
 							polar_subscription_id: sub.id,
 							polar_customer_id: sub.customer_id,
 							subscription_status: "revoked",
-						});
-
-						try {
-							const orgId = sub.metadata?.referenceId as string | undefined;
-							if (!orgId) {
-								event.setStatus("error");
-								event.emit("subscription revoked without org reference");
-								return;
-							}
-
-							event.set("org_id", orgId);
-
+						}),
+						async (sub, orgId, event) => {
 							const downgraded = await subscriptionService.downgradeHeldToFree(orgId, heldBy(sub));
-							if (!downgraded) {
-								event.setStatus("error");
-								event.emit("subscription revoked for a subscription the org is not billed through");
-								return;
-							}
-
+							if (!downgraded) return NOT_BILLED_THROUGH;
 							event.set("plan_id", "free");
-							event.setSuccess();
-							event.emit("subscription revoked");
-						} catch (error) {
-							event.setError(error);
-							event.emit("subscription revoked");
-							throw error;
-						}
-					},
+							return undefined;
+						},
+					),
 				}),
 			],
 		}),
