@@ -12,7 +12,6 @@
 	"sortPackageJson": true,
 	"ignorePatterns": [
 		"build/",
-		"coverage/",
 		".svelte-kit/",
 		"drizzle/",
 		".claude/",

@@ -11,15 +11,12 @@ docker-compose*
 .svelte-kit
 build
 .deno-deploy
-tests
 *.spec.ts
 playwright.config.ts
 playwright-report
 test-results
-vitest.config.ts
 skills-lock.json
 .mcp.json
 .claude
 .vscode
 .idea
-railway.toml
