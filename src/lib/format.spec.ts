@@ -109,11 +109,11 @@ describe("formatUptime", () => {
 		expect(formatUptime(null)).toBe("-");
 	});
 
-	it("formats uptime with one decimal place", () => {
-		expect(formatUptime(100)).toBe("100.0%");
-		expect(formatUptime(99.95)).toBe("100.0%");
-		expect(formatUptime(99.94)).toBe("99.9%");
-		expect(formatUptime(0)).toBe("0.0%");
+	it("floors uptime to two decimal places", () => {
+		expect(formatUptime(100)).toBe("100.00%");
+		expect(formatUptime(99.999)).toBe("99.99%");
+		expect(formatUptime(99.956)).toBe("99.95%");
+		expect(formatUptime(0)).toBe("0.00%");
 	});
 });
 

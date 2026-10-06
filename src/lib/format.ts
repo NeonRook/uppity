@@ -99,7 +99,8 @@ export function formatInterval(seconds: number): string {
  */
 export function formatUptime(percent: number | null): string {
 	if (percent === null) return "-";
-	return `${percent.toFixed(1)}%`;
+	// Floored, so any downtime keeps the figure below 100%.
+	return `${(Math.floor(percent * 100) / 100).toFixed(2)}%`;
 }
 
 /**
