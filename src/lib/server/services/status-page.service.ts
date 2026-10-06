@@ -554,17 +554,17 @@ export class StatusPageService {
 						.select({
 							monitorId: monitorCheck.monitorId,
 							date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
-							totalChecks: sql<number>`COUNT(*)`.as("total_checks"),
+							totalChecks: sql<number>`COUNT(*)::int`.as("total_checks"),
 							upChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'up' THEN 1 ELSE 0 END)`.as(
+								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'up' THEN 1 ELSE 0 END)::int`.as(
 									"up_checks",
 								),
 							downChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'down' THEN 1 ELSE 0 END)`.as(
+								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'down' THEN 1 ELSE 0 END)::int`.as(
 									"down_checks",
 								),
 							degradedChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'degraded' THEN 1 ELSE 0 END)`.as(
+								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'degraded' THEN 1 ELSE 0 END)::int`.as(
 									"degraded_checks",
 								),
 						})
@@ -699,6 +699,13 @@ export class StatusPageService {
 			overallStatus = "under_maintenance";
 		}
 
+		// A subquery rather than a join, so an incident linked to several of the
+		// page's monitors is listed, with its updates, once.
+		const onThisPage = this.db
+			.select({ id: incidentMonitor.incidentId })
+			.from(incidentMonitor)
+			.where(inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]));
+
 		// Get active incidents
 		const activeIncidentsRaw = await this.db
 			.select({
@@ -717,13 +724,7 @@ export class StatusPageService {
 			})
 			.from(incident)
 			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-			.where(
-				and(
-					inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]),
-					sql`${incident.status} != 'resolved'`,
-				),
-			)
+			.where(and(inArray(incident.id, onThisPage), sql`${incident.status} != 'resolved'`))
 			.groupBy(incident.id)
 			.orderBy(desc(incident.startedAt));
 
@@ -747,10 +748,9 @@ export class StatusPageService {
 			})
 			.from(incident)
 			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
 			.where(
 				and(
-					inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]),
+					inArray(incident.id, onThisPage),
 					sql`${incident.status} = 'resolved'`,
 					gte(incident.resolvedAt, historyDaysAgo),
 				),

@@ -6,6 +6,9 @@ import { STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
 
 import { organization } from "../db/auth-schema";
 import {
+	incident,
+	incidentMonitor,
+	incidentUpdate,
 	maintenanceWindow,
 	maintenanceWindowMonitor,
 	monitor,
@@ -427,5 +430,70 @@ describe("StatusPageService.getPublicStatusPage — unmeasured days", () => {
 		const [monitorStatus] = result!.ungroupedMonitors;
 
 		expect(monitorStatus.uptimePercent90d).toBeNull();
+	});
+});
+
+describe("StatusPageService.getPublicStatusPage — aggregation", () => {
+	test("uptime sums checks across days", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(2));
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(2, 13));
+		await seedCheck(drizzleDb, monitorId, "up", daysAgo(1));
+		await seedCheck(drizzleDb, monitorId, "down", daysAgo(1, 13));
+
+		const result = await service.getPublicStatusPage(slug);
+		expect(result!.ungroupedMonitors[0].uptimePercent90d).toBe(75);
+	});
+
+	test("an incident on two page monitors lists each update once, newest first", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const first = await seedMonitor(drizzleDb, orgId);
+		const second = await seedMonitor(drizzleDb, orgId);
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, first);
+		await drizzleDb
+			.insert(statusPageMonitor)
+			.values({ id: `spm-${nanoid()}`, statusPageId: pageId, monitorId: second, order: 1 });
+
+		const incidentId = `inc-${nanoid()}`;
+		await drizzleDb
+			.insert(incident)
+			.values({ id: incidentId, organizationId: orgId, title: "Outage" });
+		await drizzleDb.insert(incidentMonitor).values([
+			{ incidentId, monitorId: first },
+			{ incidentId, monitorId: second },
+		]);
+		await drizzleDb.insert(incidentUpdate).values([
+			{
+				id: nanoid(),
+				incidentId,
+				status: "investigating",
+				message: "Looking",
+				createdAt: daysAgo(0, 1),
+			},
+			{
+				id: nanoid(),
+				incidentId,
+				status: "identified",
+				message: "Found it",
+				createdAt: daysAgo(0, 2),
+			},
+		]);
+
+		const result = await service.getPublicStatusPage(slug);
+		expect(result!.activeIncidents).toHaveLength(1);
+		expect(result!.activeIncidents[0].updates.map((u) => u.message)).toEqual([
+			"Found it",
+			"Looking",
+		]);
+
+		const detail = await service.getPublicIncident(slug, incidentId);
+		expect(detail!.incident.updates).toHaveLength(2);
 	});
 });
