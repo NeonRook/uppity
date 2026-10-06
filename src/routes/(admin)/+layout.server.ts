@@ -11,13 +11,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		return {};
 	}
 
-	// Require authentication for all other admin routes
-	if (!locals.user) {
-		redirect(302, "/admin/login");
-	}
-
-	// Require admin role
-	if (locals.user.role !== "admin") {
+	if (locals.user?.role !== "admin") {
 		redirect(302, "/admin/login");
 	}
 

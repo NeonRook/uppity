@@ -15,6 +15,5 @@ export const load: PageServerLoad = async ({ url }) => {
 		total,
 		page,
 		limit,
-		search: search || "",
 	};
 };

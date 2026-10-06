@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { CircleAlert, LoaderCircle, ArrowLeft } from "@lucide/svelte";
+	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
 
+	import PageHeader from "#lib/components/page-header.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
@@ -25,12 +26,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/admin/users">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<h1 class="text-2xl font-bold">{m.admin_users_create()}</h1>
-	</div>
+	<PageHeader backHref="/admin/users" title={m.admin_users_create()} />
 
 	<Card.Root>
 		<Card.Content class="pt-6">
@@ -82,14 +78,7 @@
 
 				<Field.Field>
 					<Field.Label for="role">{m.common_role()}</Field.Label>
-					<input type="hidden" name="role" bind:value={$form.role} />
-					<Select.Root
-						type="single"
-						name="role"
-						value={$form.role || "user"}
-						onValueChange={(v) => ($form.role = v as "user" | "admin")}
-						disabled={$delayed}
-					>
+					<Select.Root type="single" name="role" bind:value={$form.role} disabled={$delayed}>
 						<Select.Trigger class="w-full">
 							{getRoleLabel($form.role)}
 						</Select.Trigger>

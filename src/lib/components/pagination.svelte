@@ -7,8 +7,6 @@
 	interface Props {
 		/** Current page number (1-indexed) */
 		page: number;
-		/** Total number of pages */
-		totalPages: number;
 		/** Items per page */
 		limit: number;
 		/** Total number of items */
@@ -19,8 +17,9 @@
 		onPageChange: (page: number) => void;
 	}
 
-	let { page, totalPages, limit, total, itemName, onPageChange }: Props = $props();
+	let { page, limit, total, itemName, onPageChange }: Props = $props();
 
+	const totalPages = $derived(Math.ceil(total / limit));
 	const showingFrom = $derived((page - 1) * limit + 1);
 	const showingTo = $derived(Math.min(page * limit, total));
 </script>

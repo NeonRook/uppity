@@ -1,40 +1,22 @@
 <script lang="ts">
-	import { CircleAlert, LoaderCircle, ArrowLeft } from "@lucide/svelte";
+	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
 
+	import PageHeader from "#lib/components/page-header.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { generateSlug } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 
 	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
 
-	// Auto-generate slug from name
-	function generateSlug(name: string): string {
-		return name
-			.toLowerCase()
-			.replace(/[^a-z0-9\s-]/g, "")
-			.replace(/\s+/g, "-")
-			.replace(/-+/g, "-")
-			.trim();
-	}
-
-	let autoSlug = $state(true);
-
-	$effect(() => {
-		if (autoSlug && $form.name) {
-			$form.slug = generateSlug($form.name);
-		}
-	});
-
-	function handleSlugChange() {
-		autoSlug = false;
-	}
+	let autoSlug = true;
 </script>
 
 <svelte:head>
@@ -42,12 +24,7 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/admin/organizations">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<h1 class="text-2xl font-bold">{m.admin_orgs_create()}</h1>
-	</div>
+	<PageHeader backHref="/admin/organizations" title={m.admin_orgs_create()} />
 
 	<Card.Root>
 		<Card.Content class="pt-6">
@@ -67,6 +44,9 @@
 						bind:value={$form.name}
 						disabled={$delayed}
 						placeholder="Acme Inc."
+						oninput={(e) => {
+							if (autoSlug) $form.slug = generateSlug(e.currentTarget.value);
+						}}
 					/>
 					<Field.Error errors={$errors.name} />
 				</Field.Field>
@@ -79,7 +59,7 @@
 						bind:value={$form.slug}
 						disabled={$delayed}
 						placeholder="acme-inc"
-						oninput={handleSlugChange}
+						oninput={() => (autoSlug = false)}
 					/>
 					<Field.Description>
 						{m.admin_orgs_slug_desc()}

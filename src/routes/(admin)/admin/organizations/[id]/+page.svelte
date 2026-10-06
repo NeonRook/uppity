@@ -6,6 +6,7 @@
 	import { superForm } from "sveltekit-superforms";
 
 	import AuditHistory from "#lib/components/audit-history.svelte";
+	import UsageBar from "#lib/components/billing/usage-bar.svelte";
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
@@ -142,22 +143,6 @@
 	</Card.Root>
 
 	<!-- Subscription -->
-	{#snippet usageBar(label: string, used: number, limit: number)}
-		<div class="space-y-1">
-			<div class="text-muted-foreground flex justify-between text-xs">
-				<span>{label}</span>
-				<span>{used} / {limit === -1 ? "∞" : limit}</span>
-			</div>
-			<div class="bg-muted h-2 w-full overflow-hidden rounded-full">
-				<!-- -1 means unlimited, so there is no meaningful bar to fill. -->
-				<div
-					class="bg-primary h-full"
-					style="width: {limit === -1 ? 0 : Math.min(100, (used / Math.max(limit, 1)) * 100)}%"
-				></div>
-			</div>
-		</div>
-	{/snippet}
-
 	<Card.Root>
 		<Card.Header>
 			<div class="flex items-start justify-between gap-4">
@@ -215,16 +200,16 @@
 
 			<div class="space-y-2">
 				<p class="text-sm font-medium">{m.admin_org_usage()}</p>
-				{@render usageBar(
-					m.admin_org_usage_monitors(),
-					data.billing.usage.monitors,
-					data.billing.limits.monitors,
-				)}
-				{@render usageBar(
-					m.admin_org_usage_status_pages(),
-					data.billing.usage.statusPages,
-					data.billing.limits.statusPages,
-				)}
+				<UsageBar
+					label="monitors"
+					current={data.billing.usage.monitors}
+					limit={data.billing.limits.monitors}
+				/>
+				<UsageBar
+					label="statusPages"
+					current={data.billing.usage.statusPages}
+					limit={data.billing.limits.statusPages}
+				/>
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -324,13 +309,7 @@
 			<div class="space-y-4 py-4">
 				<Field.Field>
 					<Field.Label for="userId">{m.admin_role_user()}</Field.Label>
-					<input type="hidden" name="userId" bind:value={selectedUserId} />
-					<Select.Root
-						type="single"
-						name="userId"
-						value={selectedUserId}
-						onValueChange={(v) => (selectedUserId = v)}
-					>
+					<Select.Root type="single" name="userId" bind:value={selectedUserId}>
 						<Select.Trigger class="w-full">
 							{getUserLabel(selectedUserId)}
 						</Select.Trigger>
@@ -344,13 +323,7 @@
 
 				<Field.Field>
 					<Field.Label for="role">{m.common_role()}</Field.Label>
-					<input type="hidden" name="role" bind:value={selectedRole} />
-					<Select.Root
-						type="single"
-						name="role"
-						value={selectedRole}
-						onValueChange={(v) => (selectedRole = v)}
-					>
+					<Select.Root type="single" name="role" bind:value={selectedRole}>
 						<Select.Trigger class="w-full">
 							{getRoleLabel(selectedRole)}
 						</Select.Trigger>
