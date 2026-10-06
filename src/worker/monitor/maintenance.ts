@@ -13,8 +13,8 @@ import {
 import { maintenanceJob } from "../../lib/server/db/schema";
 import type * as schema from "../../lib/server/db/schema";
 import {
-	createMaintenanceWideEvent,
-	createMaintenanceLogger,
+	childLogger,
+	wideEvent,
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
 } from "../../lib/server/logger";
@@ -26,30 +26,47 @@ import { statsService } from "./stats";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
-const maintenanceLogger = createMaintenanceLogger();
+const maintenanceLogger = childLogger("maintenance");
 
 type JobHandler = (event: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
 
-const jobHandlers: Record<string, JobHandler> = {
-	"daily-stats": async (event) => {
-		const count = await statsService.aggregateYesterday();
-		event.set("records_processed", count);
+const JOBS: Record<string, { name: string; cron: string; run: JobHandler }> = {
+	"daily-stats": {
+		name: "Daily Stats Aggregation",
+		cron: CRON_DAILY_STATS,
+		run: async (event) => {
+			event.set("records_processed", await statsService.aggregateYesterday());
+		},
 	},
-	"rolling-stats": async (event) => {
-		const count = await statsService.updateAll24hStats();
-		event.set("records_processed", count);
+	"rolling-stats": {
+		name: "Rolling Stats Update",
+		cron: CRON_ROLLING_STATS,
+		run: async (event) => {
+			event.set("records_processed", await statsService.updateAll24hStats());
+		},
 	},
-	cleanup: async (event) => {
-		const deleted = await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS);
-		event.set("records_deleted", deleted);
+	cleanup: {
+		name: "Old Check Cleanup",
+		cron: CRON_CLEANUP,
+		run: async (event) => {
+			event.set("records_deleted", await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS));
+		},
 	},
-	"maintenance-window-transitions": async (event) => {
-		const result = await new MaintenanceWindowService(db).runStatusTransitions();
-		event.set("windows_started", result.started);
-		event.set("windows_completed", result.completed);
+	"maintenance-window-transitions": {
+		name: "Maintenance Window Transitions",
+		cron: CRON_MAINTENANCE_WINDOW_TRANSITIONS,
+		run: async (event) => {
+			const result = await new MaintenanceWindowService(db).runStatusTransitions();
+			event.set("windows_started", result.started);
+			event.set("windows_completed", result.completed);
+		},
 	},
-	"usage-snapshot": async (event) => {
-		event.merge(await runUsageSnapshot(db, new MeterService(db)));
+	"usage-snapshot": {
+		name: "Polar Usage Snapshot",
+		cron: CRON_USAGE_SNAPSHOT,
+		run: async (event) => {
+			event.merge(await runUsageSnapshot(db, new MeterService(db)));
+		},
 	},
 };
 
@@ -90,42 +107,13 @@ export async function initializeMaintenanceJobs(targetDb: Db = db): Promise<void
 	// keep their schedule and run history; jobs added in a later release get
 	// created on the next deploy instead of silently never running.
 	const now = new Date();
-	const jobs = [
-		{
-			id: "daily-stats",
-			name: "Daily Stats Aggregation",
-			cronExpression: CRON_DAILY_STATS,
-			nextRunAt: calculateNextRun(CRON_DAILY_STATS, now),
-		},
-		{
-			id: "rolling-stats",
-			name: "Rolling Stats Update",
-			cronExpression: CRON_ROLLING_STATS,
-			nextRunAt: calculateNextRun(CRON_ROLLING_STATS, now),
-		},
-		{
-			id: "cleanup",
-			name: "Old Check Cleanup",
-			cronExpression: CRON_CLEANUP,
-			nextRunAt: calculateNextRun(CRON_CLEANUP, now),
-		},
-		{
-			id: "maintenance-window-transitions",
-			name: "Maintenance Window Transitions",
-			cronExpression: CRON_MAINTENANCE_WINDOW_TRANSITIONS,
-			nextRunAt: calculateNextRun(CRON_MAINTENANCE_WINDOW_TRANSITIONS, now),
-		},
-		{
-			id: "usage-snapshot",
-			name: "Polar Usage Snapshot",
-			cronExpression: CRON_USAGE_SNAPSHOT,
-			nextRunAt: calculateNextRun(CRON_USAGE_SNAPSHOT, now),
-		},
-	];
 
-	for (const job of jobs) {
-		await targetDb.insert(maintenanceJob).values(job).onConflictDoNothing();
-		maintenanceLogger.debug({ job_id: job.id, job_name: job.name }, "Ensured maintenance job");
+	for (const [id, { name, cron }] of Object.entries(JOBS)) {
+		await targetDb
+			.insert(maintenanceJob)
+			.values({ id, name, cronExpression: cron, nextRunAt: calculateNextRun(cron, now) })
+			.onConflictDoNothing();
+		maintenanceLogger.debug({ job_id: id, job_name: name }, "Ensured maintenance job");
 	}
 }
 
@@ -151,14 +139,14 @@ export async function runDueMaintenanceJobs(): Promise<void> {
 		.for("update", { skipLocked: true });
 
 	for (const job of dueJobs) {
-		const handler = jobHandlers[job.id];
+		const handler = JOBS[job.id]?.run;
 		if (!handler) {
 			maintenanceLogger.warn({ job_id: job.id }, "Unknown job handler");
 			continue;
 		}
 
 		// Create wide event for this job execution
-		const event = createMaintenanceWideEvent(job.id);
+		const event = wideEvent<MaintenanceWideEvent>("maintenance", "maintenance_job", "mnt");
 		event.merge({
 			job_id: job.id,
 			job_name: job.name,

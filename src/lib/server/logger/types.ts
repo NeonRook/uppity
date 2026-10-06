@@ -105,9 +105,6 @@ export interface CheckWideEvent extends WideEventBase {
 	ssl_days_remaining?: number;
 	ssl_expiry_warning?: boolean;
 
-	// Notifications
-	notifications_triggered?: number;
-
 	// Outbox enqueue (NEO-5)
 	notification_event_enqueued?: boolean;
 	notification_event_id?: string;
@@ -146,27 +143,7 @@ export interface MaintenanceWideEvent extends WideEventBase {
 }
 
 /**
- * Notification wide event - emitted once per notification send
- */
-export interface NotificationWideEvent extends WideEventBase {
-	event_type: "notification";
-
-	// Channel context
-	channel_id: string;
-	channel_type: string;
-	channel_name?: string;
-
-	// Delivery
-	monitor_id?: string;
-	incident_id?: string;
-	notification_type: string;
-	delivery_status: "sent" | "failed";
-	delivery_error?: string;
-}
-
-/**
  * Notifier wide event - emitted once per outbox row processed by the notifier worker.
- * Distinct from NotificationWideEvent (which is per-send to a channel).
  */
 export interface NotifierWideEvent extends WideEventBase {
 	event_type: "notifier";
@@ -211,14 +188,3 @@ export interface WebhookWideEvent extends WideEventBase {
 	// than a single subscription, so the count is what identifies the change.
 	active_subscription_count?: number;
 }
-
-/**
- * Union of all wide event types
- */
-export type WideEvent =
-	| RequestWideEvent
-	| CheckWideEvent
-	| MaintenanceWideEvent
-	| NotificationWideEvent
-	| NotifierWideEvent
-	| WebhookWideEvent;

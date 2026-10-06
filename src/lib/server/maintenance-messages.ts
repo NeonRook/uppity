@@ -1,6 +1,17 @@
 import { m } from "#lib/paraglide/messages.js";
 import { MaintenanceWindowError } from "#lib/server/services/maintenance-window.service.js";
 
+const MESSAGES: Record<MaintenanceWindowError["code"], () => string> = {
+	not_found: m.maintenance_error_not_found,
+	name_required: m.maintenance_error_name_required,
+	end_before_start: m.maintenance_error_end_before_start,
+	end_in_past: m.maintenance_error_end_in_past,
+	no_monitors: m.maintenance_error_no_monitors,
+	monitor_not_found: m.maintenance_error_monitor_not_found,
+	cannot_cancel_completed: m.maintenance_error_cannot_cancel_completed,
+	not_deletable: m.maintenance_error_not_deletable,
+};
+
 /**
  * Translate a maintenance-window rejection into copy a form can show.
  *
@@ -13,25 +24,5 @@ export function maintenanceErrorMessage(err: unknown): string {
 	if (!(err instanceof MaintenanceWindowError)) {
 		return m.maintenance_error_unexpected();
 	}
-
-	switch (err.code) {
-		case "not_found":
-			return m.maintenance_error_not_found();
-		case "name_required":
-			return m.maintenance_error_name_required();
-		case "end_before_start":
-			return m.maintenance_error_end_before_start();
-		case "end_in_past":
-			return m.maintenance_error_end_in_past();
-		case "no_monitors":
-			return m.maintenance_error_no_monitors();
-		case "monitor_not_found":
-			return m.maintenance_error_monitor_not_found();
-		case "cannot_cancel_completed":
-			return m.maintenance_error_cannot_cancel_completed();
-		case "not_deletable":
-			return m.maintenance_error_not_deletable();
-		default:
-			return m.maintenance_error_unexpected();
-	}
+	return (MESSAGES[err.code] ?? m.maintenance_error_unexpected)();
 }

@@ -37,13 +37,6 @@ export class WideEventBuilder<T extends WideEventBase> {
 	}
 
 	/**
-	 * Get a field value from the event
-	 */
-	get<K extends keyof T>(key: K): T[K] | undefined {
-		return this.data[key];
-	}
-
-	/**
 	 * Merge multiple fields into the event
 	 */
 	merge(fields: Partial<T>): this {
@@ -102,28 +95,5 @@ export class WideEventBuilder<T extends WideEventBase> {
 		} else {
 			this.logger.info(this.data as unknown, msg);
 		}
-	}
-
-	/**
-	 * Emit a warning-level wide event
-	 */
-	emitWarn(msg: string): void {
-		const base = this.data as WideEventBase;
-		base.duration_ms = Date.now() - this.startTime;
-		this.logger.warn(this.data as unknown, msg);
-	}
-
-	/**
-	 * Get the raw event data (for testing or debugging)
-	 */
-	getData(): Partial<T> {
-		return { ...this.data };
-	}
-
-	/**
-	 * Get the request ID for this event
-	 */
-	getRequestId(): string {
-		return (this.data as WideEventBase).request_id;
 	}
 }
