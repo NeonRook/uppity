@@ -4,7 +4,7 @@ import type { Db } from "../../lib/server/db/index";
 import type { NotificationEvent } from "../../lib/server/db/schema";
 import { notificationEvent } from "../../lib/server/db/schema";
 import type { NotifierWideEvent, WideEventBuilder } from "../../lib/server/logger";
-import type { DispatchResult, NotificationService } from "../../lib/server/notifications/service";
+import type { NotificationService } from "../../lib/server/notifications/service";
 
 export const CLAIM_BATCH_SIZE = 25;
 export const STUCK_ROW_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
@@ -98,15 +98,9 @@ async function dispatchClaimed(
 		claim_latency_ms: row.claimedAt ? row.claimedAt.getTime() - row.createdAt.getTime() : undefined,
 	});
 
-	let result: DispatchResult;
-	try {
-		result = await service.dispatchEvent(row);
-	} catch (err) {
-		result = {
-			status: "failed",
-			errorMessage: err instanceof Error ? err.message : String(err),
-		};
-	}
+	// A throw, such as a lost database connection, leaves the row claimed. The
+	// sweep retries it once the claim is stale, so the alert is late, not lost.
+	const result = await service.dispatchEvent(row);
 
 	const errorMessage = result.status === "sent" ? null : result.errorMessage;
 

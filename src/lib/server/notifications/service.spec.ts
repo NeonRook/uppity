@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { describe, expect } from "vitest";
+import { afterEach, describe, expect, vi } from "vitest";
 
 import { organization } from "../db/auth-schema";
 import {
@@ -8,6 +8,7 @@ import {
 	incidentMonitor,
 	monitor,
 	monitorNotificationChannel,
+	monitorStatus,
 	notificationChannel,
 	notificationEvent,
 	notificationLog,
@@ -310,5 +311,43 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 			.from(notificationLog)
 			.where(eq(notificationLog.incidentId, incidentId));
 		expect(logs).toHaveLength(0);
+	});
+});
+
+describe("NotificationService.dispatchEvent (checks stopped)", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("webhooks get no status, since the recorded one is stale", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+		vi.stubGlobal("fetch", fetchMock);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId, status: "up" });
+		await linkMonitorToChannel(drizzleDb, monitorId, await seedWebhookChannel(drizzleDb, orgId));
+		const templated = await seedWebhookChannel(drizzleDb, orgId);
+		await drizzleDb
+			.update(notificationChannel)
+			.set({ config: { url: "http://127.0.0.1:1/hook", bodyTemplate: '{"text":"[{{status}}]"}' } })
+			.where(eq(notificationChannel.id, templated));
+		await linkMonitorToChannel(drizzleDb, monitorId, templated);
+		const eventId = `evt-${nanoid()}`;
+		await drizzleDb.insert(notificationEvent).values({
+			id: eventId,
+			organizationId: orgId,
+			monitorId,
+			type: "monitor_checks_stopped",
+			payload: {},
+			status: "pending",
+		});
+
+		const result = await new NotificationService(drizzleDb).dispatchEvent(
+			await fetchEvent(drizzleDb, eventId),
+		);
+
+		expect(result).toEqual({ status: "sent" });
+		const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body as string));
+		expect(bodies).toContainEqual(expect.objectContaining({ status: null }));
+		expect(bodies).toContainEqual({ text: "[]" });
 	});
 });

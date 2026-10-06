@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { getCheckIcon, getDayStatusColor, getMonitorStatusColor, getStatusColor } from "./status";
+import {
+	getCheckIcon,
+	getDayStatusColor,
+	getMonitorStatusColor,
+	getStatusColor,
+	nextAttempt,
+} from "./status";
 
 /** Any Tailwind palette literal. The system forbids these; see DESIGN.md. */
 const PALETTE_LITERAL =
@@ -73,5 +79,17 @@ describe("the One Green Rule", () => {
 		for (const cls of emitted) {
 			expect(cls).not.toMatch(PALETTE_LITERAL);
 		}
+	});
+});
+
+describe("nextAttempt", () => {
+	const now = new Date("2026-01-01T12:00:00Z");
+
+	it("reads a due or running attempt as now, not as the past", () => {
+		expect(nextAttempt(new Date("2026-01-01T11:55:00Z"), now)).toBe("now");
+	});
+
+	it("reads a scheduled attempt relative to now", () => {
+		expect(nextAttempt(new Date("2026-01-01T12:05:00Z"), now)).toBe("in 5 minutes");
 	});
 });

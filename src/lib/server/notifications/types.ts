@@ -11,9 +11,12 @@ export type NotificationType =
 	| "incident_resolved"
 	| "ssl_expiry_warning";
 
+/** The monitor fields a notification carries. */
+export type NotifiedMonitor = Pick<Monitor, "id" | "name" | "type" | "url" | "hostname" | "port">;
+
 export interface NotificationPayload {
 	type: NotificationType;
-	monitor?: Monitor;
+	monitor?: NotifiedMonitor;
 	status?: MonitorStatus;
 	incident?: Incident;
 	previousStatus?: string;

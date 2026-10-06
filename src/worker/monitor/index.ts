@@ -1,56 +1,20 @@
-import { sql, inArray } from "drizzle-orm";
-
 import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
 import { db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
-import { recordCheckFailure, recordCheckSuccess } from "./schedule";
+import {
+	claimDueMonitors,
+	recordCheckFailure,
+	recordCheckSuccess,
+	releaseOverlongSchedules,
+} from "./schedule";
 
 const schedulerLogger = childLogger("scheduler");
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
-
-/**
- * Claims up to BATCH_SIZE monitors that are due for checking.
- * Uses SKIP LOCKED to allow multiple workers without conflicts.
- */
-async function claimDueMonitors() {
-	// Atomic claim: SELECT + UPDATE in single transaction
-	const claimed = await db.transaction(async (tx) => {
-		// Find monitors due for check, not in backoff
-		// Use NOW() instead of passing Date objects to avoid serialization issues
-		const dueMonitors = await tx.execute<{ id: string }>(sql`
-			SELECT id FROM monitor
-			WHERE active = true
-				AND next_check_at <= NOW()
-				AND (check_backoff_until IS NULL OR check_backoff_until <= NOW())
-			ORDER BY next_check_at ASC
-			LIMIT ${WORKER_POLL_BATCH_SIZE}
-			FOR UPDATE SKIP LOCKED
-		`);
-
-		if (dueMonitors.length === 0) {
-			return [];
-		}
-
-		const monitorIds = dueMonitors.map((r) => r.id);
-
-		// Update next_check_at to prevent re-claiming
-		// Actual next time will be set after check completes
-		await tx
-			.update(monitor)
-			.set({ nextCheckAt: sql`NOW() + INTERVAL '1 hour'` })
-			.where(inArray(monitor.id, monitorIds));
-
-		// Fetch full monitor data
-		return tx.select().from(monitor).where(inArray(monitor.id, monitorIds));
-	});
-
-	return claimed;
-}
 
 /**
  * Processes a single monitor check.
@@ -107,7 +71,7 @@ async function pollLoop() {
 	// oxlint-disable-next-line no-unmodified-loop-condition -- modified by shutdown() signal handler
 	while (running) {
 		try {
-			const monitors = await claimDueMonitors();
+			const monitors = await claimDueMonitors(db);
 
 			if (monitors.length > 0) {
 				// Reset backoff on successful claim
@@ -133,6 +97,7 @@ async function pollLoop() {
 			maintenanceCheckCounter++;
 			if (maintenanceCheckCounter >= MAINTENANCE_CHECK_INTERVAL) {
 				await runDueMaintenanceJobs();
+				await releaseOverlongSchedules(db);
 				maintenanceCheckCounter = 0;
 			}
 		} catch (error) {
@@ -165,6 +130,7 @@ async function start() {
 
 	// Initialize maintenance jobs if needed
 	await initializeMaintenanceJobs();
+	await releaseOverlongSchedules(db);
 
 	// Start the main polling loop
 	await pollLoop();

@@ -67,11 +67,15 @@ function styleOf(status: string | null, active = true): StateStyle {
 	return (status !== null && Object.hasOwn(STATES, status) ? STATES[status] : undefined) ?? UNKNOWN;
 }
 
+/** When the next check attempt starts. A due or running attempt reads as now. */
+export function nextAttempt(nextCheckAt: Date | null, now = new Date()): string {
+	if (!nextCheckAt) return "-";
+	return formatRelativeTime(nextCheckAt > now ? nextCheckAt : now, getLocale(), now);
+}
+
 /** Why a dead-lettered monitor shows no status, and when the next attempt runs. */
 export function uncheckedSummary(nextCheckAt: Date | null): string {
-	return m.monitor_unchecked_summary({
-		next: nextCheckAt ? formatRelativeTime(nextCheckAt, getLocale()) : "-",
-	});
+	return m.monitor_unchecked_summary({ next: nextAttempt(nextCheckAt) });
 }
 
 /**
