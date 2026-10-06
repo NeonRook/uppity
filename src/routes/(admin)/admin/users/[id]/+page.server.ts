@@ -1,4 +1,5 @@
 import { error, fail, redirect } from "@sveltejs/kit";
+import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
@@ -10,9 +11,9 @@ import { auth } from "#lib/server/auth.js";
 import { user } from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { adminService } from "#lib/server/services/admin.service.js";
-import { auditService } from "#lib/server/services/audit.service.js";
+import { auditService, type Actor } from "#lib/server/services/audit.service.js";
 
-import type { Actions, PageServerLoad } from "./$types";
+import type { Actions, PageServerLoad, RequestEvent } from "./$types";
 
 /** Email is the human-readable handle for a user in the audit log. */
 async function userLabel(userId: string): Promise<string> {
@@ -24,21 +25,34 @@ async function userLabel(userId: string): Promise<string> {
 	return row?.email ?? userId;
 }
 
-export const load: PageServerLoad = async ({ params, request }) => {
-	// Get all users and find the one with matching ID
-	const result = await auth.api.listUsers({
-		headers: request.headers,
-		query: {
-			limit: 1000,
-			offset: 0,
-		},
-	});
-
-	const foundUser = result.users.find((u) => u.id === params.id);
-
-	if (!foundUser) {
-		error(404, "User not found");
+/**
+ * Runs an audited action against the user in the route, then returns to the
+ * user's page (or `to`). A failure re-renders the page with its message.
+ */
+async function userAction(
+	event: RequestEvent,
+	fallback: string,
+	run: (actor: Actor, label: string) => Promise<unknown>,
+	to = `/admin/users/${event.params.id}`,
+) {
+	try {
+		await run(await getActor(event), await userLabel(event.params.id));
+	} catch (err) {
+		return fail(400, { message: err instanceof Error ? err.message : fallback });
 	}
+
+	return redirect(302, to);
+}
+
+export const load: PageServerLoad = async ({ params, request }) => {
+	const foundUser = await auth.api
+		.getUser({ headers: request.headers, query: { id: params.id } })
+		.catch((err: unknown) => {
+			if (err instanceof APIError && err.status === "NOT_FOUND") {
+				error(404, "User not found");
+			}
+			throw err;
+		});
 
 	const form = await superValidate(
 		{
@@ -125,38 +139,19 @@ export const actions: Actions = {
 	},
 
 	ban: async (event) => {
-		const { request, params } = event;
-		const formData = await request.formData();
-		const banReasonValue = formData.get("banReason");
+		const banReasonValue = (await event.request.formData()).get("banReason");
 		const reason =
 			typeof banReasonValue === "string" && banReasonValue ? banReasonValue : undefined;
 
-		try {
-			const actor = await getActor(event);
-			const label = await userLabel(params.id);
-			await adminService.banUser(actor, request.headers, params.id, label, reason);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to ban user";
-			return fail(400, { message });
-		}
-
-		return redirect(302, `/admin/users/${params.id}`);
+		return userAction(event, "Failed to ban user", (actor, label) =>
+			adminService.banUser(actor, event.request.headers, event.params.id, label, reason),
+		);
 	},
 
-	unban: async (event) => {
-		const { request, params } = event;
-
-		try {
-			const actor = await getActor(event);
-			const label = await userLabel(params.id);
-			await adminService.unbanUser(actor, request.headers, params.id, label);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to unban user";
-			return fail(400, { message });
-		}
-
-		return redirect(302, `/admin/users/${params.id}`);
-	},
+	unban: (event) =>
+		userAction(event, "Failed to unban user", (actor, label) =>
+			adminService.unbanUser(actor, event.request.headers, event.params.id, label),
+		),
 
 	revokeSession: async (event) => {
 		const { request, params } = event;
@@ -187,33 +182,17 @@ export const actions: Actions = {
 		return redirect(302, `/admin/users/${params.id}`);
 	},
 
-	revokeAllSessions: async (event) => {
-		const { request, params } = event;
+	revokeAllSessions: (event) =>
+		userAction(event, "Failed to revoke sessions", (actor, label) =>
+			adminService.revokeAllUserSessions(actor, event.request.headers, event.params.id, label),
+		),
 
-		try {
-			const actor = await getActor(event);
-			const label = await userLabel(params.id);
-			await adminService.revokeAllUserSessions(actor, request.headers, params.id, label);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to revoke sessions";
-			return fail(400, { message });
-		}
-
-		return redirect(302, `/admin/users/${params.id}`);
-	},
-
-	impersonate: async (event) => {
-		const { request, params } = event;
-
-		try {
-			const actor = await getActor(event);
-			const label = await userLabel(params.id);
-			await adminService.impersonateUser(actor, request.headers, params.id, label);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to impersonate user";
-			return fail(400, { message });
-		}
-
-		return redirect(302, "/dashboard");
-	},
+	impersonate: (event) =>
+		userAction(
+			event,
+			"Failed to impersonate user",
+			(actor, label) =>
+				adminService.impersonateUser(actor, event.request.headers, event.params.id, label),
+			"/dashboard",
+		),
 };

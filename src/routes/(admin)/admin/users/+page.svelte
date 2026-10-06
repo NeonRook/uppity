@@ -21,8 +21,6 @@
 	});
 
 	const params = useSearchParams(searchSchema);
-
-	const totalPages = $derived(Math.ceil(data.total / data.limit));
 </script>
 
 <svelte:head>
@@ -99,7 +97,6 @@
 
 			<Pagination
 				page={data.page}
-				{totalPages}
 				limit={data.limit}
 				total={data.total}
 				itemName={m.items_users()}

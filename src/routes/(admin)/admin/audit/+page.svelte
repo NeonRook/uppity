@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page as pageState } from "$app/state";
 	import { ChevronDown, ChevronRight, Download } from "@lucide/svelte";
+	import { useSearchParams } from "runed/kit";
+	import * as v from "valibot";
 
 	import Pagination from "#lib/components/pagination.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
@@ -16,24 +17,15 @@
 
 	let expanded = $state<string | null>(null);
 
-	const totalPages = $derived(Math.ceil(data.total / data.limit));
+	const params = useSearchParams(
+		v.object({ page: v.optional(v.pipe(v.unknown(), v.transform(Number)), 1) }),
+	);
 
 	function targetHref(entry: (typeof data.entries)[number]): string | null {
 		if (!entry.targetId) return null;
 		if (entry.targetType === "user") return `/admin/users/${entry.targetId}`;
 		if (entry.targetType === "organization") return `/admin/organizations/${entry.targetId}`;
 		return null;
-	}
-
-	// Built by hand rather than via URLSearchParams: this is a throwaway string,
-	// not reactive state, and constructing one trips svelte/prefer-svelte-reactivity.
-	function goToPage(next: number) {
-		const pairs = [...pageState.url.searchParams.entries()].filter(([key]) => key !== "page");
-		pairs.push(["page", String(next)]);
-		const query = pairs
-			.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-			.join("&");
-		goto(`?${query}`);
 	}
 </script>
 
@@ -184,11 +176,10 @@
 
 			<Pagination
 				page={data.page}
-				{totalPages}
 				limit={data.limit}
 				total={data.total}
 				itemName={m.items_audit_entries()}
-				onPageChange={goToPage}
+				onPageChange={(p) => (params.page = p)}
 			/>
 		</Card.Content>
 	</Card.Root>

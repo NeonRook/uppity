@@ -102,14 +102,7 @@
 
 				<Field.Field>
 					<Field.Label for="role">{m.common_role()}</Field.Label>
-					<input type="hidden" name="role" bind:value={$form.role} />
-					<Select.Root
-						type="single"
-						name="role"
-						value={$form.role}
-						onValueChange={(v) => ($form.role = v as "user" | "admin")}
-						disabled={$delayed}
-					>
+					<Select.Root type="single" name="role" bind:value={$form.role} disabled={$delayed}>
 						<Select.Trigger class="w-full">
 							{getRoleLabel($form.role)}
 						</Select.Trigger>
