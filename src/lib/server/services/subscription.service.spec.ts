@@ -127,6 +127,21 @@ async function seedRole(drizzleDb: TestDb["db"], orgId: string, role: string): P
 	return userId;
 }
 
+/** Seeds an Uppity subscription holding 3 blocks, billed to `cus_real`. */
+async function seedHeld(drizzleDb: TestDb["db"], polarSubscriptionId: string | null) {
+	const orgId = await seedOrganization(drizzleDb);
+	await drizzleDb.insert(subscription).values({
+		id: nanoid(),
+		organizationId: orgId,
+		planId: "uppity",
+		status: "active",
+		blocks: 3,
+		polarCustomerId: "cus_real",
+		polarSubscriptionId,
+	});
+	return orgId;
+}
+
 describe("SubscriptionService", () => {
 	// Local dev's .env might set SELF_HOSTED=true, which short-circuits every limit check to the
 	// unlimited self-hosted plan. Force the plan-based code path.
@@ -938,50 +953,68 @@ describe("SubscriptionService", () => {
 		});
 	});
 
-	describe("holdsPolarSubscription", () => {
-		test("matches only the subscription the organization is billed through", async ({ db }) => {
+	describe("webhook writes for a held subscription", () => {
+		const renewal = { planId: "uppity", status: "past_due" } as const;
+
+		test("apply for the subscription on record", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
-			await drizzleDb.insert(subscription).values({
-				id: nanoid(),
-				organizationId: orgId,
-				planId: "uppity",
-				status: "active",
-				polarCustomerId: "cus_real",
-				polarSubscriptionId: "sub_real",
-			});
+			const orgId = await seedHeld(drizzleDb, "sub_real");
+			const held = { polarSubscriptionId: "sub_real", polarCustomerId: "cus_real" };
 
-			expect(await service.holdsPolarSubscription(orgId, "sub_real", "cus_real")).toBe(true);
-			// A stranger's subscription carrying this organization's reference.
-			expect(await service.holdsPolarSubscription(orgId, "sub_stray", "cus_stranger")).toBe(false);
-			// Even the same customer's second subscription is not the one on record.
-			expect(await service.holdsPolarSubscription(orgId, "sub_second", "cus_real")).toBe(false);
+			expect((await service.syncHeldFromPolar(orgId, held, renewal))?.status).toBe("past_due");
+			expect((await service.downgradeHeldToFree(orgId, held))?.planId).toBe("free");
 		});
 
-		test("falls back to the customer for rows without a stored subscription id", async ({ db }) => {
+		test("change nothing for any other subscription carrying the reference", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
-			await drizzleDb.insert(subscription).values({
-				id: nanoid(),
-				organizationId: orgId,
-				planId: "uppity",
-				status: "active",
-				polarCustomerId: "cus_real",
-			});
+			const orgId = await seedHeld(drizzleDb, "sub_real");
 
-			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_real")).toBe(true);
-			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_stranger")).toBe(false);
+			// A stranger's subscription, and the same customer's superseded one.
+			for (const held of [
+				{ polarSubscriptionId: "sub_stray", polarCustomerId: "cus_stranger" },
+				{ polarSubscriptionId: "sub_old", polarCustomerId: "cus_real" },
+			]) {
+				expect(await service.syncHeldFromPolar(orgId, held, renewal)).toBeNull();
+				expect(await service.downgradeHeldToFree(orgId, held)).toBeNull();
+			}
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.planId).toBe("uppity");
+			expect(row?.status).toBe("active");
+			expect(row?.blocks).toBe(3);
 		});
 
-		test("a free organization with no Polar link holds nothing", async ({ db }) => {
+		test("fall back to the customer for rows without a stored subscription id", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedHeld(drizzleDb, null);
+
+			expect(
+				await service.downgradeHeldToFree(orgId, {
+					polarSubscriptionId: "sub_any",
+					polarCustomerId: "cus_stranger",
+				}),
+			).toBeNull();
+			expect(
+				(
+					await service.downgradeHeldToFree(orgId, {
+						polarSubscriptionId: "sub_any",
+						polarCustomerId: "cus_real",
+					})
+				)?.planId,
+			).toBe("free");
+		});
+
+		test("never create a row for an organization without one", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const orgId = await seedOrganization(drizzleDb);
-			await service.getOrCreateSubscription(orgId);
+			const held = { polarSubscriptionId: "sub_any", polarCustomerId: "cus_any" };
 
-			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_any")).toBe(false);
+			expect(await service.syncHeldFromPolar(orgId, held, renewal)).toBeNull();
+			expect(await service.getSubscription(orgId)).toBeNull();
 		});
 	});
 

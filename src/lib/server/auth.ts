@@ -23,6 +23,7 @@ import { subscription } from "#lib/server/db/schema.js";
 import { createWebhookWideEvent } from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
+import type { HeldPolarSubscription } from "#lib/server/services/subscription.service.js";
 import type { PlanId, SubscriptionStatus } from "#lib/types/plans.js";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
@@ -88,6 +89,11 @@ export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
  * downgrading a paying customer to free mid-period is a far worse outcome than
  * briefly granting the base tier to someone who bought Dedicated.
  */
+/** The subscription a webhook is about, which must be the one the organization holds. */
+function heldBy(sub: { id: string; customer_id: string }): HeldPolarSubscription {
+	return { polarSubscriptionId: sub.id, polarCustomerId: sub.customer_id };
+}
+
 export function getPlanFromSubscription(sub: {
 	product_id?: string;
 	product?: { id?: string };
@@ -342,15 +348,7 @@ export const auth = betterAuth({
 
 							event.set("org_id", orgId);
 
-							if (
-								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
-							) {
-								event.setStatus("error");
-								event.emit("subscription updated for a subscription the org is not billed through");
-								return;
-							}
-
-							await subscriptionService.syncFromPolar(orgId, {
+							const synced = await subscriptionService.syncHeldFromPolar(orgId, heldBy(sub), {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
 								billingInterval: sub.recurring_interval,
@@ -361,6 +359,11 @@ export const auth = betterAuth({
 									? new Date(sub.current_period_end)
 									: undefined,
 							});
+							if (!synced) {
+								event.setStatus("error");
+								event.emit("subscription updated for a subscription the org is not billed through");
+								return;
+							}
 
 							event.setSuccess();
 							event.emit("subscription updated");
@@ -390,17 +393,7 @@ export const auth = betterAuth({
 
 							event.set("org_id", orgId);
 
-							if (
-								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
-							) {
-								event.setStatus("error");
-								event.emit(
-									"subscription canceled for a subscription the org is not billed through",
-								);
-								return;
-							}
-
-							await subscriptionService.syncFromPolar(orgId, {
+							const synced = await subscriptionService.syncHeldFromPolar(orgId, heldBy(sub), {
 								planId: getPlanFromSubscription(sub),
 								status: "canceled",
 								billingInterval: sub.recurring_interval,
@@ -408,6 +401,13 @@ export const auth = betterAuth({
 									? new Date(sub.current_period_end)
 									: undefined,
 							});
+							if (!synced) {
+								event.setStatus("error");
+								event.emit(
+									"subscription canceled for a subscription the org is not billed through",
+								);
+								return;
+							}
 
 							event.setSuccess();
 							event.emit("subscription canceled");
@@ -508,15 +508,12 @@ export const auth = betterAuth({
 
 							event.set("org_id", orgId);
 
-							if (
-								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
-							) {
+							const downgraded = await subscriptionService.downgradeHeldToFree(orgId, heldBy(sub));
+							if (!downgraded) {
 								event.setStatus("error");
 								event.emit("subscription revoked for a subscription the org is not billed through");
 								return;
 							}
-
-							await subscriptionService.downgradeToFree(orgId);
 
 							event.set("plan_id", "free");
 							event.setSuccess();

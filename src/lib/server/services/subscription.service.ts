@@ -1,4 +1,17 @@
-import { and, count, eq, gt, inArray, isNotNull, lte, ne, sql, type SQL } from "drizzle-orm";
+import {
+	and,
+	count,
+	eq,
+	gt,
+	inArray,
+	isNotNull,
+	isNull,
+	lte,
+	ne,
+	or,
+	sql,
+	type SQL,
+} from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -54,6 +67,8 @@ export interface PolarSubscriptionSnapshot {
 	billingInterval?: BillingInterval;
 	currentPeriodStart?: Date;
 	currentPeriodEnd?: Date;
+	/** The better-auth user who pays, from Polar's external customer id. */
+	payerUserId?: string;
 }
 
 /**
@@ -80,6 +95,42 @@ function periodRolled(
 		return true;
 	}
 	return false;
+}
+
+/** The Polar subscription a webhook is about, which must be the one on record to apply. */
+export interface HeldPolarSubscription {
+	polarSubscriptionId: string;
+	polarCustomerId: string;
+}
+
+/** A downgrade keeps the Polar ids so the customer can resubscribe without re-linking. */
+const FREE_SYNC: PolarSyncData = { planId: "free", status: "active", billingInterval: null };
+
+/** Polar fields a sync writes. */
+export interface PolarSyncData {
+	planId: PlanId;
+	status: SubscriptionStatus;
+	polarCustomerId?: string;
+	polarSubscriptionId?: string;
+	/** `null` clears it; absent keeps what is stored. */
+	billingInterval?: BillingInterval | null;
+	currentPeriodStart?: Date;
+	currentPeriodEnd?: Date;
+}
+
+/**
+ * Matches the row only while `held` is the subscription it is billed through. Rows written
+ * before the subscription id was stored fall back to the customer. Part of the UPDATE's own
+ * WHERE so a concurrent change between a check and the write cannot slip past it.
+ */
+function heldBy(held: HeldPolarSubscription): SQL | undefined {
+	return or(
+		eq(subscription.polarSubscriptionId, held.polarSubscriptionId),
+		and(
+			isNull(subscription.polarSubscriptionId),
+			eq(subscription.polarCustomerId, held.polarCustomerId),
+		),
+	);
 }
 
 export class SubscriptionService {
@@ -228,25 +279,6 @@ export class SubscriptionService {
 			.limit(1);
 
 		return row?.role ?? null;
-	}
-
-	/**
-	 * Whether a Polar subscription is the one this organization is billed through. Webhooks
-	 * for any other subscription carrying the organization's reference must not change it:
-	 * a stray subscription's cancellation would otherwise downgrade an organization whose
-	 * real subscription is still being paid.
-	 *
-	 * Rows written before the subscription id was stored fall back to the customer.
-	 */
-	async holdsPolarSubscription(
-		organizationId: string,
-		polarSubscriptionId: string,
-		polarCustomerId: string,
-	): Promise<boolean> {
-		const sub = await this.getSubscription(organizationId);
-		if (!sub) return false;
-		if (sub.polarSubscriptionId !== null) return sub.polarSubscriptionId === polarSubscriptionId;
-		return sub.polarCustomerId === polarCustomerId;
 	}
 
 	/** Whether the user may change what the organization is billed for. */
@@ -477,20 +509,33 @@ export class SubscriptionService {
 	 * the count. It changes here in two cases only: it is cleared when the plan leaves
 	 * block eligibility, and a scheduled reduction lands when the period rolls.
 	 */
-	async syncFromPolar(
+	async syncFromPolar(organizationId: string, data: PolarSyncData): Promise<Subscription> {
+		const synced = await this.applySync(organizationId, data);
+		if (!synced) throw new Error(`Subscription for ${organizationId} vanished during sync`);
+		return synced;
+	}
+
+	/**
+	 * `syncFromPolar` for a webhook about an existing subscription. Applies only while `held`
+	 * is the subscription the organization is billed through, and returns null otherwise:
+	 * any subscription carrying the organization's reference reaches these webhooks,
+	 * including one the organization has since replaced.
+	 */
+	async syncHeldFromPolar(
 		organizationId: string,
-		data: {
-			planId: PlanId;
-			status: SubscriptionStatus;
-			polarCustomerId?: string;
-			polarSubscriptionId?: string;
-			/** `null` clears it; absent keeps what is stored. */
-			billingInterval?: BillingInterval | null;
-			currentPeriodStart?: Date;
-			currentPeriodEnd?: Date;
-		},
-	): Promise<Subscription> {
+		held: HeldPolarSubscription,
+		data: PolarSyncData,
+	): Promise<Subscription | null> {
+		return await this.applySync(organizationId, data, held);
+	}
+
+	private async applySync(
+		organizationId: string,
+		data: PolarSyncData,
+		held?: HeldPolarSubscription,
+	): Promise<Subscription | null> {
 		const existing = await this.getSubscription(organizationId);
+		if (!existing && held) return null;
 
 		if (existing) {
 			// Leaving a block-eligible plan clears the count. Keeping it would let billing
@@ -531,10 +576,12 @@ export class SubscriptionService {
 					currentPeriodEnd: data.currentPeriodEnd ?? existing.currentPeriodEnd,
 					updatedAt: new Date(),
 				})
-				.where(eq(subscription.organizationId, organizationId))
+				.where(
+					and(eq(subscription.organizationId, organizationId), held ? heldBy(held) : undefined),
+				)
 				.returning();
 
-			return updated;
+			return updated ?? null;
 		}
 
 		// Create new subscription record
@@ -581,10 +628,14 @@ export class SubscriptionService {
 	 * scheduled reduction as part of the same write. This needs no clearing of its own.
 	 */
 	async downgradeToFree(organizationId: string): Promise<Subscription> {
-		return this.syncFromPolar(organizationId, {
-			planId: "free",
-			status: "active",
-			billingInterval: null,
-		});
+		return this.syncFromPolar(organizationId, FREE_SYNC);
+	}
+
+	/** `downgradeToFree` for a revocation webhook, under the rule of `syncHeldFromPolar`. */
+	async downgradeHeldToFree(
+		organizationId: string,
+		held: HeldPolarSubscription,
+	): Promise<Subscription | null> {
+		return await this.applySync(organizationId, FREE_SYNC, held);
 	}
 }
