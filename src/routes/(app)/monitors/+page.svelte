@@ -7,22 +7,20 @@
 		Ellipsis,
 		Pause,
 		Play,
-		Plus,
 		RefreshCw,
 		Trash2,
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
+	import AddButton from "#lib/components/add-button.svelte";
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
-	import MonitorsListSkeleton from "#lib/components/monitors-list-skeleton.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
-	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
-	import { formatResponseTime } from "#lib/format.js";
+	import { formatResponseTime, formatUptime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getMonitors, toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
 	import { getStatusBadge, getStatusColor } from "#lib/utils/status.js";
@@ -46,11 +44,6 @@
 
 	let deleteMonitorId = $state<string | null>(null);
 	let togglingMonitorId = $state<string | null>(null);
-
-	function formatUptime(percent: number | null) {
-		if (percent === null) return "-";
-		return `${percent.toFixed(2)}%`;
-	}
 
 	function getEndpoint(mon: MonitorWithStatus) {
 		if (mon.type === "http" && mon.url) {
@@ -89,6 +82,44 @@
 	}
 </script>
 
+{#snippet rowActions(mon: MonitorWithStatus)}
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger class="hover:bg-muted shrink-0 rounded p-1">
+			<Ellipsis class="h-4 w-4" />
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end">
+			<DropdownMenu.Item>
+				<a href={resolve(`monitors/${mon.id}`)} class="flex w-full items-center"
+					>{m.monitors_view_details()}</a
+				>
+			</DropdownMenu.Item>
+			<DropdownMenu.Item>
+				<a href={resolve(`monitors/${mon.id}/edit`)} class="flex w-full items-center"
+					>{m.common_edit()}</a
+				>
+			</DropdownMenu.Item>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item
+				onclick={() => handleToggle(mon.id, mon.active)}
+				disabled={togglingMonitorId === mon.id}
+			>
+				{#if togglingMonitorId === mon.id}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{:else if mon.active}
+					<Pause class="mr-2 h-4 w-4" />
+				{:else}
+					<Play class="mr-2 h-4 w-4" />
+				{/if}
+				{mon.active ? m.monitors_pause() : m.monitors_resume()}
+			</DropdownMenu.Item>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item variant="destructive" onclick={() => (deleteMonitorId = mon.id)}
+				><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</DropdownMenu.Item
+			>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+{/snippet}
+
 <svelte:head>
 	<title>{m.monitors_title()} - Uppity</title>
 </svelte:head>
@@ -113,30 +144,16 @@
 					{monitorUsageText} monitors
 				</Badge>
 			{/if}
-			{#if canAddMonitor}
-				<Button href="/monitors/new">
-					<Plus class="mr-2 h-4 w-4" />
-					{m.monitors_add()}
-				</Button>
-			{:else}
-				<Tooltip.Root>
-					<Tooltip.Trigger>
-						<Button disabled>
-							<Plus class="mr-2 h-4 w-4" />
-							{m.monitors_add()}
-						</Button>
-					</Tooltip.Trigger>
-					<Tooltip.Content>
-						<p>Monitor limit reached. Upgrade to add more.</p>
-					</Tooltip.Content>
-				</Tooltip.Root>
-			{/if}
+			<AddButton
+				href="/monitors/new"
+				text={m.monitors_add()}
+				disabled={!canAddMonitor}
+				disabledMessage="Monitor limit reached. Upgrade to add more."
+			/>
 		</div>
 	</div>
 
-	{#if monitorsQuery.loading && !monitors}
-		<MonitorsListSkeleton />
-	{:else if monitorsQuery.error}
+	{#if monitorsQuery.error}
 		<Card.Root>
 			<Card.Content class="p-6">
 				<p class="text-destructive">Failed to load monitors: {monitorsQuery.error.message}</p>
@@ -187,43 +204,7 @@
 									</span>
 								</div>
 							</div>
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger class="hover:bg-muted shrink-0 rounded p-1">
-									<Ellipsis class="h-4 w-4" />
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Content align="end">
-									<DropdownMenu.Item>
-										<a href={resolve(`monitors/${mon.id}`)} class="flex w-full items-center"
-											>{m.monitors_view_details()}</a
-										>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item>
-										<a href={resolve(`monitors/${mon.id}/edit`)} class="flex w-full items-center"
-											>{m.common_edit()}</a
-										>
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										onclick={() => handleToggle(mon.id, mon.active)}
-										disabled={togglingMonitorId === mon.id}
-									>
-										{#if togglingMonitorId === mon.id}
-											<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-										{:else if mon.active}
-											<Pause class="mr-2 h-4 w-4" />
-										{:else}
-											<Play class="mr-2 h-4 w-4" />
-										{/if}
-										{mon.active ? m.monitors_pause() : m.monitors_resume()}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										variant="destructive"
-										onclick={() => (deleteMonitorId = mon.id)}
-										><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</DropdownMenu.Item
-									>
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
+							{@render rowActions(mon)}
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -292,43 +273,7 @@
 							>
 
 							<Table.Cell>
-								<DropdownMenu.Root>
-									<DropdownMenu.Trigger class="hover:bg-muted rounded p-1">
-										<Ellipsis class="h-4 w-4" />
-									</DropdownMenu.Trigger>
-									<DropdownMenu.Content align="end">
-										<DropdownMenu.Item>
-											<a href={resolve(`monitors/${mon.id}`)} class="flex w-full items-center"
-												>{m.monitors_view_details()}</a
-											>
-										</DropdownMenu.Item>
-										<DropdownMenu.Item>
-											<a href={resolve(`monitors/${mon.id}/edit`)} class="flex w-full items-center">
-												{m.common_edit()}
-											</a>
-										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
-										<DropdownMenu.Item
-											onclick={() => handleToggle(mon.id, mon.active)}
-											disabled={togglingMonitorId === mon.id}
-										>
-											{#if togglingMonitorId === mon.id}
-												<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-											{:else if mon.active}
-												<Pause class="mr-2 h-4 w-4" />
-											{:else}
-												<Play class="mr-2 h-4 w-4" />
-											{/if}
-											{mon.active ? m.monitors_pause() : m.monitors_resume()}
-										</DropdownMenu.Item>
-										<DropdownMenu.Separator />
-										<DropdownMenu.Item
-											variant="destructive"
-											onclick={() => (deleteMonitorId = mon.id)}
-											><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</DropdownMenu.Item
-										>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
+								{@render rowActions(mon)}
 							</Table.Cell>
 						</Table.Row>
 					{/each}

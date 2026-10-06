@@ -1,8 +1,9 @@
 import { error } from "@sveltejs/kit";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 import { db } from "#lib/server/db/index.js";
-import { monitor, monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
+import { monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
+import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { PageServerLoad } from "./$types";
 
@@ -11,17 +12,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		error(401, "Not authenticated");
 	}
 
-	// Get monitor
-	const [monitorData] = await db
-		.select()
-		.from(monitor)
-		.where(
-			and(
-				eq(monitor.id, params.id),
-				eq(monitor.organizationId, locals.session.activeOrganizationId),
-			),
-		)
-		.limit(1);
+	const monitorData = await monitorService.findByIdAndOrg(
+		params.id,
+		locals.session.activeOrganizationId,
+	);
 
 	if (!monitorData) {
 		error(404, "Monitor not found");
