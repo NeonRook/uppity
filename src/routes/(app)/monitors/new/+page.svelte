@@ -63,8 +63,12 @@
 			<Alert class="mb-6">
 				<AlertTriangle class="h-4 w-4" />
 				<AlertDescription>
-					You've reached your monitor limit ({usageLimits?.monitors.limit}). Upgrade your plan to
-					add more monitors.
+					<p>
+						{m.monitors_limit_reached({ limit: usageLimits?.monitors.limit ?? 0 })}
+						<a href="/settings/billing" class="underline underline-offset-4">
+							{m.monitors_limit_add_capacity()}
+						</a>
+					</p>
 				</AlertDescription>
 			</Alert>
 		{/if}
