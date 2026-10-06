@@ -10,6 +10,3 @@ export const maintenanceWindowSchema = v.pipe(
 	}),
 	v.check((data) => data.endsAt > data.startsAt, "End time must be after start time"),
 );
-
-export const createMaintenanceWindowSchema = maintenanceWindowSchema;
-export const updateMaintenanceWindowSchema = maintenanceWindowSchema;

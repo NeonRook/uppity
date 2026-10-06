@@ -1,9 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 import type { Logger } from "pino";
 
-import * as schema from "../db/schema";
+import type { Db } from "../db/index";
 import {
 	incident,
 	incidentMonitor,
@@ -24,8 +23,6 @@ import { parseEventPayload, type IncidentEventPayload } from "./events";
 import { sendSlack } from "./slack";
 import type { NotificationPayload, NotificationResult, NotificationType } from "./types";
 import { sendWebhook } from "./webhook";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export type DispatchResult =
 	| { status: "sent" }

@@ -1,7 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { and, desc, eq, gte, ne } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 import {
@@ -20,7 +19,7 @@ import {
 	USER_AGENT,
 	DEFAULT_RETRIES,
 } from "../../lib/constants/defaults";
-import type * as schema from "../../lib/server/db/schema";
+import type { Db } from "../../lib/server/db/index";
 import {
 	monitorCheck,
 	monitorStatus,
@@ -38,8 +37,6 @@ import type {
 import type { NotificationType } from "../../lib/server/notifications/types";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { probeTcp, probeTls } from "../../lib/server/tcp";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 interface CheckResult {
 	status: "up" | "down" | "degraded";

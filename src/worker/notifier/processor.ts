@@ -1,13 +1,10 @@
 import { and, eq, inArray, lt, or } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import * as schema from "../../lib/server/db/schema";
+import type { Db } from "../../lib/server/db/index";
 import type { NotificationEvent } from "../../lib/server/db/schema";
 import { notificationEvent } from "../../lib/server/db/schema";
 import type { NotifierWideEvent, WideEventBuilder } from "../../lib/server/logger";
 import type { DispatchResult, NotificationService } from "../../lib/server/notifications/service";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export const CLAIM_BATCH_SIZE = 25;
 export const STUCK_ROW_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes

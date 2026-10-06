@@ -1,7 +1,11 @@
-import type { NotificationChannelForm } from "#lib/schemas/notification-channel.js";
+import type * as v from "valibot";
+
+import type { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
 
 /** Builds the stored channel config from form data, or null when the custom headers are not valid JSON. */
-export function buildChannelConfig(data: NotificationChannelForm): Record<string, unknown> | null {
+export function buildChannelConfig(
+	data: v.InferInput<typeof notificationChannelSchema>,
+): Record<string, unknown> | null {
 	switch (data.type) {
 		case "email":
 			return { email: data.email };

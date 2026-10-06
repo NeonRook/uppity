@@ -1,9 +1,11 @@
-import type { CreateMonitorForm } from "#lib/schemas/monitor.js";
+import type * as v from "valibot";
+
+import type { createMonitorSchema } from "#lib/schemas/monitor.js";
 import type { CreateMonitorInput } from "#lib/server/services/monitor.service.js";
 
 /** Maps validated form data to the monitor fields its type owns. */
 export function toMonitorInput(
-	data: CreateMonitorForm,
+	data: v.InferInput<typeof createMonitorSchema>,
 ): Omit<CreateMonitorInput, "organizationId"> {
 	const base = {
 		name: data.name,

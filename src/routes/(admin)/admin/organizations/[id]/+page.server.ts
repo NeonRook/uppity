@@ -142,7 +142,7 @@ export const actions: Actions = {
 			}
 
 			const snapshot = await fetchPolarSnapshot(before.polarSubscriptionId);
-			const after = await subscriptionService.resyncFromPolar(params.id, snapshot);
+			const after = await subscriptionService.syncFromPolar(params.id, snapshot);
 
 			const actor = await getActor(event);
 			await auditService.record(db, actor, {

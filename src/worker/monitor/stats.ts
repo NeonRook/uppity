@@ -10,11 +10,10 @@ import {
 	type SQL,
 	type SQLWrapper,
 } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 import { DEFAULT_PLAN_ID, isSelfHosted, retentionGroups } from "../../lib/constants/plans";
-import * as schema from "../../lib/server/db/schema";
+import type { Db } from "../../lib/server/db/index";
 import {
 	monitorCheck,
 	monitorDailyStats,
@@ -24,8 +23,6 @@ import {
 	subscription,
 } from "../../lib/server/db/schema";
 import { db } from "../shared/db";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export class StatsService {
 	private database: Db;

@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import pino, { type Logger } from "pino";
 
 import { WideEventBuilder } from "./context";
-import type { RequestWideEvent, WideEventBase } from "./types";
+import type { WideEventBase } from "./types";
 
 /**
  * Build pino options. Pretty-prints only in a Vite dev server; everything else
@@ -64,10 +64,6 @@ export function wideEvent<T extends WideEventBase>(
 		eventType,
 		id ?? `${idPrefix}_${nanoid(12)}`,
 	);
-}
-
-export function createRequestWideEvent(requestId?: string): WideEventBuilder<RequestWideEvent> {
-	return wideEvent<RequestWideEvent>("http", "http_request", "req", requestId);
 }
 
 // Export core types and classes

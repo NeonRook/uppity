@@ -5,14 +5,14 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { handleAdminGate } from "#lib/server/admin-gate.js";
 import { auth } from "#lib/server/auth.js";
-import { createRequestWideEvent } from "#lib/server/logger/index.js";
+import { wideEvent, type RequestWideEvent } from "#lib/server/logger/index.js";
 
 /**
  * Logging middleware - creates wide event and emits on request completion.
  * Must be first in the sequence to capture full request lifecycle.
  */
 const handleLogging: Handle = async ({ event, resolve }) => {
-	const reqEvent = createRequestWideEvent();
+	const reqEvent = wideEvent<RequestWideEvent>("http", "http_request", "req");
 	let client_ip: string | undefined;
 	try {
 		client_ip = event.getClientAddress();

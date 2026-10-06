@@ -6,8 +6,8 @@
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import { formatDuration } from "#lib/format.js";
-	import { formatIncidentDate, getImpactInfo, getStatusInfo } from "#lib/incidents.js";
+	import { formatDateTimeShort, formatDuration } from "#lib/format.js";
+	import { getImpactInfo, getStatusInfo } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteIncident, getIncidents } from "#lib/remote/incidents.remote.js";
 
@@ -80,9 +80,10 @@
 								<div
 									class="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
 								>
-									<span>{m.incidents_started({ date: formatIncidentDate(inc.startedAt) })}</span>
+									<span>{m.incidents_started({ date: formatDateTimeShort(inc.startedAt) })}</span>
 									{#if inc.resolvedAt}
-										<span>{m.incidents_resolved({ date: formatIncidentDate(inc.resolvedAt) })}</span
+										<span
+											>{m.incidents_resolved({ date: formatDateTimeShort(inc.resolvedAt) })}</span
 										>
 									{/if}
 									<span
