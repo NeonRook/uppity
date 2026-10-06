@@ -6,6 +6,7 @@
 	import { toast } from "svelte-sonner";
 
 	import { authClient } from "#lib/auth-client.js";
+	import CapacityCard from "#lib/components/billing/capacity-card.svelte";
 	import PlanCard from "#lib/components/billing/plan-card.svelte";
 	import UsageBar from "#lib/components/billing/usage-bar.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
@@ -13,6 +14,7 @@
 	import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { MONITOR_BLOCK_SIZE, UPPITY_PLAN } from "#lib/constants/plans.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import type { Plan } from "#lib/types/plans.js";
 
@@ -23,6 +25,8 @@
 	let loadingPortal = $state(false);
 	let loadingCheckout = $state<string | null>(null);
 	let billingPeriod = $state<BillingPeriod>("monthly");
+
+	const uppityPlan = $derived(data.plans.find((plan) => plan.id === "uppity"));
 
 	// Clean up URL after showing success message
 	onMount(() => {
@@ -199,11 +203,14 @@
 					<div class="space-y-4">
 						<h4 class="text-sm font-medium">{m.billing_usage()}</h4>
 						<div class="grid gap-4 sm:grid-cols-2">
-							<UsageBar
-								current={data.usage.monitors.current}
-								limit={data.usage.monitors.limit}
-								label="monitors"
-							/>
+							<!-- The capacity card carries the monitor bar when it is shown. -->
+							{#if !data.capacity}
+								<UsageBar
+									current={data.usage.monitors.current}
+									limit={data.usage.monitors.limit}
+									label="monitors"
+								/>
+							{/if}
 							<UsageBar
 								current={data.usage.statusPages.current}
 								limit={data.usage.statusPages.limit}
@@ -214,6 +221,39 @@
 				</Card.Content>
 			{/if}
 		</Card.Root>
+
+		{#if data.capacity && data.usage}
+			<CapacityCard
+				blocks={data.capacity.blocks}
+				scheduledBlocks={data.capacity.scheduledBlocks}
+				annual={data.capacity.annual}
+				canManage={data.capacity.canManage}
+				periodEnd={data.subscription.currentPeriodEnd}
+				monitorsUsed={data.usage.monitors.current}
+			/>
+		{:else if data.subscription.planId === "free" && uppityPlan}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>
+						{m.billing_block_upgrade_title({ count: data.usage?.monitors.limit ?? 0 })}
+					</Card.Title>
+					<Card.Description>
+						{m.billing_block_upgrade_desc({
+							included: UPPITY_PLAN.limits.monitors,
+							size: MONITOR_BLOCK_SIZE,
+						})}
+					</Card.Description>
+				</Card.Header>
+				<Card.Footer>
+					<Button onclick={() => startCheckout(uppityPlan)} disabled={loadingCheckout !== null}>
+						{#if loadingCheckout === uppityPlan.id}
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						{m.billing_block_upgrade_action()}
+					</Button>
+				</Card.Footer>
+			</Card.Root>
+		{/if}
 
 		<!-- Plan Comparison -->
 		<div class="space-y-4">

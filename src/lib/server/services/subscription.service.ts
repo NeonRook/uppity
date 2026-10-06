@@ -12,7 +12,7 @@ import {
 	PLANS,
 	SELF_HOSTED_LIMITS,
 } from "#lib/constants/plans.js";
-import { invitation, member } from "#lib/server/db/auth-schema.js";
+import { invitation, member, organization } from "#lib/server/db/auth-schema.js";
 import * as schema from "#lib/server/db/schema.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
@@ -40,7 +40,7 @@ export type SetBlocksResult =
 	| { ok: false; reason: "plan_ineligible" }
 	| { ok: false; reason: "invalid_count" }
 	| { ok: false; reason: "above_max"; max: number }
-	| { ok: false; reason: "multi_org_customer" };
+	| { ok: false; reason: "multi_org_customer"; organizationName: string };
 
 /** Roles allowed to change what an organization is billed for. */
 const BILLING_ROLES: ReadonlySet<string> = new Set(["owner", "admin"]);
@@ -175,8 +175,11 @@ export class SubscriptionService {
 		// Polar scopes the meter to the customer, so blocks held in a second organization
 		// are charged on both subscriptions. Reductions stay allowed: refusing them would
 		// only keep a double charge in place.
-		if (blocks > sub.blocks && (await this.holdsBlocksElsewhere(sub))) {
-			return { ok: false, reason: "multi_org_customer" };
+		if (blocks > sub.blocks) {
+			const organizationName = await this.otherBlockHolder(sub);
+			if (organizationName !== null) {
+				return { ok: false, reason: "multi_org_customer", organizationName };
+			}
 		}
 
 		// Without a period end nothing would ever apply the reduction, so it lands now.
@@ -192,13 +195,14 @@ export class SubscriptionService {
 		return { ok: true, subscription: updated };
 	}
 
-	/** Whether this subscription's Polar customer holds blocks in another organization. */
-	private async holdsBlocksElsewhere(sub: Subscription): Promise<boolean> {
-		if (!sub.polarCustomerId) return false;
+	/** The name of another organization where this subscription's Polar customer holds blocks. */
+	private async otherBlockHolder(sub: Subscription): Promise<string | null> {
+		if (!sub.polarCustomerId) return null;
 
 		const [other] = await this.db
-			.select({ id: subscription.id })
+			.select({ name: organization.name })
 			.from(subscription)
+			.innerJoin(organization, eq(organization.id, subscription.organizationId))
 			.where(
 				and(
 					eq(subscription.polarCustomerId, sub.polarCustomerId),
@@ -209,7 +213,7 @@ export class SubscriptionService {
 			)
 			.limit(1);
 
-		return other !== undefined;
+		return other?.name ?? null;
 	}
 
 	/** Whether the user may change what the organization is billed for. */

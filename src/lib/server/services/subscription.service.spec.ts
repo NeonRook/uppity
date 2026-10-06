@@ -906,12 +906,13 @@ describe("SubscriptionService", () => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const customer = `cus_${nanoid()}`;
-			await seedPaid(drizzleDb, customer, 2);
+			const holder = await seedPaid(drizzleDb, customer, 2);
 			const orgId = await seedPaid(drizzleDb, customer, 0);
 
 			expect(await service.setBlocks(orgId, 1)).toStrictEqual({
 				ok: false,
 				reason: "multi_org_customer",
+				organizationName: `Test Org ${holder.slice("test-org-".length)}`,
 			});
 			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
 		});

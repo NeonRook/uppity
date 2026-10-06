@@ -1,9 +1,15 @@
 import { redirect } from "@sveltejs/kit";
 
-import { isSelfHosted, PLANS, PUBLIC_PLAN_IDS } from "#lib/constants/plans.js";
+import {
+	BLOCK_ELIGIBLE_PLAN_IDS,
+	isSelfHosted,
+	PLANS,
+	PUBLIC_PLAN_IDS,
+} from "#lib/constants/plans.js";
 import { syncCheckout } from "#lib/server/polar-subscription.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import { usageService } from "#lib/server/services/usage.service.js";
+import type { PlanId } from "#lib/types/plans.js";
 
 import type { PageServerLoad } from "./$types";
 
@@ -28,6 +34,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			plans: publicPlans,
 			checkoutSuccess,
 			organizationId: null,
+			capacity: null,
 		};
 	}
 
@@ -42,10 +49,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	const [subscription, usageSummary] = await Promise.all([
+	const [subscription, usageSummary, canManageBilling] = await Promise.all([
 		subscriptionService.getOrCreateSubscription(organizationId),
 		usageService.getUsageSummary(organizationId),
+		subscriptionService.canManageBilling(organizationId, locals.user.id),
 	]);
+
+	const sellsBlocks = !selfHosted && BLOCK_ELIGIBLE_PLAN_IDS.has(subscription.planId as PlanId);
 
 	return {
 		selfHosted,
@@ -69,5 +79,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		checkoutSuccess,
 		organizationId,
 		currentPlanName: usageSummary.plan.name,
+		capacity: sellsBlocks
+			? {
+					blocks: subscription.blocks,
+					scheduledBlocks: subscription.scheduledBlocks,
+					annual: subscription.billingInterval === "year",
+					canManage: canManageBilling,
+				}
+			: null,
 	};
 };
