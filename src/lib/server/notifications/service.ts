@@ -18,17 +18,12 @@ import {
 	type NotificationEvent,
 } from "../db/schema";
 import { logger as defaultLogger } from "../logger";
-import { DiscordNotificationProvider } from "./discord";
-import { EmailNotificationProvider } from "./email";
-import { parseEventPayload, type IncidentEventPayload, type NotificationEventType } from "./events";
-import { SlackNotificationProvider } from "./slack";
-import type {
-	NotificationPayload,
-	NotificationProvider,
-	NotificationResult,
-	NotificationType,
-} from "./types";
-import { WebhookNotificationProvider } from "./webhook";
+import { sendDiscord } from "./discord";
+import { sendEmail } from "./email";
+import { parseEventPayload, type IncidentEventPayload } from "./events";
+import { sendSlack } from "./slack";
+import type { NotificationPayload, NotificationResult, NotificationType } from "./types";
+import { sendWebhook } from "./webhook";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
@@ -37,6 +32,32 @@ export type DispatchResult =
 	| { status: "failed"; errorMessage: string }
 	| { status: "partial"; errorMessage: string }
 	| { status: "suppressed"; errorMessage: string };
+
+function send(
+	channel: NotificationChannel,
+	payload: NotificationPayload,
+): Promise<NotificationResult> | null {
+	const config = channel.config;
+	switch (channel.type) {
+		case "email":
+			if (config.email) return sendEmail({ email: config.email }, payload);
+			break;
+		case "slack":
+			if (config.webhookUrl) {
+				return sendSlack({ webhookUrl: config.webhookUrl, channel: config.channel }, payload);
+			}
+			break;
+		case "discord":
+			if (config.discordWebhookUrl) {
+				return sendDiscord({ discordWebhookUrl: config.discordWebhookUrl }, payload);
+			}
+			break;
+		case "webhook":
+			if (config.url) return sendWebhook({ ...config, url: config.url }, payload);
+			break;
+	}
+	return null;
+}
 
 export class NotificationService {
 	private db: Db;
@@ -47,113 +68,16 @@ export class NotificationService {
 		this.logger = (logger ?? defaultLogger).child({ context: "notification" });
 	}
 
-	private createProvider(channel: NotificationChannel): NotificationProvider | null {
-		const config = channel.config as Record<string, unknown>;
-
-		switch (channel.type) {
-			case "email":
-				if (config.email) {
-					return new EmailNotificationProvider({ email: config.email as string });
-				}
-				break;
-			case "slack":
-				if (config.webhookUrl) {
-					return new SlackNotificationProvider({
-						webhookUrl: config.webhookUrl as string,
-						channel: config.channel as string | undefined,
-					});
-				}
-				break;
-			case "discord":
-				if (config.discordWebhookUrl) {
-					return new DiscordNotificationProvider({
-						discordWebhookUrl: config.discordWebhookUrl as string,
-					});
-				}
-				break;
-			case "webhook":
-				if (config.url) {
-					return new WebhookNotificationProvider({
-						url: config.url as string,
-						method: config.method as string | undefined,
-						headers: config.headers as Record<string, string> | undefined,
-						bodyTemplate: config.bodyTemplate as string | undefined,
-					});
-				}
-				break;
-		}
-
-		return null;
-	}
-
-	async sendMonitorNotification(
-		monitor: Monitor,
-		status: MonitorStatus,
-		type: NotificationType,
-		previousStatus?: string,
-		errorMessage?: string,
-	): Promise<void> {
-		const linkedChannels = await this.db
-			.select({
-				channel: notificationChannel,
-				link: monitorNotificationChannel,
-			})
-			.from(monitorNotificationChannel)
-			.innerJoin(
-				notificationChannel,
-				eq(monitorNotificationChannel.channelId, notificationChannel.id),
-			)
-			.where(
-				and(
-					eq(monitorNotificationChannel.monitorId, monitor.id),
-					eq(notificationChannel.enabled, true),
-				),
-			);
-
-		const payload: NotificationPayload = {
-			type,
-			monitor,
-			status,
-			previousStatus,
-			errorMessage,
-			timestamp: new Date(),
-		};
-
-		for (const { channel, link } of linkedChannels) {
-			const shouldNotify = this.shouldNotify(type, link);
-			if (!shouldNotify) continue;
-
-			await this.sendToChannel(channel, payload, monitor.id);
-		}
-	}
-
-	async sendToChannel(
+	private async sendToChannel(
 		channel: NotificationChannel,
 		payload: NotificationPayload,
 		monitorId?: string,
 		incidentId?: string,
 	): Promise<NotificationResult> {
-		const provider = this.createProvider(channel);
-		if (!provider) {
-			const errorMessage = `No provider configured for channel type: ${channel.type}`;
-			this.logger.error(
-				{ channel_id: channel.id, channel_type: channel.type },
-				"No provider for channel type",
-			);
-			await this.db.insert(notificationLog).values({
-				id: nanoid(),
-				channelId: channel.id,
-				monitorId,
-				incidentId,
-				type: payload.type,
-				status: "failed",
-				errorMessage,
-				sentAt: new Date(),
-			});
-			return { success: false, errorMessage };
-		}
-
-		const result = await provider.send(payload);
+		const result = (await send(channel, payload)) ?? {
+			success: false,
+			errorMessage: `No provider configured for channel type: ${channel.type}`,
+		};
 
 		await this.db.insert(notificationLog).values({
 			id: nanoid(),
@@ -207,7 +131,7 @@ export class NotificationService {
 	async dispatchEvent(row: NotificationEvent): Promise<DispatchResult> {
 		let parsed: ReturnType<typeof parseEventPayload>;
 		try {
-			parsed = parseEventPayload(row.type as NotificationEventType, row.payload);
+			parsed = parseEventPayload(row.type as NotificationType, row.payload);
 		} catch (err) {
 			return {
 				status: "failed",
@@ -274,31 +198,12 @@ export class NotificationService {
 
 		const payload = this.buildNotificationPayload(row, monitor, status);
 
-		const failures: string[] = [];
-		let successes = 0;
-		for (const { channel } of eligible) {
-			try {
-				const result = await this.sendToChannel(
-					channel,
-					payload,
-					row.monitorId,
-					row.incidentId ?? undefined,
-				);
-				if (result.success) {
-					successes += 1;
-				} else {
-					failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
-				}
-			} catch (err) {
-				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
-			}
-		}
-
-		if (failures.length === 0) return { status: "sent" };
-
-		const summary = this.summarizeFailures(successes + failures.length, failures);
-		if (successes === 0) return { status: "failed", errorMessage: summary };
-		return { status: "partial", errorMessage: summary };
+		return this.fanOut(
+			eligible.map(({ channel }) => channel),
+			payload,
+			row.monitorId,
+			row.incidentId ?? undefined,
+		);
 	}
 
 	private async dispatchIncidentEvent(
@@ -379,22 +284,33 @@ export class NotificationService {
 			updateMessage: parsed.updateMessage,
 		};
 
+		return this.fanOut(channels, payload, undefined, row.incidentId);
+	}
+
+	private async fanOut(
+		channels: NotificationChannel[],
+		payload: NotificationPayload,
+		monitorId?: string,
+		incidentId?: string,
+	): Promise<DispatchResult> {
 		const failures: string[] = [];
-		let successes = 0;
 		for (const channel of channels) {
 			try {
-				const result = await this.sendToChannel(channel, payload, undefined, row.incidentId);
-				if (result.success) successes += 1;
-				else failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
+				const result = await this.sendToChannel(channel, payload, monitorId, incidentId);
+				if (!result.success) {
+					failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
+				}
 			} catch (err) {
 				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
 
 		if (failures.length === 0) return { status: "sent" };
-		const summary = this.summarizeFailures(successes + failures.length, failures);
-		if (successes === 0) return { status: "failed", errorMessage: summary };
-		return { status: "partial", errorMessage: summary };
+
+		const head = failures.slice(0, 3).join("; ");
+		const suffix = failures.length > 3 ? `; +${failures.length - 3} more` : "";
+		const errorMessage = `${failures.length}/${channels.length} channels failed: ${head}${suffix}`;
+		return { status: failures.length === channels.length ? "failed" : "partial", errorMessage };
 	}
 
 	private buildNotificationPayload(
@@ -418,47 +334,5 @@ export class NotificationService {
 			previousStatus: p.previousStatus as string | undefined,
 			errorMessage: p.errorMessage as string | undefined,
 		};
-	}
-
-	private summarizeFailures(total: number, failures: string[]): string {
-		const head = failures.slice(0, 3).join("; ");
-		const suffix = failures.length > 3 ? `; +${failures.length - 3} more` : "";
-		return `${failures.length}/${total} channels failed: ${head}${suffix}`;
-	}
-
-	async sendSslExpiryWarning(
-		monitor: Monitor,
-		status: MonitorStatus,
-		daysRemaining: number,
-	): Promise<void> {
-		const linkedChannels = await this.db
-			.select({
-				channel: notificationChannel,
-				link: monitorNotificationChannel,
-			})
-			.from(monitorNotificationChannel)
-			.innerJoin(
-				notificationChannel,
-				eq(monitorNotificationChannel.channelId, notificationChannel.id),
-			)
-			.where(
-				and(
-					eq(monitorNotificationChannel.monitorId, monitor.id),
-					eq(notificationChannel.enabled, true),
-					eq(monitorNotificationChannel.notifyOnSslExpiry, true),
-				),
-			);
-
-		const payload: NotificationPayload = {
-			type: "ssl_expiry_warning",
-			monitor,
-			status,
-			sslDaysRemaining: daysRemaining,
-			timestamp: new Date(),
-		};
-
-		for (const { channel } of linkedChannels) {
-			await this.sendToChannel(channel, payload, monitor.id);
-		}
 	}
 }
