@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import type { NotificationType } from "./types";
+
 /**
  * Payload schemas for notification_event rows, keyed by the event `type` column.
  * Used to validate payload shape at enqueue time (monitor worker) and dispatch
@@ -30,34 +32,12 @@ export const IncidentEventPayload = v.object({
 });
 export type IncidentEventPayload = v.InferOutput<typeof IncidentEventPayload>;
 
-export type NotificationEventType =
-	| "monitor_down"
-	| "monitor_up"
-	| "monitor_degraded"
-	| "ssl_expiry_warning"
-	| "incident_created"
-	| "incident_updated"
-	| "incident_resolved";
-
-/**
- * Type-safe payload discriminator. NEO-5 defines the first four; NEO-6 fills in
- * incident_* payloads.
- */
-export type NotificationEventPayload =
-	| { type: "monitor_down"; payload: MonitorStatusEventPayload }
-	| { type: "monitor_up"; payload: MonitorStatusEventPayload }
-	| { type: "monitor_degraded"; payload: MonitorStatusEventPayload }
-	| { type: "ssl_expiry_warning"; payload: SslExpiryEventPayload }
-	| { type: "incident_created"; payload: IncidentEventPayload }
-	| { type: "incident_updated"; payload: IncidentEventPayload }
-	| { type: "incident_resolved"; payload: IncidentEventPayload };
-
 /**
  * Validates that a payload matches the schema for the given event type.
  * Returns the parsed payload or throws on mismatch.
  */
 export function parseEventPayload(
-	type: NotificationEventType,
+	type: NotificationType,
 	payload: unknown,
 ): MonitorStatusEventPayload | SslExpiryEventPayload | IncidentEventPayload {
 	if (type === "monitor_down" || type === "monitor_up" || type === "monitor_degraded") {

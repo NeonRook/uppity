@@ -25,29 +25,3 @@ export interface NotificationResult {
 	success: boolean;
 	errorMessage?: string;
 }
-
-export interface NotificationProvider {
-	send(payload: NotificationPayload): Promise<NotificationResult>;
-}
-
-export interface EmailConfig {
-	email: string;
-}
-
-export interface SlackConfig {
-	webhookUrl: string;
-	channel?: string;
-}
-
-export interface DiscordConfig {
-	discordWebhookUrl: string;
-}
-
-export interface WebhookConfig {
-	url: string;
-	method?: string;
-	headers?: Record<string, string>;
-	bodyTemplate?: string;
-}
-
-export type ChannelConfig = EmailConfig | SlackConfig | DiscordConfig | WebhookConfig;
