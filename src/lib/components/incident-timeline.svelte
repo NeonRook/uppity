@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { getStatusInfo, formatIncidentDateTime } from "#lib/incidents.js";
+	import { formatDateTimeMonthDay } from "#lib/format.js";
+	import { getStatusInfo } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 
 	interface Props {
@@ -40,7 +41,7 @@
 						{info.label}
 					</span>
 					<span class="text-muted-foreground {compact ? 'text-xs' : 'font-mono text-sm'}">
-						{formatIncidentDateTime(update.createdAt)}
+						{formatDateTimeMonthDay(update.createdAt)}
 					</span>
 				</div>
 				<p class="text-foreground {compact ? 'mt-1 text-sm' : 'mt-2'}">{update.message}</p>

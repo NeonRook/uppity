@@ -1,6 +1,5 @@
 import { CronExpressionParser } from "cron-parser";
 import { eq, lte, and } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import {
 	CHECK_RETENTION_DAYS,
@@ -10,8 +9,8 @@ import {
 	CRON_ROLLING_STATS,
 	CRON_USAGE_SNAPSHOT,
 } from "../../lib/constants/scheduler";
+import type { Db } from "../../lib/server/db/index";
 import { maintenanceJob } from "../../lib/server/db/schema";
-import type * as schema from "../../lib/server/db/schema";
 import {
 	childLogger,
 	wideEvent,
@@ -23,8 +22,6 @@ import { MeterService } from "../../lib/server/services/meter.service";
 import { SubscriptionService } from "../../lib/server/services/subscription.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 const maintenanceLogger = childLogger("maintenance");
 

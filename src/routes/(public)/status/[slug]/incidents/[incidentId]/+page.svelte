@@ -4,8 +4,8 @@
 
 	import IncidentTimeline from "#lib/components/incident-timeline.svelte";
 	import StatusPageShell from "#lib/components/status-page-shell.svelte";
-	import { formatDuration } from "#lib/format.js";
-	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "#lib/incidents.js";
+	import { formatDateTimeMonthDay, formatDuration } from "#lib/format.js";
+	import { getStatusInfo, getImpactInfo } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
@@ -56,7 +56,7 @@
 			<div class="flex items-center gap-2">
 				<Clock class="text-muted-foreground h-4 w-4" />
 				<span class="font-mono"
-					>{m.public_status_started({ date: formatIncidentDateTime(incident.startedAt) })}</span
+					>{m.public_status_started({ date: formatDateTimeMonthDay(incident.startedAt) })}</span
 				>
 			</div>
 			{#if incident.resolvedAt}
@@ -64,7 +64,7 @@
 					<Clock class="text-muted-foreground h-4 w-4" />
 					<span class="font-mono"
 						>{m.public_incident_resolved({
-							date: formatIncidentDateTime(incident.resolvedAt),
+							date: formatDateTimeMonthDay(incident.resolvedAt),
 						})}</span
 					>
 				</div>
@@ -113,7 +113,7 @@
 			</div>
 			<p class="text-muted-foreground mt-4 text-xs">
 				{m.incident_postmortem_published({
-					date: formatIncidentDateTime(postmortemUpdate.createdAt),
+					date: formatDateTimeMonthDay(postmortemUpdate.createdAt),
 				})}
 			</p>
 		</div>

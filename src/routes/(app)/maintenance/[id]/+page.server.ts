@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
-import { updateMaintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
+import { maintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor } from "#lib/server/db/schema.js";
 import { maintenanceErrorMessage } from "#lib/server/maintenance-messages.js";
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			endsAt: window.endsAt,
 			monitorIds: window.monitorIds,
 		},
-		valibot(updateMaintenanceWindowSchema),
+		valibot(maintenanceWindowSchema),
 	);
 	return { form, monitors, window };
 };
@@ -42,7 +42,7 @@ export const actions: Actions = {
 			return fail(401, { error: "Not authenticated" });
 		}
 		const orgId = locals.session.activeOrganizationId;
-		const form = await superValidate(request, valibot(updateMaintenanceWindowSchema));
+		const form = await superValidate(request, valibot(maintenanceWindowSchema));
 		if (!form.valid) return fail(400, { form });
 		try {
 			await new MaintenanceWindowService(db).update(params.id, orgId, form.data);

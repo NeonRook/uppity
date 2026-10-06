@@ -21,13 +21,8 @@
 		type IncidentStatusValue,
 		type IncidentImpact,
 	} from "#lib/constants/status.js";
-	import {
-		getStatusInfo,
-		getImpactInfo,
-		getStatusLabel,
-		getImpactLabel,
-		formatIncidentDate,
-	} from "#lib/incidents.js";
+	import { formatDateTimeShort } from "#lib/format.js";
+	import { getStatusInfo, getImpactInfo, getStatusLabel, getImpactLabel } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteIncident } from "#lib/remote/incidents.remote.js";
 
@@ -107,9 +102,9 @@
 			</Badge>
 		</div>
 		<p class="text-muted-foreground text-sm">
-			{m.incident_started_at({ date: formatIncidentDate(data.incident.startedAt) })}
+			{m.incident_started_at({ date: formatDateTimeShort(data.incident.startedAt) })}
 			{#if data.incident.resolvedAt}
-				| {m.incident_resolved_at({ date: formatIncidentDate(data.incident.resolvedAt) })}
+				| {m.incident_resolved_at({ date: formatDateTimeShort(data.incident.resolvedAt) })}
 			{/if}
 		</p>
 		{#snippet actions()}
@@ -252,7 +247,7 @@
 							<div class="flex items-center justify-between">
 								<p class="text-muted-foreground text-xs">
 									{m.incident_postmortem_published({
-										date: formatIncidentDate(existingPostmortem.createdAt),
+										date: formatDateTimeShort(existingPostmortem.createdAt),
 									})}
 								</p>
 
@@ -318,7 +313,7 @@
 									{getStatusLabel(update.status)}
 								</Badge>
 								<span class="text-muted-foreground text-xs">
-									{formatIncidentDate(update.createdAt)}
+									{formatDateTimeShort(update.createdAt)}
 								</span>
 							</div>
 							<p class="mt-1 text-sm">{update.message}</p>

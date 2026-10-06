@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (sellsBlocks && subscription.billingInterval === null && subscription.polarSubscriptionId) {
 		try {
 			const snapshot = await fetchPolarSnapshot(subscription.polarSubscriptionId);
-			subscription = await subscriptionService.resyncFromPolar(organizationId, snapshot);
+			subscription = await subscriptionService.syncFromPolar(organizationId, snapshot);
 		} catch (error) {
 			locals.event.setError(error);
 		}

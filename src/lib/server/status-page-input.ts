@@ -1,7 +1,9 @@
-import type { UpdateStatusPageForm } from "#lib/schemas/status-page.js";
+import type * as v from "valibot";
+
+import type { updateStatusPageSchema } from "#lib/schemas/status-page.js";
 
 /** Maps validated form data to the status page fields it edits. */
-export function toStatusPageInput(data: UpdateStatusPageForm) {
+export function toStatusPageInput(data: v.InferInput<typeof updateStatusPageSchema>) {
 	return {
 		name: data.name,
 		slug: data.slug.toLowerCase(),

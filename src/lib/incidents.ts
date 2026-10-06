@@ -10,11 +10,6 @@ import {
 
 import { m } from "#lib/paraglide/messages.js";
 
-export {
-	formatDateTimeShort as formatIncidentDate,
-	formatDateTimeMonthDay as formatIncidentDateTime,
-} from "#lib/format.js";
-
 type Variant = "destructive" | "secondary" | "outline";
 
 export interface StatusInfo {

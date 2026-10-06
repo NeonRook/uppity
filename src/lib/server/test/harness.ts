@@ -1,13 +1,14 @@
 import { resolve } from "node:path";
 
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
+import type { Db } from "../db/index";
 import * as schema from "../db/schema";
 
 export interface TestDb {
-	db: PostgresJsDatabase<typeof schema>;
+	db: Db;
 	client: postgres.Sql;
 	url: string;
 	listen(channel: string, handler: (payload: string) => void): Promise<() => Promise<void>>;

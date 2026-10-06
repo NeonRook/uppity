@@ -14,8 +14,8 @@
 	import IncidentTimeline from "#lib/components/incident-timeline.svelte";
 	import StatusPageShell from "#lib/components/status-page-shell.svelte";
 	import UptimeBar from "#lib/components/uptime-bar.svelte";
-	import { formatDuration } from "#lib/format.js";
-	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "#lib/incidents.js";
+	import { formatDateTimeMonthDay, formatDuration } from "#lib/format.js";
+	import { getStatusInfo, getImpactInfo } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getMonitorStatusColor } from "#lib/utils/status.js";
 
@@ -163,7 +163,7 @@
 									</span>
 									<span class="text-muted-foreground text-xs">
 										{m.public_status_started({
-											date: formatIncidentDateTime(incident.startedAt),
+											date: formatDateTimeMonthDay(incident.startedAt),
 										})}
 									</span>
 								</div>
@@ -249,7 +249,7 @@
 								</span>
 							</div>
 							<div class="text-muted-foreground mt-1 flex flex-wrap gap-3 text-xs">
-								<span>{formatIncidentDateTime(incident.startedAt)}</span>
+								<span>{formatDateTimeMonthDay(incident.startedAt)}</span>
 								{#if incident.resolvedAt}
 									<span
 										>{m.public_status_duration({

@@ -21,6 +21,7 @@
 	import { formatDateShort } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteOrganization } from "#lib/remote/admin.remote.js";
+	import { getRoleBadge } from "#lib/roles.js";
 
 	let { data } = $props();
 
@@ -41,28 +42,6 @@
 	async function handleDelete() {
 		await deleteOrganization({ organizationId: data.org.id });
 		goto(resolve("admin/organizations"));
-	}
-
-	function getRoleBadgeVariant(role: string) {
-		switch (role) {
-			case "owner":
-				return "default";
-			case "admin":
-				return "secondary";
-			default:
-				return "outline";
-		}
-	}
-
-	function getRoleLabel(role: string): string {
-		switch (role) {
-			case "owner":
-				return m.role_owner();
-			case "admin":
-				return m.role_admin();
-			default:
-				return m.role_member();
-		}
 	}
 
 	function getUserLabel(userId: string): string {
@@ -251,8 +230,8 @@
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground">{member.user.email}</Table.Cell>
 							<Table.Cell
-								><Badge variant={getRoleBadgeVariant(member.role)}
-									>{getRoleLabel(member.role)}</Badge
+								><Badge variant={getRoleBadge(member.role).variant}
+									>{getRoleBadge(member.role).label}</Badge
 								></Table.Cell
 							>
 							<Table.Cell class="text-muted-foreground"
@@ -325,7 +304,7 @@
 					<Field.Label for="role">{m.common_role()}</Field.Label>
 					<Select.Root type="single" name="role" bind:value={selectedRole}>
 						<Select.Trigger class="w-full">
-							{getRoleLabel(selectedRole)}
+							{getRoleBadge(selectedRole).label}
 						</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="member">{m.role_member()}</Select.Item>

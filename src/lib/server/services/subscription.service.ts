@@ -574,23 +574,6 @@ export class SubscriptionService {
 	}
 
 	/**
-	 * Re-applies a snapshot pulled live from Polar, repairing drift left by a
-	 * webhook that never landed.
-	 *
-	 * Takes an already-fetched snapshot rather than reaching for the Polar SDK
-	 * itself: the client and the product-id-to-plan mapping live in auth.ts, and
-	 * pulling them in here would drag Polar configuration into a class that is
-	 * otherwise pure Drizzle. Polar stays the single source of truth for the plan and
-	 * its status — there is deliberately no manual plan override.
-	 */
-	async resyncFromPolar(
-		organizationId: string,
-		snapshot: PolarSubscriptionSnapshot,
-	): Promise<Subscription> {
-		return this.syncFromPolar(organizationId, snapshot);
-	}
-
-	/**
 	 * Downgrades an organization to the free plan.
 	 * Called when a subscription is canceled or payment fails.
 	 *

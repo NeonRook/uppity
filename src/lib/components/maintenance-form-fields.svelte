@@ -9,10 +9,10 @@
 	import { dateToLocalInput, getTimeZoneLabel, localInputToDate } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getLocale } from "#lib/paraglide/runtime.js";
-	import type { createMaintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
+	import type { maintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
 
 	interface Props {
-		superform: SuperForm<Infer<typeof createMaintenanceWindowSchema>>;
+		superform: SuperForm<Infer<typeof maintenanceWindowSchema>>;
 		monitors: { id: string; name: string }[];
 		disabled?: boolean;
 		/** Windows that are over: monitors render as a plain list and the zone note is dropped. */

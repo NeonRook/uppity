@@ -71,6 +71,6 @@ export async function syncCheckout(checkoutId: string, organizationId: string): 
 	) {
 		return false;
 	}
-	await subscriptionService.resyncFromPolar(organizationId, snapshot);
+	await subscriptionService.syncFromPolar(organizationId, snapshot);
 	return true;
 }

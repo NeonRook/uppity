@@ -320,41 +320,6 @@ describe("SubscriptionService", () => {
 		});
 	});
 
-	describe("resyncFromPolar", () => {
-		test("overwrites local drift with the Polar snapshot", async ({ db }) => {
-			const { db: drizzleDb } = db;
-			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrg(drizzleDb);
-			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
-
-			const updated = await service.resyncFromPolar(orgId, {
-				planId: "uppity",
-				status: "active",
-				polarCustomerId: "cus_1",
-				polarSubscriptionId: "sub_1",
-				currentPeriodStart: new Date("2026-07-01T00:00:00Z"),
-				currentPeriodEnd: new Date("2026-08-01T00:00:00Z"),
-			});
-
-			expect(updated.planId).toBe("uppity");
-			expect(updated.polarSubscriptionId).toBe("sub_1");
-		});
-
-		test("leaves before-state observable for auditing", async ({ db }) => {
-			const { db: drizzleDb } = db;
-			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrg(drizzleDb);
-			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
-
-			const before = await service.getSubscription(orgId);
-			const after = await service.resyncFromPolar(orgId, { planId: "uppity", status: "past_due" });
-
-			expect(before?.planId).toBe("free");
-			expect(after.planId).toBe("uppity");
-			expect(after.status).toBe("past_due");
-		});
-	});
-
 	describe("getEffectiveLimits", () => {
 		test("uppity plan unlocks sso, audit logs and unlimited status pages", async ({ db }) => {
 			const { db: drizzleDb } = db;
