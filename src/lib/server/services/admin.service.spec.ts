@@ -2,41 +2,16 @@ import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
-import { member, organization, user } from "../db/auth-schema";
+import { member, organization } from "../db/auth-schema";
 import { auditLog } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedOrg, seedUser } from "../test/seed";
 import { AdminService } from "./admin.service";
 import { AuditService, type Actor } from "./audit.service";
 
 // The `db` fixture is file-scoped, so rows accumulate across tests in this file.
 // Every assertion is scoped to the actor the test seeded.
-async function seedUser(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const userId = `test-user-${suffix}`;
-	await drizzleDb.insert(user).values({
-		id: userId,
-		name: "Test User",
-		email: `${userId}@example.com`,
-		emailVerified: true,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-	});
-	return userId;
-}
-
-async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: orgId,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
 async function makeActor(drizzleDb: TestDb["db"]): Promise<Actor> {
 	const id = await seedUser(drizzleDb);
 	return { id, email: `${id}@example.com`, ip: "198.51.100.4", userAgent: "vitest" };

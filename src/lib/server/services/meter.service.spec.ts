@@ -4,12 +4,12 @@ import { nanoid } from "nanoid";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
-import { organization } from "../db/auth-schema";
 import * as schema from "../db/schema";
-import { monitor, subscription } from "../db/schema";
+import { subscription } from "../db/schema";
 import { logger } from "../logger";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedMonitors, seedOrg, seedSubscription } from "../test/seed";
 import { MeterService } from "./meter.service";
 
 // The wire-format assertions below deliberately use literal strings
@@ -29,22 +29,8 @@ async function seedOrganizationWithCustomer(
 	polarCustomerId: string,
 	overrides: { planId?: string; blocks?: number } = {},
 ): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: `test-org-${suffix}`,
-		createdAt: new Date(),
-	});
-	await drizzleDb.insert(subscription).values({
-		id: nanoid(),
-		organizationId: orgId,
-		planId: overrides.planId ?? "uppity",
-		status: "active",
-		blocks: overrides.blocks ?? 0,
-		polarCustomerId,
-	});
+	const orgId = await seedOrg(drizzleDb);
+	await seedSubscription(drizzleDb, orgId, { polarCustomerId, ...overrides });
 	return orgId;
 }
 
@@ -53,19 +39,6 @@ async function seedBilledOrganization(drizzleDb: TestDb["db"]): Promise<string> 
 	const polarCustomerId = `polar-cust-${nanoid()}`;
 	await seedOrganizationWithCustomer(drizzleDb, polarCustomerId);
 	return polarCustomerId;
-}
-
-/** Seeds `count` monitors for an already-created organization. */
-async function seedMonitors(drizzleDb: TestDb["db"], orgId: string, count: number): Promise<void> {
-	for (let i = 0; i < count; i++) {
-		await drizzleDb.insert(monitor).values({
-			id: nanoid(),
-			organizationId: orgId,
-			name: `Monitor ${nanoid()}`,
-			type: "http",
-			url: "https://example.com",
-		});
-	}
 }
 
 type IngestedEvent = { name: string; customer_id: string; metadata: Record<string, unknown> };

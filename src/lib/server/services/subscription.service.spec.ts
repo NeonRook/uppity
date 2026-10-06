@@ -4,46 +4,12 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
 import { ORGANIZATION_MEMBERSHIP_LIMIT } from "#lib/constants/auth.js";
 
-import { invitation, member, organization, user } from "../db/auth-schema";
+import { invitation } from "../db/auth-schema";
 import { monitor, statusPage, subscription } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedMember, seedMonitors, seedOrg, seedSubscription, seedUser } from "../test/seed";
 import { SubscriptionService } from "./subscription.service";
-
-async function seedOrganization(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: `test-org-${suffix}`,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
-async function seedUser(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const userId = `test-user-${suffix}`;
-	await drizzleDb.insert(user).values({
-		id: userId,
-		name: `Test User ${suffix}`,
-		email: `user-${suffix}@example.com`,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-	});
-	return userId;
-}
-
-async function seedMember(drizzleDb: TestDb["db"], orgId: string): Promise<void> {
-	await drizzleDb.insert(member).values({
-		id: nanoid(),
-		organizationId: orgId,
-		userId: await seedUser(drizzleDb),
-		role: "member",
-		createdAt: new Date(),
-	});
-}
 
 async function seedInvitation(
 	drizzleDb: TestDb["db"],
@@ -64,81 +30,13 @@ async function seedInvitation(
 	});
 }
 
-async function seedMonitors(
+/** Seeds an organization and gives it a subscription. */
+async function seedSubscribed(
 	drizzleDb: TestDb["db"],
-	orgId: string,
-	howMany: number,
-): Promise<void> {
-	for (let i = 0; i < howMany; i++) {
-		await drizzleDb.insert(monitor).values({
-			id: nanoid(),
-			organizationId: orgId,
-			name: `Monitor ${i}`,
-			type: "http",
-			url: "https://example.com",
-			intervalSeconds: 300,
-			timeoutSeconds: 30,
-		});
-	}
-}
-
-/** Seeds an Uppity subscription holding 4 blocks with a reduction to 2 pending. */
-async function seedScheduled(drizzleDb: TestDb["db"], currentPeriodEnd: Date): Promise<string> {
-	const orgId = await seedOrganization(drizzleDb);
-	await drizzleDb.insert(subscription).values({
-		id: nanoid(),
-		organizationId: orgId,
-		planId: "uppity",
-		status: "active",
-		blocks: 4,
-		scheduledBlocks: 2,
-		currentPeriodEnd,
-	});
-	return orgId;
-}
-
-async function seedPaid(
-	drizzleDb: TestDb["db"],
-	polarCustomerId: string,
-	blocks: number,
+	overrides: Parameters<typeof seedSubscription>[2],
 ): Promise<string> {
-	const orgId = await seedOrganization(drizzleDb);
-	await drizzleDb.insert(subscription).values({
-		id: nanoid(),
-		organizationId: orgId,
-		planId: "uppity",
-		status: "active",
-		blocks,
-		polarCustomerId,
-		currentPeriodEnd: new Date(Date.now() + 86_400_000),
-	});
-	return orgId;
-}
-
-async function seedRole(drizzleDb: TestDb["db"], orgId: string, role: string): Promise<string> {
-	const userId = await seedUser(drizzleDb);
-	await drizzleDb.insert(member).values({
-		id: nanoid(),
-		organizationId: orgId,
-		userId,
-		role,
-		createdAt: new Date(),
-	});
-	return userId;
-}
-
-/** Seeds an Uppity subscription holding 3 blocks, billed to `cus_real`. */
-async function seedHeld(drizzleDb: TestDb["db"], polarSubscriptionId: string | null) {
-	const orgId = await seedOrganization(drizzleDb);
-	await drizzleDb.insert(subscription).values({
-		id: nanoid(),
-		organizationId: orgId,
-		planId: "uppity",
-		status: "active",
-		blocks: 3,
-		polarCustomerId: "cus_real",
-		polarSubscriptionId,
-	});
+	const orgId = await seedOrg(drizzleDb);
+	await seedSubscription(drizzleDb, orgId, overrides);
 	return orgId;
 }
 
@@ -159,7 +57,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -210,7 +108,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -230,7 +128,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			vi.stubEnv("SELF_HOSTED", "true");
 			try {
@@ -249,7 +147,7 @@ describe("SubscriptionService", () => {
 		test("denies at the free-plan limit of 1", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -277,7 +175,7 @@ describe("SubscriptionService", () => {
 		test("free plan allows email but denies slack", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -300,7 +198,7 @@ describe("SubscriptionService", () => {
 		test("free plan rejects sub-120s intervals and accepts the floor", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -324,7 +222,7 @@ describe("SubscriptionService", () => {
 		test("creates a free-plan row on first call and returns it on the second", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			const first = await service.getOrCreateSubscription(orgId);
 			expect(first.organizationId).toBe(orgId);
@@ -354,7 +252,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			const initial = await service.getOrCreateSubscription(orgId);
 			expect(initial.planId).toBe("free");
@@ -384,7 +282,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			const annual = await service.syncFromPolar(orgId, {
 				planId: "uppity",
@@ -404,7 +302,7 @@ describe("SubscriptionService", () => {
 		test("creates a new row via syncFromPolar when none exists", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			const result = await service.syncFromPolar(orgId, {
 				planId: "uppity",
@@ -426,7 +324,7 @@ describe("SubscriptionService", () => {
 		test("overwrites local drift with the Polar snapshot", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
 
 			const updated = await service.resyncFromPolar(orgId, {
@@ -445,7 +343,7 @@ describe("SubscriptionService", () => {
 		test("leaves before-state observable for auditing", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 			await service.syncFromPolar(orgId, { planId: "free", status: "active" });
 
 			const before = await service.getSubscription(orgId);
@@ -461,7 +359,7 @@ describe("SubscriptionService", () => {
 		test("uppity plan unlocks sso, audit logs and unlimited status pages", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -484,7 +382,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -501,7 +399,7 @@ describe("SubscriptionService", () => {
 		test("uppity's ceiling grows by 50 for every purchased capacity block", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -518,7 +416,7 @@ describe("SubscriptionService", () => {
 		test("a subscription created without blocks defaults to the included 50", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -535,7 +433,7 @@ describe("SubscriptionService", () => {
 		test("blocks on a free-plan row do not raise the free ceiling", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -552,7 +450,7 @@ describe("SubscriptionService", () => {
 		test("self-hosted stays unlimited regardless of stored blocks", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -574,7 +472,7 @@ describe("SubscriptionService", () => {
 		test("an unknown plan id falls back to free limits", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -595,7 +493,7 @@ describe("SubscriptionService", () => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 
-			const dedicatedOrg = await seedOrganization(drizzleDb);
+			const dedicatedOrg = await seedOrg(drizzleDb);
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
 				organizationId: dedicatedOrg,
@@ -603,7 +501,7 @@ describe("SubscriptionService", () => {
 				status: "active",
 			});
 
-			const enterpriseOrg = await seedOrganization(drizzleDb);
+			const enterpriseOrg = await seedOrg(drizzleDb);
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
 				organizationId: enterpriseOrg,
@@ -625,7 +523,7 @@ describe("SubscriptionService", () => {
 		test("counts accepted members plus unexpired pending invitations", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -646,7 +544,7 @@ describe("SubscriptionService", () => {
 		test("an expired invitation does not hold a slot", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -666,7 +564,7 @@ describe("SubscriptionService", () => {
 		test("uppity's unlimited members resolve to the operator's ceiling", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -686,7 +584,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -708,7 +606,7 @@ describe("SubscriptionService", () => {
 		test("raising the count persists it and widens the ceiling", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -726,7 +624,7 @@ describe("SubscriptionService", () => {
 		test("a reduction is scheduled and the ceiling holds until the period ends", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -748,7 +646,7 @@ describe("SubscriptionService", () => {
 		test("a reduction below current usage is scheduled, not refused", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -767,7 +665,7 @@ describe("SubscriptionService", () => {
 		test("lowering a scheduled reduction further replaces it", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -789,7 +687,7 @@ describe("SubscriptionService", () => {
 		test("a reduction with no known period end applies immediately", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -809,7 +707,7 @@ describe("SubscriptionService", () => {
 		test("asking for the count already held cancels a scheduled reduction", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -830,7 +728,7 @@ describe("SubscriptionService", () => {
 		test("an increase applies immediately and drops a scheduled reduction", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -851,7 +749,7 @@ describe("SubscriptionService", () => {
 		test("a count above the maximum is refused, naming the maximum", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -872,7 +770,7 @@ describe("SubscriptionService", () => {
 		test("a plan that is not sold by capacity is refused", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -893,7 +791,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -921,8 +819,16 @@ describe("SubscriptionService", () => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const customer = `cus_${nanoid()}`;
-			const holder = await seedPaid(drizzleDb, customer, 2);
-			const orgId = await seedPaid(drizzleDb, customer, 0);
+			const holder = await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 2,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
+			const orgId = await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 0,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
 
 			expect(await service.setBlocks(orgId, 1)).toStrictEqual({
 				ok: false,
@@ -936,8 +842,16 @@ describe("SubscriptionService", () => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const customer = `cus_${nanoid()}`;
-			await seedPaid(drizzleDb, customer, 2);
-			const orgId = await seedPaid(drizzleDb, customer, 3);
+			await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 2,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
+			const orgId = await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 3,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
 
 			expect((await service.setBlocks(orgId, 1)).ok).toBe(true);
 		});
@@ -946,8 +860,16 @@ describe("SubscriptionService", () => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const customer = `cus_${nanoid()}`;
-			await seedPaid(drizzleDb, customer, 0);
-			const orgId = await seedPaid(drizzleDb, customer, 0);
+			await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 0,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
+			const orgId = await seedSubscribed(drizzleDb, {
+				polarCustomerId: customer,
+				blocks: 0,
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+			});
 
 			expect((await service.setBlocks(orgId, 2)).ok).toBe(true);
 		});
@@ -959,7 +881,11 @@ describe("SubscriptionService", () => {
 		test("apply for the subscription on record", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedHeld(drizzleDb, "sub_real");
+			const orgId = await seedSubscribed(drizzleDb, {
+				blocks: 3,
+				polarCustomerId: "cus_real",
+				polarSubscriptionId: "sub_real",
+			});
 			const held = { polarSubscriptionId: "sub_real", polarCustomerId: "cus_real" };
 
 			expect((await service.syncHeldFromPolar(orgId, held, renewal))?.status).toBe("past_due");
@@ -969,7 +895,11 @@ describe("SubscriptionService", () => {
 		test("change nothing for any other subscription carrying the reference", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedHeld(drizzleDb, "sub_real");
+			const orgId = await seedSubscribed(drizzleDb, {
+				blocks: 3,
+				polarCustomerId: "cus_real",
+				polarSubscriptionId: "sub_real",
+			});
 
 			// A stranger's subscription, and the same customer's superseded one.
 			for (const held of [
@@ -989,7 +919,11 @@ describe("SubscriptionService", () => {
 		test("fall back to the customer for rows without a stored subscription id", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedHeld(drizzleDb, null);
+			const orgId = await seedSubscribed(drizzleDb, {
+				blocks: 3,
+				polarCustomerId: "cus_real",
+				polarSubscriptionId: null,
+			});
 
 			expect(
 				await service.downgradeHeldToFree(orgId, {
@@ -1010,7 +944,7 @@ describe("SubscriptionService", () => {
 		test("never create a row for an organization without one", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 			const held = { polarSubscriptionId: "sub_any", polarCustomerId: "cus_any" };
 
 			expect(await service.syncHeldFromPolar(orgId, held, renewal)).toBeNull();
@@ -1022,25 +956,25 @@ describe("SubscriptionService", () => {
 		test("owners and admins may, members and outsiders may not", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
-			const otherOrg = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
+			const otherOrg = await seedOrg(drizzleDb);
 
-			expect(await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "owner"))).toBe(
-				true,
-			);
-			expect(await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "admin"))).toBe(
-				true,
-			);
 			expect(
-				await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "member")),
+				await service.canManageBilling(orgId, await seedMember(drizzleDb, orgId, "owner")),
+			).toBe(true);
+			expect(
+				await service.canManageBilling(orgId, await seedMember(drizzleDb, orgId, "admin")),
+			).toBe(true);
+			expect(
+				await service.canManageBilling(orgId, await seedMember(drizzleDb, orgId, "member")),
 			).toBe(false);
-			expect(await service.memberRole(orgId, await seedRole(drizzleDb, orgId, "member"))).toBe(
+			expect(await service.memberRole(orgId, await seedMember(drizzleDb, orgId, "member"))).toBe(
 				"member",
 			);
 			expect(await service.memberRole(orgId, await seedUser(drizzleDb))).toBeNull();
 			// An owner elsewhere is an outsider here.
 			expect(
-				await service.canManageBilling(orgId, await seedRole(drizzleDb, otherOrg, "owner")),
+				await service.canManageBilling(orgId, await seedMember(drizzleDb, otherOrg, "owner")),
 			).toBe(false);
 		});
 	});
@@ -1053,8 +987,16 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const ended = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
-			const running = await seedScheduled(drizzleDb, new Date("2026-03-13T00:00:00Z"));
+			const ended = await seedSubscribed(drizzleDb, {
+				blocks: 4,
+				scheduledBlocks: 2,
+				currentPeriodEnd: new Date("2026-03-11T00:00:00Z"),
+			});
+			const running = await seedSubscribed(drizzleDb, {
+				blocks: 4,
+				scheduledBlocks: 2,
+				currentPeriodEnd: new Date("2026-03-13T00:00:00Z"),
+			});
 
 			await service.applyScheduledReductions(now);
 
@@ -1070,7 +1012,11 @@ describe("SubscriptionService", () => {
 		test("a second pass changes nothing", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
+			const orgId = await seedSubscribed(drizzleDb, {
+				blocks: 4,
+				scheduledBlocks: 2,
+				currentPeriodEnd: new Date("2026-03-11T00:00:00Z"),
+			});
 
 			expect(await service.applyScheduledReductions(now)).toBeGreaterThanOrEqual(1);
 			await service.applyScheduledReductions(now);
@@ -1085,7 +1031,11 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
+			const orgId = await seedSubscribed(drizzleDb, {
+				blocks: 4,
+				scheduledBlocks: 2,
+				currentPeriodEnd: new Date("2026-03-11T00:00:00Z"),
+			});
 			await seedMonitors(drizzleDb, orgId, 160);
 
 			await service.applyScheduledReductions(now);
@@ -1100,7 +1050,7 @@ describe("SubscriptionService", () => {
 		test("downgradeToFree clears the purchased capacity", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1118,7 +1068,7 @@ describe("SubscriptionService", () => {
 		test("moving to a plan that does not sell blocks clears the count", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1141,7 +1091,7 @@ describe("SubscriptionService", () => {
 		test("returning to an eligible plan does not resurrect a cleared count", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1161,7 +1111,7 @@ describe("SubscriptionService", () => {
 		test("a renewal on the same eligible plan keeps the count", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1184,7 +1134,7 @@ describe("SubscriptionService", () => {
 		test("leaving block eligibility clears a scheduled reduction", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1203,7 +1153,7 @@ describe("SubscriptionService", () => {
 		test("downgradeToFree clears a scheduled reduction", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1222,7 +1172,7 @@ describe("SubscriptionService", () => {
 		test("the renewal webhook lands a scheduled reduction", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1248,7 +1198,7 @@ describe("SubscriptionService", () => {
 		test("a renewal starting just before the stored period end still lands", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1275,7 +1225,7 @@ describe("SubscriptionService", () => {
 		}) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),
@@ -1310,7 +1260,7 @@ describe("SubscriptionService", () => {
 		test("a mid-period webhook leaves a scheduled reduction pending", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			const period = {
 				currentPeriodStart: new Date("2026-02-12T00:00:00Z"),
@@ -1348,7 +1298,7 @@ describe("SubscriptionService", () => {
 		test("a past_due sync leaves purchased capacity alone", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
-			const orgId = await seedOrganization(drizzleDb);
+			const orgId = await seedOrg(drizzleDb);
 
 			await drizzleDb.insert(subscription).values({
 				id: nanoid(),

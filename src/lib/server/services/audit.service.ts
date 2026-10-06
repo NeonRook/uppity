@@ -1,5 +1,4 @@
 import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 import {
@@ -8,14 +7,8 @@ import {
 	type AuditAction,
 	type AuditTargetType,
 } from "#lib/constants/audit.js";
-import { db } from "#lib/server/db/index.js";
-import * as schema from "#lib/server/db/schema.js";
+import { db, type Db, type DbExecutor } from "#lib/server/db/index.js";
 import { auditLog, type AuditLog } from "#lib/server/db/schema.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
-
-/** A `db` handle or a transaction handle — `record` accepts either. */
-export type DbExecutor = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export interface Actor {
 	id: string;

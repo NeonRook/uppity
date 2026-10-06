@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
 import { organization } from "../db/auth-schema";
@@ -13,33 +12,8 @@ import {
 import { NotFoundError } from "../errors";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedMonitor, seedOrg } from "../test/seed";
 import { IncidentService } from "./incident.service";
-
-async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: orgId,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
-async function seedMonitor(drizzleDb: TestDb["db"], orgId: string): Promise<string> {
-	const id = `mon-${nanoid()}`;
-	await drizzleDb.insert(monitor).values({
-		id,
-		organizationId: orgId,
-		name: "Probe",
-		type: "http",
-		url: "https://example.com",
-		intervalSeconds: 300,
-		timeoutSeconds: 30,
-	});
-	return id;
-}
 
 async function fetchEvents(drizzleDb: TestDb["db"], incidentId: string) {
 	return drizzleDb

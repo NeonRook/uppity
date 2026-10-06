@@ -1,12 +1,9 @@
 import { and, eq, getTableName, inArray, isNotNull, ne, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 import { BLOCK_ELIGIBLE_PLAN_IDS, DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
 import { member } from "#lib/server/db/auth-schema.js";
-import * as schema from "#lib/server/db/schema.js";
+import type { Db } from "#lib/server/db/index.js";
 import { monitor, statusPage, subscription } from "#lib/server/db/schema.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 // Drizzle renders a bare Column reference inside a `sql` template as just its
 // (unqualified) name. Inside a correlated subquery that shares a column name
@@ -70,21 +67,54 @@ export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSn
 		.select({
 			organizationId: subscription.organizationId,
 			polarCustomerId: subscription.polarCustomerId,
-			monitors: sql<string>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId})`,
-			statusPages: sql<string>`(select count(*) from ${statusPage} where ${statusPage.organizationId} = ${outerOrganizationId})`,
-			teamMembers: sql<string>`(select count(*) from ${member} where ${member.organizationId} = ${outerOrganizationId})`,
+			monitors:
+				sql<number>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId})`.mapWith(
+					Number,
+				),
+			statusPages:
+				sql<number>`(select count(*) from ${statusPage} where ${statusPage.organizationId} = ${outerOrganizationId})`.mapWith(
+					Number,
+				),
+			teamMembers:
+				sql<number>`(select count(*) from ${member} where ${member.organizationId} = ${outerOrganizationId})`.mapWith(
+					Number,
+				),
 		})
 		.from(subscription)
 		.where(and(isNotNull(subscription.polarCustomerId), ne(subscription.planId, DEFAULT_PLAN_ID)));
 
-	// postgres-js returns bigint counts as strings.
-	return rows.map((row) => ({
-		organizationId: row.organizationId,
-		polarCustomerId: row.polarCustomerId as string,
-		monitors: Number(row.monitors),
-		statusPages: Number(row.statusPages),
-		teamMembers: Number(row.teamMembers),
-	}));
+	return rows.map((row) => Object.assign(row, { polarCustomerId: row.polarCustomerId as string }));
+}
+
+/** Sums `fields` over rows sharing a Polar customer, counting the organizations each total spans. */
+function sumFieldsByCustomer<K extends string>(
+	rows: Array<{ polarCustomerId: string } & Record<K, number>>,
+	fields: readonly K[],
+) {
+	const byCustomer = new Map<
+		string,
+		{ polarCustomerId: string; organizationCount: number } & Record<K, number>
+	>();
+
+	for (const row of rows) {
+		const existing = byCustomer.get(row.polarCustomerId);
+		if (existing) {
+			const totals: Record<K, number> = existing;
+			for (const field of fields) totals[field] += row[field];
+			existing.organizationCount += 1;
+		} else {
+			byCustomer.set(row.polarCustomerId, {
+				polarCustomerId: row.polarCustomerId,
+				organizationCount: 1,
+				...(Object.fromEntries(fields.map((field): [K, number] => [field, row[field]])) as Record<
+					K,
+					number
+				>),
+			});
+		}
+	}
+
+	return Array.from(byCustomer.values());
 }
 
 /**
@@ -100,27 +130,7 @@ export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSn
  * Pure and synchronous so it can be unit tested without the database.
  */
 export function sumByCustomer(rows: OrganizationUsageSnapshot[]): CustomerUsageSnapshot[] {
-	const byCustomer = new Map<string, CustomerUsageSnapshot>();
-
-	for (const row of rows) {
-		const existing = byCustomer.get(row.polarCustomerId);
-		if (existing) {
-			existing.monitors += row.monitors;
-			existing.statusPages += row.statusPages;
-			existing.teamMembers += row.teamMembers;
-			existing.organizationCount += 1;
-		} else {
-			byCustomer.set(row.polarCustomerId, {
-				polarCustomerId: row.polarCustomerId,
-				monitors: row.monitors,
-				statusPages: row.statusPages,
-				teamMembers: row.teamMembers,
-				organizationCount: 1,
-			});
-		}
-	}
-
-	return Array.from(byCustomer.values());
+	return sumFieldsByCustomer(rows, ["monitors", "statusPages", "teamMembers"]);
 }
 
 /** Purchased capacity blocks held by one organization. */
@@ -188,21 +198,5 @@ export async function collectBlockSnapshots(
  * own several organizations.
  */
 export function sumBlocksByCustomer(rows: OrganizationBlockSnapshot[]): CustomerBlockSnapshot[] {
-	const byCustomer = new Map<string, CustomerBlockSnapshot>();
-
-	for (const row of rows) {
-		const existing = byCustomer.get(row.polarCustomerId);
-		if (existing) {
-			existing.blocks += row.blocks;
-			existing.organizationCount += 1;
-		} else {
-			byCustomer.set(row.polarCustomerId, {
-				polarCustomerId: row.polarCustomerId,
-				blocks: row.blocks,
-				organizationCount: 1,
-			});
-		}
-	}
-
-	return Array.from(byCustomer.values());
+	return sumFieldsByCustomer(rows, ["blocks"]);
 }

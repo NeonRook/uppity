@@ -1,10 +1,8 @@
-import { eq, and, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { eq, and, desc, asc, gte, lte, inArray, sql, type SQL } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
-import { db } from "#lib/server/db/index.js";
-import * as schema from "#lib/server/db/schema.js";
+import { db, type Db } from "#lib/server/db/index.js";
 import {
 	statusPage,
 	statusPageGroup,
@@ -28,8 +26,6 @@ import {
 } from "#lib/server/errors.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export interface CreateStatusPageInput {
 	organizationId: string;
@@ -206,6 +202,42 @@ function recentUtcDayKeys(count: number): string[] {
 	return keys;
 }
 
+const incidentUpdates = sql<PublicIncidentData["updates"]>`COALESCE(
+	json_agg(
+		json_build_object(
+			'id', ${incidentUpdate.id},
+			'status', ${incidentUpdate.status},
+			'message', ${incidentUpdate.message},
+			'createdAt', ${incidentUpdate.createdAt}
+		) ORDER BY ${incidentUpdate.createdAt} DESC
+	) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
+	'[]'
+)`;
+
+const countStatus = (status: "up" | "down" | "degraded") =>
+	sql<number>`SUM(CASE WHEN ${monitorCheck.status} = ${status} THEN 1 ELSE 0 END)::int`;
+
+function dayStatus(counts: { up: number; down: number; degraded: number }) {
+	if (counts.down > 0) return counts.up === 0 ? "down" : "partial";
+	return counts.degraded > 0 ? "degraded" : "up";
+}
+
+function toMaintenanceViews(
+	rows: Array<{ window: typeof maintenanceWindow.$inferSelect; monitorId: string }>,
+): MaintenanceView[] {
+	return Array.from(Map.groupBy(rows, (r) => r.window.id).values(), (group) => {
+		const [{ window }] = group;
+		return {
+			id: window.id,
+			name: window.name,
+			description: window.description,
+			startsAt: window.startsAt,
+			endsAt: window.endsAt,
+			affectedMonitorIds: group.map((r) => r.monitorId),
+		};
+	});
+}
+
 export class StatusPageService {
 	private db: Db;
 
@@ -222,10 +254,7 @@ export class StatusPageService {
 		// Check subscription limits before creating
 		const limitCheck = await subscriptionService.canAddStatusPage(input.organizationId);
 		if (!limitCheck.allowed) {
-			throw new SubscriptionLimitError(limitCheck.message ?? "Status page limit reached", {
-				limit: limitCheck.limit,
-				currentUsage: limitCheck.currentUsage,
-			});
+			throw new SubscriptionLimitError(limitCheck.message ?? "Status page limit reached");
 		}
 
 		const id = nanoid();
@@ -314,10 +343,7 @@ export class StatusPageService {
 		if (input.customDomain && input.customDomain !== existing.customDomain) {
 			const domainCheck = await subscriptionService.areCustomDomainsAllowed(organizationId);
 			if (!domainCheck.allowed) {
-				throw new FeatureNotAvailableError(
-					domainCheck.message ?? "Custom domains not available",
-					"customDomains",
-				);
+				throw new FeatureNotAvailableError(domainCheck.message ?? "Custom domains not available");
 			}
 		}
 
@@ -342,16 +368,12 @@ export class StatusPageService {
 	}
 
 	async delete(id: string, organizationId: string): Promise<boolean> {
-		const existing = await this.findByIdAndOrg(id, organizationId);
-		if (!existing) {
-			return false;
-		}
-
-		await this.db
+		const deleted = await this.db
 			.delete(statusPage)
-			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)));
+			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)))
+			.returning({ id: statusPage.id });
 
-		return true;
+		return deleted.length > 0;
 	}
 
 	/** Selects the page's id only when it belongs to `organizationId`. */
@@ -441,23 +463,8 @@ export class StatusPageService {
 		return pageMonitor;
 	}
 
-	async getMonitors(statusPageId: string): Promise<
-		Array<{
-			pageMonitor: StatusPageMonitor;
-			monitor: {
-				id: string;
-				name: string;
-				description: string | null;
-				type: string;
-				url: string | null;
-			};
-			status: {
-				status: string;
-				lastCheckAt: Date | null;
-			} | null;
-		}>
-	> {
-		const results = await this.db
+	async getMonitors(statusPageId: string) {
+		return this.db
 			.select({
 				pageMonitor: statusPageMonitor,
 				monitor: {
@@ -485,8 +492,6 @@ export class StatusPageService {
 			.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
 			.where(eq(statusPageMonitor.statusPageId, statusPageId))
 			.orderBy(asc(statusPageMonitor.order));
-
-		return results;
 	}
 
 	async removeMonitor(
@@ -532,25 +537,7 @@ export class StatusPageService {
 				),
 			);
 
-		const byWindow = new Map<string, MaintenanceView>();
-		for (const r of rows) {
-			const existing = byWindow.get(r.window.id);
-			if (existing) {
-				existing.affectedMonitorIds.push(r.monitorId);
-			} else {
-				byWindow.set(r.window.id, {
-					id: r.window.id,
-					name: r.window.name,
-					description: r.window.description,
-					startsAt: r.window.startsAt,
-					endsAt: r.window.endsAt,
-					affectedMonitorIds: [r.monitorId],
-				});
-			}
-		}
-		return Array.from(byWindow.values()).toSorted(
-			(a, b) => a.endsAt.getTime() - b.endsAt.getTime(),
-		);
+		return toMaintenanceViews(rows).toSorted((a, b) => a.endsAt.getTime() - b.endsAt.getTime());
 	}
 
 	async getUpcomingMaintenanceForMonitors(
@@ -580,25 +567,7 @@ export class StatusPageService {
 				),
 			);
 
-		const byWindow = new Map<string, MaintenanceView>();
-		for (const r of rows) {
-			const existing = byWindow.get(r.window.id);
-			if (existing) {
-				existing.affectedMonitorIds.push(r.monitorId);
-			} else {
-				byWindow.set(r.window.id, {
-					id: r.window.id,
-					name: r.window.name,
-					description: r.window.description,
-					startsAt: r.window.startsAt,
-					endsAt: r.window.endsAt,
-					affectedMonitorIds: [r.monitorId],
-				});
-			}
-		}
-		return Array.from(byWindow.values()).toSorted(
-			(a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
-		);
+		return toMaintenanceViews(rows).toSorted((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 	}
 
 	// Public status page data
@@ -635,20 +604,11 @@ export class StatusPageService {
 				? await this.db
 						.select({
 							monitorId: monitorCheck.monitorId,
-							date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
-							totalChecks: sql<number>`COUNT(*)::int`.as("total_checks"),
-							upChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'up' THEN 1 ELSE 0 END)::int`.as(
-									"up_checks",
-								),
-							downChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'down' THEN 1 ELSE 0 END)::int`.as(
-									"down_checks",
-								),
-							degradedChecks:
-								sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'degraded' THEN 1 ELSE 0 END)::int`.as(
-									"degraded_checks",
-								),
+							date: sql<string>`DATE(${monitorCheck.checkedAt})`,
+							total: sql<number>`COUNT(*)::int`,
+							up: countStatus("up"),
+							down: countStatus("down"),
+							degraded: countStatus("degraded"),
 						})
 						.from(monitorCheck)
 						.where(
@@ -669,59 +629,25 @@ export class StatusPageService {
 						.orderBy(sql`DATE(${monitorCheck.checkedAt})`)
 				: [];
 
-		// Build monitor status map
-		const monitorHistoryMap = new Map<
-			string,
-			Map<string, { up: number; down: number; degraded: number; total: number }>
-		>();
-		for (const check of checksData) {
-			if (!monitorHistoryMap.has(check.monitorId)) {
-				monitorHistoryMap.set(check.monitorId, new Map());
-			}
-			monitorHistoryMap.get(check.monitorId)!.set(check.date, {
-				up: check.upChecks,
-				down: check.downChecks,
-				degraded: check.degradedChecks,
-				total: check.totalChecks,
-			});
-		}
+		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
 
-		// Build daily history for each monitor
 		const buildMonitorStatus = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus => {
-			const history = monitorHistoryMap.get(pm.monitor.id) || new Map();
-			const dailyHistory: PublicMonitorStatus["dailyHistory"] = [];
+			const rows = checksByMonitor.get(pm.monitor.id) ?? [];
+			const byDate = new Map(rows.map((r) => [r.date, r]));
 
-			// Generate history for configured number of days
-			for (const dateStr of recentUtcDayKeys(STATUS_PAGE_HISTORY_DAYS)) {
-				const dayData = history.get(dateStr);
-
-				if (dayData) {
-					const uptimePercent = dayData.total > 0 ? (dayData.up / dayData.total) * 100 : 100;
-					let status: "up" | "down" | "degraded" | "partial" = "up";
-					if (dayData.down > 0 && dayData.up === 0) {
-						status = "down";
-					} else if (dayData.down > 0) {
-						status = "partial";
-					} else if (dayData.degraded > 0) {
-						status = "degraded";
-					}
-					dailyHistory.push({ date: dateStr, status, uptimePercent });
-				} else {
+			const dailyHistory = recentUtcDayKeys(STATUS_PAGE_HISTORY_DAYS).map(
+				(date): PublicMonitorStatus["dailyHistory"][number] => {
+					const day = byDate.get(date);
 					// Nothing was checked, so nothing is known. Rendering this as "up"
 					// invented ninety days of green for a monitor created yesterday, and
 					// DESIGN.md's Null Is Gray Rule exists precisely to forbid that.
-					dailyHistory.push({ date: dateStr, status: "unknown", uptimePercent: null });
-				}
-			}
+					if (!day) return { date, status: "unknown", uptimePercent: null };
+					return { date, status: dayStatus(day), uptimePercent: (day.up / day.total) * 100 };
+				},
+			);
 
-			// Calculate uptime over history period
-			let totalChecks = 0;
-			let upChecks = 0;
-			for (const [, data] of history) {
-				totalChecks += data.total;
-				upChecks += data.up;
-			}
-			const uptimePercentHistory = totalChecks > 0 ? (upChecks / totalChecks) * 100 : null;
+			const totalChecks = rows.reduce((sum, r) => sum + r.total, 0);
+			const upChecks = rows.reduce((sum, r) => sum + r.up, 0);
 
 			const status: PublicMonitorStatus["status"] = activeMonitorIdSet.has(pm.monitor.id)
 				? "maintenance"
@@ -732,34 +658,19 @@ export class StatusPageService {
 				name: pm.pageMonitor.displayName || pm.monitor.name,
 				description: pm.monitor.description,
 				status,
-				uptimePercent90d: uptimePercentHistory,
+				uptimePercent90d: totalChecks > 0 ? (upChecks / totalChecks) * 100 : null,
 				dailyHistory,
 			};
 		};
 
-		// Group monitors
-		const groupedMonitors = new Map<string, PublicMonitorStatus[]>();
-		const ungroupedMonitors: PublicMonitorStatus[] = [];
-
-		for (const pm of pageMonitors) {
-			const status = buildMonitorStatus(pm);
-			if (pm.pageMonitor.groupId) {
-				if (!groupedMonitors.has(pm.pageMonitor.groupId)) {
-					groupedMonitors.set(pm.pageMonitor.groupId, []);
-				}
-				groupedMonitors.get(pm.pageMonitor.groupId)!.push(status);
-			} else {
-				ungroupedMonitors.push(status);
-			}
-		}
-
-		// Build groups with monitors
+		const monitorsByGroup = Map.groupBy(pageMonitors, (pm) => pm.pageMonitor.groupId);
+		const ungroupedMonitors = (monitorsByGroup.get(null) ?? []).map(buildMonitorStatus);
 		const groupsWithMonitors = groups.map((g) => ({
 			id: g.id,
 			name: g.name,
 			description: g.description,
 			isCollapsed: g.isCollapsed,
-			monitors: groupedMonitors.get(g.id) || [],
+			monitors: (monitorsByGroup.get(g.id) ?? []).map(buildMonitorStatus),
 		}));
 
 		// Calculate overall status
@@ -781,73 +692,27 @@ export class StatusPageService {
 			overallStatus = "under_maintenance";
 		}
 
-		// A subquery rather than a join, so an incident linked to several of the
-		// page's monitors is listed, with its updates, once.
-		const onThisPage = this.db
-			.select({ id: incidentMonitor.incidentId })
-			.from(incidentMonitor)
-			.where(inArray(incidentMonitor.monitorId, monitorIds.length > 0 ? monitorIds : [""]));
-
-		// Get active incidents
-		const activeIncidentsRaw = await this.db
-			.select({
-				incident: incident,
-				updates: sql<string>`COALESCE(
-					json_agg(
-						json_build_object(
-							'id', ${incidentUpdate.id},
-							'status', ${incidentUpdate.status},
-							'message', ${incidentUpdate.message},
-							'createdAt', ${incidentUpdate.createdAt}
-						) ORDER BY ${incidentUpdate.createdAt} DESC
-					) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
-					'[]'
-				)`.as("updates"),
-			})
-			.from(incident)
-			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.where(
+		const onThisPage = and(
+			eq(incident.organizationId, page.organizationId),
+			inArray(
+				incident.id,
+				this.db
+					.select({ id: incidentMonitor.incidentId })
+					.from(incidentMonitor)
+					.where(inArray(incidentMonitor.monitorId, monitorIds)),
+			),
+		);
+		const [activeIncidents, resolvedIncidents] = await Promise.all([
+			this.incidentsWithUpdates(and(onThisPage, sql`${incident.status} != 'resolved'`)),
+			this.incidentsWithUpdates(
 				and(
-					eq(incident.organizationId, page.organizationId),
-					inArray(incident.id, onThisPage),
-					sql`${incident.status} != 'resolved'`,
-				),
-			)
-			.groupBy(incident.id)
-			.orderBy(desc(incident.startedAt));
-
-		const activeIncidents = activeIncidentsRaw.map(this.formatIncidentData);
-
-		// Get resolved incidents (within history period)
-		const resolvedIncidentsRaw = await this.db
-			.select({
-				incident: incident,
-				updates: sql<string>`COALESCE(
-					json_agg(
-						json_build_object(
-							'id', ${incidentUpdate.id},
-							'status', ${incidentUpdate.status},
-							'message', ${incidentUpdate.message},
-							'createdAt', ${incidentUpdate.createdAt}
-						) ORDER BY ${incidentUpdate.createdAt} DESC
-					) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
-					'[]'
-				)`.as("updates"),
-			})
-			.from(incident)
-			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.where(
-				and(
-					eq(incident.organizationId, page.organizationId),
-					inArray(incident.id, onThisPage),
+					onThisPage,
 					sql`${incident.status} = 'resolved'`,
 					gte(incident.resolvedAt, historyDaysAgo),
 				),
-			)
-			.groupBy(incident.id)
-			.orderBy(desc(incident.resolvedAt));
-
-		const resolvedIncidents = resolvedIncidentsRaw.map(this.formatIncidentData);
+				desc(incident.resolvedAt),
+			),
+		]);
 
 		return {
 			page: toPublicPage(page),
@@ -861,39 +726,28 @@ export class StatusPageService {
 		};
 	}
 
-	// Helper to format incident data
-	private formatIncidentData(
-		this: void,
-		ai: {
-			incident: typeof incident.$inferSelect;
-			updates: string;
-		},
-	): PublicIncidentData {
-		const updates =
-			typeof ai.updates === "string"
-				? (JSON.parse(ai.updates) as Array<{
-						id: string;
-						status: string;
-						message: string;
-						createdAt: Date;
-					}>)
-				: (ai.updates as Array<{
-						id: string;
-						status: string;
-						message: string;
-						createdAt: Date;
-					}>);
+	private async incidentsWithUpdates(
+		where: SQL | undefined,
+		orderBy: SQL = desc(incident.startedAt),
+	): Promise<PublicIncidentData[]> {
+		const rows = await this.db
+			.select({ incident, updates: incidentUpdates })
+			.from(incident)
+			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
+			.where(where)
+			.groupBy(incident.id)
+			.orderBy(orderBy);
 
-		return {
-			id: ai.incident.id,
-			title: ai.incident.title,
-			status: ai.incident.status,
-			impact: ai.incident.impact,
-			createdAt: ai.incident.createdAt,
-			startedAt: ai.incident.startedAt,
-			resolvedAt: ai.incident.resolvedAt,
+		return rows.map(({ incident: row, updates }) => ({
+			id: row.id,
+			title: row.title,
+			status: row.status,
+			impact: row.impact,
+			createdAt: row.createdAt,
+			startedAt: row.startedAt,
+			resolvedAt: row.resolvedAt,
 			updates,
-		};
+		}));
 	}
 
 	// Get public incident detail for a status page
@@ -933,46 +787,12 @@ export class StatusPageService {
 			return null;
 		}
 
-		// Get incident with all updates
-		const incidentResult = await this.db
-			.select({
-				incident: incident,
-				updates: sql<string>`COALESCE(
-					json_agg(
-						json_build_object(
-							'id', ${incidentUpdate.id},
-							'status', ${incidentUpdate.status},
-							'message', ${incidentUpdate.message},
-							'createdAt', ${incidentUpdate.createdAt}
-						) ORDER BY ${incidentUpdate.createdAt} DESC
-					) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
-					'[]'
-				)`.as("updates"),
-			})
-			.from(incident)
-			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.where(and(eq(incident.id, incidentId), eq(incident.organizationId, page.organizationId)))
-			.groupBy(incident.id);
-
-		if (incidentResult.length === 0) {
+		const [incidentData] = await this.incidentsWithUpdates(
+			and(eq(incident.id, incidentId), eq(incident.organizationId, page.organizationId)),
+		);
+		if (!incidentData) {
 			return null;
 		}
-
-		const [incidentData] = incidentResult;
-		const updates =
-			typeof incidentData.updates === "string"
-				? (JSON.parse(incidentData.updates) as Array<{
-						id: string;
-						status: string;
-						message: string;
-						createdAt: Date;
-					}>)
-				: (incidentData.updates as Array<{
-						id: string;
-						status: string;
-						message: string;
-						createdAt: Date;
-					}>);
 
 		// Get affected monitors that are on this status page
 		const affectedMonitorIds = new Set(incidentMonitorLinks.map((im) => im.monitorId));
@@ -985,19 +805,11 @@ export class StatusPageService {
 
 		return {
 			page: toPublicPage(page),
-			incident: {
-				id: incidentData.incident.id,
-				title: incidentData.incident.title,
-				status: incidentData.incident.status,
-				impact: incidentData.incident.impact,
-				createdAt: incidentData.incident.createdAt,
-				startedAt: incidentData.incident.startedAt,
-				resolvedAt: incidentData.incident.resolvedAt,
-				updates,
-			},
+			incident: incidentData,
 			affectedMonitors,
 		};
 	}
+
 	/**
 	 * One aggregated uptime band for a single public status page.
 	 *
@@ -1026,17 +838,10 @@ export class StatusPageService {
 		const rows = await this.db
 			.select({
 				date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
-				total: sql<number>`COUNT(*)::int`.as("total"),
-				up: sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'up' THEN 1 ELSE 0 END)::int`.as(
-					"up",
-				),
-				down: sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'down' THEN 1 ELSE 0 END)::int`.as(
-					"down",
-				),
-				degraded:
-					sql<number>`SUM(CASE WHEN ${monitorCheck.status} = 'degraded' THEN 1 ELSE 0 END)::int`.as(
-						"degraded",
-					),
+				total: sql<number>`COUNT(*)::int`,
+				up: countStatus("up"),
+				down: countStatus("down"),
+				degraded: countStatus("degraded"),
 			})
 			.from(monitorCheck)
 			.innerJoin(statusPageMonitor, eq(statusPageMonitor.monitorId, monitorCheck.monitorId))
@@ -1067,16 +872,11 @@ export class StatusPageService {
 			totalChecks += row.total;
 			upChecks += row.up;
 
-			let status: FeaturedUptimeDay["status"] = "up";
-			if (row.down > 0 && row.up === 0) {
-				status = "down";
-			} else if (row.down > 0) {
-				status = "partial";
-			} else if (row.degraded > 0) {
-				status = "degraded";
-			}
-
-			days.push({ date: dateStr, status, uptimePercent: (row.up / row.total) * 100 });
+			days.push({
+				date: dateStr,
+				status: dayStatus(row),
+				uptimePercent: (row.up / row.total) * 100,
+			});
 		}
 
 		return {
