@@ -20,7 +20,7 @@ concurrency:
 jobs:
   dependencies:
     name: Dependency Scan
-    runs-on: ubuntu-26.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: read
       security-events: write
