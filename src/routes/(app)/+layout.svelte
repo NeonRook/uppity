@@ -21,12 +21,13 @@
 		ShieldCheck,
 		Wrench,
 	} from "@lucide/svelte";
-	import { onMount } from "svelte";
+	import { ModeWatcher, setMode, userPrefersMode } from "mode-watcher";
 
-	import { signOut, organization } from "#lib/auth-client.js";
+	import { signOut } from "#lib/auth-client.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import { switchOrganization } from "#lib/org.js";
 	import { m } from "#lib/paraglide/messages.js";
 
 	let { data, children } = $props();
@@ -36,35 +37,11 @@
 	let orgMenuOpen = $state(false);
 	let accountMenuOpen = $state(false);
 
-	// Theme state
-	type Theme = "light" | "dark" | "system";
-	let theme = $state<Theme>("system");
-	let mounted = $state(false);
-
-	onMount(() => {
-		const stored = localStorage.getItem("theme") as Theme | null;
-		if (stored) {
-			theme = stored;
-		}
-		mounted = true;
-	});
-
-	function setTheme(newTheme: Theme) {
-		theme = newTheme;
-		localStorage.setItem("theme", newTheme);
-
-		if (newTheme === "dark") {
-			document.documentElement.classList.add("dark");
-		} else if (newTheme === "light") {
-			document.documentElement.classList.remove("dark");
-		} else {
-			if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-				document.documentElement.classList.add("dark");
-			} else {
-				document.documentElement.classList.remove("dark");
-			}
-		}
-	}
+	const themes = [
+		{ mode: "light", icon: Sun, label: m.theme_light },
+		{ mode: "dark", icon: Moon, label: m.theme_dark },
+		{ mode: "system", icon: SunMoon, label: m.theme_system },
+	] as const;
 
 	const navigation = [
 		{ name: m.nav_dashboard(), href: "/dashboard", icon: LayoutDashboard },
@@ -85,19 +62,16 @@
 		goto(resolve("login"));
 	}
 
-	async function switchOrganization(orgId: string) {
-		if (orgId === data.currentOrganization?.id) return;
+	async function handleSwitch(orgId: string) {
 		switchingOrg = true;
-		try {
-			await organization.setActive({ organizationId: orgId });
-			window.location.reload();
-		} catch (error) {
-			console.error("Failed to switch organization:", error);
-		} finally {
-			switchingOrg = false;
-		}
+		await switchOrganization(orgId, data.currentOrganization?.id);
+		switchingOrg = false;
 	}
 </script>
+
+<!-- app.html applies the stored theme before first paint for every route group, so the
+     watcher skips its own head script and reuses that storage key. -->
+<ModeWatcher modeStorageKey="theme" disableHeadScriptInjection />
 
 <Tooltip.Provider>
 	{#if data.impersonating}
@@ -161,7 +135,7 @@
 							<DropdownMenu.Separator />
 							{#each data.organizations as org (org.id)}
 								<DropdownMenu.Item
-									onSelect={() => switchOrganization(org.id)}
+									onSelect={() => handleSwitch(org.id)}
 									class="flex items-center justify-between"
 								>
 									<span class="truncate">{org.name}</span>
@@ -240,27 +214,15 @@
 							<DropdownMenu.Label class="text-muted-foreground text-xs font-normal">
 								{m.theme_theme()}
 							</DropdownMenu.Label>
-							<DropdownMenu.Item onSelect={() => setTheme("light")}>
-								<Sun class="mr-2 h-4 w-4" />
-								{m.theme_light()}
-								{#if mounted && theme === "light"}
-									<Check class="ml-auto h-4 w-4" />
-								{/if}
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => setTheme("dark")}>
-								<Moon class="mr-2 h-4 w-4" />
-								{m.theme_dark()}
-								{#if mounted && theme === "dark"}
-									<Check class="ml-auto h-4 w-4" />
-								{/if}
-							</DropdownMenu.Item>
-							<DropdownMenu.Item onSelect={() => setTheme("system")}>
-								<SunMoon class="mr-2 h-4 w-4" />
-								{m.theme_system()}
-								{#if mounted && theme === "system"}
-									<Check class="ml-auto h-4 w-4" />
-								{/if}
-							</DropdownMenu.Item>
+							{#each themes as theme (theme.mode)}
+								<DropdownMenu.Item onSelect={() => setMode(theme.mode)}>
+									<theme.icon class="mr-2 h-4 w-4" />
+									{theme.label()}
+									{#if userPrefersMode.current === theme.mode}
+										<Check class="ml-auto h-4 w-4" />
+									{/if}
+								</DropdownMenu.Item>
+							{/each}
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item onSelect={handleSignOut}>
 								<LogOut class="mr-2 h-4 w-4" />

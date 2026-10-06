@@ -1,15 +1,12 @@
 <script lang="ts">
-	import { browser } from "$app/env";
 	import { enhance } from "$app/forms";
 	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 	import {
 		Building2,
 		Users,
 		Mail,
-		Crown,
-		Shield,
-		User,
 		LoaderCircle,
 		X,
 		UserMinus,
@@ -19,10 +16,11 @@
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import SettingsHeader from "#lib/components/settings-header.svelte";
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
-	import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
@@ -36,35 +34,21 @@
 		removeMember,
 		deleteOrganization,
 	} from "#lib/remote/settings.remote.js";
+	import { getRoleBadge } from "#lib/roles.js";
 
 	let { data, form } = $props();
 
 	let loading = $state(false);
 	let showInviteDialog = $state(false);
-	let showRemoveMemberDialog = $state(false);
 	let showDeleteOrgDialog = $state(false);
 	let memberToRemove = $state<{ id: string; name: string } | null>(null);
 	let inviteRole = $state("member");
 	let cancellingInvitationId = $state<string | null>(null);
-	let removingMember = $state(false);
 	let deletingOrg = $state(false);
 	let deleteConfirmName = $state("");
 
-	// Form state - use data directly, no local state needed since form submission reloads
-
-	const baseUrl = browser ? window.location.origin : "https://app.uppity.io";
+	const baseUrl = $derived(page.url.origin);
 	const canDelete = $derived(data.userOrgCount > 1 && data.isOwner);
-
-	function getRoleBadge(role: string) {
-		switch (role) {
-			case "owner":
-				return { icon: Crown, variant: "default" as const, label: m.role_owner() };
-			case "admin":
-				return { icon: Shield, variant: "secondary" as const, label: m.role_admin() };
-			default:
-				return { icon: User, variant: "outline" as const, label: m.role_member() };
-		}
-	}
 
 	async function handleCancelInvitation(invitationId: string) {
 		cancellingInvitationId = invitationId;
@@ -78,19 +62,9 @@
 		}
 	}
 
-	async function handleRemoveMember() {
-		if (!memberToRemove) return;
-		removingMember = true;
-		try {
-			await removeMember({ memberId: memberToRemove.id });
-			showRemoveMemberDialog = false;
-			memberToRemove = null;
-			await refreshAll();
-		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to remove member");
-		} finally {
-			removingMember = false;
-		}
+	async function handleRemoveMember(memberId: string) {
+		await removeMember({ memberId });
+		await refreshAll();
 	}
 
 	async function handleDeleteOrganization() {
@@ -114,21 +88,11 @@
 </svelte:head>
 
 <div class="mx-auto max-w-3xl space-y-6">
-	<div>
-		<Breadcrumb.Root class="mb-2">
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/settings">{m.nav_settings()}</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{m.settings_organization()}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-		<h1 class="text-3xl font-bold tracking-tight">{m.org_settings_title()}</h1>
-		<p class="text-muted-foreground">{m.org_settings_subtitle()}</p>
-	</div>
+	<SettingsHeader
+		section={m.settings_organization()}
+		title={m.org_settings_title()}
+		description={m.org_settings_subtitle()}
+	/>
 
 	{#if form?.error}
 		<Alert variant="destructive">
@@ -302,10 +266,7 @@
 										<Button
 											variant="ghost"
 											size="icon"
-											onclick={() => {
-												memberToRemove = { id: member.id, name: member.name };
-												showRemoveMemberDialog = true;
-											}}
+											onclick={() => (memberToRemove = { id: member.id, name: member.name })}
 										>
 											<UserMinus class="h-4 w-4" />
 										</Button>
@@ -454,29 +415,15 @@
 	</AlertDialog.Content>
 </AlertDialog.Root>
 
-<!-- Remove Member Dialog -->
-<AlertDialog.Root bind:open={showRemoveMemberDialog}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>{m.settings_dialog_remove_member()}</AlertDialog.Title>
-			<AlertDialog.Description>
-				{m.settings_dialog_remove_desc({ name: memberToRemove?.name ?? "" })}
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel onclick={() => (memberToRemove = null)}
-				>{m.common_cancel()}</AlertDialog.Cancel
-			>
-
-			<Button onclick={handleRemoveMember} variant="destructive" disabled={removingMember}>
-				{#if removingMember}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-				{/if}
-				{m.common_remove()}
-			</Button>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<DeleteDialog
+	itemId={memberToRemove?.id ?? null}
+	onOpenChange={() => (memberToRemove = null)}
+	onDelete={handleRemoveMember}
+	title={m.settings_dialog_remove_member()}
+	description={m.settings_dialog_remove_desc({ name: memberToRemove?.name ?? "" })}
+	confirmText={m.common_remove()}
+	confirmingText={m.common_remove()}
+/>
 
 <!-- Delete Organization Dialog -->
 <AlertDialog.Root bind:open={showDeleteOrgDialog}>

@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 	// Get user's organizations with roles
 	const userMemberships = await db
 		.select({
-			organizationId: member.organizationId,
+			id: member.organizationId,
 			role: member.role,
 			name: organization.name,
 			slug: organization.slug,
@@ -34,16 +34,15 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 		await auth.api.setActiveOrganization({
 			headers: request.headers,
 			body: {
-				organizationId: firstOrg.organizationId,
+				organizationId: firstOrg.id,
 			},
 		});
 
 		// Update locals so the rest of the request sees the active org
-		locals.session.activeOrganizationId = firstOrg.organizationId;
+		locals.session.activeOrganizationId = firstOrg.id;
 	}
 
 	const activeOrgId = locals.session?.activeOrganizationId;
-	const activeOrg = userMemberships.find((m) => m.organizationId === activeOrgId);
 
 	// Get usage limits for the active organization
 	const usageLimits = activeOrgId ? await getUsageLimitsData(activeOrgId) : null;
@@ -57,20 +56,8 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 	return {
 		user: locals.user,
 		impersonating,
-		organizations: userMemberships.map((m) => ({
-			id: m.organizationId,
-			name: m.name,
-			slug: m.slug,
-			role: m.role,
-		})),
-		currentOrganization: activeOrg
-			? {
-					id: activeOrg.organizationId,
-					name: activeOrg.name,
-					slug: activeOrg.slug,
-					role: activeOrg.role,
-				}
-			: null,
+		organizations: userMemberships,
+		currentOrganization: userMemberships.find((org) => org.id === activeOrgId) ?? null,
 		usageLimits,
 		selfHosted: isSelfHosted(),
 	};
