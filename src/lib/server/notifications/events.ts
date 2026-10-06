@@ -24,6 +24,10 @@ export const SslExpiryEventPayload = v.object({
 });
 export type SslExpiryEventPayload = v.InferOutput<typeof SslExpiryEventPayload>;
 
+/** Dead-letter entry and recovery carry nothing beyond the monitor the event row names. */
+export const CheckStateEventPayload = v.object({});
+export type CheckStateEventPayload = Record<string, never>;
+
 export const IncidentEventPayload = v.object({
 	// For incident_updated only: the specific update entry's id and message body.
 	// For incident_created and incident_resolved: omitted.
@@ -39,12 +43,19 @@ export type IncidentEventPayload = v.InferOutput<typeof IncidentEventPayload>;
 export function parseEventPayload(
 	type: NotificationType,
 	payload: unknown,
-): MonitorStatusEventPayload | SslExpiryEventPayload | IncidentEventPayload {
+):
+	| MonitorStatusEventPayload
+	| SslExpiryEventPayload
+	| CheckStateEventPayload
+	| IncidentEventPayload {
 	if (type === "monitor_down" || type === "monitor_up" || type === "monitor_degraded") {
 		return v.parse(MonitorStatusEventPayload, payload);
 	}
 	if (type === "ssl_expiry_warning") {
 		return v.parse(SslExpiryEventPayload, payload);
+	}
+	if (type === "monitor_checks_stopped" || type === "monitor_checks_resumed") {
+		return v.parse(CheckStateEventPayload, payload);
 	}
 	if (type === "incident_created" || type === "incident_updated" || type === "incident_resolved") {
 		return v.parse(IncidentEventPayload, payload);

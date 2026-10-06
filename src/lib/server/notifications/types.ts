@@ -4,6 +4,8 @@ export type NotificationType =
 	| "monitor_down"
 	| "monitor_up"
 	| "monitor_degraded"
+	| "monitor_checks_stopped"
+	| "monitor_checks_resumed"
 	| "incident_created"
 	| "incident_updated"
 	| "incident_resolved"
