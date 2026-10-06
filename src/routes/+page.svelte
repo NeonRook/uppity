@@ -7,27 +7,21 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
+	import UptimeBar from "#lib/components/uptime-bar.svelte";
 	import {
 		DEDICATED_PLAN,
 		FREE_PLAN,
 		SELF_HOSTED_LIMITS,
 		UPPITY_PLAN,
 	} from "#lib/constants/plans.js";
-	import { formatDateMonthDay, formatUsdCents } from "#lib/format.js";
+	import { formatUsdCents } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getLocale } from "#lib/paraglide/runtime.js";
 	import type { PlanLimits } from "#lib/types/plans.js";
-	import { getDayStatusColor } from "#lib/utils/status.js";
 
 	/** `featuredUptime` is present only on the hosted instance, where
 	    UPPITY_LANDING_STATUS_SLUG names a page to feature. */
 	let { data } = $props();
-
-	function dayTitle(date: string, percent: number | null): string {
-		return percent === null
-			? `${formatDateMonthDay(date)}: ${m.public_status_no_data()}`
-			: `${formatDateMonthDay(date)}: ${percent.toFixed(1)}% uptime`;
-	}
 
 	const GITHUB_URL = "https://github.com/NeonRook/uppity";
 	const STATUS_URL = "https://uppity.cloud/status/uppity";
@@ -57,6 +51,40 @@
 		{ label: m.landing_gate_row_sso(), instatus: usd(30_000), hyperping: usd(29_900) },
 		{ label: m.landing_gate_row_audit(), instatus: unpublished(), hyperping: usd(29_900) },
 		{ label: m.landing_gate_row_private(), instatus: usd(30_000), hyperping: unpublished() },
+	];
+
+	const competitors = [
+		{ key: "instatus", name: "Instatus" },
+		{ key: "hyperping", name: "Hyperping" },
+	] as const;
+	const ours = [
+		{ name: "Uppity", value: m.landing_gate_included() },
+		{ name: m.landing_gate_col_selfhosted(), value: m.landing_gate_free() },
+	];
+
+	const footerColumns = [
+		{
+			title: m.landing_footer_product(),
+			links: [
+				{ href: STATUS_URL, label: m.landing_footer_status() },
+				{ href: "#plans-heading", label: m.landing_footer_pricing() },
+			],
+		},
+		{
+			title: m.landing_footer_selfhost(),
+			links: [
+				{ href: GITHUB_URL, label: m.landing_footer_github() },
+				{ href: `${GITHUB_URL}#docker-compose`, label: m.landing_footer_docker() },
+				{ href: `${GITHUB_URL}/blob/main/LICENSE`, label: m.landing_footer_license() },
+			],
+		},
+		{
+			title: m.landing_footer_company(),
+			links: [
+				{ href: `${GITHUB_URL}/blob/main/SECURITY.md`, label: m.landing_footer_security() },
+				{ href: `mailto:${CONTACT_EMAIL}`, label: m.landing_footer_contact() },
+			],
+		},
 	];
 
 	const capacity = (n: number): Reading =>
@@ -159,6 +187,21 @@
 	<meta name="twitter:description" content={m.landing_meta_description()} />
 </svelte:head>
 
+{#snippet ctas()}
+	<div class="flex flex-col gap-3 sm:flex-row">
+		<Button size="lg" href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
+		<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer">
+			{m.landing_cta_self_host()}
+		</Button>
+	</div>
+	<!-- The free tier stays discoverable without competing for the headline:
+	     signup speed is ground PRODUCT.md deliberately cedes. Naming the
+	     ceiling here is what stops anyone meeting it by surprise later. -->
+	<p class="text-muted-foreground text-sm">
+		{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
+	</p>
+{/snippet}
+
 <!--
 	THESIS: This page argues that the upgrade wall is the category's business model, and
 	refuses the feature-grid landing page that states capabilities without pricing them.
@@ -200,19 +243,7 @@
 			<p class="text-muted-foreground max-w-[60ch] text-lg text-balance">
 				{m.landing_hero_subtitle()}
 			</p>
-			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button size="lg" href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
-
-				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer"
-					>{m.landing_cta_self_host()}</Button
-				>
-			</div>
-			<!-- The free tier stays discoverable without competing for the headline:
-			     signup speed is ground PRODUCT.md deliberately cedes. Naming the
-			     ceiling here is what stops anyone meeting it by surprise later. -->
-			<p class="text-muted-foreground text-sm">
-				{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
-			</p>
+			{@render ctas()}
 		</section>
 
 		<!-- The chart leads: the composition argues with the picture before the prose. -->
@@ -240,26 +271,20 @@
 							<Card.Title class="text-base">{cap.label}</Card.Title>
 						</Card.Header>
 						<Card.Content class="flex flex-col gap-2">
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-muted-foreground text-sm">Instatus</span>
-								<span class="text-muted-foreground text-sm" class:font-mono={cap.instatus.mono}>
-									{cap.instatus.text}
-								</span>
-							</div>
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-muted-foreground text-sm">Hyperping</span>
-								<span class="text-muted-foreground text-sm" class:font-mono={cap.hyperping.mono}>
-									{cap.hyperping.text}
-								</span>
-							</div>
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-foreground text-sm">Uppity</span>
-								<span class="text-status-up-ink text-sm">{m.landing_gate_included()}</span>
-							</div>
-							<div class="flex items-baseline justify-between gap-4">
-								<span class="text-foreground text-sm">{m.landing_gate_col_selfhosted()}</span>
-								<span class="text-status-up-ink text-sm">{m.landing_gate_free()}</span>
-							</div>
+							{#each competitors as { key, name } (key)}
+								<div class="flex items-baseline justify-between gap-4">
+									<span class="text-muted-foreground text-sm">{name}</span>
+									<span class="text-muted-foreground text-sm" class:font-mono={cap[key].mono}>
+										{cap[key].text}
+									</span>
+								</div>
+							{/each}
+							{#each ours as { name, value } (name)}
+								<div class="flex items-baseline justify-between gap-4">
+									<span class="text-foreground text-sm">{name}</span>
+									<span class="text-status-up-ink text-sm">{value}</span>
+								</div>
+							{/each}
 						</Card.Content>
 					</Card.Root>
 				{/each}
@@ -409,32 +434,11 @@
 				<!-- Real checks or nothing. Days nobody measured stay grey rather than
 				     being coloured in, which is the whole reason this bar is worth
 				     showing at all. -->
-				<figure class="flex flex-col gap-2">
-					<figcaption class="flex items-baseline justify-between gap-4">
-						<span class="text-foreground text-sm">{data.featuredUptime.name}</span>
-						<span class="text-muted-foreground font-mono text-sm">
-							{data.featuredUptime.uptimePercent === null
-								? m.public_status_no_data()
-								: m.public_status_uptime({
-										percent: data.featuredUptime.uptimePercent.toFixed(2),
-									})}
-						</span>
-					</figcaption>
-					<div class="flex gap-0.5" role="presentation">
-						{#each data.featuredUptime.days as day (day.date)}
-							<div
-								class="h-8 flex-1 rounded-sm transition-[filter] duration-200 hover:brightness-125 {getDayStatusColor(
-									day.status,
-								)}"
-								title={dayTitle(day.date, day.uptimePercent)}
-							></div>
-						{/each}
-					</div>
-					<div class="text-muted-foreground flex justify-between text-xs">
-						<span>{m.public_status_days_ago()}</span>
-						<span>{m.public_status_today()}</span>
-					</div>
-				</figure>
+				<UptimeBar
+					name={data.featuredUptime.name}
+					percent={data.featuredUptime.uptimePercent}
+					days={data.featuredUptime.days}
+				/>
 			{/if}
 
 			<div>
@@ -460,66 +464,23 @@
 				</h2>
 				<p class="text-muted-foreground max-w-[55ch] text-lg">{m.landing_close_body()}</p>
 			</div>
-			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button size="lg" href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
-
-				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer"
-					>{m.landing_cta_self_host()}</Button
-				>
-			</div>
-			<p class="text-muted-foreground text-sm">
-				{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
-			</p>
+			{@render ctas()}
 		</section>
 	</main>
 
 	<footer class="bg-card border-t">
 		<div class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-12 sm:px-6">
 			<div class="grid gap-8 sm:grid-cols-3">
-				<div class="flex flex-col gap-3">
-					<h2 class="text-foreground text-sm font-medium">{m.landing_footer_product()}</h2>
-					<a class="text-muted-foreground hover:text-foreground text-sm" href={STATUS_URL}>
-						{m.landing_footer_status()}
-					</a>
-					<a class="text-muted-foreground hover:text-foreground text-sm" href="#plans-heading">
-						{m.landing_footer_pricing()}
-					</a>
-				</div>
-				<div class="flex flex-col gap-3">
-					<h2 class="text-foreground text-sm font-medium">{m.landing_footer_selfhost()}</h2>
-
-					<a class="text-muted-foreground hover:text-foreground text-sm" href={GITHUB_URL}
-						>{m.landing_footer_github()}</a
-					>
-
-					<a
-						class="text-muted-foreground hover:text-foreground text-sm"
-						href="{GITHUB_URL}#docker-compose"
-					>
-						{m.landing_footer_docker()}
-					</a>
-					<a
-						class="text-muted-foreground hover:text-foreground text-sm"
-						href="{GITHUB_URL}/blob/main/LICENSE"
-					>
-						{m.landing_footer_license()}
-					</a>
-				</div>
-				<div class="flex flex-col gap-3">
-					<h2 class="text-foreground text-sm font-medium">{m.landing_footer_company()}</h2>
-					<a
-						class="text-muted-foreground hover:text-foreground text-sm"
-						href="{GITHUB_URL}/blob/main/SECURITY.md"
-					>
-						{m.landing_footer_security()}
-					</a>
-					<a
-						class="text-muted-foreground hover:text-foreground text-sm"
-						href="mailto:{CONTACT_EMAIL}"
-					>
-						{m.landing_footer_contact()}
-					</a>
-				</div>
+				{#each footerColumns as column (column.title)}
+					<div class="flex flex-col gap-3">
+						<h2 class="text-foreground text-sm font-medium">{column.title}</h2>
+						{#each column.links as link (link.href)}
+							<a class="text-muted-foreground hover:text-foreground text-sm" href={link.href}>
+								{link.label}
+							</a>
+						{/each}
+					</div>
+				{/each}
 			</div>
 			<Separator />
 			<p class="text-muted-foreground text-xs">{m.landing_footer_tagline()}</p>
