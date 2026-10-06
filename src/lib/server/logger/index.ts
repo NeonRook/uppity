@@ -2,14 +2,7 @@ import { nanoid } from "nanoid";
 import pino, { type Logger } from "pino";
 
 import { WideEventBuilder } from "./context";
-import type {
-	CheckWideEvent,
-	MaintenanceWideEvent,
-	NotificationWideEvent,
-	NotifierWideEvent,
-	RequestWideEvent,
-	WebhookWideEvent,
-} from "./types";
+import type { RequestWideEvent, WideEventBase } from "./types";
 
 /**
  * Build pino options. Pretty-prints only in a Vite dev server; everything else
@@ -51,104 +44,26 @@ function buildPinoOptions(): pino.LoggerOptions {
  */
 const baseLogger = pino(buildPinoOptions());
 
-/**
- * Generate a unique request ID
- */
-export function generateRequestId(prefix: string = "req"): string {
-	return `${prefix}_${nanoid(12)}`;
+/** Child logger tagged with `context`. */
+export function childLogger(context: string): Logger {
+	return baseLogger.child({ context });
 }
 
 /**
- * Create a logger instance for HTTP requests.
- * Returns a child logger bound to the request context.
+ * Wide event builder logging under `context`. The request id is `id`, or a
+ * random `${idPrefix}_…` when omitted.
  */
-export function createRequestLogger(): Logger {
-	return baseLogger.child({ context: "http" });
+export function wideEvent<T extends WideEventBase>(
+	context: string,
+	eventType: T["event_type"],
+	idPrefix: string,
+	id?: string,
+): WideEventBuilder<T> {
+	return new WideEventBuilder<T>(childLogger(context), eventType, id ?? `${idPrefix}_${nanoid(12)}`);
 }
 
-/**
- * Create a logger instance for the monitor scheduler subsystem.
- */
-export function createSchedulerLogger(): Logger {
-	return baseLogger.child({ context: "scheduler" });
-}
-
-/**
- * Create a logger instance for maintenance jobs.
- */
-export function createMaintenanceLogger(): Logger {
-	return baseLogger.child({ context: "maintenance" });
-}
-
-/**
- * Create a wide event builder for HTTP requests.
- */
 export function createRequestWideEvent(requestId?: string): WideEventBuilder<RequestWideEvent> {
-	const id = requestId || generateRequestId("req");
-	return new WideEventBuilder<RequestWideEvent>(createRequestLogger(), "http_request", id);
-}
-
-/**
- * Create a wide event builder for monitor checks.
- */
-export function createCheckWideEvent(_monitorId: string): WideEventBuilder<CheckWideEvent> {
-	const requestId = generateRequestId("chk");
-	return new WideEventBuilder<CheckWideEvent>(createSchedulerLogger(), "monitor_check", requestId);
-}
-
-/**
- * Create a wide event builder for maintenance jobs.
- */
-export function createMaintenanceWideEvent(_jobId: string): WideEventBuilder<MaintenanceWideEvent> {
-	const requestId = generateRequestId("mnt");
-	return new WideEventBuilder<MaintenanceWideEvent>(
-		createMaintenanceLogger(),
-		"maintenance_job",
-		requestId,
-	);
-}
-
-/**
- * Create a wide event builder for notifications.
- */
-export function createNotificationWideEvent(
-	_channelId: string,
-): WideEventBuilder<NotificationWideEvent> {
-	const requestId = generateRequestId("ntf");
-	return new WideEventBuilder<NotificationWideEvent>(
-		baseLogger.child({ context: "notification" }),
-		"notification",
-		requestId,
-	);
-}
-
-/**
- * Create a logger instance for the notifier consumer subsystem.
- */
-export function createConsumerLogger(): Logger {
-	return baseLogger.child({ context: "consumer" });
-}
-
-/**
- * Create a wide event builder for the notifier worker — one per claimed event row.
- */
-export function createNotifierWideEvent(eventId?: string): WideEventBuilder<NotifierWideEvent> {
-	const requestId = eventId ?? generateRequestId("ntr");
-	return new WideEventBuilder<NotifierWideEvent>(createConsumerLogger(), "notifier", requestId);
-}
-
-/**
- * Create a wide event builder for incoming webhooks.
- */
-export function createWebhookWideEvent(source: string): WideEventBuilder<WebhookWideEvent> {
-	const requestId = generateRequestId("whk");
-	const builder = new WideEventBuilder<WebhookWideEvent>(
-		baseLogger.child({ context: "webhook" }),
-		"webhook",
-		requestId,
-	);
-	builder.set("webhook_source", source);
-	return builder;
+	return wideEvent<RequestWideEvent>("http", "http_request", "req", requestId);
 }
 
 // Export core types and classes

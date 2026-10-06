@@ -3,7 +3,13 @@ import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
 import { organization } from "../../lib/server/db/auth-schema";
-import { monitor, monitorCheck, subscription } from "../../lib/server/db/schema";
+import {
+	monitor,
+	monitorCheck,
+	monitorDailyStats,
+	monitorStatus,
+	subscription,
+} from "../../lib/server/db/schema";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { StatsService } from "./stats";
@@ -154,5 +160,92 @@ describe("StatsService.cleanupOldChecks", () => {
 		} finally {
 			vi.stubEnv("SELF_HOSTED", "");
 		}
+	});
+});
+
+describe("StatsService aggregation", () => {
+	async function seedChecks(
+		drizzleDb: TestDb["db"],
+		monitorId: string,
+		checkedAt: Date,
+		checks: [status: string, responseTimeMs: number | null][],
+	): Promise<void> {
+		await drizzleDb.insert(monitorCheck).values(
+			checks.map(([status, responseTimeMs]) => ({
+				id: nanoid(),
+				monitorId,
+				status,
+				responseTimeMs,
+				checkedAt,
+			})),
+		);
+	}
+
+	test("aggregateDailyStats counts statuses and ignores down checks in response times", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new StatsService(drizzleDb);
+		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+
+		const day = new Date();
+		day.setDate(day.getDate() - 3);
+		day.setHours(12, 0, 0, 0);
+		await seedChecks(drizzleDb, monitorId, day, [
+			["up", 100],
+			["degraded", 201],
+			["up", null],
+			["down", 5000],
+		]);
+
+		await service.aggregateDailyStats(monitorId, day);
+
+		const [stats] = await drizzleDb
+			.select()
+			.from(monitorDailyStats)
+			.where(eq(monitorDailyStats.monitorId, monitorId));
+		expect(stats).toMatchObject({
+			totalChecks: 4,
+			successfulChecks: 3,
+			failedChecks: 1,
+			avgResponseTimeMs: 151,
+			minResponseTimeMs: 100,
+			maxResponseTimeMs: 201,
+			uptimePercent: 75,
+		});
+	});
+
+	test("aggregateDailyStats writes nothing for a day without checks", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatsService(drizzleDb);
+		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+
+		await service.aggregateDailyStats(monitorId, new Date());
+
+		const rows = await drizzleDb
+			.select()
+			.from(monitorDailyStats)
+			.where(eq(monitorDailyStats.monitorId, monitorId));
+		expect(rows).toHaveLength(0);
+	});
+
+	test("updateMonitor24hStats updates the status row", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatsService(drizzleDb);
+		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+		await drizzleDb.insert(monitorStatus).values({ monitorId, status: "up" });
+
+		await seedChecks(drizzleDb, monitorId, new Date(), [
+			["up", 100],
+			["down", null],
+		]);
+
+		await service.updateMonitor24hStats(monitorId);
+
+		const [status] = await drizzleDb
+			.select()
+			.from(monitorStatus)
+			.where(eq(monitorStatus.monitorId, monitorId));
+		expect(status).toMatchObject({ uptimePercent24h: 50, avgResponseTimeMs24h: 100 });
 	});
 });

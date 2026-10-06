@@ -7,12 +7,12 @@ import {
 	DEAD_LETTER_THRESHOLD_HOURS,
 } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
-import { createCheckWideEvent, createSchedulerLogger } from "../../lib/server/logger";
+import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
 import { db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 
-const schedulerLogger = createSchedulerLogger();
+const schedulerLogger = childLogger("scheduler");
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -124,7 +124,7 @@ async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown
  */
 async function processMonitor(m: typeof monitor.$inferSelect) {
 	// Create wide event for this check
-	const event = createCheckWideEvent(m.id);
+	const event = wideEvent<CheckWideEvent>("scheduler", "monitor_check", "chk");
 	event.merge({
 		monitor_id: m.id,
 		monitor_name: m.name,

@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, ne } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import {
 	DEFAULT_TIMEOUT_SECONDS,
@@ -33,6 +34,7 @@ import type {
 	MonitorStatusEventPayload,
 	SslExpiryEventPayload,
 } from "../../lib/server/notifications/events";
+import type { NotificationType } from "../../lib/server/notifications/types";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { probeTcp, probeTls } from "../../lib/server/tcp";
 
@@ -53,9 +55,7 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 	}
 
 	const startTime = Date.now();
-	const controller = new AbortController();
 	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
-	const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
 
 	try {
 		const headers: Record<string, string> = {
@@ -67,10 +67,9 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 			method: m.method || DEFAULT_HTTP_METHOD,
 			headers,
 			body: m.method !== "GET" && m.method !== "HEAD" ? m.body : undefined,
-			signal: controller.signal,
+			signal: AbortSignal.timeout(timeoutSeconds * 1000),
 		});
 
-		clearTimeout(timeout);
 		const responseTimeMs = Date.now() - startTime;
 
 		const expectedCodes = m.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES];
@@ -103,12 +102,11 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 
 		return { status, statusCode: response.status, responseTimeMs, errorMessage, ...sslInfo };
 	} catch (error) {
-		clearTimeout(timeout);
 		const responseTimeMs = Date.now() - startTime;
 
 		let errorMessage = "Unknown error";
 		if (error instanceof Error) {
-			if (error.name === "AbortError") {
+			if (error.name === "TimeoutError") {
 				errorMessage = `Request timeout after ${timeoutSeconds}s`;
 			} else {
 				errorMessage = error.message;
@@ -231,7 +229,7 @@ async function performCheckWithRetries(m: Monitor, db: Db): Promise<CheckResult>
 		}
 
 		if (attempt < retries) {
-			await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+			await sleep(RETRY_DELAY_MS);
 		}
 	}
 
@@ -271,6 +269,26 @@ export async function saveCheckResult(
 		result.status === "down" ? (currentStatus?.consecutiveFailures || 0) + 1 : 0;
 
 	const statusChanged = previousStatus !== result.status;
+
+	const enqueue = async (
+		type: NotificationType,
+		payload: MonitorStatusEventPayload | SslExpiryEventPayload,
+	) => {
+		const id = nanoid();
+		await db.insert(notificationEvent).values({
+			id,
+			organizationId: m.organizationId,
+			monitorId: m.id,
+			type,
+			payload,
+			status: "pending",
+		});
+		event?.merge({
+			notification_event_enqueued: true,
+			notification_event_id: id,
+			notification_event_type: type,
+		});
+	};
 
 	// Enrich wide event with check result
 	event?.merge({
@@ -316,24 +334,10 @@ export async function saveCheckResult(
 				.limit(1);
 
 			if (!recentWarning) {
-				const notifEventId = nanoid();
-				const payload: SslExpiryEventPayload = {
+				await enqueue("ssl_expiry_warning", {
 					daysRemaining: daysUntilExpiry,
 					sslExpiresAt: result.sslExpiresAt.toISOString(),
 					sslIssuer: result.sslIssuer,
-				};
-				await db.insert(notificationEvent).values({
-					id: notifEventId,
-					organizationId: m.organizationId,
-					monitorId: m.id,
-					type: "ssl_expiry_warning",
-					payload,
-					status: "pending",
-				});
-				event?.merge({
-					notification_event_enqueued: true,
-					notification_event_id: notifEventId,
-					notification_event_type: "ssl_expiry_warning",
 				});
 			}
 		}
@@ -375,27 +379,12 @@ export async function saveCheckResult(
 	// Handle status change: enqueue notification events and manage incidents
 	if (statusChanged && previousStatus !== "unknown") {
 		if (result.status === "down" && consecutiveFailures >= m.alertAfterFailures) {
-			// Enqueue monitor_down event
-			const notifEventId = nanoid();
-			const payload: MonitorStatusEventPayload = {
+			await enqueue("monitor_down", {
 				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
 				newStatus: "down",
 				consecutiveFailures,
 				errorMessage: result.errorMessage,
 				checkId,
-			};
-			await db.insert(notificationEvent).values({
-				id: notifEventId,
-				organizationId: m.organizationId,
-				monitorId: m.id,
-				type: "monitor_down",
-				payload,
-				status: "pending",
-			});
-			event?.merge({
-				notification_event_enqueued: true,
-				notification_event_id: notifEventId,
-				notification_event_type: "monitor_down",
 			});
 
 			// Check for existing auto incident
@@ -441,26 +430,11 @@ export async function saveCheckResult(
 				});
 			}
 		} else if (result.status === "up" && previousStatus === "down") {
-			// Enqueue monitor_up event
-			const notifEventId = nanoid();
-			const payload: MonitorStatusEventPayload = {
+			await enqueue("monitor_up", {
 				previousStatus: "down",
 				newStatus: "up",
 				consecutiveFailures,
 				checkId,
-			};
-			await db.insert(notificationEvent).values({
-				id: notifEventId,
-				organizationId: m.organizationId,
-				monitorId: m.id,
-				type: "monitor_up",
-				payload,
-				status: "pending",
-			});
-			event?.merge({
-				notification_event_enqueued: true,
-				notification_event_id: notifEventId,
-				notification_event_type: "monitor_up",
 			});
 
 			// Auto-resolve the active auto-incident for this monitor.
@@ -503,26 +477,11 @@ export async function saveCheckResult(
 				});
 			}
 		} else if (result.status === "degraded") {
-			// Enqueue monitor_degraded event
-			const notifEventId = nanoid();
-			const payload: MonitorStatusEventPayload = {
+			await enqueue("monitor_degraded", {
 				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
 				newStatus: "degraded",
 				consecutiveFailures,
 				checkId,
-			};
-			await db.insert(notificationEvent).values({
-				id: notifEventId,
-				organizationId: m.organizationId,
-				monitorId: m.id,
-				type: "monitor_degraded",
-				payload,
-				status: "pending",
-			});
-			event?.merge({
-				notification_event_enqueued: true,
-				notification_event_id: notifEventId,
-				notification_event_type: "monitor_degraded",
 			});
 		}
 	}

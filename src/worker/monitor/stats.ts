@@ -35,6 +35,34 @@ export class StatsService {
 	}
 
 	/**
+	 * Counts and response-time stats over the checks matching `where`. Response
+	 * times of down checks are excluded.
+	 */
+	private async rollUpChecks(where: SQL | undefined) {
+		const notDown = sql`${monitorCheck.status} <> 'down'`;
+		const [row] = await this.database
+			.select({
+				totalChecks: count(),
+				successfulChecks: sql<number>`count(*) filter (where ${notDown})`.mapWith(Number),
+				failedChecks: sql<number>`count(*) filter (where ${monitorCheck.status} = 'down')`.mapWith(
+					Number,
+				),
+				avgResponseTimeMs: sql<
+					number | null
+				>`round(avg(${monitorCheck.responseTimeMs}) filter (where ${notDown}))`.mapWith(Number),
+				minResponseTimeMs: sql<
+					number | null
+				>`min(${monitorCheck.responseTimeMs}) filter (where ${notDown})`.mapWith(Number),
+				maxResponseTimeMs: sql<
+					number | null
+				>`max(${monitorCheck.responseTimeMs}) filter (where ${notDown})`.mapWith(Number),
+			})
+			.from(monitorCheck)
+			.where(where);
+		return row;
+	}
+
+	/**
 	 * Aggregate stats for a specific monitor and date
 	 */
 	async aggregateDailyStats(monitorId: string, date: Date): Promise<void> {
@@ -44,43 +72,26 @@ export class StatsService {
 		const endOfDay = new Date(date);
 		endOfDay.setHours(23, 59, 59, 999);
 
-		// Get all checks for this monitor on this day
-		const checks = await this.database
-			.select({
-				status: monitorCheck.status,
-				responseTimeMs: monitorCheck.responseTimeMs,
-			})
-			.from(monitorCheck)
-			.where(
-				and(
-					eq(monitorCheck.monitorId, monitorId),
-					gte(monitorCheck.checkedAt, startOfDay),
-					lt(monitorCheck.checkedAt, endOfDay),
-				),
-			);
+		const {
+			totalChecks,
+			successfulChecks,
+			failedChecks,
+			avgResponseTimeMs,
+			minResponseTimeMs,
+			maxResponseTimeMs,
+		} = await this.rollUpChecks(
+			and(
+				eq(monitorCheck.monitorId, monitorId),
+				gte(monitorCheck.checkedAt, startOfDay),
+				lt(monitorCheck.checkedAt, endOfDay),
+			),
+		);
 
-		if (checks.length === 0) {
+		if (totalChecks === 0) {
 			return;
 		}
 
-		const totalChecks = checks.length;
-		const successfulChecks = checks.filter(
-			(c) => c.status === "up" || c.status === "degraded",
-		).length;
-		const failedChecks = checks.filter((c) => c.status === "down").length;
-
-		const responseTimes = checks
-			.filter((c) => c.responseTimeMs !== null && c.status !== "down")
-			.map((c) => c.responseTimeMs!);
-
-		const avgResponseTimeMs =
-			responseTimes.length > 0
-				? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-				: null;
-		const minResponseTimeMs = responseTimes.length > 0 ? Math.min(...responseTimes) : null;
-		const maxResponseTimeMs = responseTimes.length > 0 ? Math.max(...responseTimes) : null;
-
-		const uptimePercent = totalChecks > 0 ? (successfulChecks / totalChecks) * 100 : null;
+		const uptimePercent = (successfulChecks / totalChecks) * 100;
 
 		// Count incidents for this monitor
 		const [incidentCountResult] = await this.database
@@ -125,14 +136,12 @@ export class StatsService {
 	 */
 	async aggregateAllMonitorsForDate(date: Date): Promise<number> {
 		const monitors = await this.database.select({ id: monitor.id }).from(monitor);
-		let processed = 0;
 
 		for (const mon of monitors) {
 			await this.aggregateDailyStats(mon.id, date);
-			processed++;
 		}
 
-		return processed;
+		return monitors.length;
 	}
 
 	/**
@@ -151,33 +160,19 @@ export class StatsService {
 		const now = new Date();
 		const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-		const checks = await this.database
-			.select({
-				status: monitorCheck.status,
-				responseTimeMs: monitorCheck.responseTimeMs,
-			})
-			.from(monitorCheck)
-			.where(and(eq(monitorCheck.monitorId, monitorId), gte(monitorCheck.checkedAt, dayAgo)));
+		const {
+			totalChecks,
+			successfulChecks,
+			avgResponseTimeMs: avgResponseTimeMs24h,
+		} = await this.rollUpChecks(
+			and(eq(monitorCheck.monitorId, monitorId), gte(monitorCheck.checkedAt, dayAgo)),
+		);
 
-		if (checks.length === 0) {
+		if (totalChecks === 0) {
 			return;
 		}
 
-		const totalChecks = checks.length;
-		const successfulChecks = checks.filter(
-			(c) => c.status === "up" || c.status === "degraded",
-		).length;
-
 		const uptimePercent24h = (successfulChecks / totalChecks) * 100;
-
-		const responseTimes = checks
-			.filter((c) => c.responseTimeMs !== null && c.status !== "down")
-			.map((c) => c.responseTimeMs!);
-
-		const avgResponseTimeMs24h =
-			responseTimes.length > 0
-				? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-				: null;
 
 		await this.database
 			.update(monitorStatus)
@@ -197,14 +192,12 @@ export class StatsService {
 			.select({ id: monitor.id })
 			.from(monitor)
 			.where(eq(monitor.active, true));
-		let processed = 0;
 
 		for (const mon of monitors) {
 			await this.updateMonitor24hStats(mon.id);
-			processed++;
 		}
 
-		return processed;
+		return monitors.length;
 	}
 
 	/**
