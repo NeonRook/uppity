@@ -21,15 +21,9 @@
 		loading = true;
 
 		try {
-			const result = await requestPasswordReset({
-				email,
-				redirectTo: "/reset-password",
-			});
-
-			if (result.error) {
-				// Still show success to prevent user enumeration
-			}
-
+			// The result is ignored so a failure looks like success, which prevents
+			// user enumeration.
+			await requestPasswordReset({ email, redirectTo: "/reset-password" });
 			submitted = true;
 		} catch {
 			error = m.auth_login_error_unexpected();

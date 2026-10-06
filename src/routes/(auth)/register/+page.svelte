@@ -27,11 +27,6 @@
 			return;
 		}
 
-		if (password.length < 8) {
-			error = m.auth_register_error_min_length();
-			return;
-		}
-
 		loading = true;
 
 		try {

@@ -1,52 +1,21 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { CircleAlert, LoaderCircle, ShieldCheck } from "@lucide/svelte";
+	import { ShieldCheck } from "@lucide/svelte";
 
-	import { signIn, signOut, getSession } from "#lib/auth-client.js";
-	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
-	import { Button } from "#lib/components/ui/button/index.js";
+	import { signOut, getSession } from "#lib/auth-client.js";
+	import LoginForm from "#lib/components/login-form.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import * as Field from "#lib/components/ui/field/index.js";
-	import { Input } from "#lib/components/ui/input/index.js";
 	import { m } from "#lib/paraglide/messages.js";
 
-	let email = $state("");
-	let password = $state("");
-	let error = $state("");
-	let loading = $state(false);
-
-	async function handleSubmit(e: SubmitEvent) {
-		e.preventDefault();
-		error = "";
-		loading = true;
-
-		try {
-			const result = await signIn.email({
-				email,
-				password,
-			});
-
-			if (result.error) {
-				error = result.error.message || m.auth_login_error_invalid();
-				loading = false;
-				return;
-			}
-
-			// Verify user has admin role
-			const session = await getSession();
-			if (session.data?.user?.role !== "admin") {
-				await signOut();
-				error = m.admin_login_error_access();
-				loading = false;
-				return;
-			}
-
-			goto(resolve("admin"));
-		} catch {
-			error = m.auth_login_error_unexpected();
-			loading = false;
+	async function afterSignIn() {
+		const session = await getSession();
+		if (session.data?.user?.role !== "admin") {
+			await signOut();
+			return m.admin_login_error_access();
 		}
+
+		await goto(resolve("admin"));
 	}
 </script>
 
@@ -69,39 +38,6 @@
 		</div>
 	</Card.Header>
 	<Card.Content>
-		<form onsubmit={handleSubmit} class="space-y-4">
-			{#if error}
-				<Alert variant="destructive">
-					<CircleAlert class="h-4 w-4" />
-					<AlertDescription>{error}</AlertDescription>
-				</Alert>
-			{/if}
-
-			<Field.Field>
-				<Field.Label for="email">{m.common_email()}</Field.Label>
-				<Input
-					id="email"
-					type="email"
-					placeholder="admin@example.com"
-					bind:value={email}
-					required
-					disabled={loading}
-				/>
-			</Field.Field>
-
-			<Field.Field>
-				<Field.Label for="password">{m.common_password()}</Field.Label>
-				<Input id="password" type="password" bind:value={password} required disabled={loading} />
-			</Field.Field>
-
-			<Button type="submit" class="w-full" disabled={loading}>
-				{#if loading}
-					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{m.auth_login_signing_in()}
-				{:else}
-					{m.auth_login_sign_in()}
-				{/if}
-			</Button>
-		</form>
+		<LoginForm placeholder="admin@example.com" {afterSignIn} />
 	</Card.Content>
 </Card.Root>
