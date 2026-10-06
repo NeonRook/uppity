@@ -1,6 +1,6 @@
 import { getRequestEvent } from "$app/server";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
+import { polar, checkout, portal, webhooks } from "@polar-sh/better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
@@ -261,7 +261,8 @@ export const auth = betterAuth({
 				portal({
 					returnUrl: `${baseURL}/settings/billing`,
 				}),
-				usage(),
+				// No `usage()` plugin: it exposes /usage/ingest, letting any signed-in user post
+				// meter events as their own Polar customer. MeterService ingests server-side.
 				webhooks({
 					secret: process.env.POLAR_WEBHOOK_SECRET ?? "",
 					onSubscriptionCreated: async ({ data: sub }) => {
