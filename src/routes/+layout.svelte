@@ -12,6 +12,7 @@
 	import plexSansLatin from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?url";
 
 	import faviconSvg from "#lib/assets/favicon.svg";
+	import { Toaster } from "#lib/components/ui/sonner/index.js";
 	import { locales, localizeHref } from "#lib/paraglide/runtime.js";
 
 	import "./layout.css";
@@ -40,6 +41,8 @@
 </svelte:head>
 
 {@render children()}
+
+<Toaster />
 
 <div style="display:none">
 	{#each locales as locale (locale)}
