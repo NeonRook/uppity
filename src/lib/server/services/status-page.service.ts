@@ -475,6 +475,7 @@ export class StatusPageService {
 						description: monitor.description,
 						type: monitor.type,
 						url: monitor.url,
+						active: monitor.active,
 						deadLetteredAt: monitor.deadLetteredAt,
 					},
 					status: {
@@ -635,10 +636,11 @@ export class StatusPageService {
 
 		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
 
-		// A dead-lettered monitor's last status is stale, so it reads as unknown.
+		// An active dead-lettered monitor's last status is stale, so it reads as unknown.
+		// A paused one keeps its last status, as the app shows it Paused rather than Not checked.
 		const statusOf = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus["status"] => {
 			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
-			if (pm.monitor.deadLetteredAt) return "unknown";
+			if (pm.monitor.active && pm.monitor.deadLetteredAt) return "unknown";
 			return (pm.status?.status as PublicMonitorStatus["status"] | undefined) || "unknown";
 		};
 

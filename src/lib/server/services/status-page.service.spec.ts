@@ -704,4 +704,23 @@ describe("StatusPageService.getPublicStatusPage — dead-lettered monitors", () 
 		expect(result!.ungroupedMonitors[0].status).toBe("unknown");
 		expect(result!.overallStatus).toBe("unmonitored");
 	});
+
+	test("a paused dead-lettered monitor keeps its last status, as the app shows it paused", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await drizzleDb.insert(monitorStatusTable).values({ monitorId, status: "up" });
+		await drizzleDb
+			.update(monitor)
+			.set({ active: false, deadLetteredAt: new Date() })
+			.where(eq(monitor.id, monitorId));
+
+		const result = await service.getPublicStatusPage(slug);
+		expect(result!.ungroupedMonitors[0].status).toBe("up");
+		expect(result!.overallStatus).toBe("operational");
+	});
 });

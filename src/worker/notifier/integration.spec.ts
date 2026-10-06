@@ -13,7 +13,18 @@ import {
 } from "../../lib/server/db/schema";
 import { NotificationService } from "../../lib/server/notifications/service";
 import { test } from "../../lib/server/test/fixture";
-import { processBacklog } from "./processor";
+import { processBacklog, STUCK_ROW_THRESHOLD_MS } from "./processor";
+
+// WideEventBuilder requires a real Pino logger — cast to never rather than
+// wiring up the full logging stack in a test.
+const stubEvent = () =>
+	({
+		set: () => {},
+		merge: () => {},
+		emit: () => {},
+		setSuccess: () => {},
+		setError: () => {},
+	}) as never;
 
 describe("notifier integration (real Postgres)", () => {
 	test("processes a pending event end-to-end, logs per-channel attempts", async ({ db }) => {
@@ -81,21 +92,7 @@ describe("notifier integration (real Postgres)", () => {
 		});
 
 		const service = new NotificationService(drizzleDb);
-		const processed = await processBacklog(
-			drizzleDb,
-			"startup",
-			// WideEventBuilder requires a real Pino logger — cast to never rather than
-			// wiring up the full logging stack in a test.
-			() =>
-				({
-					set: () => {},
-					merge: () => {},
-					emit: () => {},
-					setSuccess: () => {},
-					setError: () => {},
-				}) as never,
-			service,
-		);
+		const processed = await processBacklog(drizzleDb, "startup", stubEvent, service);
 		expect(processed).toBe(1);
 
 		const [row] = await drizzleDb
@@ -115,4 +112,42 @@ describe("notifier integration (real Postgres)", () => {
 
 		// No cleanup needed — fixture drops the database on file teardown.
 	}, 15_000);
+
+	test("an event whose dispatch throws is retried by a later sweep, not failed", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = `test-org-${nanoid()}`;
+		await drizzleDb
+			.insert(organization)
+			.values({ id: orgId, name: "Test Org", slug: orgId, createdAt: new Date() });
+		const eventId = `test-evt-${nanoid()}`;
+		await drizzleDb.insert(notificationEvent).values({
+			id: eventId,
+			organizationId: orgId,
+			type: "monitor_down",
+			payload: { previousStatus: "up", newStatus: "down", consecutiveFailures: 1, checkId: "c" },
+			status: "pending",
+		});
+		const status = async () =>
+			(
+				await drizzleDb
+					.select({ status: notificationEvent.status })
+					.from(notificationEvent)
+					.where(eq(notificationEvent.id, eventId))
+			)[0].status;
+
+		const broken = {
+			dispatchEvent: () => Promise.reject(new Error("connection terminated")),
+		} as unknown as NotificationService;
+		await processBacklog(drizzleDb, "sweep", stubEvent, broken);
+		expect(await status()).toBe("processing");
+
+		// The claim goes stale, and the next sweep dispatches the event again.
+		await drizzleDb
+			.update(notificationEvent)
+			.set({ claimedAt: new Date(Date.now() - STUCK_ROW_THRESHOLD_MS - 1000) })
+			.where(eq(notificationEvent.id, eventId));
+		await processBacklog(drizzleDb, "sweep", stubEvent, new NotificationService(drizzleDb));
+		// No monitor on the row, so the real service settles it as suppressed.
+		expect(await status()).toBe("suppressed");
+	});
 });

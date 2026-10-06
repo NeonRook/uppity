@@ -36,7 +36,20 @@ showing the last recorded status. For a monitor last seen up, that was a day of 
 **No blind window.** Dead letter changes how failures are reported, not how often the
 monitor is tried. Retries follow the existing exponential backoff, capped at
 `UPPITY_CHECK_BACKOFF_MAX_MS` (5 minutes by default). `UPPITY_DEAD_LETTER_HOURS` is
-removed. The longest a monitor goes without an attempt is the cap.
+removed.
+
+**A claim is a short lease.** Claiming a monitor sets `check_backoff_until` to the
+check's worst case: every attempt timing out, each followed by the SSL probe and the
+pause before the next, plus 30 seconds for the writes. That is 66 seconds for a monitor
+with the default 30-second timeout and no retries. `next_check_at` keeps the time the
+check was due. A worker that dies mid-check, or fails to record the result, leaves the
+lease to run out, and the monitor is claimed again. Before this, a claim pushed
+`next_check_at` out by an hour.
+
+The longest a monitor goes without an attempt is therefore the backoff cap, or one lease
+when an attempt is abandoned. The worker also releases, at startup and with its
+periodic maintenance jobs, any active monitor scheduled further out than its interval or
+the cap plus a lease, which no current code path writes.
 
 **Dead letter is a column, not a count.** `monitor.dead_lettered_at` is set by the failure
 that reaches `MAX_ATTEMPTS` and cleared by the next successful check. The retry count keeps
@@ -50,10 +63,14 @@ receives them, with no per-channel toggle, because the message is that monitorin
 has stopped.
 
 **The stale status is not shown.** In the app an active dead-lettered monitor reads "Not
-checked" in the `status-unknown` gray, with the time of the next attempt. On the public
-status page it reads `unknown`, and any `unknown` monitor replaces "All systems
-operational" with "Some systems are not being monitored right now". Outages and
-degradation still take precedence over that banner.
+checked" in the `status-unknown` gray, with the time of the next attempt, or "now" while
+one is due or running. On the public status page it reads `unknown`, and any `unknown`
+monitor replaces "All systems operational" with "Some systems are not being monitored
+right now". Outages and degradation still take precedence over that banner. The
+`monitor_checks_stopped` webhook carries no status for the same reason.
+
+A paused monitor is outside this. The app shows it as Paused, and the public page keeps
+showing its last recorded status, whether or not it was dead-lettered when paused.
 
 **The operator hears through the log.** Entry logs at error level with
 `event_type: "monitor_dead_lettered"`. A Railway log alert on that field is the operator
@@ -78,7 +95,19 @@ which includes a monitor created seconds ago, until its first check lands. That 
 accurate, and it is a change from before.
 
 Monitors parked under the old window are made due by the migration. Their next failure
-enters dead letter under these rules and notifies.
+enters dead letter under these rules and notifies. A monitor an older worker parks while
+both versions run is released by the schedule bound above.
+
+The workers deploy alongside the web tier, whose pre-deploy step runs the migrations, so
+they can start before `dead_lettered_at` exists. Until it does, the monitor worker checks
+and backs off as usual without tracking dead letter, and the notifier reads only the
+monitor columns it sends. A notification whose dispatch throws, such as on a lost
+database connection, stays claimed and is retried by the next sweep once the claim is
+five minutes old, rather than being marked failed.
+
+Dead letter is itself a database write. If the monitor worker cannot write to the
+database, nothing records the failure: each monitor is retried once per lease, the app
+keeps showing its last status, and the worker's error log is the only signal.
 
 ## Revisit when
 

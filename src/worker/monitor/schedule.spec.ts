@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe, expect } from "vitest";
 
 import { CHECK_RETRY } from "../../lib/constants/worker";
@@ -6,7 +6,12 @@ import { monitor, notificationEvent, type Monitor } from "../../lib/server/db/sc
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
-import { recordCheckFailure, recordCheckSuccess } from "./schedule";
+import {
+	claimDueMonitors,
+	recordCheckFailure,
+	recordCheckSuccess,
+	releaseOverlongSchedules,
+} from "./schedule";
 
 async function load(drizzleDb: TestDb["db"], id: string): Promise<Monitor> {
 	const [row] = await drizzleDb.select().from(monitor).where(eq(monitor.id, id));
@@ -100,5 +105,71 @@ describe("recordCheckSuccess", () => {
 
 		expect((await load(drizzleDb, id)).checkRetryCount).toBe(0);
 		expect(await eventTypes(drizzleDb, id)).toEqual([]);
+	});
+});
+
+/** A due monitor that is the only active one in the file's database. */
+async function seedOnlyDue(drizzleDb: TestDb["db"]): Promise<string> {
+	await drizzleDb.update(monitor).set({ active: false });
+	return seedMonitor(drizzleDb, await seedOrg(drizzleDb));
+}
+
+describe("claimDueMonitors", () => {
+	test("leases a monitor for its worst-case check, not an hour", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const id = await seedOnlyDue(drizzleDb);
+		const dueAt = (await load(drizzleDb, id)).nextCheckAt;
+		const before = Date.now();
+
+		expect((await claimDueMonitors(drizzleDb)).map((m) => m.id)).toEqual([id]);
+
+		const row = await load(drizzleDb, id);
+		// Seeded with a 30s timeout and no retries.
+		expect(row.checkBackoffUntil!.getTime()).toBeGreaterThan(before + 30_000);
+		expect(row.checkBackoffUntil!.getTime()).toBeLessThan(before + 2 * 60_000);
+		expect(row.nextCheckAt).toEqual(dueAt);
+		expect(await claimDueMonitors(drizzleDb)).toEqual([]);
+	});
+
+	test("an abandoned claim is claimed again once its lease runs out", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const id = await seedOnlyDue(drizzleDb);
+		await claimDueMonitors(drizzleDb);
+
+		await drizzleDb
+			.update(monitor)
+			.set({ checkBackoffUntil: sql`NOW() - INTERVAL '1 second'` })
+			.where(eq(monitor.id, id));
+
+		expect((await claimDueMonitors(drizzleDb)).map((m) => m.id)).toEqual([id]);
+	});
+});
+
+describe("releaseOverlongSchedules", () => {
+	test("makes due a monitor parked past anything this scheduler sets", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrg(drizzleDb);
+		const parked = await seedMonitor(drizzleDb, orgId);
+		const scheduled = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb
+			.update(monitor)
+			.set({
+				nextCheckAt: sql`NOW() + INTERVAL '24 hours'`,
+				checkBackoffUntil: sql`NOW() + INTERVAL '24 hours'`,
+				checkLastError: "Dead letter: boom",
+			})
+			.where(eq(monitor.id, parked));
+		// Seeded with a 300s interval, so five minutes out is an ordinary schedule.
+		await drizzleDb
+			.update(monitor)
+			.set({ nextCheckAt: sql`NOW() + INTERVAL '5 minutes'` })
+			.where(eq(monitor.id, scheduled));
+
+		await releaseOverlongSchedules(drizzleDb);
+
+		const released = await load(drizzleDb, parked);
+		expect(released.nextCheckAt!.getTime()).toBeLessThanOrEqual(Date.now());
+		expect(released.checkBackoffUntil).toBeNull();
+		expect((await load(drizzleDb, scheduled)).nextCheckAt!.getTime()).toBeGreaterThan(Date.now());
 	});
 });

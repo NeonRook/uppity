@@ -8,9 +8,9 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
-	import { formatDateTimeShort, formatRelativeTime } from "#lib/format.js";
+	import { formatDateTimeShort } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
-	import { getLocale } from "#lib/paraglide/runtime.js";
+	import { nextAttempt } from "#lib/utils/status.js";
 
 	let { data, form } = $props();
 </script>
@@ -64,7 +64,7 @@
 								{formatDateTimeShort(mon.deadLetteredAt)}
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground">
-								{mon.nextCheckAt ? formatRelativeTime(mon.nextCheckAt, getLocale()) : "-"}
+								{nextAttempt(mon.nextCheckAt)}
 							</Table.Cell>
 							<Table.Cell class="text-right">
 								<form method="POST" action="?/reset" use:enhance>

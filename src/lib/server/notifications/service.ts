@@ -12,7 +12,6 @@ import {
 	monitor as monitorTable,
 	monitorStatus,
 	type NotificationChannel,
-	type Monitor,
 	type MonitorStatus,
 	type NotificationEvent,
 } from "../db/schema";
@@ -21,7 +20,12 @@ import { sendDiscord } from "./discord";
 import { sendEmail } from "./email";
 import { parseEventPayload, type IncidentEventPayload } from "./events";
 import { sendSlack } from "./slack";
-import type { NotificationPayload, NotificationResult, NotificationType } from "./types";
+import type {
+	NotificationPayload,
+	NotificationResult,
+	NotificationType,
+	NotifiedMonitor,
+} from "./types";
 import { sendWebhook } from "./webhook";
 
 export type DispatchResult =
@@ -149,8 +153,16 @@ export class NotificationService {
 			return { status: "suppressed", errorMessage: "event has no monitor_id" };
 		}
 
+		// Named columns, so a column added by a migration that has not run yet cannot break dispatch.
 		const [monitor] = await this.db
-			.select()
+			.select({
+				id: monitorTable.id,
+				name: monitorTable.name,
+				type: monitorTable.type,
+				url: monitorTable.url,
+				hostname: monitorTable.hostname,
+				port: monitorTable.port,
+			})
 			.from(monitorTable)
 			.where(eq(monitorTable.id, row.monitorId))
 			.limit(1);
@@ -312,7 +324,7 @@ export class NotificationService {
 
 	private buildNotificationPayload(
 		row: NotificationEvent,
-		monitor: Monitor,
+		monitor: NotifiedMonitor,
 		status: MonitorStatus,
 	): NotificationPayload {
 		const p = row.payload as Record<string, unknown>;
@@ -320,7 +332,8 @@ export class NotificationService {
 		const base: NotificationPayload = {
 			type,
 			monitor,
-			status,
+			// Checks stopped, so the recorded status is stale and is not sent.
+			status: type === "monitor_checks_stopped" ? undefined : status,
 			timestamp: new Date(),
 		};
 		if (type === "ssl_expiry_warning") {
