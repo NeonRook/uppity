@@ -8,6 +8,7 @@ import {
 	DEFAULT_HTTP_METHOD,
 	MONITOR_INTERVAL,
 } from "#lib/constants/defaults.js";
+import { HTTP_METHODS } from "#lib/constants/monitor.js";
 
 const baseMonitorSchema = {
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
@@ -36,7 +37,7 @@ const httpMonitorSchema = v.object({
 	type: v.literal("http"),
 	url: v.pipe(v.string(), v.url("Valid URL is required")),
 	method: v.optional(
-		v.picklist(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]),
+		v.picklist(HTTP_METHODS),
 		DEFAULT_HTTP_METHOD,
 	),
 	sslCheckEnabled: v.optional(v.boolean(), false),
