@@ -87,17 +87,5 @@ export const DEFAULT_INCIDENT_STATUS = "investigating" as const;
 /** Initial impact level assigned to newly created incidents. */
 export const DEFAULT_INCIDENT_IMPACT = "minor" as const;
 
-/** HTTP method used when sending webhook notifications. */
-export const DEFAULT_WEBHOOK_METHOD = "POST" as const;
-
 /** Sender address for outgoing email notifications. */
 export const DEFAULT_EMAIL_FROM = envString("UPPITY_EMAIL_FROM", "Uppity <noreply@uppity.app>");
-
-/** Number of recent items shown on admin dashboard widgets. */
-export const DEFAULT_RECENT_ITEMS_LIMIT = 5;
-
-/** Default page size for paginated lists in the admin interface. */
-export const DEFAULT_LIST_LIMIT = envInt("UPPITY_DEFAULT_LIST_LIMIT", 50);
-
-/** Maximum allowed page size for paginated lists to prevent abuse. */
-export const MAX_LIST_LIMIT = 100;

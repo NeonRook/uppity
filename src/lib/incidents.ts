@@ -10,194 +10,124 @@ import {
 
 import { m } from "#lib/paraglide/messages.js";
 
+export {
+	formatDateTimeShort as formatIncidentDate,
+	formatDateTimeMonthDay as formatIncidentDateTime,
+} from "#lib/format.js";
+
+type Variant = "destructive" | "secondary" | "outline";
+
 export interface StatusInfo {
 	label: string;
 	icon: LucideIcon;
-	variant: "destructive" | "secondary" | "outline";
+	variant: Variant;
 	color: string;
 	bg: string;
 }
 
 export interface ImpactInfo {
 	label: string;
-	variant: "destructive" | "secondary" | "outline";
+	variant: Variant;
 	color: string;
 	bg: string;
 }
 
-export function getStatusOptions() {
-	return [
-		{ value: "investigating", label: m.incident_status_investigating(), icon: Search },
-		{ value: "identified", label: m.incident_status_identified(), icon: Eye },
-		{ value: "monitoring", label: m.incident_status_monitoring(), icon: Clock },
-		{ value: "resolved", label: m.incident_status_resolved(), icon: CircleCheckBig },
-	] as const;
-}
+// Full class names, so Tailwind can see them.
+const TONE = {
+	down: { color: "text-status-down-ink", bg: "bg-status-down-surface" },
+	partial: { color: "text-status-partial-ink", bg: "bg-status-partial-surface" },
+	degraded: { color: "text-status-degraded-ink", bg: "bg-status-degraded-surface" },
+	up: { color: "text-status-up-ink", bg: "bg-status-up-surface" },
+	maintenance: { color: "text-status-maintenance-ink", bg: "bg-status-maintenance-surface" },
+	unknown: { color: "text-status-unknown-ink", bg: "bg-status-unknown-surface" },
+};
 
-export function getImpactOptions() {
-	return [
-		{ value: "none", label: m.incident_impact_none() },
-		{ value: "minor", label: m.incident_impact_minor() },
-		{ value: "major", label: m.incident_impact_major() },
-		{ value: "critical", label: m.incident_impact_critical() },
-	] as const;
-}
+const STATUSES = {
+	investigating: {
+		label: m.incident_status_investigating,
+		icon: Search,
+		variant: "destructive",
+		...TONE.down,
+	},
+	identified: {
+		label: m.incident_status_identified,
+		icon: Eye,
+		variant: "destructive",
+		...TONE.partial,
+	},
+	monitoring: {
+		label: m.incident_status_monitoring,
+		icon: Clock,
+		variant: "secondary",
+		...TONE.degraded,
+	},
+	resolved: {
+		label: m.incident_status_resolved,
+		icon: CircleCheckBig,
+		variant: "outline",
+		...TONE.up,
+	},
+	postmortem: {
+		label: m.incident_status_postmortem,
+		icon: FileText,
+		variant: "outline",
+		...TONE.maintenance,
+	},
+} as const;
 
-export function getStatusLabel(status: string): string {
-	switch (status) {
-		case "investigating":
-			return m.incident_status_investigating();
-		case "identified":
-			return m.incident_status_identified();
-		case "monitoring":
-			return m.incident_status_monitoring();
-		case "resolved":
-			return m.incident_status_resolved();
-		case "postmortem":
-			return m.incident_status_postmortem();
-		default:
-			return status;
-	}
-}
+const IMPACTS = {
+	none: {
+		label: m.incident_impact_none,
+		description: m.incident_impact_none_desc,
+		variant: "outline",
+		...TONE.unknown,
+	},
+	minor: {
+		label: m.incident_impact_minor,
+		description: m.incident_impact_minor_desc,
+		variant: "secondary",
+		...TONE.degraded,
+	},
+	major: {
+		label: m.incident_impact_major,
+		description: m.incident_impact_major_desc,
+		variant: "destructive",
+		...TONE.partial,
+	},
+	critical: {
+		label: m.incident_impact_critical,
+		description: m.incident_impact_critical_desc,
+		variant: "destructive",
+		...TONE.down,
+	},
+} as const;
 
-export function getImpactLabel(impact: string): string {
-	switch (impact) {
-		case "none":
-			return m.incident_impact_none();
-		case "minor":
-			return m.incident_impact_minor();
-		case "major":
-			return m.incident_impact_major();
-		case "critical":
-			return m.incident_impact_critical();
-		default:
-			return impact;
-	}
-}
-
-export function getImpactDescription(impact: string): string {
-	switch (impact) {
-		case "none":
-			return m.incident_impact_none_desc();
-		case "minor":
-			return m.incident_impact_minor_desc();
-		case "major":
-			return m.incident_impact_major_desc();
-		case "critical":
-			return m.incident_impact_critical_desc();
-		default:
-			return "";
-	}
+function lookup<T>(table: Record<string, T>, key: string): T | undefined {
+	return Object.hasOwn(table, key) ? table[key] : undefined;
 }
 
 export function getStatusInfo(status: string): StatusInfo {
-	switch (status) {
-		case "investigating":
-			return {
-				label: m.incident_status_investigating(),
-				icon: Search,
-				variant: "destructive",
-				color: "text-status-down-ink",
-				bg: "bg-status-down-surface",
-			};
-		case "identified":
-			return {
-				label: m.incident_status_identified(),
-				icon: Eye,
-				variant: "destructive",
-				color: "text-status-partial-ink",
-				bg: "bg-status-partial-surface",
-			};
-		case "monitoring":
-			return {
-				label: m.incident_status_monitoring(),
-				icon: Clock,
-				variant: "secondary",
-				color: "text-status-degraded-ink",
-				bg: "bg-status-degraded-surface",
-			};
-		case "resolved":
-			return {
-				label: m.incident_status_resolved(),
-				icon: CircleCheckBig,
-				variant: "outline",
-				color: "text-status-up-ink",
-				bg: "bg-status-up-surface",
-			};
-		case "postmortem":
-			return {
-				label: m.incident_status_postmortem(),
-				icon: FileText,
-				variant: "outline",
-				color: "text-status-maintenance-ink",
-				bg: "bg-status-maintenance-surface",
-			};
-		default:
-			return {
-				label: status,
-				icon: TriangleAlert,
-				variant: "secondary",
-				color: "text-status-unknown-ink",
-				bg: "bg-status-unknown-surface",
-			};
+	const entry = lookup(STATUSES, status);
+	if (!entry) {
+		return { label: status, icon: TriangleAlert, variant: "secondary", ...TONE.unknown };
 	}
+	return { ...entry, label: entry.label() };
 }
 
 export function getImpactInfo(impact: string): ImpactInfo {
-	switch (impact) {
-		case "none":
-			return {
-				label: m.incident_impact_none(),
-				variant: "outline",
-				color: "text-status-unknown-ink",
-				bg: "bg-status-unknown-surface",
-			};
-		case "minor":
-			return {
-				label: m.incident_impact_minor(),
-				variant: "secondary",
-				color: "text-status-degraded-ink",
-				bg: "bg-status-degraded-surface",
-			};
-		case "major":
-			return {
-				label: m.incident_impact_major(),
-				variant: "destructive",
-				color: "text-status-partial-ink",
-				bg: "bg-status-partial-surface",
-			};
-		case "critical":
-			return {
-				label: m.incident_impact_critical(),
-				variant: "destructive",
-				color: "text-status-down-ink",
-				bg: "bg-status-down-surface",
-			};
-		default:
-			return {
-				label: impact,
-				variant: "secondary",
-				color: "text-status-unknown-ink",
-				bg: "bg-status-unknown-surface",
-			};
-	}
+	const entry = lookup(IMPACTS, impact);
+	if (!entry) return { label: impact, variant: "secondary", ...TONE.unknown };
+	return { label: entry.label(), variant: entry.variant, color: entry.color, bg: entry.bg };
 }
 
-export function formatIncidentDate(date: Date): string {
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+export function getStatusLabel(status: string): string {
+	return getStatusInfo(status).label;
 }
 
-export function formatIncidentDateTime(date: Date): string {
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+export function getImpactLabel(impact: string): string {
+	return getImpactInfo(impact).label;
+}
+
+export function getImpactDescription(impact: string): string {
+	return lookup(IMPACTS, impact)?.description() ?? "";
 }

@@ -1,17 +1,16 @@
-import { command, query, getRequestEvent } from "$app/server";
+import { command, query } from "$app/server";
 import { eq, desc } from "drizzle-orm";
 import * as v from "valibot";
 
+import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor, monitorStatus } from "#lib/server/db/schema.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 // Query: List monitors with status for the current organization
 export const getMonitors = query(async () => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		return [];
-	}
+	const organizationId = getActiveOrganizationId();
+	if (!organizationId) return [];
 
 	return db
 		.select({
@@ -33,7 +32,7 @@ export const getMonitors = query(async () => {
 		})
 		.from(monitor)
 		.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
-		.where(eq(monitor.organizationId, locals.session.activeOrganizationId))
+		.where(eq(monitor.organizationId, organizationId))
 		.orderBy(desc(monitor.createdAt));
 });
 
@@ -42,12 +41,9 @@ const monitorIdSchema = v.object({
 });
 
 export const toggleMonitor = command(monitorIdSchema, async ({ monitorId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const updated = await monitorService.toggleActive(monitorId, locals.session.activeOrganizationId);
+	const updated = await monitorService.toggleActive(monitorId, organizationId);
 
 	if (!updated) {
 		throw new Error("Monitor not found");
@@ -57,12 +53,9 @@ export const toggleMonitor = command(monitorIdSchema, async ({ monitorId }) => {
 });
 
 export const deleteMonitor = command(monitorIdSchema, async ({ monitorId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const deleted = await monitorService.delete(monitorId, locals.session.activeOrganizationId);
+	const deleted = await monitorService.delete(monitorId, organizationId);
 
 	if (!deleted) {
 		throw new Error("Monitor not found");

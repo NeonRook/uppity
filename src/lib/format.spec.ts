@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import {
 	generateSlug,
@@ -12,7 +12,6 @@ import {
 	formatInterval,
 	formatUptime,
 	formatUsdCents,
-	getRelativeTime,
 	getTimeZoneLabel,
 	truncate,
 } from "./format";
@@ -115,66 +114,6 @@ describe("formatUptime", () => {
 		expect(formatUptime(99.95)).toBe("100.0%");
 		expect(formatUptime(99.94)).toBe("99.9%");
 		expect(formatUptime(0)).toBe("0.0%");
-	});
-});
-
-describe("getRelativeTime", () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2024-01-15T12:00:00Z"));
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
-	it("returns 'Never' for null", () => {
-		expect(getRelativeTime(null)).toBe("Never");
-	});
-
-	it("returns 'Just now' for very recent times", () => {
-		const now = new Date("2024-01-15T12:00:00Z");
-		expect(getRelativeTime(now)).toBe("Just now");
-	});
-
-	it("formats seconds ago", () => {
-		const date = new Date("2024-01-15T11:59:30Z");
-		expect(getRelativeTime(date)).toBe("30 seconds ago");
-	});
-
-	it("uses singular for 1 second", () => {
-		const date = new Date("2024-01-15T11:59:59Z");
-		expect(getRelativeTime(date)).toBe("1 second ago");
-	});
-
-	it("formats minutes ago", () => {
-		const date = new Date("2024-01-15T11:55:00Z");
-		expect(getRelativeTime(date)).toBe("5 minutes ago");
-	});
-
-	it("uses singular for 1 minute", () => {
-		const date = new Date("2024-01-15T11:59:00Z");
-		expect(getRelativeTime(date)).toBe("1 minute ago");
-	});
-
-	it("formats hours ago", () => {
-		const date = new Date("2024-01-15T10:00:00Z");
-		expect(getRelativeTime(date)).toBe("2 hours ago");
-	});
-
-	it("uses singular for 1 hour", () => {
-		const date = new Date("2024-01-15T11:00:00Z");
-		expect(getRelativeTime(date)).toBe("1 hour ago");
-	});
-
-	it("formats days ago", () => {
-		const date = new Date("2024-01-12T12:00:00Z");
-		expect(getRelativeTime(date)).toBe("3 days ago");
-	});
-
-	it("uses singular for 1 day", () => {
-		const date = new Date("2024-01-14T12:00:00Z");
-		expect(getRelativeTime(date)).toBe("1 day ago");
 	});
 });
 

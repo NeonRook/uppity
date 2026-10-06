@@ -63,13 +63,3 @@ export const createMonitorSchema = v.variant("type", [
 	tcpMonitorSchema,
 	pushMonitorSchema,
 ]);
-
-export type CreateMonitorForm = v.InferInput<typeof createMonitorSchema>;
-
-export const deleteMonitorSchema = v.object({
-	monitorId: v.pipe(v.string(), v.minLength(1, "Monitor ID is required")),
-});
-
-export const toggleMonitorSchema = v.object({
-	monitorId: v.pipe(v.string(), v.minLength(1, "Monitor ID is required")),
-});

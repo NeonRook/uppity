@@ -25,31 +25,30 @@ export function formatDate(date: Date | null): string {
 	return new Date(date).toLocaleString();
 }
 
-/**
- * Format a date in short format (e.g., "Jan 15, 2024")
- */
-export function formatDateShort(date: Date | string | null): string {
-	if (!date) return "-";
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
+const dateFormatter =
+	(options: Intl.DateTimeFormatOptions) =>
+	(date: Date | string | null): string =>
+		date ? new Date(date).toLocaleDateString("en-US", options) : "-";
 
-/**
- * Format a date with time in short format (e.g., "Jan 15, 2024, 09:30 AM")
- */
-export function formatDateTimeShort(date: Date | string | null): string {
-	if (!date) return "-";
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
+/** Format a date in short format (e.g., "Jan 15, 2024") */
+export const formatDateShort = dateFormatter({ month: "short", day: "numeric", year: "numeric" });
+
+/** Format a date with time in short format (e.g., "Jan 15, 2024, 09:30 AM") */
+export const formatDateTimeShort = dateFormatter({
+	month: "short",
+	day: "numeric",
+	year: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+});
+
+/** Format a date with time but no year (e.g., "Jan 15, 09:30 AM") */
+export const formatDateTimeMonthDay = dateFormatter({
+	month: "short",
+	day: "numeric",
+	hour: "2-digit",
+	minute: "2-digit",
+});
 
 /**
  * Format a duration between two dates (e.g., "2d 5h", "3h 20m", "45m")
@@ -72,16 +71,8 @@ export function formatDuration(startedAt: Date, resolvedAt: Date | null): string
 	return `${minutes}m`;
 }
 
-/**
- * Format a date showing only month and day (e.g., "Jan 15")
- */
-export function formatDateMonthDay(date: Date | string | null): string {
-	if (!date) return "-";
-	return new Date(date).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-	});
-}
+/** Format a date showing only month and day (e.g., "Jan 15") */
+export const formatDateMonthDay = dateFormatter({ month: "short", day: "numeric" });
 
 /**
  * Format response time in milliseconds
@@ -109,28 +100,6 @@ export function formatInterval(seconds: number): string {
 export function formatUptime(percent: number | null): string {
 	if (percent === null) return "-";
 	return `${percent.toFixed(1)}%`;
-}
-
-/**
- * Get relative time string (e.g., "2 hours ago", "5 minutes ago")
- */
-export function getRelativeTime(date: Date | null): string {
-	if (!date) return "Never";
-
-	const now = Date.now();
-	const then = new Date(date).getTime();
-	const diffMs = now - then;
-
-	const seconds = Math.floor(diffMs / 1000);
-	const minutes = Math.floor(seconds / 60);
-	const hours = Math.floor(minutes / 60);
-	const days = Math.floor(hours / 24);
-
-	if (days > 0) return `${days} day${days === 1 ? "" : "s"} ago`;
-	if (hours > 0) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-	if (minutes > 0) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-	if (seconds > 0) return `${seconds} second${seconds === 1 ? "" : "s"} ago`;
-	return "Just now";
 }
 
 /**
@@ -206,10 +175,9 @@ const RELATIVE_UNITS: Array<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> =
  * Format a point in time relative to now, in either direction ("in 3 hours",
  * "2 days ago", "now").
  *
- * Distinct from `getRelativeTime`, which only looks backwards and only speaks
- * English. Maintenance windows are scheduled ahead, so the forward direction is the
- * common case, and the label sits beside translated prose on every surface that uses
- * it. `Intl.RelativeTimeFormat` supplies both for free across en, de and pt-br —
+ * Maintenance windows are scheduled ahead, so the forward direction is the common
+ * case, and the label sits beside translated prose on every surface that uses it.
+ * `Intl.RelativeTimeFormat` supplies both for free across en, de and pt-br —
  * German's "in 3 Stunden" / "vor 2 Tagen" needs no message key of its own.
  *
  * `now` is injectable so callers can render against a fixed clock and tests need no

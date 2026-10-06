@@ -3,9 +3,6 @@ import { envInt } from "#lib/utils.js";
 /** Number of monitors to claim per poll cycle */
 export const WORKER_POLL_BATCH_SIZE = envInt("UPPITY_WORKER_BATCH_SIZE", 10);
 
-/** Base polling interval in milliseconds */
-export const WORKER_POLL_INTERVAL_MS = envInt("UPPITY_WORKER_POLL_INTERVAL_MS", 1000);
-
 /** Exponential backoff configuration for empty polls */
 export const WORKER_BACKOFF = {
 	INITIAL_MS: envInt("UPPITY_WORKER_BACKOFF_INITIAL_MS", 100),

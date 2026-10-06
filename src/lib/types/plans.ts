@@ -87,11 +87,6 @@ export interface Plan {
 }
 
 /**
- * Resource types that can be limited by subscription plans.
- */
-export type LimitedResource = "monitors" | "statusPages" | "checkInterval" | "notificationChannel";
-
-/**
  * Result of checking a limit before an action.
  */
 export interface LimitCheckResult {

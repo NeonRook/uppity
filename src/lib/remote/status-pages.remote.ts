@@ -1,16 +1,15 @@
-import { command, query, getRequestEvent } from "$app/server";
+import { command, query } from "$app/server";
 import * as v from "valibot";
 
+import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
 import { statusPageService } from "#lib/server/services/status-page.service.js";
 
 // Query: List status pages for the current organization
 export const getStatusPages = query(async () => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		return [];
-	}
+	const organizationId = getActiveOrganizationId();
+	if (!organizationId) return [];
 
-	return statusPageService.findByOrganization(locals.session.activeOrganizationId);
+	return statusPageService.findByOrganization(organizationId);
 });
 
 const statusPageIdSchema = v.object({
@@ -18,12 +17,9 @@ const statusPageIdSchema = v.object({
 });
 
 export const deleteStatusPage = command(statusPageIdSchema, async ({ statusPageId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const deleted = await statusPageService.delete(statusPageId, locals.session.activeOrganizationId);
+	const deleted = await statusPageService.delete(statusPageId, organizationId);
 
 	if (!deleted) {
 		throw new Error("Status page not found");

@@ -1,16 +1,15 @@
-import { command, query, getRequestEvent } from "$app/server";
+import { command, query } from "$app/server";
 import * as v from "valibot";
 
+import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 // Query: List notification channels for the current organization
 export const getChannels = query(async () => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		return [];
-	}
+	const organizationId = getActiveOrganizationId();
+	if (!organizationId) return [];
 
-	return notificationChannelService.findByOrganization(locals.session.activeOrganizationId);
+	return notificationChannelService.findByOrganization(organizationId);
 });
 
 const channelIdSchema = v.object({
@@ -18,15 +17,9 @@ const channelIdSchema = v.object({
 });
 
 export const toggleChannel = command(channelIdSchema, async ({ channelId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const updated = await notificationChannelService.toggleEnabled(
-		channelId,
-		locals.session.activeOrganizationId,
-	);
+	const updated = await notificationChannelService.toggleEnabled(channelId, organizationId);
 
 	if (!updated) {
 		throw new Error("Channel not found");
@@ -36,15 +29,9 @@ export const toggleChannel = command(channelIdSchema, async ({ channelId }) => {
 });
 
 export const deleteChannel = command(channelIdSchema, async ({ channelId }) => {
-	const { locals } = getRequestEvent();
-	if (!locals.session?.activeOrganizationId) {
-		throw new Error("Not authenticated");
-	}
+	const organizationId = requireOrganizationId();
 
-	const deleted = await notificationChannelService.delete(
-		channelId,
-		locals.session.activeOrganizationId,
-	);
+	const deleted = await notificationChannelService.delete(channelId, organizationId);
 
 	if (!deleted) {
 		throw new Error("Channel not found");
