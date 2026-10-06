@@ -19,6 +19,10 @@ describe("getStatusColor", () => {
 		expect(getStatusColor("down", true)).toBe("bg-status-down");
 	});
 
+	it("maps a dead-lettered monitor to the unknown signal token", () => {
+		expect(getStatusColor("unchecked", true)).toBe("bg-status-unknown");
+	});
+
 	it("maps an inactive monitor to the unknown signal token", () => {
 		expect(getStatusColor("up", false)).toBe("bg-status-unknown");
 	});

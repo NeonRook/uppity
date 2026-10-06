@@ -6,6 +6,7 @@
 		CircleX,
 		CircleMinus,
 		ChevronRight,
+		EyeOff,
 		History,
 		Wrench,
 		Clock,
@@ -53,6 +54,11 @@
 			label: m.public_status_major(),
 			icon: CircleX,
 			cls: "bg-status-down text-status-down-foreground",
+		},
+		unmonitored: {
+			label: m.public_status_unmonitored(),
+			icon: EyeOff,
+			cls: "bg-status-unknown text-status-unknown-foreground",
 		},
 		under_maintenance: {
 			label: m.public_status_under_maintenance(),

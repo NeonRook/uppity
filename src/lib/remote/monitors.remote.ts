@@ -1,5 +1,5 @@
 import { command, query } from "$app/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
@@ -24,7 +24,11 @@ export const getMonitors = query(async () => {
 			active: monitor.active,
 			intervalSeconds: monitor.intervalSeconds,
 			createdAt: monitor.createdAt,
-			status: monitorStatus.status,
+			// A dead-lettered monitor's recorded status is stale; "unchecked" replaces it.
+			status: sql<
+				string | null
+			>`CASE WHEN ${monitor.active} AND ${monitor.deadLetteredAt} IS NOT NULL THEN 'unchecked' ELSE ${monitorStatus.status} END`,
+			nextCheckAt: monitor.nextCheckAt,
 			lastCheckAt: monitorStatus.lastCheckAt,
 			consecutiveFailures: monitorStatus.consecutiveFailures,
 			uptimePercent24h: monitorStatus.uptimePercent24h,

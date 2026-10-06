@@ -5,6 +5,7 @@
 	import {
 		Check,
 		Copy,
+		EyeOff,
 		ExternalLink,
 		LoaderCircle,
 		Pause,
@@ -19,14 +20,21 @@
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
+	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
-	import { formatDate, formatResponseTime, formatInterval, formatUptime } from "#lib/format.js";
+	import {
+		formatDate,
+		formatDateTimeShort,
+		formatResponseTime,
+		formatInterval,
+		formatUptime,
+	} from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
-	import { getStatusBadgeWithIcon, getCheckIcon } from "#lib/utils/status.js";
+	import { getStatusBadgeWithIcon, getCheckIcon, uncheckedSummary } from "#lib/utils/status.js";
 
 	let { data } = $props();
 
@@ -64,7 +72,10 @@
 	}
 
 	const statusInfo = $derived(
-		getStatusBadgeWithIcon(data.status?.status ?? null, data.monitor.active),
+		getStatusBadgeWithIcon(
+			data.monitor.deadLetteredAt ? "unchecked" : (data.status?.status ?? null),
+			data.monitor.active,
+		),
 	);
 	const StatusIcon = $derived(statusInfo.icon);
 
@@ -169,6 +180,17 @@
 			</div>
 		{/snippet}
 	</PageHeader>
+
+	{#if data.monitor.deadLetteredAt && data.monitor.active}
+		<Alert.Root>
+			<EyeOff class="h-4 w-4" />
+			<Alert.Title>{m.monitor_unchecked_title()}</Alert.Title>
+			<Alert.Description>
+				{uncheckedSummary(data.monitor.nextCheckAt)}
+				{m.monitor_unchecked_since({ since: formatDateTimeShort(data.monitor.deadLetteredAt) })}
+			</Alert.Description>
+		</Alert.Root>
+	{/if}
 
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
