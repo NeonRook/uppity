@@ -3,10 +3,6 @@ node_modules/
 .playwright-mcp/
 
 # Output
-.output
-.vercel
-.netlify
-.wrangler
 /.svelte-kit
 /build
 /.deno-deploy
@@ -38,9 +34,6 @@ vite.config.ts.timestamp-*
 # Paraglide
 src/lib/paraglide
 project.inlang/cache/
-
-# SQLite
-*.db
 
 # Impeccable local planning artifacts (critique snapshots, direction comps)
 .impeccable/critique/
