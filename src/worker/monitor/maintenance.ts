@@ -20,6 +20,7 @@ import {
 } from "../../lib/server/logger";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
+import { SubscriptionService } from "../../lib/server/services/subscription.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
 
@@ -48,16 +49,33 @@ const jobHandlers: Record<string, JobHandler> = {
 		event.set("windows_completed", result.completed);
 	},
 	"usage-snapshot": async (event) => {
-		const meterService = new MeterService(db);
-		const report = await meterService.reportUsageSnapshots();
-		event.set("records_processed", report.customerSnapshots);
-		event.set("org_records_processed", report.organizationSnapshots);
-		// The heartbeat gets a second chance tomorrow, so a failed report is logged inside
-		// the service and recorded here as zero rather than failing the job.
-		const blocks = await meterService.reportBlocks();
-		event.set("block_records_processed", blocks.ok ? blocks.ingested : 0);
+		event.merge(await runUsageSnapshot(db, new MeterService(db)));
 	},
 };
+
+/**
+ * Applies scheduled capacity reductions, then reports usage and blocks to Polar.
+ *
+ * The order is the point: reported first, a new period would meter the old peak and
+ * the reduction would cost the customer another full period.
+ */
+export async function runUsageSnapshot(
+	targetDb: Db,
+	meterService: MeterService,
+): Promise<Partial<MaintenanceWideEvent>> {
+	const reductions = await new SubscriptionService(targetDb).applyScheduledReductions();
+	const report = await meterService.reportUsageSnapshots();
+	// The heartbeat gets a second chance tomorrow, so a failed report is logged inside
+	// the service and recorded here as zero rather than failing the job.
+	const blocks = await meterService.reportBlocks();
+
+	return {
+		block_reductions_applied: reductions,
+		records_processed: report.customerSnapshots,
+		org_records_processed: report.organizationSnapshots,
+		block_records_processed: blocks.ok ? blocks.ingested : 0,
+	};
+}
 
 /**
  * Ensures every known job row exists, inserting on the primary key and

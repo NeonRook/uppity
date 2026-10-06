@@ -82,6 +82,21 @@ async function seedMonitors(
 	}
 }
 
+/** Seeds an Uppity subscription holding 4 blocks with a reduction to 2 pending. */
+async function seedScheduled(drizzleDb: TestDb["db"], currentPeriodEnd: Date): Promise<string> {
+	const orgId = await seedOrganization(drizzleDb);
+	await drizzleDb.insert(subscription).values({
+		id: nanoid(),
+		organizationId: orgId,
+		planId: "uppity",
+		status: "active",
+		blocks: 4,
+		scheduledBlocks: 2,
+		currentPeriodEnd,
+	});
+	return orgId;
+}
+
 describe("SubscriptionService", () => {
 	// Local dev's .env might set SELF_HOSTED=true, which short-circuits every limit check to the
 	// unlimited self-hosted plan. Force the plan-based code path.
@@ -641,9 +656,7 @@ describe("SubscriptionService", () => {
 			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(150);
 		});
 
-		test("a reduction that would strand existing monitors is refused, naming both counts", async ({
-			db,
-		}) => {
+		test("a reduction is scheduled and the ceiling holds until the period ends", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const orgId = await seedOrganization(drizzleDb);
@@ -653,22 +666,60 @@ describe("SubscriptionService", () => {
 				organizationId: orgId,
 				planId: "uppity",
 				status: "active",
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+				blocks: 4,
+			});
+
+			expect((await service.setBlocks(orgId, 1)).ok).toBe(true);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(4);
+			expect(row?.scheduledBlocks).toBe(1);
+			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(250);
+		});
+
+		test("a reduction below current usage is scheduled, not refused", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
 				blocks: 2,
 			});
 			await seedMonitors(drizzleDb, orgId, 68);
 
-			expect((await service.setBlocks(orgId, 1)).ok).toBe(true);
-
-			expect(await service.setBlocks(orgId, 0)).toStrictEqual({
-				ok: false,
-				reason: "over_capacity",
-				currentUsage: 68,
-				limit: 50,
-			});
-			expect((await service.getSubscription(orgId))?.blocks).toBe(1);
+			expect((await service.setBlocks(orgId, 0)).ok).toBe(true);
+			expect((await service.getSubscription(orgId))?.scheduledBlocks).toBe(0);
 		});
 
-		test("a reduction the organization already fits under is applied", async ({ db }) => {
+		test("lowering a scheduled reduction further replaces it", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				currentPeriodEnd: new Date(Date.now() + 86_400_000),
+				blocks: 4,
+				scheduledBlocks: 2,
+			});
+
+			await service.setBlocks(orgId, 1);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(4);
+			expect(row?.scheduledBlocks).toBe(1);
+		});
+
+		test("a reduction with no known period end applies immediately", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
 			const orgId = await seedOrganization(drizzleDb);
@@ -680,11 +731,54 @@ describe("SubscriptionService", () => {
 				status: "active",
 				blocks: 4,
 			});
-			await seedMonitors(drizzleDb, orgId, 60);
 
-			const result = await service.setBlocks(orgId, 1);
-			expect(result.ok).toBe(true);
-			expect((await service.getEffectiveLimits(orgId)).monitors).toBe(100);
+			await service.setBlocks(orgId, 1);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(1);
+			expect(row?.scheduledBlocks).toBeNull();
+		});
+
+		test("asking for the count already held cancels a scheduled reduction", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 4,
+				scheduledBlocks: 2,
+			});
+
+			await service.setBlocks(orgId, 4);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(4);
+			expect(row?.scheduledBlocks).toBeNull();
+		});
+
+		test("an increase applies immediately and drops a scheduled reduction", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 4,
+				scheduledBlocks: 2,
+			});
+
+			await service.setBlocks(orgId, 5);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(5);
+			expect(row?.scheduledBlocks).toBeNull();
 		});
 
 		test("a plan that is not sold by capacity is refused", async ({ db }) => {
@@ -729,6 +823,57 @@ describe("SubscriptionService", () => {
 				reason: "invalid_count",
 			});
 			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
+		});
+	});
+
+	describe("applyScheduledReductions", () => {
+		const now = new Date("2026-03-12T00:00:00Z");
+
+		test("applies a reduction whose period has ended and leaves the rest pending", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const ended = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
+			const running = await seedScheduled(drizzleDb, new Date("2026-03-13T00:00:00Z"));
+
+			await service.applyScheduledReductions(now);
+
+			const endedRow = await service.getSubscription(ended);
+			expect(endedRow?.blocks).toBe(2);
+			expect(endedRow?.scheduledBlocks).toBeNull();
+
+			const runningRow = await service.getSubscription(running);
+			expect(runningRow?.blocks).toBe(4);
+			expect(runningRow?.scheduledBlocks).toBe(2);
+		});
+
+		test("a second pass changes nothing", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
+
+			expect(await service.applyScheduledReductions(now)).toBeGreaterThanOrEqual(1);
+			await service.applyScheduledReductions(now);
+
+			const row = await service.getSubscription(orgId);
+			expect(row?.blocks).toBe(2);
+			expect(row?.scheduledBlocks).toBeNull();
+		});
+
+		test("applies even when usage outgrew the smaller ceiling, deleting nothing", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedScheduled(drizzleDb, new Date("2026-03-11T00:00:00Z"));
+			await seedMonitors(drizzleDb, orgId, 160);
+
+			await service.applyScheduledReductions(now);
+
+			expect((await service.getSubscription(orgId))?.blocks).toBe(2);
+			expect((await service.getUsage(orgId)).monitors).toBe(160);
+			expect((await service.canAddMonitor(orgId)).allowed).toBe(false);
 		});
 	});
 
@@ -815,6 +960,133 @@ describe("SubscriptionService", () => {
 				currentPeriodEnd: new Date(Date.now() + 86_400_000),
 			});
 			expect(renewed.blocks).toBe(3);
+		});
+
+		test("leaving block eligibility clears a scheduled reduction", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+			});
+
+			const moved = await service.syncFromPolar(orgId, { planId: "dedicated", status: "active" });
+			expect(moved.blocks).toBe(0);
+			expect(moved.scheduledBlocks).toBeNull();
+		});
+
+		test("downgradeToFree clears a scheduled reduction", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+			});
+
+			const downgraded = await service.downgradeToFree(orgId);
+			expect(downgraded.blocks).toBe(0);
+			expect(downgraded.scheduledBlocks).toBeNull();
+		});
+
+		test("the renewal webhook lands a scheduled reduction", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+				currentPeriodStart: new Date("2026-02-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-03-12T00:00:00Z"),
+			});
+
+			const renewed = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "active",
+				currentPeriodStart: new Date("2026-03-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-04-12T00:00:00Z"),
+			});
+			expect(renewed.blocks).toBe(1);
+			expect(renewed.scheduledBlocks).toBeNull();
+		});
+
+		test("a renewal starting just before the stored period end still lands", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+				currentPeriodStart: new Date("2026-02-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-03-12T00:00:00Z"),
+			});
+
+			const renewed = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "active",
+				currentPeriodStart: new Date("2026-03-11T23:59:59Z"),
+				currentPeriodEnd: new Date("2026-04-12T00:00:00Z"),
+			});
+			expect(renewed.blocks).toBe(1);
+		});
+
+		test("a mid-period webhook leaves a scheduled reduction pending", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			const period = {
+				currentPeriodStart: new Date("2026-02-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-03-12T00:00:00Z"),
+			};
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+				...period,
+			});
+
+			// A card update or a status flip re-sends the same period.
+			const synced = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "past_due",
+				...period,
+			});
+			expect(synced.blocks).toBe(3);
+			expect(synced.scheduledBlocks).toBe(1);
+
+			// The cancel webhook sends only the period end.
+			const canceled = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "canceled",
+				currentPeriodEnd: period.currentPeriodEnd,
+			});
+			expect(canceled.blocks).toBe(3);
+			expect(canceled.scheduledBlocks).toBe(1);
 		});
 
 		test("a past_due sync leaves purchased capacity alone", async ({ db }) => {

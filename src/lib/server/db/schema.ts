@@ -671,10 +671,20 @@ export const subscription = pgTable(
 		 * bills `unit_amount × meter_value`, and that meter value comes only from events
 		 * Uppity ingests, so nothing flows back the other way; `docs/adr/0002` records why.
 		 *
-		 * `setBlocks` is the only path that raises it. Leaving a block-eligible plan
-		 * clears it, so that returning to one cannot re-arm billing without a purchase.
+		 * Only `SubscriptionService` writes it, and only `setBlocks` raises it. Leaving a
+		 * block-eligible plan clears it, so that returning to one cannot re-arm billing
+		 * without a purchase.
 		 */
 		blocks: integer("blocks").notNull().default(0),
+
+		/**
+		 * A lower block count waiting for the billing period to roll. `NULL` means nothing
+		 * is pending. The meter bills the period's peak, so a reduction applied mid-period
+		 * would drop the ceiling while the charge stayed; `docs/adr/0004` records why.
+		 *
+		 * The date it applies is `currentPeriodEnd`, deliberately not stored again.
+		 */
+		scheduledBlocks: integer("scheduled_blocks"),
 
 		// Billing period
 		currentPeriodStart: timestamp("current_period_start"),
@@ -695,6 +705,18 @@ export const subscription = pgTable(
 		// the customer paid for. `applyCapacityBlocks` clamps too; this stops the bad
 		// value from ever landing.
 		check("subscription_blocks_non_negative", sql`${table.blocks} >= 0`),
+		check(
+			"subscription_scheduled_blocks_non_negative",
+			sql`${table.scheduledBlocks} IS NULL OR ${table.scheduledBlocks} >= 0`,
+		),
+		// Only reductions are ever scheduled; an increase applies immediately.
+		check(
+			"subscription_scheduled_blocks_below_blocks",
+			sql`${table.scheduledBlocks} IS NULL OR ${table.scheduledBlocks} < ${table.blocks}`,
+		),
+		index("subscription_scheduled_period_end_idx")
+			.on(table.currentPeriodEnd)
+			.where(sql`${table.scheduledBlocks} IS NOT NULL`),
 	],
 );
 
