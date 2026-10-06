@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Plus, type LucideIcon } from "@lucide/svelte";
+	import type { LucideIcon } from "@lucide/svelte";
 
-	import { Button } from "#lib/components/ui/button/index.js";
+	import AddButton from "#lib/components/add-button.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 
 	interface Props {
 		icon: LucideIcon;
@@ -31,45 +30,28 @@
 	}: Props = $props();
 </script>
 
-{#snippet actionButton()}
-	{#if buttonText && buttonHref}
-		{#if buttonDisabled && buttonDisabledMessage}
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<Button disabled>
-						<Plus class="mr-2 h-4 w-4" />
-						{buttonText}
-					</Button>
-				</Tooltip.Trigger>
-				<Tooltip.Content>
-					<p>{buttonDisabledMessage}</p>
-				</Tooltip.Content>
-			</Tooltip.Root>
-		{:else}
-			<Button href={buttonHref} disabled={buttonDisabled}>
-				<Plus class="mr-2 h-4 w-4" />
-				{buttonText}
-			</Button>
+{#snippet content()}
+	<div class="flex flex-col items-center justify-center py-12 text-center">
+		<Icon class="text-muted-foreground/50 h-12 w-12" />
+		<h3 class="mt-4 text-lg font-semibold">{title}</h3>
+		<p class="text-muted-foreground mt-2 mb-4 text-sm">{description}</p>
+		{#if buttonText && buttonHref}
+			<AddButton
+				href={buttonHref}
+				text={buttonText}
+				disabled={buttonDisabled}
+				disabledMessage={buttonDisabledMessage}
+			/>
 		{/if}
-	{/if}
+	</div>
 {/snippet}
 
 {#if withCard}
 	<Card.Root>
 		<Card.Content class="pt-6">
-			<div class="flex flex-col items-center justify-center py-12 text-center">
-				<Icon class="text-muted-foreground/50 h-12 w-12" />
-				<h3 class="mt-4 text-lg font-semibold">{title}</h3>
-				<p class="text-muted-foreground mt-2 mb-4 text-sm">{description}</p>
-				{@render actionButton()}
-			</div>
+			{@render content()}
 		</Card.Content>
 	</Card.Root>
 {:else}
-	<div class="flex flex-col items-center justify-center py-12 text-center">
-		<Icon class="text-muted-foreground/50 h-12 w-12" />
-		<h3 class="mt-4 text-lg font-semibold">{title}</h3>
-		<p class="text-muted-foreground mt-2 mb-4 text-sm">{description}</p>
-		{@render actionButton()}
-	</div>
+	{@render content()}
 {/if}

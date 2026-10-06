@@ -4,6 +4,7 @@ import { valibot } from "sveltekit-superforms/adapters";
 
 import { createMonitorSchema } from "#lib/schemas/monitor.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
+import { toMonitorInput } from "#lib/server/monitor-input.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -39,40 +40,10 @@ export const actions: Actions = {
 
 		let monitor;
 		try {
-			const baseData = {
+			monitor = await monitorService.create({
 				organizationId: locals.session.activeOrganizationId,
-				name: data.name,
-				description: data.description,
-				type: data.type,
-				intervalSeconds: data.intervalSeconds ?? 60,
-				timeoutSeconds: data.timeoutSeconds ?? 30,
-				retries: data.retries ?? 0,
-				alertAfterFailures: data.alertAfterFailures ?? 1,
-			};
-
-			switch (data.type) {
-				case "http":
-					monitor = await monitorService.create({
-						...baseData,
-						url: data.url,
-						method: data.method ?? "GET",
-						sslCheckEnabled: data.sslCheckEnabled ?? false,
-					});
-					break;
-				case "tcp":
-					monitor = await monitorService.create({
-						...baseData,
-						hostname: data.hostname,
-						port: data.port,
-					});
-					break;
-				case "push":
-					monitor = await monitorService.create({
-						...baseData,
-						pushGracePeriodSeconds: data.pushGracePeriodSeconds ?? 60,
-					});
-					break;
-			}
+				...toMonitorInput(data),
+			});
 
 			// Set resource_id after creation
 			locals.event.set("resource_id", monitor.id);

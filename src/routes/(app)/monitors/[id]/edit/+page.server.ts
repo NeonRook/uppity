@@ -4,6 +4,7 @@ import { valibot } from "sveltekit-superforms/adapters";
 
 import { createMonitorSchema } from "#lib/schemas/monitor.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
+import { toMonitorInput } from "#lib/server/monitor-input.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -87,45 +88,10 @@ export const actions: Actions = {
 		});
 
 		try {
-			const baseData = {
-				name: data.name,
-				description: data.description,
-				type: data.type,
-				intervalSeconds: data.intervalSeconds ?? 60,
-				timeoutSeconds: data.timeoutSeconds ?? 30,
-				retries: data.retries ?? 0,
-				alertAfterFailures: data.alertAfterFailures ?? 1,
-			};
-
-			let updateData;
-			switch (data.type) {
-				case "http":
-					updateData = {
-						...baseData,
-						url: data.url,
-						method: data.method ?? "GET",
-						sslCheckEnabled: data.sslCheckEnabled ?? false,
-					};
-					break;
-				case "tcp":
-					updateData = {
-						...baseData,
-						hostname: data.hostname,
-						port: data.port,
-					};
-					break;
-				case "push":
-					updateData = {
-						...baseData,
-						pushGracePeriodSeconds: data.pushGracePeriodSeconds ?? 60,
-					};
-					break;
-			}
-
 			const updated = await monitorService.update(
 				params.id,
 				locals.session.activeOrganizationId,
-				updateData,
+				toMonitorInput(data),
 			);
 
 			if (!updated) {

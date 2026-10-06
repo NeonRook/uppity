@@ -23,7 +23,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
-	import { formatDate, formatResponseTime, formatInterval } from "#lib/format.js";
+	import { formatDate, formatResponseTime, formatInterval, formatUptime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
 	import { getStatusBadgeWithIcon, getCheckIcon } from "#lib/utils/status.js";
@@ -100,7 +100,29 @@
 		getSslStatus(sslDaysUntilExpiry, data.monitor.sslExpiryThresholdDays ?? null),
 	);
 	const SslIcon = $derived(sslStatus.icon);
+
+	const stats = $derived([
+		{ label: m.monitor_uptime_24h(), value: formatUptime(data.status?.uptimePercent24h ?? null) },
+		{
+			label: m.monitor_avg_response(),
+			value: formatResponseTime(data.status?.avgResponseTimeMs24h ?? null),
+		},
+		{
+			label: m.monitor_last_check(),
+			value: data.status?.lastCheckAt
+				? new Date(data.status.lastCheckAt).toLocaleTimeString()
+				: "-",
+		},
+		{ label: m.monitor_check_interval(), value: formatInterval(data.monitor.intervalSeconds) },
+	]);
 </script>
+
+{#snippet field(label: string, value: string | number, valueClass = "")}
+	<div>
+		<dt class="text-muted-foreground text-sm font-medium">{label}</dt>
+		<dd class="mt-1 text-sm {valueClass}">{value}</dd>
+	</div>
+{/snippet}
 
 <svelte:head>
 	<title>{data.monitor.name} - Uppity</title>
@@ -150,57 +172,16 @@
 
 	<!-- Stats Cards -->
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-muted-foreground text-sm font-medium"
-					>{m.monitor_uptime_24h()}</Card.Title
-				>
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">
-					{data.status?.uptimePercent24h !== null
-						? `${data.status?.uptimePercent24h?.toFixed(2)}%`
-						: "-"}
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-muted-foreground text-sm font-medium"
-					>{m.monitor_avg_response()}</Card.Title
-				>
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">
-					{formatResponseTime(data.status?.avgResponseTimeMs24h ?? null)}
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-muted-foreground text-sm font-medium"
-					>{m.monitor_last_check()}</Card.Title
-				>
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">
-					{data.status?.lastCheckAt ? new Date(data.status.lastCheckAt).toLocaleTimeString() : "-"}
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="pb-2">
-				<Card.Title class="text-muted-foreground text-sm font-medium"
-					>{m.monitor_check_interval()}</Card.Title
-				>
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{formatInterval(data.monitor.intervalSeconds)}</div>
-			</Card.Content>
-		</Card.Root>
+		{#each stats as stat (stat.label)}
+			<Card.Root>
+				<Card.Header class="pb-2">
+					<Card.Title class="text-muted-foreground text-sm font-medium">{stat.label}</Card.Title>
+				</Card.Header>
+				<Card.Content>
+					<div class="text-2xl font-bold">{stat.value}</div>
+				</Card.Content>
+			</Card.Root>
+		{/each}
 	</div>
 
 	<!-- Monitor Details -->
@@ -210,10 +191,7 @@
 		</Card.Header>
 		<Card.Content>
 			<dl class="grid gap-4 sm:grid-cols-2">
-				<div>
-					<dt class="text-muted-foreground text-sm font-medium">{m.common_type()}</dt>
-					<dd class="mt-1 text-sm uppercase">{data.monitor.type}</dd>
-				</div>
+				{@render field(m.common_type(), data.monitor.type, "uppercase")}
 
 				{#if data.monitor.type === "http" && data.monitor.url}
 					<div>
@@ -230,19 +208,15 @@
 							</a>
 						</dd>
 					</div>
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_http_method()}</dt>
-						<dd class="mt-1 text-sm">{data.monitor.method}</dd>
-					</div>
+					{@render field(m.monitor_http_method(), data.monitor.method ?? "-")}
 				{/if}
 
 				{#if data.monitor.type === "tcp"}
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_hostname()}</dt>
-						<dd class="mt-1 font-mono text-sm">
-							{data.monitor.hostname}:{data.monitor.port}
-						</dd>
-					</div>
+					{@render field(
+						m.monitor_hostname(),
+						`${data.monitor.hostname}:${data.monitor.port}`,
+						"font-mono",
+					)}
 				{/if}
 
 				{#if data.monitor.type === "push" && pushUrl}
@@ -269,26 +243,12 @@
 							</p>
 						</dd>
 					</div>
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_grace_period()}</dt>
-						<dd class="mt-1 text-sm">{data.monitor.pushGracePeriodSeconds || 60}s</dd>
-					</div>
+					{@render field(m.monitor_grace_period(), `${data.monitor.pushGracePeriodSeconds || 60}s`)}
 				{/if}
 
-				<div>
-					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_timeout()}</dt>
-					<dd class="mt-1 text-sm">{data.monitor.timeoutSeconds}s</dd>
-				</div>
-
-				<div>
-					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_retries()}</dt>
-					<dd class="mt-1 text-sm">{data.monitor.retries}</dd>
-				</div>
-
-				<div>
-					<dt class="text-muted-foreground text-sm font-medium">{m.monitor_alert_after()}</dt>
-					<dd class="mt-1 text-sm">{data.monitor.alertAfterFailures}</dd>
-				</div>
+				{@render field(m.monitor_timeout(), `${data.monitor.timeoutSeconds}s`)}
+				{@render field(m.monitor_retries(), data.monitor.retries)}
+				{@render field(m.monitor_alert_after(), data.monitor.alertAfterFailures)}
 			</dl>
 		</Card.Content>
 	</Card.Root>
@@ -307,20 +267,16 @@
 			</Card.Header>
 			<Card.Content>
 				<dl class="grid gap-4 sm:grid-cols-2">
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_expires()}</dt>
-						<dd class="mt-1 text-sm">
-							{#if latestSslInfo?.sslExpiresAt}
-								{new Date(latestSslInfo.sslExpiresAt).toLocaleDateString(undefined, {
+					{@render field(
+						m.monitor_ssl_expires(),
+						latestSslInfo?.sslExpiresAt
+							? new Date(latestSslInfo.sslExpiresAt).toLocaleDateString(undefined, {
 									year: "numeric",
 									month: "long",
 									day: "numeric",
-								})}
-							{:else}
-								-
-							{/if}
-						</dd>
-					</div>
+								})
+							: "-",
+					)}
 
 					<div>
 						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_days_until()}</dt>
@@ -343,17 +299,11 @@
 						</dd>
 					</div>
 
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_issuer()}</dt>
-						<dd class="mt-1 text-sm">{latestSslInfo?.sslIssuer || "-"}</dd>
-					</div>
-
-					<div>
-						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_ssl_threshold()}</dt>
-						<dd class="mt-1 text-sm">
-							{m.monitor_ssl_days({ days: data.monitor.sslExpiryThresholdDays ?? 14 })}
-						</dd>
-					</div>
+					{@render field(m.monitor_ssl_issuer(), latestSslInfo?.sslIssuer || "-")}
+					{@render field(
+						m.monitor_ssl_threshold(),
+						m.monitor_ssl_days({ days: data.monitor.sslExpiryThresholdDays ?? 14 }),
+					)}
 				</dl>
 			</Card.Content>
 		</Card.Root>
