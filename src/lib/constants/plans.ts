@@ -55,6 +55,12 @@ export const MONITOR_BLOCK_PRICE_CENTS = 800; // $8/month per +50 monitors
 export const MONITOR_BLOCK_ANNUAL_PRICE_CENTS = 8000; // $80/year (two months free)
 
 /**
+ * The most blocks one organization may hold. At 40, Uppity reaches about 2,000 monitors
+ * for more than Dedicated costs, so past this point Dedicated is the product to sell.
+ */
+export const MAX_MONITOR_BLOCKS = 40;
+
+/**
  * Plan ids whose monitor ceiling is extended by purchased capacity blocks.
  *
  * Uppity is the only plan sold by capacity. Free has no billing relationship, and

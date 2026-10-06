@@ -1,0 +1,1 @@
+ALTER TABLE "subscription" ADD COLUMN "billing_interval" text;
