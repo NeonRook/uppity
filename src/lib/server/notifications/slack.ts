@@ -1,8 +1,10 @@
+import { truncate } from "../../format";
 import { postJson } from "./http";
 import { describeNotification } from "./message";
 import type { NotificationPayload, NotificationResult } from "./types";
 
-const mrkdwn = (text: string) => ({ type: "mrkdwn", text });
+// Slack rejects the whole message when a block exceeds its limit.
+const mrkdwn = (text: string, max: number) => ({ type: "mrkdwn", text: truncate(text, max) });
 
 export function sendSlack(
 	config: { webhookUrl: string; channel?: string },
@@ -13,14 +15,16 @@ export function sendSlack(
 	const time = `<!date^${seconds}^{date_short_pretty} {time}|${payload.timestamp.toISOString()}>`;
 
 	const blocks = [
-		{ type: "header", text: { type: "plain_text", text: title, emoji: true } },
+		{ type: "header", text: { type: "plain_text", text: truncate(title, 150), emoji: true } },
 		{
 			type: "section",
-			fields: [...fields, ["Time", time]].map(([label, value]) => mrkdwn(`*${label}:*\n${value}`)),
+			fields: [...fields, ["Time", time]].map(([label, value]) =>
+				mrkdwn(`*${label}:*\n${value}`, 2000),
+			),
 		},
 		...details.map(([label, value]) => ({
 			type: "section",
-			text: mrkdwn(`*${label}:* ${value}`),
+			text: mrkdwn(`*${label}:* ${value}`, 3000),
 		})),
 	];
 
