@@ -59,18 +59,3 @@ export async function getUsageLimitsData(organizationId: string): Promise<UsageL
 		},
 	};
 }
-
-/**
- * Formats a limit for display (handles -1 as "Unlimited").
- */
-export function formatLimit(limit: number): string {
-	return limit === -1 ? "Unlimited" : String(limit);
-}
-
-/**
- * Calculates usage percentage for progress bars.
- */
-export function getUsagePercentage(current: number, limit: number): number {
-	if (limit === -1) return 0;
-	return Math.min(100, Math.round((current / limit) * 100));
-}

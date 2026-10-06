@@ -8,7 +8,7 @@ import {
 } from "#lib/constants/plans.js";
 import { fetchPolarSnapshot, syncCheckout } from "#lib/server/polar-subscription.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
-import { usageService } from "#lib/server/services/usage.service.js";
+import { getUsageLimitsData } from "#lib/server/services/usage-limits.js";
 import type { PlanId } from "#lib/types/plans.js";
 
 import type { PageServerLoad } from "./$types";
@@ -55,9 +55,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	const [initialSubscription, usageSummary] = await Promise.all([
+	const [initialSubscription, limitsData] = await Promise.all([
 		subscriptionService.getOrCreateSubscription(organizationId),
-		usageService.getUsageSummary(organizationId),
+		getUsageLimitsData(organizationId),
 	]);
 
 	let subscription = initialSubscription;
@@ -84,18 +84,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		},
 		usage: {
 			monitors: {
-				current: usageSummary.monitors.currentUsage,
-				limit: usageSummary.monitors.limit,
+				current: limitsData.monitors.current,
+				limit: limitsData.monitors.limit,
 			},
 			statusPages: {
-				current: usageSummary.statusPages.currentUsage,
-				limit: usageSummary.statusPages.limit,
+				current: limitsData.statusPages.current,
+				limit: limitsData.statusPages.limit,
 			},
 		},
 		plans: publicPlans,
 		checkoutSuccess,
 		organizationId,
-		currentPlanName: usageSummary.plan.name,
+		currentPlanName: limitsData.plan.name,
 		canManageBilling,
 		capacity: sellsBlocks
 			? {

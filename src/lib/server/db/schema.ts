@@ -416,7 +416,6 @@ export const organizationRelations = relations(organization, ({ one, many }) => 
 	notificationEvents: many(notificationEvent),
 	maintenanceWindows: many(maintenanceWindow),
 	subscription: one(subscription),
-	usageWarnings: many(usageWarning),
 }));
 
 export const monitorRelations = relations(monitor, ({ one, many }) => ({
@@ -722,33 +721,9 @@ export const subscription = pgTable(
 	],
 );
 
-export const usageWarning = pgTable(
-	"usage_warning",
-	{
-		id: text("id").primaryKey(),
-		organizationId: text("organization_id")
-			.notNull()
-			.references(() => organization.id, { onDelete: "cascade" }),
-		resourceType: text("resource_type").notNull(), // 'monitors' | 'statusPages'
-		warningLevel: integer("warning_level").notNull(), // e.g., 80, 100
-		sentAt: timestamp("sent_at").notNull().defaultNow(),
-	},
-	(table) => [
-		index("usage_warning_org_idx").on(table.organizationId),
-		index("usage_warning_sent_at_idx").on(table.sentAt),
-	],
-);
-
 export const subscriptionRelations = relations(subscription, ({ one }) => ({
 	organization: one(organization, {
 		fields: [subscription.organizationId],
-		references: [organization.id],
-	}),
-}));
-
-export const usageWarningRelations = relations(usageWarning, ({ one }) => ({
-	organization: one(organization, {
-		fields: [usageWarning.organizationId],
 		references: [organization.id],
 	}),
 }));
@@ -795,54 +770,14 @@ export const auditLogRelations = relations(auditLog, ({ one }) => ({
 // ============================================================================
 
 export type AuditLog = typeof auditLog.$inferSelect;
-export type NewAuditLog = typeof auditLog.$inferInsert;
-
 export type Monitor = typeof monitor.$inferSelect;
-export type NewMonitor = typeof monitor.$inferInsert;
-
-export type MonitorCheck = typeof monitorCheck.$inferSelect;
-export type NewMonitorCheck = typeof monitorCheck.$inferInsert;
-
 export type MonitorStatus = typeof monitorStatus.$inferSelect;
-export type NewMonitorStatus = typeof monitorStatus.$inferInsert;
-
-export type MonitorDailyStats = typeof monitorDailyStats.$inferSelect;
-export type NewMonitorDailyStats = typeof monitorDailyStats.$inferInsert;
-
 export type Incident = typeof incident.$inferSelect;
-export type NewIncident = typeof incident.$inferInsert;
-
 export type IncidentUpdate = typeof incidentUpdate.$inferSelect;
-export type NewIncidentUpdate = typeof incidentUpdate.$inferInsert;
-
 export type StatusPage = typeof statusPage.$inferSelect;
-export type NewStatusPage = typeof statusPage.$inferInsert;
-
 export type StatusPageGroup = typeof statusPageGroup.$inferSelect;
-export type NewStatusPageGroup = typeof statusPageGroup.$inferInsert;
-
 export type StatusPageMonitor = typeof statusPageMonitor.$inferSelect;
-export type NewStatusPageMonitor = typeof statusPageMonitor.$inferInsert;
-
 export type NotificationChannel = typeof notificationChannel.$inferSelect;
-export type NewNotificationChannel = typeof notificationChannel.$inferInsert;
-
-export type NotificationLog = typeof notificationLog.$inferSelect;
-export type NewNotificationLog = typeof notificationLog.$inferInsert;
-
 export type NotificationEvent = typeof notificationEvent.$inferSelect;
-export type NewNotificationEvent = typeof notificationEvent.$inferInsert;
-
-export type MaintenanceJob = typeof maintenanceJob.$inferSelect;
-export type NewMaintenanceJob = typeof maintenanceJob.$inferInsert;
-
 export type Subscription = typeof subscription.$inferSelect;
-export type NewSubscription = typeof subscription.$inferInsert;
-
-export type UsageWarning = typeof usageWarning.$inferSelect;
-export type NewUsageWarning = typeof usageWarning.$inferInsert;
-
 export type MaintenanceWindow = typeof maintenanceWindow.$inferSelect;
-export type NewMaintenanceWindow = typeof maintenanceWindow.$inferInsert;
-export type MaintenanceWindowMonitor = typeof maintenanceWindowMonitor.$inferSelect;
-export type NewMaintenanceWindowMonitor = typeof maintenanceWindowMonitor.$inferInsert;
