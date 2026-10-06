@@ -1,16 +1,12 @@
-import { sql, eq, inArray } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
 
-import {
-	WORKER_POLL_BATCH_SIZE,
-	WORKER_BACKOFF,
-	CHECK_RETRY,
-	DEAD_LETTER_THRESHOLD_HOURS,
-} from "../../lib/constants/worker";
+import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
 import { db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
+import { recordCheckFailure, recordCheckSuccess } from "./schedule";
 
 const schedulerLogger = childLogger("scheduler");
 
@@ -57,69 +53,6 @@ async function claimDueMonitors() {
 }
 
 /**
- * Handles check failures with exponential backoff.
- */
-async function handleCheckFailure(m: typeof monitor.$inferSelect, error: unknown) {
-	const errorMessage = error instanceof Error ? error.message : String(error);
-	const newRetryCount = (m.checkRetryCount ?? 0) + 1;
-
-	if (newRetryCount >= CHECK_RETRY.MAX_ATTEMPTS) {
-		// Max retries exceeded - mark as dead letter
-		schedulerLogger.error(
-			{
-				monitor_id: m.id,
-				monitor_name: m.name,
-				retry_count: newRetryCount,
-				error: errorMessage,
-			},
-			"Monitor exceeded max retries, entering dead letter state",
-		);
-
-		await db
-			.update(monitor)
-			.set({
-				checkRetryCount: newRetryCount,
-				checkLastError: `Dead letter: ${errorMessage}`,
-				// Set far-future backoff - requires manual intervention
-				checkBackoffUntil: sql`NOW() + INTERVAL '${sql.raw(String(DEAD_LETTER_THRESHOLD_HOURS))} hours'`,
-				nextCheckAt: sql`NOW() + INTERVAL '${sql.raw(String(DEAD_LETTER_THRESHOLD_HOURS))} hours'`,
-			})
-			.where(eq(monitor.id, m.id));
-
-		// TODO: Send alert to admin about dead letter monitor
-		return;
-	}
-
-	// Calculate exponential backoff
-	const backoffMs = Math.min(
-		CHECK_RETRY.INITIAL_BACKOFF_MS * Math.pow(CHECK_RETRY.MULTIPLIER, newRetryCount - 1),
-		CHECK_RETRY.MAX_BACKOFF_MS,
-	);
-
-	schedulerLogger.warn(
-		{
-			monitor_id: m.id,
-			monitor_name: m.name,
-			retry_attempt: newRetryCount,
-			max_attempts: CHECK_RETRY.MAX_ATTEMPTS,
-			backoff_ms: backoffMs,
-			error: errorMessage,
-		},
-		"Monitor check failed, backing off",
-	);
-
-	await db
-		.update(monitor)
-		.set({
-			checkRetryCount: newRetryCount,
-			checkLastError: errorMessage,
-			checkBackoffUntil: sql`NOW() + INTERVAL '${sql.raw(String(backoffMs))} milliseconds'`,
-			nextCheckAt: sql`NOW() + INTERVAL '${sql.raw(String(backoffMs))} milliseconds'`,
-		})
-		.where(eq(monitor.id, m.id));
-}
-
-/**
  * Processes a single monitor check.
  */
 async function processMonitor(m: typeof monitor.$inferSelect) {
@@ -134,20 +67,10 @@ async function processMonitor(m: typeof monitor.$inferSelect) {
 
 	try {
 		await executeCheck(m, db, event);
-
-		// Success: reset retry state, schedule next check
-		await db
-			.update(monitor)
-			.set({
-				nextCheckAt: sql`NOW() + INTERVAL '${sql.raw(String(m.intervalSeconds))} seconds'`,
-				checkRetryCount: 0,
-				checkLastError: null,
-				checkBackoffUntil: null,
-			})
-			.where(eq(monitor.id, m.id));
+		await recordCheckSuccess(db, m);
 	} catch (error) {
 		event.setError(error);
-		await handleCheckFailure(m, error);
+		await recordCheckFailure(db, m, error);
 	} finally {
 		event.emit("check");
 	}

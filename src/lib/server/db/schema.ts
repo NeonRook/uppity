@@ -71,6 +71,8 @@ export const monitor = pgTable(
 		checkRetryCount: integer("check_retry_count").default(0),
 		checkLastError: text("check_last_error"),
 		checkBackoffUntil: timestamp("check_backoff_until", { withTimezone: true }),
+		// Set while the checker itself keeps failing on this monitor; cleared by the next successful check.
+		deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
 	},
 	(table) => [
 		index("monitor_org_idx").on(table.organizationId),
@@ -371,6 +373,7 @@ export const notificationEvent = pgTable(
 		incidentId: text("incident_id").references(() => incident.id, { onDelete: "cascade" }),
 		type: text("type").notNull(),
 		// 'monitor_down' | 'monitor_up' | 'monitor_degraded' | 'ssl_expiry_warning'
+		// | 'monitor_checks_stopped' | 'monitor_checks_resumed'
 		// | 'incident_created' | 'incident_updated' | 'incident_resolved'
 		payload: jsonb("payload").notNull(),
 		status: text("status").notNull().default("pending"),

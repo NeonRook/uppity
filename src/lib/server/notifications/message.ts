@@ -17,6 +17,7 @@ const GREEN = 0x16a34a;
 const YELLOW = 0xeab308;
 const ORANGE = 0xf97316;
 const AMBER = 0xf59e0b;
+const GRAY = 0xa1a1a1;
 
 export function describeNotification(payload: NotificationPayload): NotificationMessage {
 	const monitorName = payload.monitor?.name || "Unknown Monitor";
@@ -44,6 +45,24 @@ export function describeNotification(payload: NotificationPayload): Notification
 			title: `🟡 Monitor Degraded: ${monitorName}`,
 			color: YELLOW,
 			fields: [["Status", "Degraded (high response time)"]],
+			details: url,
+		}),
+		monitor_checks_stopped: () => ({
+			title: `⚪ Monitor Not Being Checked: ${monitorName}`,
+			color: GRAY,
+			fields: [["Status", "Not being checked"]],
+			details: [
+				[
+					"Reason",
+					"Uppity failed to run this monitor's checks. It keeps retrying and will tell you when checks resume. The status shown until then is not current.",
+				],
+				...url,
+			],
+		}),
+		monitor_checks_resumed: () => ({
+			title: `🟢 Monitor Checks Resumed: ${monitorName}`,
+			color: GREEN,
+			fields: [["Status", "Being checked again"]],
 			details: url,
 		}),
 		ssl_expiry_warning: () => ({

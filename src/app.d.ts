@@ -80,7 +80,6 @@ declare global {
 			UPPITY_CHECK_MAX_RETRIES?: string;
 			UPPITY_CHECK_BACKOFF_INITIAL_MS?: string;
 			UPPITY_CHECK_BACKOFF_MAX_MS?: string;
-			UPPITY_DEAD_LETTER_HOURS?: string;
 
 			// Background Jobs [Optional]
 			UPPITY_CRON_DAILY_STATS?: string;
