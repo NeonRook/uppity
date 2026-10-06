@@ -29,16 +29,9 @@
 # say so.
 set -euo pipefail
 
-ENVIRONMENT="${1:?usage: $0 <sandbox|production>}"
-case "$ENVIRONMENT" in
-	sandbox) BASE="https://sandbox-api.polar.sh" ;;
-	production) BASE="https://api.polar.sh" ;;
-	*)
-		echo "unknown environment: $ENVIRONMENT" >&2
-		exit 1
-		;;
-esac
-: "${POLAR_ACCESS_TOKEN:?POLAR_ACCESS_TOKEN must be set}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=polar-lib.sh
+source "$SCRIPT_DIR/polar-lib.sh"
 : "${POLAR_PRODUCT_UPPITY_MONTHLY:?POLAR_PRODUCT_UPPITY_MONTHLY must be set}"
 : "${POLAR_PRODUCT_UPPITY_ANNUAL:?POLAR_PRODUCT_UPPITY_ANNUAL must be set}"
 
@@ -54,34 +47,9 @@ AGGREGATION_PROPERTY="blocks"
 MONTHLY_UNIT_AMOUNT=800
 ANNUAL_UNIT_AMOUNT=8000
 
-# Prints "<http-code>\n<body>".
-req() { # method path [body]
-	local method="$1" path="$2" body="${3:-}" raw
-	if [ -n "$body" ]; then
-		raw=$(curl -sS -X "$method" -H "Authorization: Bearer $POLAR_ACCESS_TOKEN" -H "Content-Type: application/json" \
-			-d "$body" -w '\n__HTTP__%{http_code}' "$BASE$path")
-	else
-		raw=$(curl -sS -X "$method" -H "Authorization: Bearer $POLAR_ACCESS_TOKEN" \
-			-w '\n__HTTP__%{http_code}' "$BASE$path")
-	fi
-	printf '%s\n' "${raw##*__HTTP__}"
-	printf '%s' "${raw%$'\n'__HTTP__*}"
-}
-
-code_of() { printf '%s' "$1" | head -n 1; }
-body_of() { printf '%s' "$1" | tail -n +2; }
-
 echo "=== Ensuring the $METER_NAME meter ($ENVIRONMENT) ==="
 
-RESP=$(req GET "/v1/meters/?limit=100")
-CODE=$(code_of "$RESP")
-EXISTING=$(body_of "$RESP")
-if [ "$CODE" != "200" ]; then
-	echo "ABORT: meters query returned HTTP $CODE" >&2
-	printf '%s' "$EXISTING" | head -c 400 >&2
-	echo >&2
-	exit 1
-fi
+fetch_meters
 
 # Prints "<verdict>\n<id-or-reason>". A meter found by name is only adopted once its
 # filter and aggregation are confirmed to match: a hand-made "Monitor Blocks" summing
