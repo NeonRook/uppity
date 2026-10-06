@@ -104,7 +104,9 @@
 	function refusal(result: Exclude<Awaited<ReturnType<typeof setCapacityBlocks>>, { ok: true }>) {
 		switch (result.reason) {
 			case "multi_org_customer":
-				return m.billing_block_error_multi_org({ organization: result.organizationName });
+				return result.organizationName === null
+					? m.billing_block_error_multi_org_unnamed()
+					: m.billing_block_error_multi_org({ organization: result.organizationName });
 			case "above_max":
 				return m.billing_block_max({ max: result.max });
 			default:

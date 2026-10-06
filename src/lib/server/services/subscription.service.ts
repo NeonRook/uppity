@@ -40,7 +40,7 @@ export type SetBlocksResult =
 	| { ok: false; reason: "plan_ineligible" }
 	| { ok: false; reason: "invalid_count" }
 	| { ok: false; reason: "above_max"; max: number }
-	| { ok: false; reason: "multi_org_customer"; organizationName: string };
+	| { ok: false; reason: "multi_org_customer"; organization: { id: string; name: string } };
 
 /** Roles allowed to change what an organization is billed for. */
 const BILLING_ROLES: ReadonlySet<string> = new Set(["owner", "admin"]);
@@ -176,9 +176,9 @@ export class SubscriptionService {
 		// are charged on both subscriptions. Reductions stay allowed: refusing them would
 		// only keep a double charge in place.
 		if (blocks > sub.blocks) {
-			const organizationName = await this.otherBlockHolder(sub);
-			if (organizationName !== null) {
-				return { ok: false, reason: "multi_org_customer", organizationName };
+			const holder = await this.otherBlockHolder(sub);
+			if (holder !== null) {
+				return { ok: false, reason: "multi_org_customer", organization: holder };
 			}
 		}
 
@@ -195,12 +195,15 @@ export class SubscriptionService {
 		return { ok: true, subscription: updated };
 	}
 
-	/** The name of another organization where this subscription's Polar customer holds blocks. */
-	private async otherBlockHolder(sub: Subscription): Promise<string | null> {
+	/**
+	 * Another organization where this subscription's Polar customer holds blocks. The
+	 * caller may not belong to it; check `memberRole` before showing its name.
+	 */
+	private async otherBlockHolder(sub: Subscription): Promise<{ id: string; name: string } | null> {
 		if (!sub.polarCustomerId) return null;
 
 		const [other] = await this.db
-			.select({ name: organization.name })
+			.select({ id: organization.id, name: organization.name })
 			.from(subscription)
 			.innerJoin(organization, eq(organization.id, subscription.organizationId))
 			.where(
@@ -213,18 +216,24 @@ export class SubscriptionService {
 			)
 			.limit(1);
 
-		return other?.name ?? null;
+		return other ?? null;
 	}
 
-	/** Whether the user may change what the organization is billed for. */
-	async canManageBilling(organizationId: string, userId: string): Promise<boolean> {
+	/** The user's role in the organization, or null when they are not a member. */
+	async memberRole(organizationId: string, userId: string): Promise<string | null> {
 		const [row] = await this.db
 			.select({ role: member.role })
 			.from(member)
 			.where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
 			.limit(1);
 
-		return row !== undefined && BILLING_ROLES.has(row.role);
+		return row?.role ?? null;
+	}
+
+	/** Whether the user may change what the organization is billed for. */
+	async canManageBilling(organizationId: string, userId: string): Promise<boolean> {
+		const role = await this.memberRole(organizationId, userId);
+		return role !== null && BILLING_ROLES.has(role);
 	}
 
 	/**
