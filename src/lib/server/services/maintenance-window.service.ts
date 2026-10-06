@@ -6,9 +6,9 @@ import * as schema from "#lib/server/db/schema.js";
 import {
 	maintenanceWindow,
 	maintenanceWindowMonitor,
-	monitor,
 	type MaintenanceWindow,
 } from "#lib/server/db/schema.js";
+import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
@@ -75,17 +75,6 @@ export class MaintenanceWindowService {
 		this.db = database;
 	}
 
-	private async assertMonitorsBelongToOrg(orgId: string, monitorIds: string[]): Promise<void> {
-		const uniqueMonitorIds = Array.from(new Set(monitorIds));
-		const found = await this.db
-			.select({ id: monitor.id })
-			.from(monitor)
-			.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
-		if (found.length !== uniqueMonitorIds.length) {
-			throw new MaintenanceWindowError("monitor_not_found", "Monitor not found");
-		}
-	}
-
 	async create(input: CreateMaintenanceWindowInput): Promise<MaintenanceWindow> {
 		if (input.name.trim().length < 1) {
 			throw new MaintenanceWindowError("name_required", "Name is required");
@@ -101,7 +90,9 @@ export class MaintenanceWindowService {
 		}
 
 		const uniqueMonitorIds = Array.from(new Set(input.monitorIds));
-		await this.assertMonitorsBelongToOrg(input.organizationId, uniqueMonitorIds);
+		if (!(await monitorsBelongToOrg(this.db, input.organizationId, uniqueMonitorIds))) {
+			throw new MaintenanceWindowError("monitor_not_found", "Monitor not found");
+		}
 
 		const id = nanoid();
 		const [created] = await this.db
@@ -156,11 +147,7 @@ export class MaintenanceWindowService {
 					throw new MaintenanceWindowError("no_monitors", "Select at least one monitor");
 				}
 				uniqueMonitorIds = Array.from(new Set(input.monitorIds));
-				const found = await tx
-					.select({ id: monitor.id })
-					.from(monitor)
-					.where(and(eq(monitor.organizationId, orgId), inArray(monitor.id, uniqueMonitorIds)));
-				if (found.length !== uniqueMonitorIds.length) {
+				if (!(await monitorsBelongToOrg(tx, orgId, uniqueMonitorIds))) {
 					throw new MaintenanceWindowError("monitor_not_found", "Monitor not found");
 				}
 			}

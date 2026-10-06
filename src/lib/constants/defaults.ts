@@ -87,9 +87,6 @@ export const DEFAULT_INCIDENT_STATUS = "investigating" as const;
 /** Initial impact level assigned to newly created incidents. */
 export const DEFAULT_INCIDENT_IMPACT = "minor" as const;
 
-/** Update message added when an incident is automatically resolved by monitor recovery. */
-export const AUTO_RESOLVE_MESSAGE = "Monitor has recovered automatically.";
-
 /** HTTP method used when sending webhook notifications. */
 export const DEFAULT_WEBHOOK_METHOD = "POST" as const;
 

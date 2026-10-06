@@ -24,15 +24,6 @@ export interface UpdateChannelInput {
 	enabled?: boolean;
 }
 
-export interface LinkMonitorInput {
-	monitorId: string;
-	channelId: string;
-	notifyOnDown?: boolean;
-	notifyOnUp?: boolean;
-	notifyOnDegraded?: boolean;
-	notifyOnSslExpiry?: boolean;
-}
-
 export class NotificationChannelService {
 	async create(input: CreateChannelInput): Promise<NotificationChannel> {
 		// Check if this notification channel type is allowed
@@ -140,41 +131,6 @@ export class NotificationChannelService {
 		}
 
 		return this.update(id, organizationId, { enabled: !existingChannel.enabled });
-	}
-
-	// Link a monitor to a notification channel
-	async linkMonitor(input: LinkMonitorInput): Promise<void> {
-		await db
-			.insert(monitorNotificationChannel)
-			.values({
-				monitorId: input.monitorId,
-				channelId: input.channelId,
-				notifyOnDown: input.notifyOnDown ?? true,
-				notifyOnUp: input.notifyOnUp ?? true,
-				notifyOnDegraded: input.notifyOnDegraded ?? false,
-				notifyOnSslExpiry: input.notifyOnSslExpiry ?? true,
-			})
-			.onConflictDoUpdate({
-				target: [monitorNotificationChannel.monitorId, monitorNotificationChannel.channelId],
-				set: {
-					notifyOnDown: input.notifyOnDown ?? true,
-					notifyOnUp: input.notifyOnUp ?? true,
-					notifyOnDegraded: input.notifyOnDegraded ?? false,
-					notifyOnSslExpiry: input.notifyOnSslExpiry ?? true,
-				},
-			});
-	}
-
-	// Unlink a monitor from a notification channel
-	async unlinkMonitor(monitorId: string, channelId: string): Promise<void> {
-		await db
-			.delete(monitorNotificationChannel)
-			.where(
-				and(
-					eq(monitorNotificationChannel.monitorId, monitorId),
-					eq(monitorNotificationChannel.channelId, channelId),
-				),
-			);
 	}
 
 	// Get all channels linked to a monitor

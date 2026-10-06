@@ -3,7 +3,7 @@ import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { createStatusPageSchema } from "#lib/schemas/status-page.js";
-import { SubscriptionLimitError } from "#lib/server/errors.js";
+import { NotFoundError, SubscriptionLimitError } from "#lib/server/errors.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 import { statusPageService } from "#lib/server/services/status-page.service.js";
 
@@ -51,22 +51,16 @@ export const actions: Actions = {
 				isPublic: data.isPublic ?? false,
 				logoUrl: data.logoUrl || undefined,
 				primaryColor: data.primaryColor ?? "#000000",
+				monitorIds: data.monitors,
 			});
 
 			locals.event.set("resource_id", statusPage.id);
-
-			// Add selected monitors
-			const monitorIds = data.monitors ?? [];
-			for (let i = 0; i < monitorIds.length; i++) {
-				await statusPageService.addMonitor({
-					statusPageId: statusPage.id,
-					monitorId: monitorIds[i],
-					order: i,
-				});
-			}
 		} catch (error) {
 			if (error instanceof SubscriptionLimitError) {
 				return message(form, error.message, { status: 403 });
+			}
+			if (error instanceof NotFoundError) {
+				return message(form, error.message, { status: 404 });
 			}
 			if (error instanceof Error && error.message === "Slug already taken") {
 				return message(form, "This slug is already taken", { status: 400 });

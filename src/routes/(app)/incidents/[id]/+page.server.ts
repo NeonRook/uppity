@@ -58,10 +58,14 @@ export const actions: Actions = {
 			return fail(400, { updateForm: form });
 		}
 
-		await incidentService.update(params.id, locals.session.activeOrganizationId, {
+		const updated = await incidentService.update(params.id, locals.session.activeOrganizationId, {
 			title: form.data.title,
 			impact: form.data.impact,
 		});
+
+		if (!updated) {
+			return message(form, "Incident not found", { status: 404 });
+		}
 
 		return message(form, "Incident updated");
 	},
@@ -77,12 +81,17 @@ export const actions: Actions = {
 			return fail(400, { addUpdateForm: form });
 		}
 
-		await incidentService.addUpdate({
+		const update = await incidentService.addUpdate({
 			incidentId: params.id,
+			organizationId: locals.session.activeOrganizationId,
 			status: form.data.status,
 			message: form.data.message,
 			createdBy: locals.user?.id,
 		});
+
+		if (!update) {
+			return message(form, "Incident not found", { status: 404 });
+		}
 
 		return message(form, "Update added");
 	},
@@ -124,6 +133,7 @@ export const actions: Actions = {
 
 		await incidentService.addUpdate({
 			incidentId: params.id,
+			organizationId: locals.session.activeOrganizationId,
 			status: "postmortem",
 			message: form.data.message,
 			createdBy: locals.user?.id,
@@ -159,8 +169,9 @@ export const actions: Actions = {
 			});
 		}
 
-		// Update the postmortem
-		const updated = await incidentService.updateIncidentUpdate(
+		const updated = await incidentService.updatePostmortem(
+			params.id,
+			locals.session.activeOrganizationId,
 			form.data.updateId,
 			form.data.message,
 		);

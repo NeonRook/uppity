@@ -117,10 +117,15 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		await statusPageService.addMonitor({
+		const added = await statusPageService.addMonitor({
 			statusPageId: params.id,
+			organizationId: locals.session.activeOrganizationId,
 			monitorId: form.data.monitorId,
 		});
+
+		if (!added) {
+			return message(form, "Monitor not found", { status: 404 });
+		}
 
 		return message(form, "Monitor added");
 	},
@@ -136,7 +141,15 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		await statusPageService.removeMonitor(params.id, form.data.monitorId);
+		const removed = await statusPageService.removeMonitor(
+			params.id,
+			locals.session.activeOrganizationId,
+			form.data.monitorId,
+		);
+
+		if (!removed) {
+			return message(form, "Monitor not found", { status: 404 });
+		}
 
 		return message(form, "Monitor removed");
 	},
@@ -152,15 +165,20 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		await statusPageService.createGroup({
+		const group = await statusPageService.createGroup({
 			statusPageId: params.id,
+			organizationId: locals.session.activeOrganizationId,
 			name: form.data.groupName,
 		});
+
+		if (!group) {
+			return message(form, "Status page not found", { status: 404 });
+		}
 
 		return message(form, "Group created");
 	},
 
-	deleteGroup: async ({ request, locals }) => {
+	deleteGroup: async ({ request, params, locals }) => {
 		if (!locals.session?.activeOrganizationId) {
 			return fail(401, { error: "Not authenticated" });
 		}
@@ -171,7 +189,15 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		await statusPageService.deleteGroup(form.data.groupId);
+		const deleted = await statusPageService.deleteGroup(
+			params.id,
+			locals.session.activeOrganizationId,
+			form.data.groupId,
+		);
+
+		if (!deleted) {
+			return message(form, "Group not found", { status: 404 });
+		}
 
 		return message(form, "Group deleted");
 	},
