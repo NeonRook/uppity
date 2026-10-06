@@ -5,7 +5,7 @@ import { USAGE_THRESHOLDS, isSelfHosted } from "#lib/constants/plans.js";
 import { db } from "#lib/server/db/index.js";
 import { usageWarning } from "#lib/server/db/schema.js";
 
-import { subscriptionService } from "./subscription.service";
+import { subscriptionService } from "./subscription.instance";
 
 export type LimitedResourceType = "monitors" | "statusPages";
 

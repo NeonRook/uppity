@@ -21,7 +21,7 @@ import { db } from "#lib/server/db/index.js";
 import { subscription } from "#lib/server/db/schema.js";
 import { createWebhookWideEvent } from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
-import { subscriptionService } from "#lib/server/services/subscription.service.js";
+import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import type { PlanId, SubscriptionStatus } from "#lib/types/plans.js";
 
 // process.env rather than $env/dynamic/private, which the build can inline.

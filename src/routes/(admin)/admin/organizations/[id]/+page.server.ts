@@ -10,7 +10,7 @@ import { db } from "#lib/server/db/index.js";
 import { fetchPolarSnapshot } from "#lib/server/polar-subscription.js";
 import { adminService } from "#lib/server/services/admin.service.js";
 import { auditService } from "#lib/server/services/audit.service.js";
-import { subscriptionService } from "#lib/server/services/subscription.service.js";
+import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
