@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { CircleAlert, ArrowLeft, LoaderCircle } from "@lucide/svelte";
+	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 	import { untrack } from "svelte";
-	import { SvelteSet } from "svelte/reactivity";
 	import { superForm } from "sveltekit-superforms";
 
+	import MonitorPicker from "#lib/components/maintenance-monitor-picker.svelte";
+	import PageHeader from "#lib/components/page-header.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
@@ -23,18 +23,10 @@
 
 	let { data } = $props();
 
-	const { form, errors, enhance, delayed, message } = superForm(untrack(() => data.form));
-
-	let selectedMonitors = new SvelteSet<string>();
-
-	function toggleMonitor(id: string) {
-		if (selectedMonitors.has(id)) {
-			selectedMonitors.delete(id);
-		} else {
-			selectedMonitors.add(id);
-		}
-		$form.monitors = Array.from(selectedMonitors);
-	}
+	const { form, errors, enhance, delayed, message } = superForm(
+		untrack(() => data.form),
+		{ dataType: "json" },
+	);
 </script>
 
 <svelte:head>
@@ -42,15 +34,11 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/incidents">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div>
-			<h1 class="text-3xl font-bold tracking-tight">{m.incident_new_title()}</h1>
-			<p class="text-muted-foreground">{m.incident_new_subtitle()}</p>
-		</div>
-	</div>
+	<PageHeader
+		backHref="/incidents"
+		title={m.incident_new_title()}
+		description={m.incident_new_subtitle()}
+	/>
 
 	<form method="POST" use:enhance>
 		{#if $message}
@@ -149,38 +137,11 @@
 				<Card.Description>{m.incident_affected_monitors_desc()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
-				{#if data.monitors.length === 0}
-					<p class="text-muted-foreground py-4 text-center text-sm">
-						{m.incident_no_monitors()}
-					</p>
-				{:else}
-					<div class="space-y-3">
-						{#each data.monitors as monitor (monitor.id)}
-							<label
-								class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors"
-							>
-								<Checkbox
-									checked={selectedMonitors.has(monitor.id)}
-									onCheckedChange={() => toggleMonitor(monitor.id)}
-								/>
-								<input
-									type="checkbox"
-									name="monitors"
-									value={monitor.id}
-									checked={selectedMonitors.has(monitor.id)}
-									class="hidden"
-								/>
-								<div class="flex-1">
-									<div class="font-medium">{monitor.name}</div>
-									<div class="text-muted-foreground text-xs">
-										{monitor.type.toUpperCase()} - {monitor.url ||
-											`${monitor.hostname}:${monitor.port}`}
-									</div>
-								</div>
-							</label>
-						{/each}
-					</div>
-				{/if}
+				<MonitorPicker
+					monitors={data.monitors}
+					bind:selected={() => $form.monitors ?? [], (value) => ($form.monitors = value)}
+					disabled={$delayed}
+				/>
 			</Card.Content>
 		</Card.Root>
 

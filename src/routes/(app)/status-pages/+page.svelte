@@ -1,16 +1,15 @@
 <script lang="ts">
-	import { ExternalLink, Globe, Lock, Pencil, Plus, Trash2, Unlock } from "@lucide/svelte";
+	import { ExternalLink, Globe, Lock, Pencil, Trash2, Unlock } from "@lucide/svelte";
 
+	import AddButton from "#lib/components/add-button.svelte";
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
-	import StatusPagesListSkeleton from "#lib/components/status-pages-list-skeleton.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteStatusPage, getStatusPages } from "#lib/remote/status-pages.remote.js";
-	import type { StatusPage } from "#lib/server/db/schema.js";
+	import { getStatusPageUrl } from "#lib/status-page.js";
 
 	let { data } = $props();
 	const statusPagesQuery = getStatusPages();
@@ -28,13 +27,6 @@
 	);
 
 	let deletePageId = $state<string | null>(null);
-
-	function getStatusPageUrl(page: StatusPage): string {
-		if (page.customDomain) {
-			return `https://${page.customDomain}`;
-		}
-		return `/status/${page.slug}`;
-	}
 
 	async function handleDelete(statusPageId: string) {
 		await deleteStatusPage({ statusPageId }).updates(
@@ -59,30 +51,16 @@
 					{statusPageUsageText} pages
 				</Badge>
 			{/if}
-			{#if canAddStatusPage}
-				<Button href="/status-pages/new">
-					<Plus class="mr-2 h-4 w-4" />
-					{m.status_pages_create()}
-				</Button>
-			{:else}
-				<Tooltip.Root>
-					<Tooltip.Trigger>
-						<Button disabled>
-							<Plus class="mr-2 h-4 w-4" />
-							{m.status_pages_create()}
-						</Button>
-					</Tooltip.Trigger>
-					<Tooltip.Content>
-						<p>Status page limit reached. Upgrade to add more.</p>
-					</Tooltip.Content>
-				</Tooltip.Root>
-			{/if}
+			<AddButton
+				href="/status-pages/new"
+				text={m.status_pages_create()}
+				disabled={!canAddStatusPage}
+				disabledMessage="Status page limit reached. Upgrade to add more."
+			/>
 		</div>
 	</div>
 
-	{#if statusPagesQuery.loading && !statusPages}
-		<StatusPagesListSkeleton />
-	{:else if statusPagesQuery.error}
+	{#if statusPagesQuery.error}
 		<Card.Root>
 			<Card.Content class="p-6">
 				<p class="text-destructive">

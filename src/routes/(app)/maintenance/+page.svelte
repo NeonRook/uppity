@@ -17,6 +17,30 @@
 		data.active.length > 0 || data.upcoming.length > 0 || data.past.length > 0,
 	);
 
+	const sections = $derived([
+		{
+			icon: Activity,
+			title: m.maintenance_section_active(),
+			items: data.active,
+			emptyText: m.maintenance_empty_active(),
+			showRelative: true,
+		},
+		{
+			icon: Clock,
+			title: m.maintenance_section_upcoming(),
+			items: data.upcoming,
+			emptyText: m.maintenance_empty_upcoming(),
+			showRelative: true,
+		},
+		{
+			icon: CheckCircle2,
+			title: m.maintenance_section_past(),
+			items: data.past,
+			emptyText: m.maintenance_empty_past(),
+			showRelative: false,
+		},
+	]);
+
 	function monitorCount(count: number): string {
 		return count === 1
 			? m.maintenance_monitor_count({ count })
@@ -95,41 +119,19 @@
 	{/snippet}
 
 	{#if hasAny}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					<Activity class="h-4 w-4" />
-					{m.maintenance_section_active()} ({data.active.length})
-				</Card.Title>
-			</Card.Header>
-			<Card.Content class="px-0">
-				{@render rows(data.active, m.maintenance_empty_active(), true)}
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					<Clock class="h-4 w-4" />
-					{m.maintenance_section_upcoming()} ({data.upcoming.length})
-				</Card.Title>
-			</Card.Header>
-			<Card.Content class="px-0">
-				{@render rows(data.upcoming, m.maintenance_empty_upcoming(), true)}
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					<CheckCircle2 class="h-4 w-4" />
-					{m.maintenance_section_past()} ({data.past.length})
-				</Card.Title>
-			</Card.Header>
-			<Card.Content class="px-0">
-				{@render rows(data.past, m.maintenance_empty_past(), false)}
-			</Card.Content>
-		</Card.Root>
+		{#each sections as section (section.title)}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
+						<section.icon class="h-4 w-4" />
+						{section.title} ({section.items.length})
+					</Card.Title>
+				</Card.Header>
+				<Card.Content class="px-0">
+					{@render rows(section.items, section.emptyText, section.showRelative)}
+				</Card.Content>
+			</Card.Root>
+		{/each}
 	{:else}
 		<!-- One empty state, not four. With no windows at all, the three section cards
 		     said "nothing here" three times and the global block said it a fourth. -->

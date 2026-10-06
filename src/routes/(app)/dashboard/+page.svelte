@@ -9,9 +9,16 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { formatUptime, formatResponseTime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
-	import { getStatusColor, getStatusLabel } from "#lib/utils/status.js";
+	import { getStatusBadge, getStatusColor } from "#lib/utils/status.js";
 
 	let { data } = $props();
+
+	const stats = $derived({
+		total: data.monitors.length,
+		operational: data.monitors.filter((mon) => mon.active && mon.status === "up").length,
+		degraded: data.monitors.filter((mon) => mon.active && mon.status === "degraded").length,
+		down: data.monitors.filter((mon) => mon.active && mon.status === "down").length,
+	});
 </script>
 
 <svelte:head>
@@ -34,29 +41,27 @@
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 		<StatCard
 			title={m.dashboard_total_monitors()}
-			value={data.stats.total}
-			description={data.stats.total === 0
-				? m.dashboard_no_monitors()
-				: m.dashboard_active_monitoring()}
+			value={stats.total}
+			description={stats.total === 0 ? m.dashboard_no_monitors() : m.dashboard_active_monitoring()}
 			icon={Activity}
 		/>
 		<StatCard
 			title={m.dashboard_operational()}
-			value={data.stats.operational}
+			value={stats.operational}
 			description={m.dashboard_all_operational()}
 			icon={CircleCheck}
 			iconClass="text-status-up"
 		/>
 		<StatCard
 			title={m.dashboard_degraded()}
-			value={data.stats.degraded}
+			value={stats.degraded}
 			description={m.dashboard_experiencing_delays()}
 			icon={Clock}
 			iconClass="text-status-degraded"
 		/>
 		<StatCard
 			title={m.dashboard_down()}
-			value={data.stats.down}
+			value={stats.down}
 			description={m.dashboard_requires_attention()}
 			icon={TriangleAlert}
 			iconClass="text-status-down"
@@ -82,6 +87,7 @@
 			{:else}
 				<div class="space-y-3">
 					{#each data.monitors as mon (mon.id)}
+						{@const statusInfo = getStatusBadge(mon.status, mon.active)}
 						<a
 							href={resolve(`monitors/${mon.id}`)}
 							class="hover:bg-muted/50 block rounded-lg border p-4 transition-colors"
@@ -102,16 +108,7 @@
 										</div>
 									</div>
 								</div>
-								<Badge
-									class="shrink-0"
-									variant={mon.active && mon.status === "up"
-										? "default"
-										: mon.active && mon.status === "down"
-											? "destructive"
-											: "secondary"}
-								>
-									{getStatusLabel(mon.status, mon.active)}
-								</Badge>
+								<Badge class="shrink-0" variant={statusInfo.variant}>{statusInfo.label}</Badge>
 							</div>
 							<div class="mt-3 flex items-center gap-4 text-sm sm:mt-2 sm:ml-6 sm:gap-6">
 								<div>

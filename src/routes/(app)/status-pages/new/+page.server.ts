@@ -6,6 +6,7 @@ import { createStatusPageSchema } from "#lib/schemas/status-page.js";
 import { NotFoundError, SubscriptionLimitError } from "#lib/server/errors.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 import { statusPageService } from "#lib/server/services/status-page.service.js";
+import { toStatusPageInput } from "#lib/server/status-page-input.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -45,12 +46,7 @@ export const actions: Actions = {
 		try {
 			statusPage = await statusPageService.create({
 				organizationId: locals.session.activeOrganizationId,
-				name: data.name,
-				slug: data.slug.toLowerCase(),
-				description: data.description,
-				isPublic: data.isPublic ?? false,
-				logoUrl: data.logoUrl || undefined,
-				primaryColor: data.primaryColor ?? "#000000",
+				...toStatusPageInput(data),
 				monitorIds: data.monitors,
 			});
 

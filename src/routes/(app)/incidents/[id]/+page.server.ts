@@ -1,5 +1,5 @@
 import { fail, redirect, error } from "@sveltejs/kit";
-import { superValidate, message } from "sveltekit-superforms";
+import { superValidate, message, type SuperValidated } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import type { IncidentImpact } from "#lib/constants/status.js";
@@ -12,6 +12,26 @@ import {
 import { incidentService } from "#lib/server/services/incident.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
+
+/** Fails the action unless the incident exists in the organization and is resolved. */
+async function requireResolved<T extends Record<string, unknown>>(
+	id: string,
+	organizationId: string,
+	form: SuperValidated<T>,
+	notResolvedMessage: string,
+) {
+	const incident = await incidentService.findByIdAndOrg(id, organizationId);
+
+	if (!incident) {
+		return fail(404, { error: "Incident not found" });
+	}
+
+	if (incident.status !== "resolved") {
+		return message(form, notResolvedMessage, { status: 400 });
+	}
+
+	return null;
+}
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!locals.session?.activeOrganizationId) {
@@ -107,21 +127,13 @@ export const actions: Actions = {
 			return fail(400, { postmortemForm: form });
 		}
 
-		// Verify incident exists and is resolved
-		const incident = await incidentService.findByIdAndOrg(
+		const unresolved = await requireResolved(
 			params.id,
 			locals.session.activeOrganizationId,
+			form,
+			"Postmortem can only be added to resolved incidents",
 		);
-
-		if (!incident) {
-			return fail(404, { error: "Incident not found" });
-		}
-
-		if (incident.status !== "resolved") {
-			return message(form, "Postmortem can only be added to resolved incidents", {
-				status: 400,
-			});
-		}
+		if (unresolved) return unresolved;
 
 		// Check if postmortem already exists
 		const updates = await incidentService.getUpdates(params.id);
@@ -153,21 +165,13 @@ export const actions: Actions = {
 			return fail(400, { editPostmortemForm: form });
 		}
 
-		// Verify incident exists and is resolved
-		const incident = await incidentService.findByIdAndOrg(
+		const unresolved = await requireResolved(
 			params.id,
 			locals.session.activeOrganizationId,
+			form,
+			"Postmortem can only be edited on resolved incidents",
 		);
-
-		if (!incident) {
-			return fail(404, { error: "Incident not found" });
-		}
-
-		if (incident.status !== "resolved") {
-			return message(form, "Postmortem can only be edited on resolved incidents", {
-				status: 400,
-			});
-		}
+		if (unresolved) return unresolved;
 
 		const updated = await incidentService.updatePostmortem(
 			params.id,
@@ -181,15 +185,5 @@ export const actions: Actions = {
 		}
 
 		return message(form, "Postmortem updated");
-	},
-
-	delete: async ({ params, locals }) => {
-		if (!locals.session?.activeOrganizationId) {
-			return fail(401, { error: "Not authenticated" });
-		}
-
-		await incidentService.delete(params.id, locals.session.activeOrganizationId);
-
-		return redirect(302, "/incidents");
 	},
 };

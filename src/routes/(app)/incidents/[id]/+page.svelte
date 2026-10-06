@@ -119,29 +119,11 @@
 		{/snippet}
 	</PageHeader>
 
-	{#if $editMessage}
+	{#each [$editMessage, $addMessage, $postmortemMessage, $editPostmortemMessage].filter(Boolean) as text, i (i)}
 		<Alert>
-			<AlertDescription>{$editMessage}</AlertDescription>
+			<AlertDescription>{text}</AlertDescription>
 		</Alert>
-	{/if}
-
-	{#if $addMessage}
-		<Alert>
-			<AlertDescription>{$addMessage}</AlertDescription>
-		</Alert>
-	{/if}
-
-	{#if $postmortemMessage}
-		<Alert>
-			<AlertDescription>{$postmortemMessage}</AlertDescription>
-		</Alert>
-	{/if}
-
-	{#if $editPostmortemMessage}
-		<Alert>
-			<AlertDescription>{$editPostmortemMessage}</AlertDescription>
-		</Alert>
-	{/if}
+	{/each}
 
 	<!-- Add Update -->
 	{#if data.incident.status !== "resolved"}
