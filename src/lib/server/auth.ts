@@ -1,7 +1,7 @@
 import { getRequestEvent } from "$app/server";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
@@ -16,6 +16,7 @@ import {
 } from "#lib/constants/auth.js";
 import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "#lib/constants/defaults.js";
 import { DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
+import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
 import * as authSchema from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { subscription } from "#lib/server/db/schema.js";
@@ -162,6 +163,17 @@ export const auth = betterAuth({
 		expiresIn: SESSION_EXPIRES_IN_SECONDS,
 		updateAge: SESSION_UPDATE_AGE_SECONDS,
 	},
+	hooks: {
+		before: createAuthMiddleware(async (ctx) => {
+			if (!BILLING_PATHS.has(ctx.path)) return;
+			const session = await getSessionFromCtx(ctx);
+			const refusal = await refuseBillingRequest(
+				{ path: ctx.path, userId: session?.user.id, body: ctx.body, query: ctx.query },
+				(organizationId, userId) => subscriptionService.canManageBilling(organizationId, userId),
+			);
+			if (refusal) throw new APIError("FORBIDDEN", { message: refusal });
+		}),
+	},
 	databaseHooks: {
 		user: {
 			create: {
@@ -277,6 +289,16 @@ export const auth = betterAuth({
 							}
 
 							event.set("org_id", orgId);
+
+							// The checkout endpoint already refuses this; checked again here because
+							// this write is what attaches a subscription to an organization.
+							const payer = sub.customer.external_id;
+							if (!payer || !(await subscriptionService.canManageBilling(orgId, payer))) {
+								event.setStatus("error");
+								event.emit("subscription created by someone who does not manage the org");
+								return;
+							}
+
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
@@ -318,6 +340,15 @@ export const auth = betterAuth({
 							}
 
 							event.set("org_id", orgId);
+
+							if (
+								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
+							) {
+								event.setStatus("error");
+								event.emit("subscription updated for a subscription the org is not billed through");
+								return;
+							}
+
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
@@ -357,6 +388,17 @@ export const auth = betterAuth({
 							}
 
 							event.set("org_id", orgId);
+
+							if (
+								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
+							) {
+								event.setStatus("error");
+								event.emit(
+									"subscription canceled for a subscription the org is not billed through",
+								);
+								return;
+							}
+
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: "canceled",
@@ -464,6 +506,15 @@ export const auth = betterAuth({
 							}
 
 							event.set("org_id", orgId);
+
+							if (
+								!(await subscriptionService.holdsPolarSubscription(orgId, sub.id, sub.customer_id))
+							) {
+								event.setStatus("error");
+								event.emit("subscription revoked for a subscription the org is not billed through");
+								return;
+							}
+
 							await subscriptionService.downgradeToFree(orgId);
 
 							event.set("plan_id", "free");

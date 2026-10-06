@@ -230,6 +230,25 @@ export class SubscriptionService {
 		return row?.role ?? null;
 	}
 
+	/**
+	 * Whether a Polar subscription is the one this organization is billed through. Webhooks
+	 * for any other subscription carrying the organization's reference must not change it:
+	 * a stray subscription's cancellation would otherwise downgrade an organization whose
+	 * real subscription is still being paid.
+	 *
+	 * Rows written before the subscription id was stored fall back to the customer.
+	 */
+	async holdsPolarSubscription(
+		organizationId: string,
+		polarSubscriptionId: string,
+		polarCustomerId: string,
+	): Promise<boolean> {
+		const sub = await this.getSubscription(organizationId);
+		if (!sub) return false;
+		if (sub.polarSubscriptionId !== null) return sub.polarSubscriptionId === polarSubscriptionId;
+		return sub.polarCustomerId === polarCustomerId;
+	}
+
 	/** Whether the user may change what the organization is billed for. */
 	async canManageBilling(organizationId: string, userId: string): Promise<boolean> {
 		const role = await this.memberRole(organizationId, userId);

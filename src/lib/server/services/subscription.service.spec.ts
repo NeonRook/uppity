@@ -938,6 +938,53 @@ describe("SubscriptionService", () => {
 		});
 	});
 
+	describe("holdsPolarSubscription", () => {
+		test("matches only the subscription the organization is billed through", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				polarCustomerId: "cus_real",
+				polarSubscriptionId: "sub_real",
+			});
+
+			expect(await service.holdsPolarSubscription(orgId, "sub_real", "cus_real")).toBe(true);
+			// A stranger's subscription carrying this organization's reference.
+			expect(await service.holdsPolarSubscription(orgId, "sub_stray", "cus_stranger")).toBe(false);
+			// Even the same customer's second subscription is not the one on record.
+			expect(await service.holdsPolarSubscription(orgId, "sub_second", "cus_real")).toBe(false);
+		});
+
+		test("falls back to the customer for rows without a stored subscription id", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				polarCustomerId: "cus_real",
+			});
+
+			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_real")).toBe(true);
+			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_stranger")).toBe(false);
+		});
+
+		test("a free organization with no Polar link holds nothing", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			await service.getOrCreateSubscription(orgId);
+
+			expect(await service.holdsPolarSubscription(orgId, "sub_any", "cus_any")).toBe(false);
+		});
+	});
+
 	describe("canManageBilling", () => {
 		test("owners and admins may, members and outsiders may not", async ({ db }) => {
 			const { db: drizzleDb } = db;
