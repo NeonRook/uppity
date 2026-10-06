@@ -13,25 +13,27 @@ import {
 export default defineRailway(() => {
 	const uppity = github("NeonRook/uppity", { checkSuites: false });
 
+	const build = {
+		buildEnvironment: "V3",
+		builder: "DOCKERFILE",
+		dockerfilePath: "/Dockerfile",
+	} as const;
+	const volumeOptions = {
+		alerts: { usage: { "100": {}, "80": {}, "95": {} } },
+		allowOnlineResize: true,
+		region: "europe-west4-drams3a",
+		sizeMB: 5000,
+	} as const;
+
 	const Postgres18 = postgres("Postgres-18", { region: "europe-west4-drams3a" });
-	const drizzleGatewayVolume = volume("drizzle-gateway-volume", {
-		alerts: { usage: { "100": {}, "80": {}, "95": {} } },
-		allowOnlineResize: true,
-		region: "europe-west4-drams3a",
-		sizeMB: 5000,
-	});
-	const postgres18Volume = volume("postgres18-volume", {
-		alerts: { usage: { "100": {}, "80": {}, "95": {} } },
-		allowOnlineResize: true,
-		region: "europe-west4-drams3a",
-		sizeMB: 5000,
-	});
+	const drizzleGatewayVolume = volume("drizzle-gateway-volume", volumeOptions);
+	const postgres18Volume = volume("postgres18-volume", volumeOptions);
 	// Every service runs the same image, so each needs its start command spelled
 	// out. A service without one inherits the Dockerfile's CMD and comes up as a
 	// second web server instead of the process it is named for.
 	const workerNotifier = service("worker-notifier", {
 		source: uppity,
-		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
+		build,
 		replicas: { "europe-west4-drams3a": 1 },
 		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-notifier" },
 		env: {
@@ -43,7 +45,7 @@ export default defineRailway(() => {
 	});
 	const workerMonitor = service("worker-monitor", {
 		source: uppity,
-		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
+		build,
 		replicas: { "europe-west4-drams3a": 1 },
 		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-monitor" },
 		networking: { privateNetworkEndpoint: "uppity-worker" },
@@ -71,7 +73,7 @@ export default defineRailway(() => {
 	});
 	const uppityServer = service("uppity-server", {
 		source: uppity,
-		build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "/Dockerfile" },
+		build,
 		replicas: { "europe-west4-drams3a": 1 },
 		// Railway does not read the Dockerfile's HEALTHCHECK, so without this a
 		// deploy counts as healthy the moment the process starts and takes traffic

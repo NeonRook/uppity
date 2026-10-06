@@ -1,3 +1,16 @@
+x-worker: &worker
+  image: ghcr.io/neonrook/uppity:latest
+  # Or build locally:
+  # build: .
+  restart: unless-stopped
+  environment: &worker-env
+    DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+  healthcheck:
+    disable: true
+  depends_on:
+    db:
+      condition: service_healthy
+
 services:
   app:
     image: ghcr.io/neonrook/uppity:latest
@@ -23,35 +36,17 @@ services:
         condition: service_healthy
 
   worker-monitor:
-    image: ghcr.io/neonrook/uppity:latest
-    # Or build locally:
-    # build: .
-    restart: unless-stopped
+    <<: *worker
     environment:
-      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+      <<: *worker-env
       UPPITY_WORKER_BATCH_SIZE: "${UPPITY_WORKER_BATCH_SIZE:-10}"
     command: ["./entrypoint.sh", "worker-monitor"]
-    healthcheck:
-      disable: true
-    depends_on:
-      db:
-        condition: service_healthy
     deploy:
       replicas: 1 # Scale up for horizontal scaling
 
   worker-notifier:
-    image: ghcr.io/neonrook/uppity:latest
-    # Or build locally:
-    # build: .
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+    <<: *worker
     command: ["./entrypoint.sh", "worker-notifier"]
-    healthcheck:
-      disable: true
-    depends_on:
-      db:
-        condition: service_healthy
     deploy:
       replicas: 1 # Scale up once NEO-29 lands and LISTEN-path race is fixed
 

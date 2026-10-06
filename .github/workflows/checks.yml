@@ -30,7 +30,7 @@ jobs:
   unit:
     name: Unit Tests
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    services:
+    services: &postgres-service
       postgres:
         image: postgres:18-alpine
         env:
@@ -45,7 +45,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: &database-url postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -59,22 +59,9 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    services: *postgres-service
     env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: *database-url
       # better-auth reads this from process.env at runtime; the build only needs a
       # non-empty value to be present. Never the real secret.
       BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
