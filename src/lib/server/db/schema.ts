@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Import auth tables for foreign key references
+import type { BillingInterval } from "../../types/plans";
 import { user, organization, member, invitation } from "./auth-schema";
 
 // ============================================================================
@@ -687,6 +688,7 @@ export const subscription = pgTable(
 		scheduledBlocks: integer("scheduled_blocks"),
 
 		// Billing period
+		billingInterval: text("billing_interval").$type<BillingInterval>(),
 		currentPeriodStart: timestamp("current_period_start"),
 		currentPeriodEnd: timestamp("current_period_end"),
 

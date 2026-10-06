@@ -282,6 +282,7 @@ export const auth = betterAuth({
 								status: mapPolarStatus(sub.status),
 								polarCustomerId: sub.customer_id,
 								polarSubscriptionId: sub.id,
+								billingInterval: sub.recurring_interval,
 								currentPeriodStart: sub.current_period_start
 									? new Date(sub.current_period_start)
 									: undefined,
@@ -320,6 +321,7 @@ export const auth = betterAuth({
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
+								billingInterval: sub.recurring_interval,
 								currentPeriodStart: sub.current_period_start
 									? new Date(sub.current_period_start)
 									: undefined,
@@ -358,6 +360,7 @@ export const auth = betterAuth({
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: "canceled",
+								billingInterval: sub.recurring_interval,
 								currentPeriodEnd: sub.current_period_end
 									? new Date(sub.current_period_end)
 									: undefined,

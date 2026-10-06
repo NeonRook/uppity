@@ -97,6 +97,36 @@ async function seedScheduled(drizzleDb: TestDb["db"], currentPeriodEnd: Date): P
 	return orgId;
 }
 
+async function seedPaid(
+	drizzleDb: TestDb["db"],
+	polarCustomerId: string,
+	blocks: number,
+): Promise<string> {
+	const orgId = await seedOrganization(drizzleDb);
+	await drizzleDb.insert(subscription).values({
+		id: nanoid(),
+		organizationId: orgId,
+		planId: "uppity",
+		status: "active",
+		blocks,
+		polarCustomerId,
+		currentPeriodEnd: new Date(Date.now() + 86_400_000),
+	});
+	return orgId;
+}
+
+async function seedRole(drizzleDb: TestDb["db"], orgId: string, role: string): Promise<string> {
+	const userId = await seedUser(drizzleDb);
+	await drizzleDb.insert(member).values({
+		id: nanoid(),
+		organizationId: orgId,
+		userId,
+		role,
+		createdAt: new Date(),
+	});
+	return userId;
+}
+
 describe("SubscriptionService", () => {
 	// Local dev's .env might set SELF_HOSTED=true, which short-circuits every limit check to the
 	// unlimited self-hosted plan. Force the plan-based code path.
@@ -332,6 +362,28 @@ describe("SubscriptionService", () => {
 			// Polar identifiers are preserved so the customer can be reactivated
 			// without re-linking — syncFromPolar falls back to existing values.
 			expect(downgraded.polarCustomerId).toBe("cus_test_123");
+		});
+
+		test("stores the billing interval, keeps it when a sync omits it, and clears it on downgrade", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			const annual = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "active",
+				billingInterval: "year",
+			});
+			expect(annual.billingInterval).toBe("year");
+
+			// The cancel path sends no interval of its own on older payloads.
+			const kept = await service.syncFromPolar(orgId, { planId: "uppity", status: "canceled" });
+			expect(kept.billingInterval).toBe("year");
+
+			const downgraded = await service.downgradeToFree(orgId);
+			expect(downgraded.billingInterval).toBeNull();
 		});
 
 		test("creates a new row via syncFromPolar when none exists", async ({ db }) => {
@@ -781,6 +833,27 @@ describe("SubscriptionService", () => {
 			expect(row?.scheduledBlocks).toBeNull();
 		});
 
+		test("a count above the maximum is refused, naming the maximum", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+			});
+
+			expect((await service.setBlocks(orgId, 40)).ok).toBe(true);
+			expect(await service.setBlocks(orgId, 41)).toStrictEqual({
+				ok: false,
+				reason: "above_max",
+				max: 40,
+			});
+			expect((await service.getSubscription(orgId))?.blocks).toBe(40);
+		});
+
 		test("a plan that is not sold by capacity is refused", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
@@ -823,6 +896,67 @@ describe("SubscriptionService", () => {
 				reason: "invalid_count",
 			});
 			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
+		});
+	});
+
+	describe("multi-organization guard", () => {
+		test("refuses an increase when the customer holds blocks in another organization", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const customer = `cus_${nanoid()}`;
+			await seedPaid(drizzleDb, customer, 2);
+			const orgId = await seedPaid(drizzleDb, customer, 0);
+
+			expect(await service.setBlocks(orgId, 1)).toStrictEqual({
+				ok: false,
+				reason: "multi_org_customer",
+			});
+			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
+		});
+
+		test("allows a reduction, which only shrinks a double charge", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const customer = `cus_${nanoid()}`;
+			await seedPaid(drizzleDb, customer, 2);
+			const orgId = await seedPaid(drizzleDb, customer, 3);
+
+			expect((await service.setBlocks(orgId, 1)).ok).toBe(true);
+		});
+
+		test("allows an increase when the other organization holds no blocks", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const customer = `cus_${nanoid()}`;
+			await seedPaid(drizzleDb, customer, 0);
+			const orgId = await seedPaid(drizzleDb, customer, 0);
+
+			expect((await service.setBlocks(orgId, 2)).ok).toBe(true);
+		});
+	});
+
+	describe("canManageBilling", () => {
+		test("owners and admins may, members and outsiders may not", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+			const otherOrg = await seedOrganization(drizzleDb);
+
+			expect(await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "owner"))).toBe(
+				true,
+			);
+			expect(await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "admin"))).toBe(
+				true,
+			);
+			expect(
+				await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "member")),
+			).toBe(false);
+			// An owner elsewhere is an outsider here.
+			expect(
+				await service.canManageBilling(orgId, await seedRole(drizzleDb, otherOrg, "owner")),
+			).toBe(false);
 		});
 	});
 

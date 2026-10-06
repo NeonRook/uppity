@@ -21,6 +21,9 @@ export type PlanId = "free" | "uppity" | "dedicated" | "enterprise";
  */
 export type SubscriptionStatus = "active" | "canceled" | "past_due" | "trialing";
 
+/** How often Polar bills a subscription, as Polar reports it. */
+export type BillingInterval = "day" | "week" | "month" | "year";
+
 /**
  * Defines the limits and features available for a subscription plan.
  * A value of -1 indicates unlimited for numeric limits.

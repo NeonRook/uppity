@@ -1,4 +1,4 @@
-import { and, count, eq, gt, isNotNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNotNull, lte, ne, sql, type SQL } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -7,6 +7,7 @@ import {
 	applyCapacityBlocks,
 	BLOCK_ELIGIBLE_PLAN_IDS,
 	DEFAULT_PLAN_ID,
+	MAX_MONITOR_BLOCKS,
 	isSelfHosted,
 	PLANS,
 	SELF_HOSTED_LIMITS,
@@ -15,6 +16,7 @@ import { invitation, member } from "#lib/server/db/auth-schema.js";
 import * as schema from "#lib/server/db/schema.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
+	BillingInterval,
 	LimitCheckResult,
 	NotificationChannelType,
 	Plan,
@@ -36,7 +38,12 @@ export function getPlanById(planId: PlanId): Plan | undefined {
 export type SetBlocksResult =
 	| { ok: true; subscription: Subscription }
 	| { ok: false; reason: "plan_ineligible" }
-	| { ok: false; reason: "invalid_count" };
+	| { ok: false; reason: "invalid_count" }
+	| { ok: false; reason: "above_max"; max: number }
+	| { ok: false; reason: "multi_org_customer" };
+
+/** Roles allowed to change what an organization is billed for. */
+const BILLING_ROLES: ReadonlySet<string> = new Set(["owner", "admin"]);
 
 /** A subscription as read live from the Polar API, normalized to our plan ids. */
 export interface PolarSubscriptionSnapshot {
@@ -44,6 +51,7 @@ export interface PolarSubscriptionSnapshot {
 	status: SubscriptionStatus;
 	polarCustomerId?: string;
 	polarSubscriptionId?: string;
+	billingInterval?: BillingInterval;
 	currentPeriodStart?: Date;
 	currentPeriodEnd?: Date;
 }
@@ -154,11 +162,21 @@ export class SubscriptionService {
 		if (!Number.isInteger(blocks) || blocks < 0) {
 			return { ok: false, reason: "invalid_count" };
 		}
+		if (blocks > MAX_MONITOR_BLOCKS) {
+			return { ok: false, reason: "above_max", max: MAX_MONITOR_BLOCKS };
+		}
 
 		const sub = await this.getOrCreateSubscription(organizationId);
 		const plan = getPlanById(sub.planId as PlanId);
 		if (!plan || !BLOCK_ELIGIBLE_PLAN_IDS.has(plan.id)) {
 			return { ok: false, reason: "plan_ineligible" };
+		}
+
+		// Polar scopes the meter to the customer, so blocks held in a second organization
+		// are charged on both subscriptions. Reductions stay allowed: refusing them would
+		// only keep a double charge in place.
+		if (blocks > sub.blocks && (await this.holdsBlocksElsewhere(sub))) {
+			return { ok: false, reason: "multi_org_customer" };
 		}
 
 		// Without a period end nothing would ever apply the reduction, so it lands now.
@@ -172,6 +190,37 @@ export class SubscriptionService {
 			.returning();
 
 		return { ok: true, subscription: updated };
+	}
+
+	/** Whether this subscription's Polar customer holds blocks in another organization. */
+	private async holdsBlocksElsewhere(sub: Subscription): Promise<boolean> {
+		if (!sub.polarCustomerId) return false;
+
+		const [other] = await this.db
+			.select({ id: subscription.id })
+			.from(subscription)
+			.where(
+				and(
+					eq(subscription.polarCustomerId, sub.polarCustomerId),
+					ne(subscription.organizationId, sub.organizationId),
+					inArray(subscription.planId, [...BLOCK_ELIGIBLE_PLAN_IDS]),
+					gt(subscription.blocks, 0),
+				),
+			)
+			.limit(1);
+
+		return other !== undefined;
+	}
+
+	/** Whether the user may change what the organization is billed for. */
+	async canManageBilling(organizationId: string, userId: string): Promise<boolean> {
+		const [row] = await this.db
+			.select({ role: member.role })
+			.from(member)
+			.where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
+			.limit(1);
+
+		return row !== undefined && BILLING_ROLES.has(row.role);
 	}
 
 	/**
@@ -403,6 +452,8 @@ export class SubscriptionService {
 			status: SubscriptionStatus;
 			polarCustomerId?: string;
 			polarSubscriptionId?: string;
+			/** `null` clears it; absent keeps what is stored. */
+			billingInterval?: BillingInterval | null;
 			currentPeriodStart?: Date;
 			currentPeriodEnd?: Date;
 		},
@@ -442,6 +493,8 @@ export class SubscriptionService {
 					...blocks,
 					polarCustomerId: data.polarCustomerId ?? existing.polarCustomerId,
 					polarSubscriptionId: data.polarSubscriptionId ?? existing.polarSubscriptionId,
+					billingInterval:
+						data.billingInterval === undefined ? existing.billingInterval : data.billingInterval,
 					currentPeriodStart: data.currentPeriodStart ?? existing.currentPeriodStart,
 					currentPeriodEnd: data.currentPeriodEnd ?? existing.currentPeriodEnd,
 					updatedAt: new Date(),
@@ -462,6 +515,7 @@ export class SubscriptionService {
 				status: data.status,
 				polarCustomerId: data.polarCustomerId,
 				polarSubscriptionId: data.polarSubscriptionId,
+				billingInterval: data.billingInterval,
 				currentPeriodStart: data.currentPeriodStart,
 				currentPeriodEnd: data.currentPeriodEnd,
 			})
@@ -498,6 +552,7 @@ export class SubscriptionService {
 		return this.syncFromPolar(organizationId, {
 			planId: "free",
 			status: "active",
+			billingInterval: null,
 		});
 	}
 }
