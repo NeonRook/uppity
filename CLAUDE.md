@@ -14,29 +14,29 @@ Uppity is a self-hosted monitoring and status page application built with Svelte
 
 ## Common Commands
 
-`aubr` is aube's script runner, the equivalent of `npm run`. npm itself is blocked
-by `devEngines` and will refuse to run.
+Scripts run as `pnpm <script>`. npm itself is blocked by `devEngines` and will
+refuse to run.
 
 ```bash
 # Development
-aubr dev                    # Start dev server at localhost:5173
-aubr check                  # Type check with svelte-check
+pnpm dev                    # Start dev server at localhost:5173
+pnpm check                  # Type check with svelte-check
 
 # Code Quality
-aubr fmt                    # Format all files (oxfmt, includes Svelte)
-aubr lint                   # Lint with auto-fix (oxlint + eslint)
-aubr lint:ci                # What CI runs — checks without fixing
+pnpm fmt                    # Format all files (oxfmt, includes Svelte)
+pnpm lint                   # Lint with auto-fix (oxlint + eslint)
+pnpm lint:ci                # What CI runs — checks without fixing
 
 # Testing
-aubr test:unit run          # Run all unit tests
-aubr test:unit run src/lib/format.spec.ts  # Run single test file
+pnpm test:unit run          # Run all unit tests
+pnpm test:unit run src/lib/format.spec.ts  # Run single test file
 
 # Database (requires DATABASE_URL in .env)
-aubr db:push                # Push schema changes to database
-aubr db:studio              # Open Drizzle Studio GUI
+pnpm db:push                # Push schema changes to database
+pnpm db:studio              # Open Drizzle Studio GUI
 
 # Build
-aubr build:all              # Production build, as the image runs it
+pnpm build:all              # Production build, as the image runs it
 ```
 
 ## Architecture
@@ -44,7 +44,7 @@ aubr build:all              # Production build, as the image runs it
 ### Tech Stack
 
 - **Runtime:** Node for everything you run; Deno only inside the production image
-- **Package manager:** aube, invoked as `aube` and `aubr`
+- **Package manager:** pnpm
 - **Framework:** SvelteKit 2 with Svelte 5
 - **Database:** PostgreSQL via Drizzle ORM
 - **Auth:** better-auth with organization support
@@ -153,7 +153,7 @@ Write for those two. Lead with what changed for them; give the reason only when 
 
 That material belongs in the PR description and in comments next to the code, where the reader has the diff open. The commit body is the third place for it. Never the changelog.
 
-**When a change is invisible to both readers, say so in one line, or use `aubr changeset --empty`.** Groundwork that ships no user-facing behavior should produce a short honest entry, not a long technical one dressed up as news. Padding an entry to look substantial is the failure this rule exists to prevent.
+**When a change is invisible to both readers, say so in one line, or use `pnpm changeset --empty`.** Groundwork that ships no user-facing behavior should produce a short honest entry, not a long technical one dressed up as news. Padding an entry to look substantial is the failure this rule exists to prevent.
 
 ## Svelte MCP Tools
 

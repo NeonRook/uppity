@@ -24,7 +24,7 @@ CLA Assistant.
 
 - [mise](https://mise.jdx.dev) — `mise install` reads
   [`mise.toml`](mise.toml) and gives you Node and
-  [aube](https://aube.jdx.dev) at the pinned versions
+  [pnpm](https://pnpm.io) at the pinned versions
 - [PostgreSQL](https://www.postgresql.org) v15+ (or use Docker)
 
 The production image runs on Deno, but the dev loop does not: every command
@@ -45,7 +45,7 @@ differ.
 
    ```bash
    mise install
-   aube install
+   pnpm install
    ```
 
 3. Start PostgreSQL
@@ -64,13 +64,13 @@ differ.
 5. Push database schema
 
    ```bash
-   aubr db:push
+   pnpm db:push
    ```
 
 6. Start development server
 
    ```bash
-   aubr dev
+   pnpm dev
    ```
 
 ## Development Workflow
@@ -86,11 +86,11 @@ differ.
 
 1. Create a new branch from `main`
 2. Make your changes
-3. Ensure tests pass: `aubr test:unit run`
-4. Ensure type checking passes: `aubr check`
-5. Ensure linting and formatting pass as CI checks them: `aubr lint:ci`
+3. Ensure tests pass: `pnpm test:unit run`
+4. Ensure type checking passes: `pnpm check`
+5. Ensure linting and formatting pass as CI checks them: `pnpm lint:ci`
 
-`aubr lint` fixes what it can, which hides problems CI reports. Run `lint:ci`
+`pnpm lint` fixes what it can, which hides problems CI reports. Run `lint:ci`
 after your last edit.
 
 ### Commit Messages
@@ -124,7 +124,7 @@ hand-edited — entries from 0.1.1 onward are all generated this way; earlier en
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ```bash
-aubr changeset
+pnpm changeset
 ```
 
 Pick a bump level, write a short user-facing description, and commit the generated file in
@@ -135,7 +135,7 @@ Pull requests that change no behaviour — documentation, CI, tests, refactors �
 release. Add an empty changeset to record that decision:
 
 ```bash
-aubr changeset --empty
+pnpm changeset --empty
 ```
 
 A bot comments on your pull request with the bump it detected, or a note that it found none. The
@@ -161,16 +161,16 @@ from a link in that comment.
 
 ```bash
 # Format all files
-aubr fmt
+pnpm fmt
 
 # Lint with auto-fix
-aubr lint
+pnpm lint
 
 # Check both without fixing, the way CI does
-aubr lint:ci
+pnpm lint:ci
 
 # Type check
-aubr check
+pnpm check
 ```
 
 ## Testing
@@ -182,19 +182,19 @@ its own database created from a migrated template.
 
 ```bash
 # Run all unit tests
-aubr test:unit run
+pnpm test:unit run
 
 # Run specific test file
-aubr test:unit run src/lib/format.spec.ts
+pnpm test:unit run src/lib/format.spec.ts
 
 # Run tests in watch mode
-aubr test:unit
+pnpm test:unit
 ```
 
 ### E2E Tests
 
 ```bash
-aubr test:e2e
+pnpm test:e2e
 ```
 
 ## Reporting Issues

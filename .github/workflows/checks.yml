@@ -15,7 +15,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      - run: aubr lint:ci
+      - run: pnpm lint:ci
 
   typecheck:
     name: Type Check
@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      - run: aubr check
+      - run: pnpm check
 
   unit:
     name: Unit Tests
@@ -53,8 +53,8 @@ jobs:
       - uses: ./.github/actions/setup-toolchain
       # The "client" vitest project runs in a real browser but pins chromium alone,
       # so installing firefox and webkit is pure runner time.
-      - run: aube x playwright install --with-deps chromium
-      - run: aubr test:unit run
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:unit run
 
   e2e:
     name: E2E Tests
@@ -83,9 +83,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      - run: aube x playwright install --with-deps chromium
-      - run: aubr db:migrate
-      - run: aubr test:e2e
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm db:migrate
+      - run: pnpm test:e2e
 
   build:
     name: Build
@@ -97,7 +97,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      - run: aubr build:all
+      - run: pnpm build:all
 
 # Dependency auditing does not live here. A PR-only audit learns nothing during a quiet
 # week with no dependency-touching PRs, so it runs on a schedule (plus pull requests) in

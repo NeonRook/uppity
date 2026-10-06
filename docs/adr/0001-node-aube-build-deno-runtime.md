@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, package manager superseded by 0003
 date: 2026-08-22
 ---
 

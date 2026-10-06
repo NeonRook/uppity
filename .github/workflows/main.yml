@@ -81,7 +81,7 @@ jobs:
       - name: Open or update the version pull request
         uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          script: aubr changeset:version
+          script: pnpm changeset:version
           pr-title: "chore: version packages"
           commit-message: "chore: version packages"
 
@@ -145,7 +145,7 @@ jobs:
       - name: Push the git tag
         uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          script: aubr changeset:tag
+          script: pnpm changeset:tag
           push-git-tags: true
           # The release notes below carry the digest and the `gh attestation verify`
           # command README.md promises, neither of which this action can know about.

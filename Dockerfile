@@ -24,30 +24,14 @@ COPY mise.toml /mise/config.toml
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install
 
-# The .npmrc build jail wraps dependency scripts with Landlock and seccomp, and
-# aube fails a script outright when the kernel cannot enforce them rather than
-# run it unjailed. Builder kernels do not always ship Landlock, and the build
-# container already confines these scripts, so drop the jail for image builds
-# and keep it for dev installs. Stage-wide because aubr installs again before
-# running scripts, so the builder stage jails too, not just the install stage.
-ENV AUBE_JAIL_BUILDS=false
-
-# Materialize the virtual store inside node_modules instead of symlinking into
-# the per-user store at ~/.cache/aube/virtual-store, so the install stage's
-# tree survives the COPY into the builder stage and aubr's up-to-date check
-# passes there instead of re-downloading every package. Set through the
-# environment: the --disable-global-virtual-store flag parses but does not
-# apply the setting.
-ENV AUBE_ENABLE_GLOBAL_VIRTUAL_STORE=false
-
 # Install dependencies into a temp directory once, for the builder's use only.
 # Nothing from this tree reaches the runtime image: the SSR bundle inlines every
 # dependency it needs, so the runner stage ships no node_modules at all.
 FROM build-base AS install
 RUN mkdir -p /temp/deps
-COPY package.json aube-lock.yaml .npmrc /temp/deps/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /temp/deps/
 WORKDIR /temp/deps
-RUN aube ci
+RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build application
 FROM build-base AS builder
@@ -57,7 +41,7 @@ COPY . .
 # The build imports the auth module, which refuses to load without a secret.
 # The real one is read from process.env at runtime.
 RUN export BETTER_AUTH_SECRET=build-placeholder-not-a-real-secret && \
-  aubr prepare && aubr build:all
+  pnpm prepare && pnpm build:all
 
 # Stage 3: Production image
 FROM base AS runner
