@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+### Patch Changes
+
+- [#119](https://github.com/NeonRook/uppity/pull/119) [`4f4ff09`](https://github.com/NeonRook/uppity/commit/4f4ff094ab8eb717ce5fe18c8f475a1c87224135) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Building from source now uses pnpm instead of aube. `mise install` provides it. The published image does not change.
+
 ## 0.3.2
 
 ### Patch Changes
