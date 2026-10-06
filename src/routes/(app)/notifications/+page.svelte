@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Bell, Mail, MessageSquare, Pencil, Plus, Trash2, Webhook } from "@lucide/svelte";
+	import { Bell, Pencil, Trash2 } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
-	import ChannelsListSkeleton from "#lib/components/channels-list-skeleton.svelte";
+	import AddButton from "#lib/components/add-button.svelte";
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import { Badge } from "#lib/components/ui/badge/index.js";
@@ -10,6 +10,11 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import {
+		CHANNEL_TYPE_KEYS,
+		getAvailableChannelTypes,
+		getChannelType,
+	} from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getChannels, toggleChannel, deleteChannel } from "#lib/remote/notifications.remote.js";
 	import type { NotificationChannel } from "#lib/server/db/schema.js";
@@ -23,44 +28,12 @@
 	// Usage limits from parent layout (self-hosted has all features)
 	const usageLimits = $derived(data.usageLimits);
 	const availableChannelTypes = $derived(
-		data.selfHosted
-			? ["email", "slack", "discord", "webhook"]
-			: (usageLimits?.features.notificationChannels ?? ["email", "slack", "discord", "webhook"]),
+		getAvailableChannelTypes(data.selfHosted, usageLimits?.features.notificationChannels),
 	);
-	const hasAllChannelTypes = $derived(data.selfHosted || availableChannelTypes.length >= 4);
+	const hasAllChannelTypes = $derived(availableChannelTypes.length === CHANNEL_TYPE_KEYS.length);
 
 	let deleteChannelId = $state<string | null>(null);
 	let togglingChannelId = $state<string | null>(null);
-
-	function getChannelIcon(type: string) {
-		switch (type) {
-			case "email":
-				return Mail;
-			case "slack":
-				return MessageSquare;
-			case "discord":
-				return MessageSquare;
-			case "webhook":
-				return Webhook;
-			default:
-				return Bell;
-		}
-	}
-
-	function getChannelTypeName(type: string): string {
-		switch (type) {
-			case "email":
-				return m.notifications_type_email();
-			case "slack":
-				return m.notifications_type_slack();
-			case "discord":
-				return m.notifications_type_discord();
-			case "webhook":
-				return m.notifications_type_webhook();
-			default:
-				return type;
-		}
-	}
 
 	function getChannelDescription(channel: NotificationChannel): string {
 		const config = channel.config as Record<string, unknown>;
@@ -123,16 +96,11 @@
 					</Tooltip.Content>
 				</Tooltip.Root>
 			{/if}
-			<Button href="/notifications/new">
-				<Plus class="mr-2 h-4 w-4" />
-				{m.notifications_add()}
-			</Button>
+			<AddButton href="/notifications/new" text={m.notifications_add()} />
 		</div>
 	</div>
 
-	{#if channelsQuery.loading && !channels}
-		<ChannelsListSkeleton />
-	{:else if channelsQuery.error}
+	{#if channelsQuery.error}
 		<Card.Root>
 			<Card.Content class="p-6">
 				<p class="text-destructive">Failed to load channels: {channelsQuery.error.message}</p>
@@ -149,7 +117,7 @@
 	{:else}
 		<div class="grid gap-4">
 			{#each channels as channel (channel.id)}
-				{@const Icon = getChannelIcon(channel.type)}
+				{@const Icon = getChannelType(channel.type).icon}
 				<Card.Root>
 					<Card.Content class="p-4 sm:p-6">
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -162,7 +130,7 @@
 								<div class="min-w-0">
 									<div class="flex flex-wrap items-center gap-2">
 										<h3 class="font-semibold">{channel.name}</h3>
-										<Badge variant="secondary">{getChannelTypeName(channel.type)}</Badge>
+										<Badge variant="secondary">{getChannelType(channel.type).label()}</Badge>
 										{#if !channel.enabled}
 											<Badge variant="outline">{m.common_disabled()}</Badge>
 										{/if}
