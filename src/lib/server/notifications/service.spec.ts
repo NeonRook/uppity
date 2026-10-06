@@ -279,4 +279,36 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 			.where(eq(notificationLog.incidentId, incidentId));
 		expect(logs).toHaveLength(0);
 	});
+
+	test("never pages another organization's channels through a cross-organization link", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new NotificationService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const victimChannel = await seedWebhookChannel(drizzleDb, victimOrg);
+		await linkMonitorToChannel(drizzleDb, victimMonitor, victimChannel);
+
+		// An attacker's incident linked to the victim's monitor, as written before
+		// incident creation checked monitor ownership.
+		const incidentId = await seedIncident(drizzleDb, attackerOrg, [victimMonitor]);
+		const eventId = await enqueueIncidentEvent(
+			drizzleDb,
+			attackerOrg,
+			incidentId,
+			"incident_created",
+		);
+		const row = await fetchEvent(drizzleDb, eventId);
+
+		const result = await service.dispatchEvent(row);
+
+		expect(result.status).toBe("suppressed");
+		const logs = await drizzleDb
+			.select()
+			.from(notificationLog)
+			.where(eq(notificationLog.incidentId, incidentId));
+		expect(logs).toHaveLength(0);
+	});
 });

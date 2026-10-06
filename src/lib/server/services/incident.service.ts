@@ -2,11 +2,7 @@ import { eq, and, desc, inArray, ne } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
-import {
-	DEFAULT_INCIDENT_STATUS,
-	DEFAULT_INCIDENT_IMPACT,
-	AUTO_RESOLVE_MESSAGE,
-} from "#lib/constants/defaults.js";
+import { DEFAULT_INCIDENT_STATUS, DEFAULT_INCIDENT_IMPACT } from "#lib/constants/defaults.js";
 import type { IncidentImpact, IncidentStatus } from "#lib/constants/status.js";
 import { db } from "#lib/server/db/index.js";
 import * as schema from "#lib/server/db/schema.js";
@@ -19,7 +15,9 @@ import {
 	type Incident,
 	type IncidentUpdate,
 } from "#lib/server/db/schema.js";
+import { NotFoundError } from "#lib/server/errors.js";
 import type { IncidentEventPayload } from "#lib/server/notifications/events.js";
+import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 
@@ -42,10 +40,10 @@ export interface UpdateIncidentInput {
 
 export interface AddUpdateInput {
 	incidentId: string;
+	organizationId: string;
 	status: IncidentStatus;
 	message: string;
 	createdBy?: string;
-	suppressNotification?: boolean;
 }
 
 export interface IncidentWithDetails extends Incident {
@@ -84,6 +82,10 @@ export class IncidentService {
 	}
 
 	async create(input: CreateIncidentInput): Promise<Incident> {
+		if (!(await monitorsBelongToOrg(this.db, input.organizationId, input.monitorIds ?? []))) {
+			throw new NotFoundError("Monitor not found");
+		}
+
 		const id = nanoid();
 
 		const [newIncident] = await this.db
@@ -178,7 +180,10 @@ export class IncidentService {
 				type: monitor.type,
 			})
 			.from(incidentMonitor)
-			.innerJoin(monitor, eq(incidentMonitor.monitorId, monitor.id))
+			.innerJoin(
+				monitor,
+				and(eq(incidentMonitor.monitorId, monitor.id), eq(monitor.organizationId, organizationId)),
+			)
 			.where(eq(incidentMonitor.incidentId, id));
 
 		return {
@@ -222,7 +227,16 @@ export class IncidentService {
 		return updated || null;
 	}
 
-	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate> {
+	/** Null when the incident is not in `input.organizationId`; nothing is written then. */
+	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate | null> {
+		// The prior status tells a real "resolved" transition from re-resolving an
+		// already-resolved incident, which must not enqueue a second incident_resolved.
+		const previous = await this.findByIdAndOrg(input.incidentId, input.organizationId);
+		if (!previous) {
+			return null;
+		}
+		const wasAlreadyResolved = previous.status === "resolved";
+
 		const id = nanoid();
 
 		const [update] = await this.db
@@ -236,17 +250,6 @@ export class IncidentService {
 			})
 			.returning();
 
-		// Read prior status before the UPDATE so we can tell a real "resolved"
-		// transition from re-resolving an already-resolved incident — the latter
-		// would otherwise enqueue duplicate incident_resolved events on repeat
-		// submission.
-		const [previous] = await this.db
-			.select({ status: incident.status })
-			.from(incident)
-			.where(eq(incident.id, input.incidentId))
-			.limit(1);
-		const wasAlreadyResolved = previous?.status === "resolved";
-
 		const updateData: Record<string, unknown> = {
 			status: input.status,
 			updatedAt: new Date(),
@@ -259,12 +262,13 @@ export class IncidentService {
 		const [updatedIncident] = await this.db
 			.update(incident)
 			.set(updateData)
-			.where(eq(incident.id, input.incidentId))
+			.where(
+				and(eq(incident.id, input.incidentId), eq(incident.organizationId, input.organizationId)),
+			)
 			.returning({ id: incident.id, organizationId: incident.organizationId });
 
-		// Enqueue notification unless explicitly suppressed (autoResolveIncident path)
-		// or this is a postmortem (post-resolution writing, not paging-worthy).
-		if (updatedIncident && !input.suppressNotification && input.status !== "postmortem") {
+		// A postmortem is post-resolution writing, not paging-worthy.
+		if (updatedIncident && input.status !== "postmortem") {
 			if (input.status === "resolved") {
 				if (!wasAlreadyResolved) {
 					await this.enqueueIncidentEvent("incident_resolved", updatedIncident, {
@@ -292,36 +296,31 @@ export class IncidentService {
 			.orderBy(desc(incidentUpdate.createdAt));
 	}
 
-	async updateIncidentUpdate(updateId: string, message: string): Promise<IncidentUpdate | null> {
+	/** Rewrites the postmortem `updateId` only if it belongs to an incident in `organizationId`. */
+	async updatePostmortem(
+		incidentId: string,
+		organizationId: string,
+		updateId: string,
+		message: string,
+	): Promise<IncidentUpdate | null> {
+		const ownedIncident = this.db
+			.select({ id: incident.id })
+			.from(incident)
+			.where(and(eq(incident.id, incidentId), eq(incident.organizationId, organizationId)));
+
 		const [updated] = await this.db
 			.update(incidentUpdate)
 			.set({ message })
-			.where(eq(incidentUpdate.id, updateId))
+			.where(
+				and(
+					eq(incidentUpdate.id, updateId),
+					eq(incidentUpdate.status, "postmortem"),
+					inArray(incidentUpdate.incidentId, ownedIncident),
+				),
+			)
 			.returning();
 
 		return updated || null;
-	}
-
-	async linkMonitors(incidentId: string, monitorIds: string[]): Promise<void> {
-		if (monitorIds.length === 0) return;
-
-		await this.db
-			.insert(incidentMonitor)
-			.values(
-				monitorIds.map((monitorId) => ({
-					incidentId,
-					monitorId,
-				})),
-			)
-			.onConflictDoNothing();
-	}
-
-	async unlinkMonitor(incidentId: string, monitorId: string): Promise<void> {
-		await this.db
-			.delete(incidentMonitor)
-			.where(
-				and(eq(incidentMonitor.incidentId, incidentId), eq(incidentMonitor.monitorId, monitorId)),
-			);
 	}
 
 	async getAffectedMonitors(incidentId: string): Promise<
@@ -407,16 +406,6 @@ export class IncidentService {
 			.limit(1);
 
 		return result || null;
-	}
-
-	// Auto-resolve incident when monitor recovers
-	async autoResolveIncident(incidentId: string): Promise<void> {
-		await this.addUpdate({
-			incidentId,
-			status: "resolved",
-			message: AUTO_RESOLVE_MESSAGE,
-			suppressNotification: true,
-		});
 	}
 }
 

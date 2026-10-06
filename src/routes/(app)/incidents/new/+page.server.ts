@@ -3,6 +3,7 @@ import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { createIncidentSchema } from "#lib/schemas/incident.js";
+import { NotFoundError } from "#lib/server/errors.js";
 import { incidentService } from "#lib/server/services/incident.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
@@ -52,6 +53,9 @@ export const actions: Actions = {
 			});
 			locals.event.set("resource_id", incident.id);
 		} catch (error) {
+			if (error instanceof NotFoundError) {
+				return message(form, error.message, { status: 404 });
+			}
 			locals.event.setError(error);
 			return message(form, "Failed to create incident", { status: 500 });
 		}

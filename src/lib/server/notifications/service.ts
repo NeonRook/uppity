@@ -318,7 +318,8 @@ export class NotificationService {
 			return { status: "suppressed", errorMessage: "incident not found" };
 		}
 
-		// Fan-out: union of channels linked to any affected monitor, deduplicated.
+		// Fan-out: union of channels linked to any affected monitor, deduplicated, and
+		// never outside the incident's organization whatever the links say.
 		const linked = await this.db
 			.selectDistinct({ channel: notificationChannel })
 			.from(incidentMonitor)
@@ -330,6 +331,7 @@ export class NotificationService {
 				notificationChannel,
 				and(
 					eq(notificationChannel.id, monitorNotificationChannel.channelId),
+					eq(notificationChannel.organizationId, incidentRow.organizationId),
 					eq(notificationChannel.enabled, true),
 				),
 			)

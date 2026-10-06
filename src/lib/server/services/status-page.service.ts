@@ -21,7 +21,12 @@ import {
 	type StatusPageGroup,
 	type StatusPageMonitor,
 } from "#lib/server/db/schema.js";
-import { SubscriptionLimitError, FeatureNotAvailableError } from "#lib/server/errors.js";
+import {
+	SubscriptionLimitError,
+	FeatureNotAvailableError,
+	NotFoundError,
+} from "#lib/server/errors.js";
+import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -36,6 +41,7 @@ export interface CreateStatusPageInput {
 	faviconUrl?: string;
 	primaryColor?: string;
 	customCss?: string;
+	monitorIds?: string[];
 }
 
 export interface UpdateStatusPageInput {
@@ -52,6 +58,7 @@ export interface UpdateStatusPageInput {
 
 export interface CreateGroupInput {
 	statusPageId: string;
+	organizationId: string;
 	name: string;
 	description?: string;
 	order?: number;
@@ -60,9 +67,8 @@ export interface CreateGroupInput {
 
 export interface AddMonitorInput {
 	statusPageId: string;
+	organizationId: string;
 	monitorId: string;
-	groupId?: string;
-	displayName?: string;
 	order?: number;
 }
 
@@ -82,8 +88,24 @@ export interface PublicIncidentData {
 	}>;
 }
 
+/** The status page fields the public pages render, and nothing else. */
+export type PublicStatusPage = Pick<
+	StatusPage,
+	"name" | "slug" | "description" | "logoUrl" | "faviconUrl"
+>;
+
+function toPublicPage({
+	name,
+	slug,
+	description,
+	logoUrl,
+	faviconUrl,
+}: StatusPage): PublicStatusPage {
+	return { name, slug, description, logoUrl, faviconUrl };
+}
+
 export interface PublicStatusPageData {
-	page: StatusPage;
+	page: PublicStatusPage;
 	groups: Array<{
 		id: string;
 		name: string;
@@ -128,7 +150,20 @@ export interface PublicMaintenanceView {
 	description: string | null;
 	startsAt: Date;
 	endsAt: Date;
+}
+
+interface MaintenanceView extends PublicMaintenanceView {
 	affectedMonitorIds: string[];
+}
+
+function toPublicMaintenance({
+	id,
+	name,
+	description,
+	startsAt,
+	endsAt,
+}: MaintenanceView): PublicMaintenanceView {
+	return { id, name, description, startsAt, endsAt };
 }
 
 export interface FeaturedUptimeDay {
@@ -179,6 +214,11 @@ export class StatusPageService {
 	}
 
 	async create(input: CreateStatusPageInput): Promise<StatusPage> {
+		const monitorIds = [...new Set(input.monitorIds)];
+		if (!(await monitorsBelongToOrg(this.db, input.organizationId, monitorIds))) {
+			throw new NotFoundError("Monitor not found");
+		}
+
 		// Check subscription limits before creating
 		const limitCheck = await subscriptionService.canAddStatusPage(input.organizationId);
 		if (!limitCheck.allowed) {
@@ -211,6 +251,17 @@ export class StatusPageService {
 				customCss: input.customCss,
 			})
 			.returning();
+
+		if (monitorIds.length > 0) {
+			await this.db.insert(statusPageMonitor).values(
+				monitorIds.map((monitorId, order) => ({
+					id: nanoid(),
+					statusPageId: id,
+					monitorId,
+					order,
+				})),
+			);
+		}
 
 		return newPage;
 	}
@@ -303,8 +354,20 @@ export class StatusPageService {
 		return true;
 	}
 
+	/** Selects the page's id only when it belongs to `organizationId`. */
+	private ownedPage(id: string, organizationId: string) {
+		return this.db
+			.select({ id: statusPage.id })
+			.from(statusPage)
+			.where(and(eq(statusPage.id, id), eq(statusPage.organizationId, organizationId)));
+	}
+
 	// Group management
-	async createGroup(input: CreateGroupInput): Promise<StatusPageGroup> {
+	async createGroup(input: CreateGroupInput): Promise<StatusPageGroup | null> {
+		if (!(await this.findByIdAndOrg(input.statusPageId, input.organizationId))) {
+			return null;
+		}
+
 		const id = nanoid();
 
 		const [group] = await this.db
@@ -330,25 +393,35 @@ export class StatusPageService {
 			.orderBy(asc(statusPageGroup.order));
 	}
 
-	async updateGroup(
-		id: string,
-		input: Partial<Pick<StatusPageGroup, "name" | "description" | "order" | "isCollapsed">>,
-	): Promise<StatusPageGroup | null> {
-		const [updated] = await this.db
-			.update(statusPageGroup)
-			.set(input)
-			.where(eq(statusPageGroup.id, id))
-			.returning();
+	async deleteGroup(
+		statusPageId: string,
+		organizationId: string,
+		groupId: string,
+	): Promise<boolean> {
+		const deleted = await this.db
+			.delete(statusPageGroup)
+			.where(
+				and(
+					eq(statusPageGroup.id, groupId),
+					inArray(statusPageGroup.statusPageId, this.ownedPage(statusPageId, organizationId)),
+				),
+			)
+			.returning({ id: statusPageGroup.id });
 
-		return updated || null;
-	}
-
-	async deleteGroup(id: string): Promise<void> {
-		await this.db.delete(statusPageGroup).where(eq(statusPageGroup.id, id));
+		return deleted.length > 0;
 	}
 
 	// Monitor management
-	async addMonitor(input: AddMonitorInput): Promise<StatusPageMonitor> {
+	/** Null when the page or the monitor is not in `input.organizationId`. */
+	async addMonitor(input: AddMonitorInput): Promise<StatusPageMonitor | null> {
+		const [page, monitorOwned] = await Promise.all([
+			this.findByIdAndOrg(input.statusPageId, input.organizationId),
+			monitorsBelongToOrg(this.db, input.organizationId, [input.monitorId]),
+		]);
+		if (!page || !monitorOwned) {
+			return null;
+		}
+
 		const id = nanoid();
 
 		const [pageMonitor] = await this.db
@@ -357,17 +430,11 @@ export class StatusPageService {
 				id,
 				statusPageId: input.statusPageId,
 				monitorId: input.monitorId,
-				groupId: input.groupId,
-				displayName: input.displayName,
 				order: input.order ?? 0,
 			})
 			.onConflictDoUpdate({
 				target: [statusPageMonitor.statusPageId, statusPageMonitor.monitorId],
-				set: {
-					groupId: input.groupId,
-					displayName: input.displayName,
-					order: input.order ?? 0,
-				},
+				set: { order: input.order ?? 0 },
 			})
 			.returning();
 
@@ -407,6 +474,14 @@ export class StatusPageService {
 			})
 			.from(statusPageMonitor)
 			.innerJoin(monitor, eq(statusPageMonitor.monitorId, monitor.id))
+			// A link to another organization's monitor is never shown, even if one exists.
+			.innerJoin(
+				statusPage,
+				and(
+					eq(statusPage.id, statusPageMonitor.statusPageId),
+					eq(statusPage.organizationId, monitor.organizationId),
+				),
+			)
 			.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
 			.where(eq(statusPageMonitor.statusPageId, statusPageId))
 			.orderBy(asc(statusPageMonitor.order));
@@ -414,21 +489,28 @@ export class StatusPageService {
 		return results;
 	}
 
-	async removeMonitor(statusPageId: string, monitorId: string): Promise<void> {
-		await this.db
+	async removeMonitor(
+		statusPageId: string,
+		organizationId: string,
+		monitorId: string,
+	): Promise<boolean> {
+		const removed = await this.db
 			.delete(statusPageMonitor)
 			.where(
 				and(
-					eq(statusPageMonitor.statusPageId, statusPageId),
 					eq(statusPageMonitor.monitorId, monitorId),
+					inArray(statusPageMonitor.statusPageId, this.ownedPage(statusPageId, organizationId)),
 				),
-			);
+			)
+			.returning({ id: statusPageMonitor.id });
+
+		return removed.length > 0;
 	}
 
 	async getActiveMaintenanceForMonitors(
 		monitorIds: string[],
 		at: Date = new Date(),
-	): Promise<PublicMaintenanceView[]> {
+	): Promise<MaintenanceView[]> {
 		if (monitorIds.length === 0) return [];
 
 		const rows = await this.db
@@ -450,7 +532,7 @@ export class StatusPageService {
 				),
 			);
 
-		const byWindow = new Map<string, PublicMaintenanceView>();
+		const byWindow = new Map<string, MaintenanceView>();
 		for (const r of rows) {
 			const existing = byWindow.get(r.window.id);
 			if (existing) {
@@ -475,7 +557,7 @@ export class StatusPageService {
 		monitorIds: string[],
 		withinDays: number,
 		at: Date = new Date(),
-	): Promise<PublicMaintenanceView[]> {
+	): Promise<MaintenanceView[]> {
 		if (monitorIds.length === 0) return [];
 
 		const horizon = new Date(at.getTime() + withinDays * 24 * 60 * 60 * 1000);
@@ -498,7 +580,7 @@ export class StatusPageService {
 				),
 			);
 
-		const byWindow = new Map<string, PublicMaintenanceView>();
+		const byWindow = new Map<string, MaintenanceView>();
 		for (const r of rows) {
 			const existing = byWindow.get(r.window.id);
 			if (existing) {
@@ -724,7 +806,13 @@ export class StatusPageService {
 			})
 			.from(incident)
 			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.where(and(inArray(incident.id, onThisPage), sql`${incident.status} != 'resolved'`))
+			.where(
+				and(
+					eq(incident.organizationId, page.organizationId),
+					inArray(incident.id, onThisPage),
+					sql`${incident.status} != 'resolved'`,
+				),
+			)
 			.groupBy(incident.id)
 			.orderBy(desc(incident.startedAt));
 
@@ -750,6 +838,7 @@ export class StatusPageService {
 			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
 			.where(
 				and(
+					eq(incident.organizationId, page.organizationId),
 					inArray(incident.id, onThisPage),
 					sql`${incident.status} = 'resolved'`,
 					gte(incident.resolvedAt, historyDaysAgo),
@@ -761,14 +850,14 @@ export class StatusPageService {
 		const resolvedIncidents = resolvedIncidentsRaw.map(this.formatIncidentData);
 
 		return {
-			page,
+			page: toPublicPage(page),
 			groups: groupsWithMonitors,
 			ungroupedMonitors,
 			overallStatus,
 			activeIncidents,
 			resolvedIncidents,
-			activeMaintenance,
-			upcomingMaintenance,
+			activeMaintenance: activeMaintenance.map(toPublicMaintenance),
+			upcomingMaintenance: upcomingMaintenance.map(toPublicMaintenance),
 		};
 	}
 
@@ -812,7 +901,7 @@ export class StatusPageService {
 		slug: string,
 		incidentId: string,
 	): Promise<{
-		page: StatusPage;
+		page: PublicStatusPage;
 		incident: PublicIncidentData;
 		affectedMonitors: Array<{ id: string; name: string }>;
 	} | null> {
@@ -862,7 +951,7 @@ export class StatusPageService {
 			})
 			.from(incident)
 			.leftJoin(incidentUpdate, eq(incident.id, incidentUpdate.incidentId))
-			.where(eq(incident.id, incidentId))
+			.where(and(eq(incident.id, incidentId), eq(incident.organizationId, page.organizationId)))
 			.groupBy(incident.id);
 
 		if (incidentResult.length === 0) {
@@ -895,7 +984,7 @@ export class StatusPageService {
 			}));
 
 		return {
-			page,
+			page: toPublicPage(page),
 			incident: {
 				id: incidentData.incident.id,
 				title: incidentData.incident.title,
@@ -951,6 +1040,13 @@ export class StatusPageService {
 			})
 			.from(monitorCheck)
 			.innerJoin(statusPageMonitor, eq(statusPageMonitor.monitorId, monitorCheck.monitorId))
+			.innerJoin(
+				monitor,
+				and(
+					eq(monitor.id, monitorCheck.monitorId),
+					eq(monitor.organizationId, page.organizationId),
+				),
+			)
 			.where(and(eq(statusPageMonitor.statusPageId, page.id), gte(monitorCheck.checkedAt, since)))
 			.groupBy(sql`DATE(${monitorCheck.checkedAt})`);
 

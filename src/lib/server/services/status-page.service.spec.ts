@@ -13,9 +13,12 @@ import {
 	maintenanceWindowMonitor,
 	monitor,
 	monitorCheck,
+	monitorStatus as monitorStatusTable,
 	statusPage,
+	statusPageGroup,
 	statusPageMonitor,
 } from "../db/schema";
+import { NotFoundError } from "../errors";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { StatusPageService } from "./status-page.service";
@@ -143,7 +146,6 @@ describe("StatusPageService.getPublicStatusPage — maintenance", () => {
 		expect(result!.ungroupedMonitors[0].status).toBe("maintenance");
 		expect(result!.activeMaintenance).toHaveLength(1);
 		expect(result!.activeMaintenance[0].id).toBe(windowId);
-		expect(result!.activeMaintenance[0].affectedMonitorIds).toContain(monitorId);
 	});
 
 	test("scheduled window within 7 days appears in upcomingMaintenance", async ({ db }) => {
@@ -495,5 +497,185 @@ describe("StatusPageService.getPublicStatusPage — aggregation", () => {
 
 		const detail = await service.getPublicIncident(slug, incidentId);
 		expect(detail!.incident.updates).toHaveLength(2);
+	});
+});
+
+async function seedIncident(
+	drizzleDb: TestDb["db"],
+	orgId: string,
+	monitorId: string,
+): Promise<string> {
+	const id = `inc-${nanoid()}`;
+	await drizzleDb
+		.insert(incident)
+		.values({ id, organizationId: orgId, title: "Private incident", status: "investigating" });
+	await drizzleDb.insert(incidentMonitor).values({ incidentId: id, monitorId });
+	return id;
+}
+
+async function seedGroup(drizzleDb: TestDb["db"], pageId: string): Promise<string> {
+	const id = `spg-${nanoid()}`;
+	await drizzleDb.insert(statusPageGroup).values({ id, statusPageId: pageId, name: "Core" });
+	return id;
+}
+
+async function pageLinks(drizzleDb: TestDb["db"], pageId: string) {
+	return drizzleDb
+		.select({ monitorId: statusPageMonitor.monitorId })
+		.from(statusPageMonitor)
+		.where(eq(statusPageMonitor.statusPageId, pageId));
+}
+
+describe("StatusPageService organization scoping", () => {
+	test("addMonitor refuses another organization's page or monitor", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const attackerMonitor = await seedMonitor(drizzleDb, attackerOrg);
+		const victimPage = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
+		const attackerPage = await seedStatusPageWithMonitor(drizzleDb, attackerOrg, attackerMonitor);
+
+		// The attacker's failing monitor onto the victim's page: a false outage.
+		const onVictimPage = await service.addMonitor({
+			statusPageId: victimPage.pageId,
+			organizationId: attackerOrg,
+			monitorId: attackerMonitor,
+		});
+		// The victim's monitor onto the attacker's page: a data leak.
+		const onAttackerPage = await service.addMonitor({
+			statusPageId: attackerPage.pageId,
+			organizationId: attackerOrg,
+			monitorId: victimMonitor,
+		});
+
+		expect(onVictimPage).toBeNull();
+		expect(onAttackerPage).toBeNull();
+		expect(await pageLinks(drizzleDb, victimPage.pageId)).toEqual([{ monitorId: victimMonitor }]);
+		expect(await pageLinks(drizzleDb, attackerPage.pageId)).toEqual([
+			{ monitorId: attackerMonitor },
+		]);
+	});
+
+	test("removeMonitor leaves another organization's page untouched", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const { pageId } = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
+
+		expect(await service.removeMonitor(pageId, attackerOrg, victimMonitor)).toBe(false);
+		expect(await pageLinks(drizzleDb, pageId)).toHaveLength(1);
+	});
+
+	test("createGroup refuses another organization's page", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const { pageId } = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
+
+		const group = await service.createGroup({
+			statusPageId: pageId,
+			organizationId: attackerOrg,
+			name: "Injected",
+		});
+
+		expect(group).toBeNull();
+		expect(await service.getGroups(pageId)).toHaveLength(0);
+	});
+
+	test("deleteGroup refuses another organization's group", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const attackerMonitor = await seedMonitor(drizzleDb, attackerOrg);
+		const victimPage = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
+		const attackerPage = await seedStatusPageWithMonitor(drizzleDb, attackerOrg, attackerMonitor);
+		const groupId = await seedGroup(drizzleDb, victimPage.pageId);
+
+		// Through the victim's page id, and through the attacker's own page id.
+		expect(await service.deleteGroup(victimPage.pageId, attackerOrg, groupId)).toBe(false);
+		expect(await service.deleteGroup(attackerPage.pageId, attackerOrg, groupId)).toBe(false);
+		expect(await service.getGroups(victimPage.pageId)).toHaveLength(1);
+	});
+
+	test("create rejects another organization's monitor and writes nothing", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+
+		await expect(
+			service.create({
+				organizationId: attackerOrg,
+				name: "Mirror",
+				slug: `mirror-${nanoid()}`.toLowerCase(),
+				monitorIds: [victimMonitor],
+			}),
+		).rejects.toBeInstanceOf(NotFoundError);
+
+		expect(await service.findByOrganization(attackerOrg)).toHaveLength(0);
+	});
+
+	test("getPublicStatusPage ignores existing links across organizations", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const victimOrg = await seedOrg(drizzleDb);
+		const attackerOrg = await seedOrg(drizzleDb);
+		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
+		const attackerMonitor = await seedMonitor(drizzleDb, attackerOrg);
+		await drizzleDb
+			.insert(monitorStatusTable)
+			.values({ monitorId: attackerMonitor, status: "down" });
+		const victimPage = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
+		const attackerPage = await seedStatusPageWithMonitor(drizzleDb, attackerOrg, attackerMonitor);
+		// Links written before writes were scoped, in both directions.
+		await drizzleDb.insert(statusPageMonitor).values([
+			{ id: `spm-${nanoid()}`, statusPageId: victimPage.pageId, monitorId: attackerMonitor },
+			{ id: `spm-${nanoid()}`, statusPageId: attackerPage.pageId, monitorId: victimMonitor },
+		]);
+		const victimIncident = await seedIncident(drizzleDb, victimOrg, victimMonitor);
+		const attackerIncident = await seedIncident(drizzleDb, attackerOrg, victimMonitor);
+
+		const onVictimPage = await service.getPublicStatusPage(victimPage.slug);
+		const onAttackerPage = await service.getPublicStatusPage(attackerPage.slug);
+
+		expect(onVictimPage!.ungroupedMonitors).toHaveLength(1);
+		expect(onVictimPage!.overallStatus).toBe("operational");
+		expect(onVictimPage!.activeIncidents.map((i) => i.id)).toEqual([victimIncident]);
+		expect(onAttackerPage!.ungroupedMonitors).toHaveLength(1);
+		expect(onAttackerPage!.activeIncidents).toHaveLength(0);
+		await expect(service.getPublicIncident(victimPage.slug, attackerIncident)).resolves.toBeNull();
+		await expect(service.getPublicIncident(attackerPage.slug, victimIncident)).resolves.toBeNull();
+	});
+
+	test("the public payload carries only the fields the public pages render", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		const incidentId = await seedIncident(drizzleDb, orgId, monitorId);
+		const now = Date.now();
+		await seedMaintenanceWindow(drizzleDb, orgId, monitorId, {
+			status: "in_progress",
+			startsAt: new Date(now - 60_000),
+			endsAt: new Date(now + 60 * 60_000),
+		});
+
+		const result = await service.getPublicStatusPage(slug);
+		const detail = await service.getPublicIncident(slug, incidentId);
+
+		const pageKeys = ["description", "faviconUrl", "logoUrl", "name", "slug"];
+		expect(Object.keys(result!.page).toSorted()).toEqual(pageKeys);
+		expect(Object.keys(detail!.page).toSorted()).toEqual(pageKeys);
+		expect(result!.activeMaintenance[0]).not.toHaveProperty("affectedMonitorIds");
 	});
 });

@@ -382,6 +382,29 @@ describe("MaintenanceWindowService.update", () => {
 		expect(fetched!.monitorIds.toSorted()).toEqual([m2, m3].toSorted());
 	});
 
+	test("update rejects another organization's monitor and keeps the links", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new MaintenanceWindowService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const otherOrg = await seedOrg(drizzleDb);
+		const own = await seedMonitor(drizzleDb, orgId);
+		const foreign = await seedMonitor(drizzleDb, otherOrg);
+
+		const created = await service.create({
+			organizationId: orgId,
+			name: "Window",
+			startsAt: new Date(Date.now() + 60_000),
+			endsAt: new Date(Date.now() + 120_000),
+			monitorIds: [own],
+		});
+
+		await expect(service.update(created.id, orgId, { monitorIds: [foreign] })).rejects.toThrow(
+			"Monitor not found",
+		);
+		const fetched = await service.findById(created.id, orgId);
+		expect(fetched!.monitorIds).toEqual([own]);
+	});
+
 	test("rejects when end before start", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new MaintenanceWindowService(drizzleDb);

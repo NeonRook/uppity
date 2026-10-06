@@ -27,3 +27,15 @@ export class FeatureNotAvailableError extends Error {
 		this.feature = feature;
 	}
 }
+
+/**
+ * Error thrown when a referenced row does not exist in the caller's organization.
+ */
+export class NotFoundError extends Error {
+	readonly code = "NOT_FOUND";
+
+	constructor(message: string) {
+		super(message);
+		this.name = "NotFoundError";
+	}
+}
