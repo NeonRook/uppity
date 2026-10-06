@@ -39,8 +39,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
+	const canManageBilling = await subscriptionService.canManageBilling(
+		organizationId,
+		locals.user.id,
+	);
+
 	const checkoutId = url.searchParams.get("checkout_id");
-	if (checkoutId) {
+	if (checkoutId && canManageBilling) {
 		try {
 			await syncCheckout(checkoutId, organizationId);
 		} catch (error) {
@@ -50,10 +55,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	const [initialSubscription, usageSummary, canManageBilling] = await Promise.all([
+	const [initialSubscription, usageSummary] = await Promise.all([
 		subscriptionService.getOrCreateSubscription(organizationId),
 		usageService.getUsageSummary(organizationId),
-		subscriptionService.canManageBilling(organizationId, locals.user.id),
 	]);
 
 	let subscription = initialSubscription;

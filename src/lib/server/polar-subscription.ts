@@ -23,6 +23,7 @@ export async function fetchPolarSnapshot(
 		polarCustomerId: sub.customer_id,
 		polarSubscriptionId: sub.id,
 		billingInterval: sub.recurring_interval,
+		payerUserId: sub.customer.external_id ?? undefined,
 		currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start) : undefined,
 		currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : undefined,
 	};
@@ -66,6 +67,14 @@ export async function syncCheckout(checkoutId: string, organizationId: string): 
 	if (!subscriptionId) return false;
 
 	const snapshot = await fetchPolarSnapshot(subscriptionId);
+	// The same rule the subscription.created webhook applies: only a subscription paid
+	// for by an owner or admin of the organization may be attached to it.
+	if (
+		!snapshot.payerUserId ||
+		!(await subscriptionService.canManageBilling(organizationId, snapshot.payerUserId))
+	) {
+		return false;
+	}
 	await subscriptionService.resyncFromPolar(organizationId, snapshot);
 	return true;
 }
