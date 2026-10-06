@@ -29,7 +29,7 @@
 		if (data.checkoutSuccess) {
 			toast.success(m.billing_checkout_success());
 			// Clean up the URL without triggering navigation
-			const url = new URL(page.url);
+			const url = new URL(page.url.href);
 			url.searchParams.delete("checkout");
 			goto(url.pathname, { shallow: true, replace: true });
 		}

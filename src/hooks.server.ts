@@ -68,15 +68,10 @@ const handleLogging: Handle = async ({ event, resolve }) => {
 };
 
 const handleParaglide: Handle = ({ event, resolve }) =>
-	paraglideMiddleware(
-		event.request,
-		({ request, locale }: { request: Request; locale: string }) => {
-			event.request = request;
-
-			return resolve(event, {
-				transformPageChunk: ({ html }) => html.replace("%paraglide.lang%", locale),
-			});
-		},
+	paraglideMiddleware(event.request, ({ locale }: { locale: string }) =>
+		resolve(event, {
+			transformPageChunk: ({ html }) => html.replace("%paraglide.lang%", locale),
+		}),
 	);
 
 const handleAuth: Handle = async ({ event, resolve }) => {
