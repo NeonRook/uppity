@@ -912,7 +912,7 @@ describe("SubscriptionService", () => {
 			expect(await service.setBlocks(orgId, 1)).toStrictEqual({
 				ok: false,
 				reason: "multi_org_customer",
-				organizationName: `Test Org ${holder.slice("test-org-".length)}`,
+				organization: { id: holder, name: `Test Org ${holder.slice("test-org-".length)}` },
 			});
 			expect((await service.getSubscription(orgId))?.blocks).toBe(0);
 		});
@@ -954,6 +954,10 @@ describe("SubscriptionService", () => {
 			expect(
 				await service.canManageBilling(orgId, await seedRole(drizzleDb, orgId, "member")),
 			).toBe(false);
+			expect(await service.memberRole(orgId, await seedRole(drizzleDb, orgId, "member"))).toBe(
+				"member",
+			);
+			expect(await service.memberRole(orgId, await seedUser(drizzleDb))).toBeNull();
 			// An owner elsewhere is an outsider here.
 			expect(
 				await service.canManageBilling(orgId, await seedRole(drizzleDb, otherOrg, "owner")),

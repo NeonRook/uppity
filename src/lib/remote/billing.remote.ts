@@ -33,6 +33,13 @@ export const setCapacityBlocks = command(blocksSchema, async ({ blocks }) => {
 	}
 
 	const result = await subscriptionService.setBlocks(organizationId, blocks);
+	if (!result.ok && result.reason === "multi_org_customer") {
+		// The blocks belong to whoever paid, who may not be this caller. Name the other
+		// organization only to someone who is a member of it.
+		const { id, name } = result.organization;
+		const isMember = (await subscriptionService.memberRole(id, locals.user.id)) !== null;
+		return { ok: false as const, reason: result.reason, organizationName: isMember ? name : null };
+	}
 	if (!result.ok) return result;
 
 	// A failed report is not rolled back: the daily heartbeat repairs it within a day,

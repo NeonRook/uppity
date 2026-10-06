@@ -741,5 +741,6 @@
 	"billing_block_upgrade_desc": "Uppity includes {included} monitors and grows in blocks of {size} as you need them.",
 	"billing_block_upgrade_action": "Upgrade to Uppity",
 	"monitors_limit_reached": "You've reached your limit of {limit} monitors.",
-	"monitors_limit_add_capacity": "Add capacity"
+	"monitors_limit_add_capacity": "Add capacity",
+	"billing_block_error_multi_org_unnamed": "Extra capacity for your account is already billed in another organization. Remove those blocks there before adding them here."
 }
