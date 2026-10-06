@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import faviconSvg from "$lib/assets/favicon.svg";
-	import { locales, localizeHref } from "$lib/paraglide/runtime";
 	/* Fontsource declares this file inside layout.css, so the browser cannot
 	   find it until the stylesheet has downloaded and parsed — one full round
 	   trip after the HTML on a cold connection, and every heading repaints when
@@ -12,6 +10,9 @@
 	   which are in a first viewport, and preloading it would put 14 KB in front
 	   of the text that decides LCP. */
 	import plexSansLatin from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?url";
+
+	import faviconSvg from "#lib/assets/favicon.svg";
+	import { locales, localizeHref } from "#lib/paraglide/runtime.js";
 
 	import "./layout.css";
 

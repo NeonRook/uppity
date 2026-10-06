@@ -2,14 +2,15 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page as pageState } from "$app/state";
-	import Pagination from "$lib/components/pagination.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Table from "$lib/components/ui/table";
-	import { formatDateTimeShort } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
 	import { ChevronDown, ChevronRight, Download } from "@lucide/svelte";
+
+	import Pagination from "#lib/components/pagination.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { formatDateTimeShort } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 
@@ -105,16 +106,17 @@
 				</label>
 
 				<Button type="submit" size="sm">{m.admin_audit_filter_apply()}</Button>
-				<Button variant="ghost" size="sm" href={resolve("/admin/audit")}>
-					{m.admin_audit_filter_clear()}
-				</Button>
+
+				<Button variant="ghost" size="sm" href={resolve("admin/audit")}
+					>{m.admin_audit_filter_clear()}</Button
+				>
 			</form>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-8"></Table.Head>
+						<Table.Head class="w-8" />
 						<Table.Head>{m.admin_audit_col_time()}</Table.Head>
 						<Table.Head>{m.admin_audit_col_actor()}</Table.Head>
 						<Table.Head>{m.admin_audit_col_action()}</Table.Head>

@@ -1,4 +1,4 @@
-import { envInt, envString } from "$lib/utils";
+import { envInt, envString } from "#lib/utils.js";
 
 /** Cron schedule for aggregating the previous day's check data into daily stats. */
 export const CRON_DAILY_STATS = envString("UPPITY_CRON_DAILY_STATS", "0 1 * * *");

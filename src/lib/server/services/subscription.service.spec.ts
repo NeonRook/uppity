@@ -1,7 +1,8 @@
-import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, vi } from "vitest";
+
+import { ORGANIZATION_MEMBERSHIP_LIMIT } from "#lib/constants/auth.js";
 
 import { invitation, member, organization, user } from "../db/auth-schema";
 import { monitor, statusPage, subscription } from "../db/schema";

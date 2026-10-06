@@ -1,13 +1,14 @@
-import { db } from "$lib/server/db";
+import { eq, and, desc } from "drizzle-orm";
+import { nanoid } from "nanoid";
+
+import { db } from "#lib/server/db/index.js";
 import {
 	notificationChannel,
 	monitorNotificationChannel,
 	type NotificationChannel,
-} from "$lib/server/db/schema";
-import { FeatureNotAvailableError } from "$lib/server/errors";
-import { subscriptionService } from "$lib/server/services/subscription.service";
-import { eq, and, desc } from "drizzle-orm";
-import { nanoid } from "nanoid";
+} from "#lib/server/db/schema.js";
+import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
 
 export interface CreateChannelInput {
 	organizationId: string;

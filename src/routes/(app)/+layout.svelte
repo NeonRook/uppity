@@ -2,11 +2,6 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { signOut, organization } from "$lib/auth-client";
-	import { Button } from "$lib/components/ui/button";
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-	import * as Tooltip from "$lib/components/ui/tooltip";
-	import { m } from "$lib/paraglide/messages.js";
 	import {
 		LayoutDashboard,
 		Monitor,
@@ -27,6 +22,12 @@
 		Wrench,
 	} from "@lucide/svelte";
 	import { onMount } from "svelte";
+
+	import { signOut, organization } from "#lib/auth-client.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data, children } = $props();
 
@@ -81,7 +82,7 @@
 
 	async function handleSignOut() {
 		await signOut();
-		goto(resolve("/login"));
+		goto(resolve("login"));
 	}
 
 	async function switchOrganization(orgId: string) {
@@ -142,11 +143,13 @@
 							>
 								<Building2 class="h-4 w-4" />
 							</div>
+
 							<div class="flex flex-1 flex-col items-start overflow-hidden">
-								<span class="w-full truncate text-sm font-medium">
-									{data.currentOrganization?.name ?? m.org_no_organization()}
-								</span>
+								<span class="w-full truncate text-sm font-medium"
+									>{data.currentOrganization?.name ?? m.org_no_organization()}</span
+								>
 							</div>
+
 							<ChevronDown
 								class="text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200 {orgMenuOpen
 									? 'rotate-180'
@@ -172,10 +175,9 @@
 							{/if}
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve("/settings")} class="flex w-full items-center">
-									<Settings class="mr-2 h-4 w-4" />
-									{m.org_manage()}
-								</a>
+								<a href={resolve("settings")} class="flex w-full items-center"
+									><Settings class="mr-2 h-4 w-4" />{m.org_manage()}</a
+								>
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -191,11 +193,8 @@
 							)
 								? 'bg-primary text-primary-foreground'
 								: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-							onclick={() => (sidebarOpen = false)}
+							onclick={() => (sidebarOpen = false)}><item.icon class="h-5 w-5" />{item.name}</a
 						>
-							<item.icon class="h-5 w-5" />
-							{item.name}
-						</a>
 					{/each}
 				</nav>
 
@@ -209,6 +208,7 @@
 							>
 								{data.user.name.charAt(0).toUpperCase()}
 							</div>
+
 							<div class="flex flex-1 flex-col items-start overflow-hidden">
 								<span class="w-full truncate text-sm font-medium">{data.user.name}</span>
 								<span class="text-muted-foreground w-full truncate text-xs">{data.user.email}</span>
@@ -223,14 +223,14 @@
 							<DropdownMenu.Label>{m.account_my_account()}</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve("/settings")} class="flex w-full items-center">
+								<a href={resolve("settings")} class="flex w-full items-center">
 									<Settings class="mr-2 h-4 w-4" />
 									{m.common_settings()}
 								</a>
 							</DropdownMenu.Item>
 							{#if data.user.role === "admin"}
 								<DropdownMenu.Item>
-									<a href={resolve("/admin")} class="flex w-full items-center">
+									<a href={resolve("admin")} class="flex w-full items-center">
 										<ShieldCheck class="mr-2 h-4 w-4" />
 										{m.account_admin_panel()}
 									</a>
@@ -274,6 +274,7 @@
 
 		<div class="grid h-full grid-rows-[auto_1fr] lg:ml-64">
 			<!-- Mobile header -->
+
 			<header class="bg-card flex h-14 items-center gap-4 border-b px-4 lg:hidden">
 				<Button variant="ghost" size="icon" onclick={() => (sidebarOpen = !sidebarOpen)}>
 					{#if sidebarOpen}

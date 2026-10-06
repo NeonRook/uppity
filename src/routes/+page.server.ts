@@ -1,6 +1,10 @@
-import { LANDING_STATUS_PAGE_SLUG } from "$lib/constants/defaults";
-import { statusPageService, type FeaturedUptime } from "$lib/server/services/status-page.service";
 import { redirect } from "@sveltejs/kit";
+
+import { LANDING_STATUS_PAGE_SLUG } from "#lib/constants/defaults.js";
+import {
+	statusPageService,
+	type FeaturedUptime,
+} from "#lib/server/services/status-page.service.js";
 
 import type { PageServerLoad } from "./$types";
 

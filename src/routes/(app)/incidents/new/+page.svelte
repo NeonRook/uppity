@@ -1,24 +1,25 @@
 <script lang="ts">
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Checkbox } from "$lib/components/ui/checkbox";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import { Textarea } from "$lib/components/ui/textarea";
+	import { CircleAlert, ArrowLeft, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import { superForm } from "sveltekit-superforms";
+
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import {
 		INCIDENT_STATUS_VALUES,
 		INCIDENT_IMPACTS,
 		type IncidentStatusValue,
 		type IncidentImpact,
-	} from "$lib/constants/status";
-	import { getStatusLabel, getImpactLabel, getImpactDescription } from "$lib/incidents";
-	import { m } from "$lib/paraglide/messages.js";
-	import { CircleAlert, ArrowLeft, LoaderCircle } from "@lucide/svelte";
-	import { untrack } from "svelte";
-	import { SvelteSet } from "svelte/reactivity";
-	import { superForm } from "sveltekit-superforms";
+	} from "#lib/constants/status.js";
+	import { getStatusLabel, getImpactLabel, getImpactDescription } from "#lib/incidents.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 

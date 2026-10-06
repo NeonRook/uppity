@@ -68,7 +68,7 @@ async function seedMonitors(drizzleDb: TestDb["db"], orgId: string, count: numbe
 	}
 }
 
-type IngestedEvent = { name: string; customerId: string; metadata: Record<string, unknown> };
+type IngestedEvent = { name: string; customer_id: string; metadata: Record<string, unknown> };
 
 describe("MeterService", () => {
 	// Local dev's .env sets SELF_HOSTED=true, which disables reporting entirely.
@@ -151,7 +151,7 @@ describe("MeterService", () => {
 		// With one billed org and chunkSize 10, everything fits in a single
 		// chunk per stream: the first ingest call is the customer stream.
 		const [customerEvents] = ingest.mock.calls[0] as [IngestedEvent[]];
-		const event = customerEvents.find((e) => e.customerId === polarCustomerId);
+		const event = customerEvents.find((e) => e.customer_id === polarCustomerId);
 		expect(event?.name).toBe("usage_snapshot");
 		// Exact key set, not just presence of organization_count: a rename of
 		// any property (e.g. status_pages -> statusPages) would zero that
@@ -203,7 +203,7 @@ describe("MeterService", () => {
 		const allEvents = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
 
 		const customerEvents = allEvents.filter(
-			(e) => e.name === "usage_snapshot" && e.customerId === sharedCustomerId,
+			(e) => e.name === "usage_snapshot" && e.customer_id === sharedCustomerId,
 		);
 		expect(customerEvents).toHaveLength(1);
 		expect(customerEvents[0]?.metadata).toMatchObject({
@@ -212,7 +212,7 @@ describe("MeterService", () => {
 		});
 
 		const orgEventCalls = allEvents.filter(
-			(e) => e.name === "usage_snapshot_org" && e.customerId === sharedCustomerId,
+			(e) => e.name === "usage_snapshot_org" && e.customer_id === sharedCustomerId,
 		);
 
 		const orgIds = new Set(orgEventCalls.map((e) => e.metadata.organization_id));
@@ -253,7 +253,7 @@ describe("MeterService", () => {
 			expect(events).toEqual([
 				{
 					name: "monitor_blocks",
-					customerId: polarCustomerId,
+					customer_id: polarCustomerId,
 					metadata: { blocks: 5, organization_count: 2 },
 				},
 			]);
@@ -270,7 +270,7 @@ describe("MeterService", () => {
 			expect(events).toEqual([
 				{
 					name: "monitor_blocks",
-					customerId: polarCustomerId,
+					customer_id: polarCustomerId,
 					metadata: { blocks: 0, organization_count: 1 },
 				},
 			]);
@@ -301,7 +301,7 @@ describe("MeterService", () => {
 			await new MeterService(db.db, ingest, 100).reportBlocks();
 
 			const events = ingest.mock.calls.flatMap((call) => call[0] as IngestedEvent[]);
-			expect(events.find((e) => e.customerId === polarCustomerId)?.metadata).toEqual({
+			expect(events.find((e) => e.customer_id === polarCustomerId)?.metadata).toEqual({
 				blocks: 7,
 				organization_count: 1,
 			});

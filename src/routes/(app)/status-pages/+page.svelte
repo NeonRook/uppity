@@ -1,15 +1,16 @@
 <script lang="ts">
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import StatusPagesListSkeleton from "$lib/components/status-pages-list-skeleton.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Tooltip from "$lib/components/ui/tooltip";
-	import { m } from "$lib/paraglide/messages.js";
-	import { deleteStatusPage, getStatusPages } from "$lib/remote/status-pages.remote";
-	import type { StatusPage } from "$lib/server/db/schema";
 	import { ExternalLink, Globe, Lock, Pencil, Plus, Trash2, Unlock } from "@lucide/svelte";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import StatusPagesListSkeleton from "#lib/components/status-pages-list-skeleton.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { deleteStatusPage, getStatusPages } from "#lib/remote/status-pages.remote.js";
+	import type { StatusPage } from "#lib/server/db/schema.js";
 
 	let { data } = $props();
 	const statusPagesQuery = getStatusPages();

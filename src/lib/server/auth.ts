@@ -1,19 +1,4 @@
 import { getRequestEvent } from "$app/server";
-import {
-	ORGANIZATION_CREATOR_ROLE,
-	ORGANIZATION_LIMIT_PER_USER,
-	SESSION_EXPIRES_IN_SECONDS,
-	SESSION_UPDATE_AGE_SECONDS,
-} from "$lib/constants/auth";
-import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "$lib/constants/defaults";
-import { DEFAULT_PLAN_ID } from "$lib/constants/plans";
-import { db } from "$lib/server/db";
-import * as authSchema from "$lib/server/db/auth-schema";
-import { subscription } from "$lib/server/db/schema";
-import { createWebhookWideEvent } from "$lib/server/logger";
-import { polarClient } from "$lib/server/polar";
-import { subscriptionService } from "$lib/server/services/subscription.service";
-import type { PlanId, SubscriptionStatus } from "$lib/types/plans";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { polar, checkout, portal, usage, webhooks } from "@polar-sh/better-auth";
 import { APIError } from "better-auth/api";
@@ -22,6 +7,22 @@ import { admin, organization } from "better-auth/plugins";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { nanoid } from "nanoid";
 import { createTransport } from "nodemailer";
+
+import {
+	ORGANIZATION_CREATOR_ROLE,
+	ORGANIZATION_LIMIT_PER_USER,
+	SESSION_EXPIRES_IN_SECONDS,
+	SESSION_UPDATE_AGE_SECONDS,
+} from "#lib/constants/auth.js";
+import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "#lib/constants/defaults.js";
+import { DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
+import * as authSchema from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import { subscription } from "#lib/server/db/schema.js";
+import { createWebhookWideEvent } from "#lib/server/logger/index.js";
+import { polarClient } from "#lib/server/polar.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
+import type { PlanId, SubscriptionStatus } from "#lib/types/plans.js";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
 //
@@ -87,10 +88,10 @@ export function mapPolarStatus(polarStatus: string): SubscriptionStatus {
  * briefly granting the base tier to someone who bought Dedicated.
  */
 export function getPlanFromSubscription(sub: {
-	productId?: string;
+	product_id?: string;
 	product?: { id?: string };
 }): PlanId {
-	const productId = sub.productId ?? sub.product?.id;
+	const productId = sub.product_id ?? sub.product?.id;
 	if (productId && POLAR_PRODUCT_TO_PLAN[productId]) {
 		return POLAR_PRODUCT_TO_PLAN[productId];
 	}
@@ -256,7 +257,7 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "subscription.created",
 							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customerId,
+							polar_customer_id: sub.customer_id,
 							plan_id: getPlanFromSubscription(sub),
 							subscription_status: sub.status,
 						});
@@ -279,12 +280,14 @@ export const auth = betterAuth({
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
-								polarCustomerId: sub.customerId,
+								polarCustomerId: sub.customer_id,
 								polarSubscriptionId: sub.id,
-								currentPeriodStart: sub.currentPeriodStart
-									? new Date(sub.currentPeriodStart)
+								currentPeriodStart: sub.current_period_start
+									? new Date(sub.current_period_start)
 									: undefined,
-								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+								currentPeriodEnd: sub.current_period_end
+									? new Date(sub.current_period_end)
+									: undefined,
 							});
 
 							event.setSuccess();
@@ -300,7 +303,7 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "subscription.updated",
 							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customerId,
+							polar_customer_id: sub.customer_id,
 							plan_id: getPlanFromSubscription(sub),
 							subscription_status: sub.status,
 						});
@@ -317,10 +320,12 @@ export const auth = betterAuth({
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: mapPolarStatus(sub.status),
-								currentPeriodStart: sub.currentPeriodStart
-									? new Date(sub.currentPeriodStart)
+								currentPeriodStart: sub.current_period_start
+									? new Date(sub.current_period_start)
 									: undefined,
-								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+								currentPeriodEnd: sub.current_period_end
+									? new Date(sub.current_period_end)
+									: undefined,
 							});
 
 							event.setSuccess();
@@ -336,7 +341,7 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "subscription.canceled",
 							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customerId,
+							polar_customer_id: sub.customer_id,
 							plan_id: getPlanFromSubscription(sub),
 							subscription_status: "canceled",
 						});
@@ -353,7 +358,9 @@ export const auth = betterAuth({
 							await subscriptionService.syncFromPolar(orgId, {
 								planId: getPlanFromSubscription(sub),
 								status: "canceled",
-								currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+								currentPeriodEnd: sub.current_period_end
+									? new Date(sub.current_period_end)
+									: undefined,
 							});
 
 							event.setSuccess();
@@ -374,9 +381,9 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "order.paid",
 							polar_order_id: order.id,
-							polar_customer_id: order.customerId,
-							polar_product_id: order.productId ?? undefined,
-							polar_subscription_id: order.subscriptionId ?? undefined,
+							polar_customer_id: order.customer_id,
+							polar_product_id: order.product_id ?? undefined,
+							polar_subscription_id: order.subscription_id ?? undefined,
 						});
 
 						try {
@@ -410,7 +417,7 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "customer.state_changed",
 							polar_customer_id: customer.id,
-							active_subscription_count: customer.activeSubscriptions.length,
+							active_subscription_count: customer.active_subscriptions.length,
 						});
 
 						try {
@@ -441,7 +448,7 @@ export const auth = betterAuth({
 						event.merge({
 							webhook_event: "subscription.revoked",
 							polar_subscription_id: sub.id,
-							polar_customer_id: sub.customerId,
+							polar_customer_id: sub.customer_id,
 							subscription_status: "revoked",
 						});
 

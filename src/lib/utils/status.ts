@@ -1,7 +1,3 @@
-// Re-exported rather than restated: the union is derived from badgeVariants' own
-// `tv` config, so a variant added to the component cannot silently fail to exist here.
-import type { BadgeVariant } from "$lib/components/ui/badge";
-import { m } from "$lib/paraglide/messages.js";
 import {
 	Pause,
 	CircleCheckBig,
@@ -10,6 +6,11 @@ import {
 	TriangleAlert,
 	type LucideIcon,
 } from "@lucide/svelte";
+
+// Re-exported rather than restated: the union is derived from badgeVariants' own
+// `tv` config, so a variant added to the component cannot silently fail to exist here.
+import type { BadgeVariant } from "#lib/components/ui/badge/index.js";
+import { m } from "#lib/paraglide/messages.js";
 
 export type { BadgeVariant };
 

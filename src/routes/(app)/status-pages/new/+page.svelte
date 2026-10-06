@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Checkbox } from "$lib/components/ui/checkbox";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { Switch } from "$lib/components/ui/switch";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { generateSlug } from "$lib/format";
 	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import { superForm } from "sveltekit-superforms";
+
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { generateSlug } from "#lib/format.js";
 
 	let { data } = $props();
 

@@ -1,17 +1,23 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import logoSvg from "$lib/assets/logo.svg";
-	import PricingCliffChart from "$lib/components/pricing-cliff-chart.svelte";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Separator } from "$lib/components/ui/separator";
-	import * as Table from "$lib/components/ui/table";
-	import { DEDICATED_PLAN, FREE_PLAN, SELF_HOSTED_LIMITS, UPPITY_PLAN } from "$lib/constants/plans";
-	import { formatDateMonthDay, formatUsdCents } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getLocale } from "$lib/paraglide/runtime";
-	import type { PlanLimits } from "$lib/types/plans";
-	import { getDayStatusColor } from "$lib/utils/status";
+
+	import logoSvg from "#lib/assets/logo.svg";
+	import PricingCliffChart from "#lib/components/pricing-cliff-chart.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Separator } from "#lib/components/ui/separator/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import {
+		DEDICATED_PLAN,
+		FREE_PLAN,
+		SELF_HOSTED_LIMITS,
+		UPPITY_PLAN,
+	} from "#lib/constants/plans.js";
+	import { formatDateMonthDay, formatUsdCents } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
+	import type { PlanLimits } from "#lib/types/plans.js";
+	import { getDayStatusColor } from "#lib/utils/status.js";
 
 	/** `featuredUptime` is present only on the hosted instance, where
 	    UPPITY_LANDING_STATUS_SLUG names a page to feature. */
@@ -102,14 +108,31 @@
 	 * reflows.
 	 */
 	const planRows: PlanRow[] = [
-		{ label: m.landing_plan_row_monitors(), value: (l) => capacity(l.monitors) },
+		{
+			label: m.landing_plan_row_monitors(),
+			value: (l) => capacity(l.monitors),
+		},
+
 		{
 			label: m.landing_plan_row_interval(),
 			value: (l) => reading(`${l.checkIntervalSeconds}s`),
 		},
-		{ label: m.landing_plan_row_status_pages(), value: (l) => capacity(l.statusPages) },
-		{ label: m.landing_plan_row_members(), value: (l) => capacity(l.teamMembers) },
-		{ label: m.landing_plan_row_retention(), value: (l) => retention(l.retentionDays) },
+
+		{
+			label: m.landing_plan_row_status_pages(),
+			value: (l) => capacity(l.statusPages),
+		},
+
+		{
+			label: m.landing_plan_row_members(),
+			value: (l) => capacity(l.teamMembers),
+		},
+
+		{
+			label: m.landing_plan_row_retention(),
+			value: (l) => retention(l.retentionDays),
+		},
+
 		{
 			label: m.landing_plan_row_channels(),
 			value: (l) =>
@@ -163,9 +186,10 @@
 				     accessibility tree, so the link is never an unnamed one. -->
 				<span class="sr-only sm:not-sr-only">Uppity</span>
 			</a>
+
 			<nav class="flex items-center gap-1 sm:gap-3" aria-label={m.landing_footer_product()}>
-				<Button variant="ghost" href={resolve("/login")}>{m.landing_cta_sign_in()}</Button>
-				<Button href={resolve("/register")}>{m.landing_cta_start_hosted()}</Button>
+				<Button variant="ghost" href={resolve("login")}>{m.landing_cta_sign_in()}</Button>
+				<Button href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
 			</nav>
 		</div>
 	</header>
@@ -177,10 +201,11 @@
 				{m.landing_hero_subtitle()}
 			</p>
 			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button size="lg" href={resolve("/register")}>{m.landing_cta_start_hosted()}</Button>
-				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer">
-					{m.landing_cta_self_host()}
-				</Button>
+				<Button size="lg" href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
+
+				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer"
+					>{m.landing_cta_self_host()}</Button
+				>
 			</div>
 			<!-- The free tier stays discoverable without competing for the headline:
 			     signup speed is ground PRODUCT.md deliberately cedes. Naming the
@@ -436,10 +461,11 @@
 				<p class="text-muted-foreground max-w-[55ch] text-lg">{m.landing_close_body()}</p>
 			</div>
 			<div class="flex flex-col gap-3 sm:flex-row">
-				<Button size="lg" href={resolve("/register")}>{m.landing_cta_start_hosted()}</Button>
-				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer">
-					{m.landing_cta_self_host()}
-				</Button>
+				<Button size="lg" href={resolve("register")}>{m.landing_cta_start_hosted()}</Button>
+
+				<Button variant="outline" size="lg" href={GITHUB_URL} rel="noreferrer"
+					>{m.landing_cta_self_host()}</Button
+				>
 			</div>
 			<p class="text-muted-foreground text-sm">
 				{m.landing_hero_free_note({ count: FREE_PLAN.limits.monitors })}
@@ -461,9 +487,11 @@
 				</div>
 				<div class="flex flex-col gap-3">
 					<h2 class="text-foreground text-sm font-medium">{m.landing_footer_selfhost()}</h2>
-					<a class="text-muted-foreground hover:text-foreground text-sm" href={GITHUB_URL}>
-						{m.landing_footer_github()}
-					</a>
+
+					<a class="text-muted-foreground hover:text-foreground text-sm" href={GITHUB_URL}
+						>{m.landing_footer_github()}</a
+					>
+
 					<a
 						class="text-muted-foreground hover:text-foreground text-sm"
 						href="{GITHUB_URL}#docker-compose"

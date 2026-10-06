@@ -1,9 +1,10 @@
-import { notificationChannelSchema } from "$lib/schemas/notification-channel";
-import { FeatureNotAvailableError } from "$lib/server/errors";
-import { notificationChannelService } from "$lib/server/services/notification-channel.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
+import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

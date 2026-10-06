@@ -1,5 +1,5 @@
-import { m } from "$lib/paraglide/messages.js";
-import type { BadgeVariant } from "$lib/utils/status";
+import { m } from "#lib/paraglide/messages.js";
+import type { BadgeVariant } from "#lib/utils/status.js";
 
 export interface MaintenanceStatusBadge {
 	label: string;

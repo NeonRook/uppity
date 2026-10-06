@@ -1,9 +1,10 @@
-import { BLOCK_ELIGIBLE_PLAN_IDS, DEFAULT_PLAN_ID } from "$lib/constants/plans";
-import { member } from "$lib/server/db/auth-schema";
-import * as schema from "$lib/server/db/schema";
-import { monitor, statusPage, subscription } from "$lib/server/db/schema";
 import { and, eq, getTableName, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+
+import { BLOCK_ELIGIBLE_PLAN_IDS, DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
+import { member } from "#lib/server/db/auth-schema.js";
+import * as schema from "#lib/server/db/schema.js";
+import { monitor, statusPage, subscription } from "#lib/server/db/schema.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

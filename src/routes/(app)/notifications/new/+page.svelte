@@ -1,13 +1,4 @@
 <script lang="ts">
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { m } from "$lib/paraglide/messages.js";
 	import {
 		CircleAlert,
 		ArrowLeft,
@@ -19,6 +10,16 @@
 	} from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
+
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 

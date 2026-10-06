@@ -1,6 +1,10 @@
-import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
-import { db } from "$lib/server/db";
-import * as schema from "$lib/server/db/schema";
+import { eq, and, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
+
+import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
+import { db } from "#lib/server/db/index.js";
+import * as schema from "#lib/server/db/schema.js";
 import {
 	statusPage,
 	statusPageGroup,
@@ -16,12 +20,9 @@ import {
 	type StatusPage,
 	type StatusPageGroup,
 	type StatusPageMonitor,
-} from "$lib/server/db/schema";
-import { SubscriptionLimitError, FeatureNotAvailableError } from "$lib/server/errors";
-import { subscriptionService } from "$lib/server/services/subscription.service";
-import { eq, and, desc, asc, gte, lte, inArray, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { nanoid } from "nanoid";
+} from "#lib/server/db/schema.js";
+import { SubscriptionLimitError, FeatureNotAvailableError } from "#lib/server/errors.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

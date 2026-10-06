@@ -1,8 +1,9 @@
-import { isSelfHosted, PLANS, PUBLIC_PLAN_IDS } from "$lib/constants/plans";
-import { syncCheckout } from "$lib/server/polar-subscription";
-import { subscriptionService } from "$lib/server/services/subscription.service";
-import { usageService } from "$lib/server/services/usage.service";
 import { redirect } from "@sveltejs/kit";
+
+import { isSelfHosted, PLANS, PUBLIC_PLAN_IDS } from "#lib/constants/plans.js";
+import { syncCheckout } from "#lib/server/polar-subscription.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
+import { usageService } from "#lib/server/services/usage.service.js";
 
 import type { PageServerLoad } from "./$types";
 

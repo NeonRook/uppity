@@ -1,6 +1,7 @@
 import { command, query, getRequestEvent } from "$app/server";
-import { incidentService } from "$lib/server/services/incident.service";
 import * as v from "valibot";
+
+import { incidentService } from "#lib/server/services/incident.service.js";
 
 // Query: List incidents for the current organization
 export const getIncidents = query(

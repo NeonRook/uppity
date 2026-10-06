@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 import {
 	DEFAULT_TIMEOUT_SECONDS,
 	DEFAULT_RETRIES,
@@ -5,8 +7,7 @@ import {
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 	DEFAULT_HTTP_METHOD,
 	MONITOR_INTERVAL,
-} from "$lib/constants/defaults";
-import * as v from "valibot";
+} from "#lib/constants/defaults.js";
 
 const baseMonitorSchema = {
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),

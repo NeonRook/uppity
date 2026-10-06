@@ -3,8 +3,8 @@ import {
 	AUDIT_TARGET_TYPES,
 	type AuditAction,
 	type AuditTargetType,
-} from "$lib/constants/audit";
-import type { AuditFilters } from "$lib/server/services/audit.service";
+} from "#lib/constants/audit.js";
+import type { AuditFilters } from "#lib/server/services/audit.service.js";
 
 /**
  * Reads audit filters off a URL.

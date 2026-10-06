@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { page } from "$app/stores";
-	import { resetPassword } from "$lib/auth-client";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { m } from "$lib/paraglide/messages.js";
+	import { page } from "$app/state";
 	import { CircleAlert, LoaderCircle, CircleCheck } from "@lucide/svelte";
+
+	import { resetPassword } from "#lib/auth-client.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let newPassword = $state("");
 	let confirmPassword = $state("");
@@ -16,7 +17,7 @@
 	let loading = $state(false);
 	let success = $state(false);
 
-	const token = $derived($page.url.searchParams.get("token"));
+	const token = $derived(page.url.searchParams.get("token"));
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -76,9 +77,8 @@
 					<CircleCheck class="h-4 w-4" />
 					<AlertDescription>{m.auth_reset_success()}</AlertDescription>
 				</Alert>
-				<Button href={resolve("/login")} class="w-full">
-					{m.auth_reset_go_to_login()}
-				</Button>
+
+				<Button href={resolve("login")} class="w-full">{m.auth_reset_go_to_login()}</Button>
 			</div>
 		{:else}
 			<form onsubmit={handleSubmit} class="space-y-4">
@@ -125,9 +125,9 @@
 	</Card.Content>
 	<Card.Footer>
 		<div class="text-muted-foreground text-sm">
-			<a href={resolve("/login")} class="text-primary underline-offset-4 hover:underline">
-				{m.auth_forgot_back_to_login()}
-			</a>
+			<a href={resolve("login")} class="text-primary underline-offset-4 hover:underline"
+				>{m.auth_forgot_back_to_login()}</a
+			>
 		</div>
 	</Card.Footer>
 </Card.Root>

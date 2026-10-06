@@ -1,6 +1,7 @@
 import { command, query, getRequestEvent } from "$app/server";
-import { notificationChannelService } from "$lib/server/services/notification-channel.service";
 import * as v from "valibot";
+
+import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 // Query: List notification channels for the current organization
 export const getChannels = query(async () => {

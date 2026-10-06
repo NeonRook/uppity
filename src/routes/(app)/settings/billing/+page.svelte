@@ -1,18 +1,20 @@
 <script lang="ts">
-	import { page } from "$app/stores";
-	import { authClient } from "$lib/auth-client";
-	import PlanCard from "$lib/components/billing/plan-card.svelte";
-	import UsageBar from "$lib/components/billing/usage-bar.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Badge } from "$lib/components/ui/badge";
-	import * as Breadcrumb from "$lib/components/ui/breadcrumb";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { m } from "$lib/paraglide/messages.js";
-	import type { Plan } from "$lib/types/plans";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import { Sparkles, CreditCard, Check, LoaderCircle } from "@lucide/svelte";
 	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
+
+	import { authClient } from "#lib/auth-client.js";
+	import PlanCard from "#lib/components/billing/plan-card.svelte";
+	import UsageBar from "#lib/components/billing/usage-bar.svelte";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import type { Plan } from "#lib/types/plans.js";
 
 	let { data } = $props();
 
@@ -27,9 +29,9 @@
 		if (data.checkoutSuccess) {
 			toast.success(m.billing_checkout_success());
 			// Clean up the URL without triggering navigation
-			const url = new URL($page.url);
+			const url = new URL(page.url);
 			url.searchParams.delete("checkout");
-			window.history.replaceState({}, "", url.pathname);
+			goto(url.pathname, { shallow: true, replace: true });
 		}
 	});
 
@@ -65,7 +67,7 @@
 
 			const { data: checkoutData, error } = await authClient.checkout({
 				slug,
-				referenceId: data.organizationId,
+				reference_id: data.organizationId,
 			});
 
 			if (error) {
@@ -224,10 +226,9 @@
 						'monthly'
 							? 'border-input bg-background'
 							: 'text-muted-foreground hover:text-foreground border-transparent'}"
-						onclick={() => (billingPeriod = "monthly")}
+						onclick={() => (billingPeriod = "monthly")}>{m.billing_monthly()}</button
 					>
-						{m.billing_monthly()}
-					</button>
+
 					<button
 						type="button"
 						class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===

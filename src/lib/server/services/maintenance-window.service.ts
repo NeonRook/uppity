@@ -1,13 +1,14 @@
-import * as schema from "$lib/server/db/schema";
+import { eq, and, lte, gte, inArray, sql, desc } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
+
+import * as schema from "#lib/server/db/schema.js";
 import {
 	maintenanceWindow,
 	maintenanceWindowMonitor,
 	monitor,
 	type MaintenanceWindow,
-} from "$lib/server/db/schema";
-import { eq, and, lte, gte, inArray, sql, desc } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { nanoid } from "nanoid";
+} from "#lib/server/db/schema.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

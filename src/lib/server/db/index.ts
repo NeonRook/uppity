@@ -1,4 +1,4 @@
-import { building } from "$app/environment";
+import { building } from "$app/env";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 

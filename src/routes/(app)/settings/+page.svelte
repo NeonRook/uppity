@@ -1,14 +1,5 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-	import { organization } from "$lib/auth-client";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import * as AlertDialog from "$lib/components/ui/alert-dialog";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { m } from "$lib/paraglide/messages.js";
 	import {
 		User,
 		Building2,
@@ -20,6 +11,16 @@
 		CreditCard,
 		Settings,
 	} from "@lucide/svelte";
+
+	import { organization } from "#lib/auth-client.js";
+	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data, form } = $props();
 

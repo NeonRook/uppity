@@ -1,4 +1,8 @@
-import { ORGANIZATION_MEMBERSHIP_LIMIT } from "$lib/constants/auth";
+import { and, count, eq, gt } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
+
+import { ORGANIZATION_MEMBERSHIP_LIMIT } from "#lib/constants/auth.js";
 import {
 	applyCapacityBlocks,
 	BLOCK_ELIGIBLE_PLAN_IDS,
@@ -6,11 +10,11 @@ import {
 	isSelfHosted,
 	PLANS,
 	SELF_HOSTED_LIMITS,
-} from "$lib/constants/plans";
-import { db } from "$lib/server/db";
-import { invitation, member } from "$lib/server/db/auth-schema";
-import * as schema from "$lib/server/db/schema";
-import { subscription, monitor, statusPage, type Subscription } from "$lib/server/db/schema";
+} from "#lib/constants/plans.js";
+import { invitation, member } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import * as schema from "#lib/server/db/schema.js";
+import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
 	LimitCheckResult,
 	NotificationChannelType,
@@ -18,10 +22,7 @@ import type {
 	PlanId,
 	PlanLimits,
 	SubscriptionStatus,
-} from "$lib/types/plans";
-import { and, count, eq, gt } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { nanoid } from "nanoid";
+} from "#lib/types/plans.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

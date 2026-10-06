@@ -1,3 +1,6 @@
+import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { nanoid } from "nanoid";
+
 import {
 	DEFAULT_TIMEOUT_SECONDS,
 	DEFAULT_INTERVAL_SECONDS,
@@ -8,14 +11,12 @@ import {
 	DEFAULT_HTTP_METHOD,
 	DEFAULT_EXPECTED_STATUS_CODES,
 	PUSH_TOKEN_LENGTH,
-} from "$lib/constants/defaults";
-import { CHECK_RETRY } from "$lib/constants/worker";
-import { db } from "$lib/server/db";
-import { monitor, monitorStatus, type Monitor } from "$lib/server/db/schema";
-import { SubscriptionLimitError } from "$lib/server/errors";
-import { subscriptionService } from "$lib/server/services/subscription.service";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
-import { nanoid } from "nanoid";
+} from "#lib/constants/defaults.js";
+import { CHECK_RETRY } from "#lib/constants/worker.js";
+import { db } from "#lib/server/db/index.js";
+import { monitor, monitorStatus, type Monitor } from "#lib/server/db/schema.js";
+import { SubscriptionLimitError } from "#lib/server/errors.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
 
 export interface CreateMonitorInput {
 	organizationId: string;

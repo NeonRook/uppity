@@ -1,4 +1,4 @@
-import { envInt } from "$lib/utils";
+import { envInt } from "#lib/utils.js";
 
 /** Number of monitors to claim per poll cycle */
 export const WORKER_POLL_BATCH_SIZE = envInt("UPPITY_WORKER_BATCH_SIZE", 10);

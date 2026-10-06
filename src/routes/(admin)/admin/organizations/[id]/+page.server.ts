@@ -1,15 +1,16 @@
-import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
-import { isSelfHosted } from "$lib/constants/plans";
-import { updateOrganizationSchema, addMemberSchema } from "$lib/schemas/admin";
-import { getActor } from "$lib/server/audit-actor";
-import { db } from "$lib/server/db";
-import { fetchPolarSnapshot } from "$lib/server/polar-subscription";
-import { adminService } from "$lib/server/services/admin.service";
-import { auditService } from "$lib/server/services/audit.service";
-import { subscriptionService } from "$lib/server/services/subscription.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { AUDIT_PANEL_LIMIT } from "#lib/constants/audit.js";
+import { isSelfHosted } from "#lib/constants/plans.js";
+import { updateOrganizationSchema, addMemberSchema } from "#lib/schemas/admin.js";
+import { getActor } from "#lib/server/audit-actor.js";
+import { db } from "#lib/server/db/index.js";
+import { fetchPolarSnapshot } from "#lib/server/polar-subscription.js";
+import { adminService } from "#lib/server/services/admin.service.js";
+import { auditService } from "#lib/server/services/audit.service.js";
+import { subscriptionService } from "#lib/server/services/subscription.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

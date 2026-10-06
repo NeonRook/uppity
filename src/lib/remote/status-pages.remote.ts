@@ -1,6 +1,7 @@
 import { command, query, getRequestEvent } from "$app/server";
-import { statusPageService } from "$lib/server/services/status-page.service";
 import * as v from "valibot";
+
+import { statusPageService } from "#lib/server/services/status-page.service.js";
 
 // Query: List status pages for the current organization
 export const getStatusPages = query(async () => {

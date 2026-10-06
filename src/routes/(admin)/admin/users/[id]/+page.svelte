@@ -1,25 +1,26 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import AuditHistory from "$lib/components/audit-history.svelte";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import PageHeader from "$lib/components/page-header.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import * as AlertDialog from "$lib/components/ui/alert-dialog";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import * as Table from "$lib/components/ui/table";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { formatDateTimeShort } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { deleteUser } from "$lib/remote/admin.remote";
 	import { CircleAlert, LoaderCircle, Trash2, Ban, CircleCheck, UserCheck } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
+
+	import AuditHistory from "#lib/components/audit-history.svelte";
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import PageHeader from "#lib/components/page-header.svelte";
+	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { formatDateTimeShort } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { deleteUser } from "#lib/remote/admin.remote.js";
 
 	let { data } = $props();
 
@@ -36,7 +37,7 @@
 
 	async function handleDelete() {
 		await deleteUser({ userId: data.user.id });
-		goto(resolve("/admin/users"));
+		goto(resolve("admin/users"));
 	}
 
 	function getRoleLabel(role: string | undefined): string {
@@ -162,13 +163,11 @@
 					</Button>
 				</form>
 			{:else}
-				<p class="text-muted-foreground text-sm">
-					{m.admin_users_user_active_desc()}
-				</p>
-				<Button variant="destructive" onclick={() => (showBanDialog = true)}>
-					<Ban class="mr-2 h-4 w-4" />
-					{m.admin_users_ban()}
-				</Button>
+				<p class="text-muted-foreground text-sm">{m.admin_users_user_active_desc()}</p>
+
+				<Button variant="destructive" onclick={() => (showBanDialog = true)}
+					><Ban class="mr-2 h-4 w-4" />{m.admin_users_ban()}</Button
+				>
 			{/if}
 		</Card.Content>
 	</Card.Root>

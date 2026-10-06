@@ -1,8 +1,9 @@
-import { notificationChannelSchema } from "$lib/schemas/notification-channel";
-import { notificationChannelService } from "$lib/server/services/notification-channel.service";
 import { fail, redirect, error } from "@sveltejs/kit";
 import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
+import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

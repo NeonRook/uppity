@@ -23,6 +23,16 @@ import { init, parse } from "es-module-lexer";
  */
 const RUNTIME_EXTERNALS: readonly string[] = [];
 
+/**
+ * Packages the build may reach only through a dynamic `import()`, which the
+ * caller is expected to catch and survive. They are absent from the image, so a
+ * static import of one is still an offence.
+ *
+ * `@opentelemetry/api`: SvelteKit forces it external, and better-auth loads it
+ * in a try/catch that falls back to a no-op tracer.
+ */
+const OPTIONAL_EXTERNALS: readonly string[] = ["@opentelemetry/api"];
+
 const SCAN_TARGETS: ReadonlyArray<readonly [string, string]> = [
 	[".deno-deploy/server", "**/*.js"],
 	["build", "*.js"],
@@ -49,6 +59,11 @@ export function disallowedFrom(specifiers: Iterable<string>, allowed: readonly s
 	return [...offences].toSorted();
 }
 
+export interface ScannedImport {
+	specifier: string;
+	dynamic: boolean;
+}
+
 /**
  * Every import, re-export and dynamic import in `source`.
  *
@@ -57,12 +72,12 @@ export function disallowedFrom(specifiers: Iterable<string>, allowed: readonly s
  * a computed expression has no literal specifier and is skipped, because there is
  * no package name to check and no parser could supply one.
  */
-export async function scanSpecifiers(source: string): Promise<string[]> {
+export async function scanSpecifiers(source: string): Promise<ScannedImport[]> {
 	await init();
 	const [imports] = parse(source);
 	return imports.flatMap((record) =>
 		typeof record.specifier === "string" && !(record.type === "dynamic" && record.glob)
-			? [record.specifier]
+			? [{ specifier: record.specifier, dynamic: record.type === "dynamic" }]
 			: [],
 	);
 }
@@ -71,12 +86,16 @@ export async function findOffences(
 	root: string,
 	allowed: readonly string[],
 	pattern = "**/*.js",
+	optional: readonly string[] = [],
 ): Promise<Map<string, string[]>> {
 	const offences = new Map<string, string[]>();
 
 	for await (const file of glob(pattern, { cwd: root })) {
 		const path = `${root}/${file}`;
-		const found = disallowedFrom(await scanSpecifiers(await readFile(path, "utf8")), allowed);
+		const required = (await scanSpecifiers(await readFile(path, "utf8")))
+			.filter(({ specifier, dynamic }) => !(dynamic && optional.includes(packageNameOf(specifier))))
+			.map(({ specifier }) => specifier);
+		const found = disallowedFrom(required, allowed);
 		if (found.length > 0) offences.set(path, found);
 	}
 
@@ -100,7 +119,7 @@ if (invokedDirectly()) {
 
 	const offences = new Map<string, string[]>();
 	for (const [root, pattern] of targets) {
-		for (const entry of await findOffences(root, RUNTIME_EXTERNALS, pattern)) {
+		for (const entry of await findOffences(root, RUNTIME_EXTERNALS, pattern, OPTIONAL_EXTERNALS)) {
 			offences.set(entry[0], entry[1]);
 		}
 	}

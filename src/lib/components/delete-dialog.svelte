@@ -1,8 +1,9 @@
 <script lang="ts">
-	import * as AlertDialog from "$lib/components/ui/alert-dialog";
-	import { Button } from "$lib/components/ui/button";
-	import { m } from "$lib/paraglide/messages.js";
 	import { toast } from "svelte-sonner";
+
+	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	interface Props {
 		/** Explicit open state (use this for detail pages) */

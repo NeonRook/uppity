@@ -1,21 +1,8 @@
 <script lang="ts">
-	import { browser } from "$app/environment";
+	import { browser } from "$app/env";
 	import { enhance } from "$app/forms";
-	import { goto, invalidateAll } from "$app/navigation";
+	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import * as AlertDialog from "$lib/components/ui/alert-dialog";
-	import { Badge } from "$lib/components/ui/badge";
-	import * as Breadcrumb from "$lib/components/ui/breadcrumb";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import * as Table from "$lib/components/ui/table";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { m } from "$lib/paraglide/messages.js";
-	import { cancelInvitation, removeMember, deleteOrganization } from "$lib/remote/settings.remote";
 	import {
 		Building2,
 		Users,
@@ -31,6 +18,24 @@
 		Link as LinkIcon,
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+
+	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import {
+		cancelInvitation,
+		removeMember,
+		deleteOrganization,
+	} from "#lib/remote/settings.remote.js";
 
 	let { data, form } = $props();
 
@@ -65,7 +70,7 @@
 		cancellingInvitationId = invitationId;
 		try {
 			await cancelInvitation({ invitationId });
-			await invalidateAll();
+			await refreshAll();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to cancel invitation");
 		} finally {
@@ -80,7 +85,7 @@
 			await removeMember({ memberId: memberToRemove.id });
 			showRemoveMemberDialog = false;
 			memberToRemove = null;
-			await invalidateAll();
+			await refreshAll();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to remove member");
 		} finally {
@@ -95,7 +100,7 @@
 			await deleteOrganization({ organizationId: data.currentOrganization.id });
 			showDeleteOrgDialog = false;
 			toast.success("Organization deleted successfully");
-			goto(resolve("/settings"));
+			goto(resolve("settings"));
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to delete organization");
 		} finally {
@@ -259,10 +264,9 @@
 					</Card.Description>
 				</div>
 				{#if data.isAdmin}
-					<Button variant="outline" size="sm" onclick={() => (showInviteDialog = true)}>
-						<Mail class="mr-2 h-4 w-4" />
-						{m.common_invite()}
-					</Button>
+					<Button variant="outline" size="sm" onclick={() => (showInviteDialog = true)}
+						><Mail class="mr-2 h-4 w-4" />{m.common_invite()}</Button
+					>
 				{/if}
 			</div>
 		</Card.Header>
@@ -274,7 +278,7 @@
 						<Table.Head>{m.common_email()}</Table.Head>
 						<Table.Head>{m.common_role()}</Table.Head>
 						{#if data.isOwner}
-							<Table.Head class="w-12.5"></Table.Head>
+							<Table.Head class="w-12.5" />
 						{/if}
 					</Table.Row>
 				</Table.Header>
@@ -423,10 +427,12 @@
 						value, and the resulting submission fails the picklist check.
 						The hidden input is the single source of truth.
 					-->
+
 					<Select.Root type="single" value={inviteRole} onValueChange={(v) => (inviteRole = v)}>
-						<Select.Trigger class="w-full">
-							{inviteRole === "admin" ? m.role_admin() : m.role_member()}
-						</Select.Trigger>
+						<Select.Trigger class="w-full"
+							>{inviteRole === "admin" ? m.role_admin() : m.role_member()}</Select.Trigger
+						>
+
 						<Select.Content>
 							<Select.Item value="member">{m.role_member()}</Select.Item>
 							<Select.Item value="admin">{m.role_admin()}</Select.Item>
@@ -461,6 +467,7 @@
 			<AlertDialog.Cancel onclick={() => (memberToRemove = null)}
 				>{m.common_cancel()}</AlertDialog.Cancel
 			>
+
 			<Button onclick={handleRemoveMember} variant="destructive" disabled={removingMember}>
 				{#if removingMember}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -494,6 +501,7 @@
 			<AlertDialog.Cancel onclick={() => (deleteConfirmName = "")}
 				>{m.common_cancel()}</AlertDialog.Cancel
 			>
+
 			<Button
 				variant="destructive"
 				disabled={deletingOrg || deleteConfirmName !== data.currentOrganization.name}

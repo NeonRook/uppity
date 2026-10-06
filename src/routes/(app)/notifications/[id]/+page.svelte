@@ -2,17 +2,6 @@
 	import { enhance } from "$app/forms";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { m } from "$lib/paraglide/messages.js";
-	import { deleteChannel } from "$lib/remote/notifications.remote";
 	import {
 		CircleAlert,
 		ArrowLeft,
@@ -24,6 +13,18 @@
 	} from "@lucide/svelte";
 	import { untrack } from "svelte";
 
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { deleteChannel } from "#lib/remote/notifications.remote.js";
+
 	let { data, form } = $props();
 
 	let loading = $state(false);
@@ -31,7 +32,7 @@
 
 	async function handleDelete() {
 		await deleteChannel({ channelId: data.channel.id });
-		goto(resolve("/notifications"));
+		goto(resolve("notifications"));
 	}
 
 	const config = $derived(data.channel.config as Record<string, unknown>);
@@ -87,9 +88,10 @@
 			</div>
 			<p class="text-muted-foreground">{m.notification_edit_subtitle()}</p>
 		</div>
-		<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}>
-			<Trash2 class="h-4 w-4" />
-		</Button>
+
+		<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}
+			><Trash2 class="h-4 w-4" /></Button
+		>
 	</div>
 
 	<form

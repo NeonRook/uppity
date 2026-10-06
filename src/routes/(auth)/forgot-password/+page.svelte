@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { requestPasswordReset } from "$lib/auth-client";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { m } from "$lib/paraglide/messages.js";
 	import { CircleAlert, LoaderCircle, CircleCheck } from "@lucide/svelte";
+
+	import { requestPasswordReset } from "#lib/auth-client.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let email = $state("");
 	let error = $state("");
@@ -87,9 +88,9 @@
 	</Card.Content>
 	<Card.Footer>
 		<div class="text-muted-foreground text-sm">
-			<a href={resolve("/login")} class="text-primary underline-offset-4 hover:underline">
-				{m.auth_forgot_back_to_login()}
-			</a>
+			<a href={resolve("login")} class="text-primary underline-offset-4 hover:underline"
+				>{m.auth_forgot_back_to_login()}</a
+			>
 		</div>
 	</Card.Footer>
 </Card.Root>

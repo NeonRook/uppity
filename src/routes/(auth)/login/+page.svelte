@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { signIn } from "$lib/auth-client";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { m } from "$lib/paraglide/messages.js";
 	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
+
+	import { signIn } from "#lib/auth-client.js";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let email = $state("");
 	let password = $state("");
@@ -32,7 +33,7 @@
 				return;
 			}
 
-			goto(resolve("/dashboard"));
+			goto(resolve("dashboard"));
 		} catch {
 			error = m.auth_login_error_unexpected();
 			loading = false;
@@ -88,7 +89,7 @@
 	<Card.Footer class="flex flex-col space-y-4">
 		<div class="text-muted-foreground text-sm">
 			<a
-				href={resolve("/forgot-password")}
+				href={resolve("forgot-password")}
 				class="hover:text-primary underline-offset-4 hover:underline"
 			>
 				{m.auth_login_forgot_password()}
@@ -96,7 +97,8 @@
 		</div>
 		<div class="text-muted-foreground text-sm">
 			{m.auth_login_no_account()}
-			<a href={resolve("/register")} class="text-primary underline-offset-4 hover:underline"
+
+			<a href={resolve("register")} class="text-primary underline-offset-4 hover:underline"
 				>{m.auth_login_sign_up()}</a
 			>
 		</div>

@@ -1,4 +1,4 @@
-import { envInt } from "$lib/utils";
+import { envInt } from "#lib/utils.js";
 
 /** How long a user session remains valid before requiring re-authentication. */
 export const SESSION_EXPIRES_IN_SECONDS = envInt(

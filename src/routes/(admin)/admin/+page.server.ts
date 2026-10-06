@@ -1,6 +1,6 @@
-import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
-import { adminService } from "$lib/server/services/admin.service";
-import { auditService } from "$lib/server/services/audit.service";
+import { AUDIT_PANEL_LIMIT } from "#lib/constants/audit.js";
+import { adminService } from "#lib/server/services/admin.service.js";
+import { auditService } from "#lib/server/services/audit.service.js";
 
 import type { PageServerLoad } from "./$types";
 

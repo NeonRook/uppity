@@ -1,17 +1,7 @@
 <script lang="ts">
-	import { goto, invalidateAll } from "$app/navigation";
+	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import PageHeader from "$lib/components/page-header.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Table from "$lib/components/ui/table";
-	import { formatDate, formatResponseTime, formatInterval } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { toggleMonitor, deleteMonitor } from "$lib/remote/monitors.remote";
-	import { getStatusBadgeWithIcon, getCheckIcon } from "$lib/utils/status";
 	import {
 		Check,
 		Copy,
@@ -26,6 +16,17 @@
 		Trash2,
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import PageHeader from "#lib/components/page-header.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { formatDate, formatResponseTime, formatInterval } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
+	import { getStatusBadgeWithIcon, getCheckIcon } from "#lib/utils/status.js";
 
 	let { data } = $props();
 
@@ -49,7 +50,7 @@
 		toggling = true;
 		try {
 			await toggleMonitor({ monitorId: data.monitor.id });
-			await invalidateAll();
+			await refreshAll();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : "Failed to toggle monitor");
 		} finally {
@@ -59,7 +60,7 @@
 
 	async function handleDelete() {
 		await deleteMonitor({ monitorId: data.monitor.id });
-		goto(resolve("/monitors"));
+		goto(resolve("monitors"));
 	}
 
 	const statusInfo = $derived(
@@ -135,14 +136,14 @@
 					{/if}
 					{data.monitor.active ? m.monitors_pause() : m.monitors_resume()}
 				</Button>
-				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit">
-					<Settings class="mr-2 h-4 w-4" />
-					{m.common_edit()}
-				</Button>
-				<Button variant="destructive" size="sm" onclick={() => (showDeleteDialog = true)}>
-					<Trash2 class="mr-2 h-4 w-4" />
-					{m.common_delete()}
-				</Button>
+
+				<Button variant="outline" size="sm" href="/monitors/{data.monitor.id}/edit"
+					><Settings class="mr-2 h-4 w-4" />{m.common_edit()}</Button
+				>
+
+				<Button variant="destructive" size="sm" onclick={() => (showDeleteDialog = true)}
+					><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</Button
+				>
 			</div>
 		{/snippet}
 	</PageHeader>
@@ -397,7 +398,7 @@
 				<Table.Root class="hidden md:table">
 					<Table.Header>
 						<Table.Row>
-							<Table.Head class="w-10"></Table.Head>
+							<Table.Head class="w-10" />
 							<Table.Head>{m.monitor_table_time()}</Table.Head>
 							<Table.Head>{m.monitor_table_status_code()}</Table.Head>
 							<Table.Head class="text-right">{m.monitor_table_response_time()}</Table.Head>

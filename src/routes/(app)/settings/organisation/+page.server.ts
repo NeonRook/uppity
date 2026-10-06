@@ -1,11 +1,12 @@
-import { updateOrganizationDetailsSchema, inviteMemberSchema } from "$lib/schemas/settings";
-import { auth } from "$lib/server/auth";
-import { db } from "$lib/server/db";
-import { member, organization } from "$lib/server/db/auth-schema";
 import { fail, redirect } from "@sveltejs/kit";
 import { count, eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { updateOrganizationDetailsSchema, inviteMemberSchema } from "#lib/schemas/settings.js";
+import { auth } from "#lib/server/auth.js";
+import { member, organization } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

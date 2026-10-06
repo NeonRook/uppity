@@ -1,6 +1,7 @@
 import { command, getRequestEvent } from "$app/server";
-import { auth } from "$lib/server/auth";
 import * as v from "valibot";
+
+import { auth } from "#lib/server/auth.js";
 
 const invitationIdSchema = v.object({
 	invitationId: v.pipe(v.string(), v.minLength(1)),

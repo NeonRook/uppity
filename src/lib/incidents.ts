@@ -1,4 +1,3 @@
-import { m } from "$lib/paraglide/messages.js";
 import {
 	Search,
 	Eye,
@@ -8,6 +7,8 @@ import {
 	FileText,
 	type LucideIcon,
 } from "@lucide/svelte";
+
+import { m } from "#lib/paraglide/messages.js";
 
 export interface StatusInfo {
 	label: string;

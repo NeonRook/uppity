@@ -1,34 +1,35 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import PageHeader from "$lib/components/page-header.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import * as Select from "$lib/components/ui/select";
-	import { Textarea } from "$lib/components/ui/textarea";
+	import { LoaderCircle, Trash2, FileText, Pencil, X } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import PageHeader from "#lib/components/page-header.svelte";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import {
 		INCIDENT_STATUS_VALUES,
 		INCIDENT_IMPACTS,
 		type IncidentStatusValue,
 		type IncidentImpact,
-	} from "$lib/constants/status";
+	} from "#lib/constants/status.js";
 	import {
 		getStatusInfo,
 		getImpactInfo,
 		getStatusLabel,
 		getImpactLabel,
 		formatIncidentDate,
-	} from "$lib/incidents";
-	import { m } from "$lib/paraglide/messages.js";
-	import { deleteIncident } from "$lib/remote/incidents.remote";
-	import { LoaderCircle, Trash2, FileText, Pencil, X } from "@lucide/svelte";
-	import { untrack } from "svelte";
-	import { superForm } from "sveltekit-superforms";
+	} from "#lib/incidents.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { deleteIncident } from "#lib/remote/incidents.remote.js";
 
 	let { data } = $props();
 
@@ -88,7 +89,7 @@
 
 	async function handleDelete() {
 		await deleteIncident({ incidentId: data.incident.id });
-		goto(resolve("/incidents"));
+		goto(resolve("incidents"));
 	}
 </script>
 
@@ -112,9 +113,9 @@
 			{/if}
 		</p>
 		{#snippet actions()}
-			<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}>
-				<Trash2 class="h-4 w-4" />
-			</Button>
+			<Button variant="destructive" size="icon" onclick={() => (showDeleteDialog = true)}
+				><Trash2 class="h-4 w-4" /></Button
+			>
 		{/snippet}
 	</PageHeader>
 
@@ -254,10 +255,10 @@
 										{m.common_save_changes()}
 									{/if}
 								</Button>
-								<Button type="button" variant="outline" onclick={() => (editingPostmortem = false)}>
-									<X class="mr-2 h-4 w-4" />
-									{m.common_cancel()}
-								</Button>
+
+								<Button type="button" variant="outline" onclick={() => (editingPostmortem = false)}
+									><X class="mr-2 h-4 w-4" />{m.common_cancel()}</Button
+								>
 							</div>
 						</form>
 					{:else}
@@ -272,10 +273,10 @@
 										date: formatIncidentDate(existingPostmortem.createdAt),
 									})}
 								</p>
-								<Button variant="outline" size="sm" onclick={() => (editingPostmortem = true)}>
-									<Pencil class="mr-2 h-3 w-3" />
-									{m.common_edit()}
-								</Button>
+
+								<Button variant="outline" size="sm" onclick={() => (editingPostmortem = true)}
+									><Pencil class="mr-2 h-3 w-3" />{m.common_edit()}</Button
+								>
 							</div>
 						</div>
 					{/if}

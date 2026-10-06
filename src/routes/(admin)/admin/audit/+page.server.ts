@@ -1,6 +1,6 @@
-import { AUDIT_ACTIONS, AUDIT_PAGE_SIZE, AUDIT_TARGET_TYPES } from "$lib/constants/audit";
-import { parseAuditFilters } from "$lib/server/audit-filters";
-import { auditService } from "$lib/server/services/audit.service";
+import { AUDIT_ACTIONS, AUDIT_PAGE_SIZE, AUDIT_TARGET_TYPES } from "#lib/constants/audit.js";
+import { parseAuditFilters } from "#lib/server/audit-filters.js";
+import { auditService } from "#lib/server/services/audit.service.js";
 
 import type { PageServerLoad } from "./$types";
 

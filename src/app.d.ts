@@ -3,10 +3,10 @@
 declare global {
 	namespace App {
 		interface Locals {
-			user: import("$lib/server/auth").User | null;
-			session: import("$lib/server/auth").Session["session"] | null;
-			event: import("$lib/server/logger").WideEventBuilder<
-				import("$lib/server/logger").RequestWideEvent
+			user: import("#lib/server/auth.js").User | null;
+			session: import("#lib/server/auth.js").Session["session"] | null;
+			event: import("#lib/server/logger/index.js").WideEventBuilder<
+				import("#lib/server/logger/index.js").RequestWideEvent
 			>;
 		}
 

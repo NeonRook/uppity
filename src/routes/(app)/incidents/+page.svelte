@@ -1,13 +1,14 @@
 <script lang="ts">
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { formatIncidentDate, getImpactInfo, getStatusInfo } from "$lib/incidents";
-	import { m } from "$lib/paraglide/messages.js";
-	import { deleteIncident, getIncidents } from "$lib/remote/incidents.remote";
 	import { Plus, Trash2, TriangleAlert } from "@lucide/svelte";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatIncidentDate, getImpactInfo, getStatusInfo } from "#lib/incidents.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { deleteIncident, getIncidents } from "#lib/remote/incidents.remote.js";
 
 	let { data } = $props();
 

@@ -1,6 +1,7 @@
 <script lang="ts">
-	import * as Card from "$lib/components/ui/card";
 	import type { LucideIcon } from "@lucide/svelte";
+
+	import * as Card from "#lib/components/ui/card/index.js";
 
 	interface Props {
 		title: string;

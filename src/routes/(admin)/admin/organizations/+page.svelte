@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import Pagination from "$lib/components/pagination.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Input } from "$lib/components/ui/input";
-	import * as Table from "$lib/components/ui/table";
-	import { formatDateShort } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
 	import { Plus, Search, Users } from "@lucide/svelte";
 	import { useSearchParams } from "runed/kit";
 	import * as v from "valibot";
+
+	import Pagination from "#lib/components/pagination.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { formatDateShort } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 
@@ -31,10 +32,9 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<h1 class="text-2xl font-bold">{m.admin_orgs_title()}</h1>
-		<Button href={resolve("/admin/organizations/new")}>
-			<Plus class="mr-2 h-4 w-4" />
-			{m.admin_orgs_new()}
-		</Button>
+		<Button href={resolve("admin/organizations/new")}
+			><Plus class="mr-2 h-4 w-4" />{m.admin_orgs_new()}</Button
+		>
 	</div>
 
 	<Card.Root>
@@ -66,9 +66,9 @@
 					{#each data.organizations as org (org.id)}
 						<Table.Row class="hover:bg-muted/50 cursor-pointer">
 							<Table.Cell class="font-medium">
-								<a href={resolve(`/admin/organizations/${org.id}`)} class="hover:underline">
-									{org.name}
-								</a>
+								<a href={resolve(`admin/organizations/${org.id}`)} class="hover:underline"
+									>{org.name}</a
+								>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground">{org.slug}</Table.Cell>
 							<Table.Cell>

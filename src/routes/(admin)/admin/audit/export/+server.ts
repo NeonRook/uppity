@@ -1,6 +1,7 @@
-import { parseAuditFilters } from "$lib/server/audit-filters";
-import { auditService } from "$lib/server/services/audit.service";
 import { error } from "@sveltejs/kit";
+
+import { parseAuditFilters } from "#lib/server/audit-filters.js";
+import { auditService } from "#lib/server/services/audit.service.js";
 
 import type { RequestHandler } from "./$types";
 

@@ -1,5 +1,6 @@
-import { INCIDENT_IMPACTS, INCIDENT_STATUS_VALUES } from "$lib/constants/status";
 import * as v from "valibot";
+
+import { INCIDENT_IMPACTS, INCIDENT_STATUS_VALUES } from "#lib/constants/status.js";
 
 export const createIncidentSchema = v.object({
 	title: v.pipe(v.string(), v.minLength(1, "Title is required")),

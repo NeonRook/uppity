@@ -1,8 +1,9 @@
-import { db } from "$lib/server/db";
-import { monitor, monitorCheck, monitorStatus } from "$lib/server/db/schema";
-import { json, error } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+import { db } from "#lib/server/db/index.js";
+import { monitor, monitorCheck, monitorStatus } from "#lib/server/db/schema.js";
 
 import type { RequestHandler } from "./$types";
 
@@ -65,7 +66,7 @@ async function handlePush(token: string) {
 		})
 		.where(eq(monitorStatus.monitorId, mon.id));
 
-	return json({
+	return Response.json({
 		ok: true,
 		monitor: mon.name,
 		receivedAt: now.toISOString(),

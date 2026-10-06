@@ -82,7 +82,11 @@ describe("scanSpecifiers", () => {
 			'import a from "pg";await import("pino");export * from "@scope/thing";',
 		);
 
-		expect(found).toEqual(["pg", "pino", "@scope/thing"]);
+		expect(found).toEqual([
+			{ specifier: "pg", dynamic: false },
+			{ specifier: "pino", dynamic: true },
+			{ specifier: "@scope/thing", dynamic: false },
+		]);
 	});
 
 	it("ignores the word from inside a string literal", async () => {
@@ -135,6 +139,24 @@ describe("findOffences", () => {
 		const root = await buildTree({ "a.js": 'import api from "@opentelemetry/api/trace";' });
 
 		await expect(findOffences(root, ["@opentelemetry/api"])).resolves.toEqual(new Map());
+	});
+
+	it("passes a dynamic import of an optional package", async () => {
+		const root = await buildTree({
+			"a.js": 'try { await import("@opentelemetry/api"); } catch {}',
+		});
+
+		await expect(findOffences(root, [], "**/*.js", ["@opentelemetry/api"])).resolves.toEqual(
+			new Map(),
+		);
+	});
+
+	it("reports a static import of an optional package", async () => {
+		const root = await buildTree({ "a.js": 'import api from "@opentelemetry/api";' });
+
+		const offences = await findOffences(root, [], "**/*.js", ["@opentelemetry/api"]);
+
+		expect([...offences]).toEqual([[`${root}/a.js`, ["@opentelemetry/api"]]]);
 	});
 });
 

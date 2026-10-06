@@ -1,9 +1,10 @@
 import { command, getRequestEvent } from "$app/server";
-import { db } from "$lib/server/db";
-import { maintenanceErrorMessage } from "$lib/server/maintenance-messages";
-import { MaintenanceWindowService } from "$lib/server/services/maintenance-window.service";
 import { error } from "@sveltejs/kit";
 import * as v from "valibot";
+
+import { db } from "#lib/server/db/index.js";
+import { maintenanceErrorMessage } from "#lib/server/maintenance-messages.js";
+import { MaintenanceWindowService } from "#lib/server/services/maintenance-window.service.js";
 
 const windowIdSchema = v.object({
 	windowId: v.pipe(v.string(), v.minLength(1)),

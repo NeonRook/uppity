@@ -1,8 +1,12 @@
 <script lang="ts">
-	import { MONITOR_BLOCK_PRICE_CENTS, MONITOR_BLOCK_SIZE, UPPITY_PLAN } from "$lib/constants/plans";
-	import { formatUsdCents } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getLocale } from "$lib/paraglide/runtime";
+	import {
+		MONITOR_BLOCK_PRICE_CENTS,
+		MONITOR_BLOCK_SIZE,
+		UPPITY_PLAN,
+	} from "#lib/constants/plans.js";
+	import { formatUsdCents } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
 
 	/**
 	 * Price against capacity, drawn rather than asserted.

@@ -1,14 +1,15 @@
-import type { IncidentImpact } from "$lib/constants/status";
+import { fail, redirect, error } from "@sveltejs/kit";
+import { superValidate, message } from "sveltekit-superforms";
+import { valibot } from "sveltekit-superforms/adapters";
+
+import type { IncidentImpact } from "#lib/constants/status.js";
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,
 	addPostmortemSchema,
 	editPostmortemSchema,
-} from "$lib/schemas/incident";
-import { incidentService } from "$lib/server/services/incident.service";
-import { fail, redirect, error } from "@sveltejs/kit";
-import { superValidate, message } from "sveltekit-superforms";
-import { valibot } from "sveltekit-superforms/adapters";
+} from "#lib/schemas/incident.js";
+import { incidentService } from "#lib/server/services/incident.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

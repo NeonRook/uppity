@@ -1,7 +1,8 @@
-import { STATUS_PAGE_HISTORY_DAYS } from "$lib/constants/defaults";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
+
+import { STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
 
 import { organization } from "../db/auth-schema";
 import {

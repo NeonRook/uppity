@@ -1,4 +1,4 @@
-import { envInt, envString } from "$lib/utils";
+import { envInt, envString } from "#lib/utils.js";
 
 /** Monitor interval constraints for worker scheduler */
 export const MONITOR_INTERVAL = {

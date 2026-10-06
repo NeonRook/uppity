@@ -1,5 +1,7 @@
+import adapter from "@deno/svelte-adapter";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 import { playwright } from "@vitest/browser-playwright";
 import devtoolsJson from "vite-plugin-devtools-json";
@@ -8,7 +10,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig(({ command }) => ({
 	plugins: [
 		tailwindcss(),
-		sveltekit(),
+		sveltekit({
+			preprocess: vitePreprocess(),
+			compilerOptions: { experimental: { async: true } },
+			adapter: adapter(),
+			experimental: { remoteFunctions: true },
+		}),
 		devtoolsJson(),
 		paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/lib/paraglide" }),
 	],

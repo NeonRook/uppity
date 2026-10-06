@@ -1,5 +1,6 @@
-import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "$lib/constants/defaults";
 import { createTransport, type Transporter } from "nodemailer";
+
+import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "#lib/constants/defaults.js";
 
 import type {
 	NotificationPayload,

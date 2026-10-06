@@ -1,9 +1,10 @@
-import { createOrganizationSchema } from "$lib/schemas/admin";
-import { getActor } from "$lib/server/audit-actor";
-import { adminService } from "$lib/server/services/admin.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { createOrganizationSchema } from "#lib/schemas/admin.js";
+import { getActor } from "#lib/server/audit-actor.js";
+import { adminService } from "#lib/server/services/admin.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

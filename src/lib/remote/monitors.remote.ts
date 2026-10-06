@@ -1,9 +1,10 @@
 import { command, query, getRequestEvent } from "$app/server";
-import { db } from "$lib/server/db";
-import { monitor, monitorStatus } from "$lib/server/db/schema";
-import { monitorService } from "$lib/server/services/monitor.service";
 import { eq, desc } from "drizzle-orm";
 import * as v from "valibot";
+
+import { db } from "#lib/server/db/index.js";
+import { monitor, monitorStatus } from "#lib/server/db/schema.js";
+import { monitorService } from "#lib/server/services/monitor.service.js";
 
 // Query: List monitors with status for the current organization
 export const getMonitors = query(async () => {

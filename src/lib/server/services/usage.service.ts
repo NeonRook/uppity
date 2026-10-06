@@ -1,8 +1,9 @@
-import { USAGE_THRESHOLDS, isSelfHosted } from "$lib/constants/plans";
-import { db } from "$lib/server/db";
-import { usageWarning } from "$lib/server/db/schema";
 import { eq, and, gte } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+import { USAGE_THRESHOLDS, isSelfHosted } from "#lib/constants/plans.js";
+import { db } from "#lib/server/db/index.js";
+import { usageWarning } from "#lib/server/db/schema.js";
 
 import { subscriptionService } from "./subscription.service";
 

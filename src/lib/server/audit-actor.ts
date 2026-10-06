@@ -1,8 +1,9 @@
-import { db } from "$lib/server/db";
-import { user } from "$lib/server/db/auth-schema";
-import type { Actor } from "$lib/server/services/audit.service";
 import type { RequestEvent } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
+
+import { user } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import type { Actor } from "#lib/server/services/audit.service.js";
 
 /**
  * Builds the audit actor for a request.

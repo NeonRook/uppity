@@ -1,9 +1,10 @@
-import { createIncidentSchema } from "$lib/schemas/incident";
-import { incidentService } from "$lib/server/services/incident.service";
-import { monitorService } from "$lib/server/services/monitor.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { createIncidentSchema } from "#lib/schemas/incident.js";
+import { incidentService } from "#lib/server/services/incident.service.js";
+import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

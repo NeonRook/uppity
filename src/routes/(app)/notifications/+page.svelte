@@ -1,17 +1,18 @@
 <script lang="ts">
-	import ChannelsListSkeleton from "$lib/components/channels-list-skeleton.svelte";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Switch } from "$lib/components/ui/switch";
-	import * as Tooltip from "$lib/components/ui/tooltip";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getChannels, toggleChannel, deleteChannel } from "$lib/remote/notifications.remote";
-	import type { NotificationChannel } from "$lib/server/db/schema";
 	import { Bell, Mail, MessageSquare, Pencil, Plus, Trash2, Webhook } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+
+	import ChannelsListSkeleton from "#lib/components/channels-list-skeleton.svelte";
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getChannels, toggleChannel, deleteChannel } from "#lib/remote/notifications.remote.js";
+	import type { NotificationChannel } from "#lib/server/db/schema.js";
 
 	let { data } = $props();
 	const channelsQuery = getChannels();

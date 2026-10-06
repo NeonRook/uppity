@@ -1,8 +1,9 @@
-import { createUserSchema } from "$lib/schemas/admin";
-import { auth } from "$lib/server/auth";
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { createUserSchema } from "#lib/schemas/admin.js";
+import { auth } from "#lib/server/auth.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

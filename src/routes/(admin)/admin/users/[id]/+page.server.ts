@@ -1,15 +1,16 @@
-import { AUDIT_PANEL_LIMIT } from "$lib/constants/audit";
-import { updateUserSchema } from "$lib/schemas/admin";
-import { getActor } from "$lib/server/audit-actor";
-import { auth } from "$lib/server/auth";
-import { db } from "$lib/server/db";
-import { user } from "$lib/server/db/auth-schema";
-import { adminService } from "$lib/server/services/admin.service";
-import { auditService } from "$lib/server/services/audit.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { AUDIT_PANEL_LIMIT } from "#lib/constants/audit.js";
+import { updateUserSchema } from "#lib/schemas/admin.js";
+import { getActor } from "#lib/server/audit-actor.js";
+import { auth } from "#lib/server/auth.js";
+import { user } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import { adminService } from "#lib/server/services/admin.service.js";
+import { auditService } from "#lib/server/services/audit.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

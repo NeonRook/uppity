@@ -1,4 +1,4 @@
-import { getIncidents } from "$lib/remote/incidents.remote";
+import { getIncidents } from "#lib/remote/incidents.remote.js";
 
 export async function load({ url }) {
 	const includeResolved = url.searchParams.get("resolved") === "true";

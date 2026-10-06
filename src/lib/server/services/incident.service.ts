@@ -1,11 +1,15 @@
+import { eq, and, desc, inArray, ne } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
+
 import {
 	DEFAULT_INCIDENT_STATUS,
 	DEFAULT_INCIDENT_IMPACT,
 	AUTO_RESOLVE_MESSAGE,
-} from "$lib/constants/defaults";
-import type { IncidentImpact, IncidentStatus } from "$lib/constants/status";
-import { db } from "$lib/server/db";
-import * as schema from "$lib/server/db/schema";
+} from "#lib/constants/defaults.js";
+import type { IncidentImpact, IncidentStatus } from "#lib/constants/status.js";
+import { db } from "#lib/server/db/index.js";
+import * as schema from "#lib/server/db/schema.js";
 import {
 	incident,
 	incidentMonitor,
@@ -14,11 +18,8 @@ import {
 	notificationEvent,
 	type Incident,
 	type IncidentUpdate,
-} from "$lib/server/db/schema";
-import type { IncidentEventPayload } from "$lib/server/notifications/events";
-import { eq, and, desc, inArray, ne } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { nanoid } from "nanoid";
+} from "#lib/server/db/schema.js";
+import type { IncidentEventPayload } from "#lib/server/notifications/events.js";
 
 type Db = PostgresJsDatabase<typeof schema>;
 

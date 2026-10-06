@@ -1,14 +1,15 @@
 <script lang="ts">
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { formatDateTimeRange, formatDuration, formatRelativeTime } from "$lib/format";
-	import { getMaintenanceStatusBadge } from "$lib/maintenance";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getLocale } from "$lib/paraglide/runtime";
-	import type { MaintenanceWindowSummary } from "$lib/server/services/maintenance-window.service";
 	import { Activity, CheckCircle2, Clock, Plus, Wrench } from "@lucide/svelte";
+
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatDateTimeRange, formatDuration, formatRelativeTime } from "#lib/format.js";
+	import { getMaintenanceStatusBadge } from "#lib/maintenance.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
+	import type { MaintenanceWindowSummary } from "#lib/server/services/maintenance-window.service.js";
 
 	let { data } = $props();
 

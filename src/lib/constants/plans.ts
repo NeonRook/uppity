@@ -1,4 +1,4 @@
-import type { Plan, PlanId, PlanLimits } from "$lib/types/plans";
+import type { Plan, PlanId, PlanLimits } from "#lib/types/plans.js";
 
 /**
  * Plan limits for self-hosted instances.
@@ -199,7 +199,7 @@ export const DEFAULT_PLAN_ID = "free" as const;
  * When true, all subscription limits are bypassed.
  *
  * Lives here rather than in `subscription.service.ts` so the monitor worker can
- * ask the question without importing `$lib/server/db`.
+ * ask the question without importing `#lib/server/db/index.js`.
  */
 export function isSelfHosted(): boolean {
 	return process.env.SELF_HOSTED === "true";

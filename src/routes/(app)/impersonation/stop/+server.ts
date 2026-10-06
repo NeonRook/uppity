@@ -1,6 +1,7 @@
-import { getActor } from "$lib/server/audit-actor";
-import { adminService } from "$lib/server/services/admin.service";
 import { redirect } from "@sveltejs/kit";
+
+import { getActor } from "#lib/server/audit-actor.js";
+import { adminService } from "#lib/server/services/admin.service.js";
 
 import type { RequestHandler } from "./$types";
 

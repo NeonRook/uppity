@@ -1,12 +1,13 @@
-import { createMaintenanceWindowSchema } from "$lib/schemas/maintenance-window";
-import { db } from "$lib/server/db";
-import { monitor } from "$lib/server/db/schema";
-import { maintenanceErrorMessage } from "$lib/server/maintenance-messages";
-import { MaintenanceWindowService } from "$lib/server/services/maintenance-window.service";
 import { fail, redirect } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { createMaintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
+import { db } from "#lib/server/db/index.js";
+import { monitor } from "#lib/server/db/schema.js";
+import { maintenanceErrorMessage } from "#lib/server/maintenance-messages.js";
+import { MaintenanceWindowService } from "#lib/server/services/maintenance-window.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

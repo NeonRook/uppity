@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { formatDuration } from "$lib/format";
-	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "$lib/incidents";
-	import { m } from "$lib/paraglide/messages.js";
 	import { ArrowLeft, Clock, Server, FileText } from "@lucide/svelte";
+
+	import { formatDuration } from "#lib/format.js";
+	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "#lib/incidents.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 
@@ -44,7 +45,7 @@
 	<main class="mx-auto max-w-4xl px-4 py-8">
 		<!-- Back link -->
 		<a
-			href={resolve(`/status/${page.slug}`)}
+			href={resolve(`status/${page.slug}`)}
 			class="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm"
 		>
 			<ArrowLeft class="h-4 w-4" />

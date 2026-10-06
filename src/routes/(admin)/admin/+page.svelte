@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import AuditHistory from "$lib/components/audit-history.svelte";
-	import StatCard from "$lib/components/stat-card.svelte";
-	import * as Card from "$lib/components/ui/card";
-	import * as Table from "$lib/components/ui/table";
-	import { formatDateShort } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
 	import { Users, Building2, Monitor, TriangleAlert } from "@lucide/svelte";
+
+	import AuditHistory from "#lib/components/audit-history.svelte";
+	import StatCard from "#lib/components/stat-card.svelte";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import { formatDateShort } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
 </script>
@@ -21,8 +22,11 @@
 	<!-- Stats Cards -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 		<StatCard title={m.admin_total_users()} value={data.stats.totalUsers} icon={Users} />
+
 		<StatCard title={m.admin_total_orgs()} value={data.stats.totalOrganizations} icon={Building2} />
+
 		<StatCard title={m.admin_total_monitors()} value={data.stats.totalMonitors} icon={Monitor} />
+
 		<StatCard
 			title={m.admin_total_incidents()}
 			value={data.stats.totalIncidents}
@@ -51,9 +55,8 @@
 						{#each data.stats.recentUsers as user (user.id)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
-									<a href={resolve(`/admin/users/${user.id}`)} class="hover:underline">
-										{user.name}
-									</a>
+									<a href={resolve(`admin/users/${user.id}`)} class="hover:underline">{user.name}</a
+									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{user.email}</Table.Cell>
 								<Table.Cell class="text-muted-foreground"
@@ -92,9 +95,9 @@
 						{#each data.stats.recentOrganizations as org (org.id)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
-									<a href={resolve(`/admin/organizations/${org.id}`)} class="hover:underline">
-										{org.name}
-									</a>
+									<a href={resolve(`admin/organizations/${org.id}`)} class="hover:underline"
+										>{org.name}</a
+									>
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{org.slug}</Table.Cell>
 								<Table.Cell class="text-muted-foreground"

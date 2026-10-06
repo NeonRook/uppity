@@ -1,9 +1,10 @@
-import { db } from "$lib/server/db";
+import { redirect } from "@sveltejs/kit";
+
+import { db } from "#lib/server/db/index.js";
 import {
 	MaintenanceWindowService,
 	type MaintenanceWindowSummary,
-} from "$lib/server/services/maintenance-window.service";
-import { redirect } from "@sveltejs/kit";
+} from "#lib/server/services/maintenance-window.service.js";
 
 import type { PageServerLoad } from "./$types";
 

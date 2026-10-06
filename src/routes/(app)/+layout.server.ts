@@ -1,10 +1,11 @@
-import { isSelfHosted } from "$lib/constants/plans";
-import { auth } from "$lib/server/auth";
-import { db } from "$lib/server/db";
-import { member, organization } from "$lib/server/db/auth-schema";
-import { getUsageLimitsData } from "$lib/server/services/usage-limits";
 import { redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
+
+import { isSelfHosted } from "#lib/constants/plans.js";
+import { auth } from "#lib/server/auth.js";
+import { member, organization } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import { getUsageLimitsData } from "#lib/server/services/usage-limits.js";
 
 import type { LayoutServerLoad } from "./$types";
 

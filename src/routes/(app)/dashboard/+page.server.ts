@@ -1,6 +1,7 @@
-import { db } from "$lib/server/db";
-import { monitor, monitorStatus } from "$lib/server/db/schema";
 import { eq, desc } from "drizzle-orm";
+
+import { db } from "#lib/server/db/index.js";
+import { monitor, monitorStatus } from "#lib/server/db/schema.js";
 
 import type { PageServerLoad } from "./$types";
 

@@ -1,11 +1,12 @@
-import { auth } from "$lib/server/auth";
-import { db } from "$lib/server/db";
-import { organization, member, user } from "$lib/server/db/auth-schema";
-import * as schema from "$lib/server/db/schema";
-import { monitor, incident } from "$lib/server/db/schema";
 import { eq, desc, ilike, or, count, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
+
+import { auth } from "#lib/server/auth.js";
+import { organization, member, user } from "#lib/server/db/auth-schema.js";
+import { db } from "#lib/server/db/index.js";
+import * as schema from "#lib/server/db/schema.js";
+import { monitor, incident } from "#lib/server/db/schema.js";
 
 import { auditService, AuditService, type Actor } from "./audit.service";
 

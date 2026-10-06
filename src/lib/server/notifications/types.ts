@@ -1,4 +1,4 @@
-import type { Monitor, MonitorStatus, Incident } from "$lib/server/db/schema";
+import type { Monitor, MonitorStatus, Incident } from "#lib/server/db/schema.js";
 
 export type NotificationType =
 	| "monitor_down"

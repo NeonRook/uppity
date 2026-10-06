@@ -1,9 +1,5 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { formatDuration, formatDateMonthDay } from "$lib/format";
-	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "$lib/incidents";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getMonitorStatusColor, getDayStatusColor } from "$lib/utils/status";
 	import {
 		CircleCheckBig,
 		TriangleAlert,
@@ -14,6 +10,11 @@
 		Wrench,
 		Clock,
 	} from "@lucide/svelte";
+
+	import { formatDuration, formatDateMonthDay } from "#lib/format.js";
+	import { getStatusInfo, getImpactInfo, formatIncidentDateTime } from "#lib/incidents.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getMonitorStatusColor, getDayStatusColor } from "#lib/utils/status.js";
 
 	let { data } = $props();
 
@@ -202,7 +203,7 @@
 						{@const impactInfo = getImpactInfo(incident.impact)}
 						{@const timelineUpdates = incident.updates.filter((u) => u.status !== "postmortem")}
 						<a
-							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
+							href={resolve(`status/${page.slug}/incidents/${incident.id}`)}
 							class="bg-card hover:bg-muted/50 block rounded-lg border p-5 transition-colors"
 						>
 							<!-- Incident Header -->
@@ -366,7 +367,7 @@
 					{#each resolvedIncidents as incident (incident.id)}
 						{@const impactInfo = getImpactInfo(incident.impact)}
 						<a
-							href={resolve(`/status/${page.slug}/incidents/${incident.id}`)}
+							href={resolve(`status/${page.slug}/incidents/${incident.id}`)}
 							class="bg-card hover:bg-muted/50 flex items-center justify-between rounded-lg border p-4 transition-colors"
 						>
 							<div class="flex-1">

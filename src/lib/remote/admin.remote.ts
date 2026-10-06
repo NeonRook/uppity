@@ -1,8 +1,9 @@
 import { command, getRequestEvent } from "$app/server";
-import { getActor } from "$lib/server/audit-actor";
-import { auth } from "$lib/server/auth";
-import { adminService } from "$lib/server/services/admin.service";
 import * as v from "valibot";
+
+import { getActor } from "#lib/server/audit-actor.js";
+import { auth } from "#lib/server/auth.js";
+import { adminService } from "#lib/server/services/admin.service.js";
 
 const organizationIdSchema = v.object({
 	organizationId: v.pipe(v.string(), v.minLength(1)),

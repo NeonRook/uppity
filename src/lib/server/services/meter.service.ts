@@ -1,7 +1,9 @@
-import * as schema from "$lib/server/db/schema";
-import { logger } from "$lib/server/logger";
-import { polarClient } from "$lib/server/polar";
+import { ingestEvents } from "@polar-sh/sdk/2026-10/services/events";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+
+import * as schema from "#lib/server/db/schema.js";
+import { logger } from "#lib/server/logger/index.js";
+import { polarClient } from "#lib/server/polar.js";
 
 import {
 	collectBlockSnapshots,
@@ -17,7 +19,7 @@ import {
 type Db = PostgresJsDatabase<typeof schema>;
 
 /** Return shape of the Polar SDK's `events.ingest`, isolated so tests can supply a double. */
-type IngestResult = Awaited<ReturnType<typeof polarClient.events.ingest>>;
+type IngestResult = Awaited<ReturnType<ReturnType<typeof ingestEvents>>>;
 type IngestEvent =
 	| ReturnType<typeof toIngestEvent>
 	| ReturnType<typeof toOrgIngestEvent>
@@ -68,7 +70,7 @@ export type BlockReportResult =
  * so usage is visible and billable in Polar.
  *
  * Two event streams are emitted from one `collectUsageSnapshots` query, both
- * keyed by `customerId` — Polar's internal customer UUID, stored on
+ * keyed by `customer_id` — Polar's internal customer UUID, stored on
  * `subscription.polarCustomerId`. Neither can be keyed by organization ID:
  * `external_customer_id` is already claimed by `@polar-sh/better-auth`, which
  * hardcodes it to the better-auth user ID. Polar accepts an unrecognised
@@ -93,7 +95,7 @@ export class MeterService {
 
 	constructor(
 		private readonly db: Db,
-		private readonly ingest: IngestFn = (events) => polarClient.events.ingest({ events }),
+		private readonly ingest: IngestFn = (events) => ingestEvents(polarClient)({ events }),
 		private readonly chunkSize: number = INGEST_CHUNK_SIZE,
 	) {
 		// Self-hosted installations have no Polar organization to report to.
@@ -242,7 +244,7 @@ export class MeterService {
 function toIngestEvent(snapshot: CustomerUsageSnapshot) {
 	return {
 		name: METER_EVENTS.USAGE_SNAPSHOT,
-		customerId: snapshot.polarCustomerId,
+		customer_id: snapshot.polarCustomerId,
 		metadata: {
 			monitors: snapshot.monitors,
 			status_pages: snapshot.statusPages,
@@ -255,7 +257,7 @@ function toIngestEvent(snapshot: CustomerUsageSnapshot) {
 function toOrgIngestEvent(row: OrganizationUsageSnapshot) {
 	return {
 		name: METER_EVENTS.USAGE_SNAPSHOT_ORG,
-		customerId: row.polarCustomerId,
+		customer_id: row.polarCustomerId,
 		metadata: {
 			organization_id: row.organizationId,
 			monitors: row.monitors,
@@ -273,7 +275,7 @@ function toOrgIngestEvent(row: OrganizationUsageSnapshot) {
 function toBlocksIngestEvent(snapshot: CustomerBlockSnapshot) {
 	return {
 		name: METER_EVENTS.MONITOR_BLOCKS,
-		customerId: snapshot.polarCustomerId,
+		customer_id: snapshot.polarCustomerId,
 		metadata: {
 			blocks: snapshot.blocks,
 			organization_count: snapshot.organizationCount,

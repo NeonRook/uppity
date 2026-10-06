@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Tooltip from "$lib/components/ui/tooltip";
 	import { Plus, type LucideIcon } from "@lucide/svelte";
+
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 
 	interface Props {
 		icon: LucideIcon;

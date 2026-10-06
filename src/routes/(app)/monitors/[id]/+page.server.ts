@@ -1,7 +1,8 @@
-import { db } from "$lib/server/db";
-import { monitor, monitorStatus, monitorCheck } from "$lib/server/db/schema";
 import { error } from "@sveltejs/kit";
 import { eq, and, desc } from "drizzle-orm";
+
+import { db } from "#lib/server/db/index.js";
+import { monitor, monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
 
 import type { PageServerLoad } from "./$types";
 

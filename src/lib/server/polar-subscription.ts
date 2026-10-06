@@ -1,9 +1,12 @@
-import { getPlanFromSubscription, mapPolarStatus } from "$lib/server/auth";
-import { polarClient } from "$lib/server/polar";
+import { getCheckouts } from "@polar-sh/sdk/2026-10/services/checkouts";
+import { getSubscriptions } from "@polar-sh/sdk/2026-10/services/subscriptions";
+
+import { getPlanFromSubscription, mapPolarStatus } from "#lib/server/auth.js";
+import { polarClient } from "#lib/server/polar.js";
 import {
 	subscriptionService,
 	type PolarSubscriptionSnapshot,
-} from "$lib/server/services/subscription.service";
+} from "#lib/server/services/subscription.service.js";
 
 /**
  * Reads the live subscription from Polar.
@@ -14,20 +17,20 @@ import {
 export async function fetchPolarSnapshot(
 	polarSubscriptionId: string,
 ): Promise<PolarSubscriptionSnapshot> {
-	const sub = await polarClient.subscriptions.get({ id: polarSubscriptionId });
+	const sub = await getSubscriptions(polarClient)(polarSubscriptionId);
 
 	return {
 		planId: getPlanFromSubscription(sub),
 		status: mapPolarStatus(sub.status),
-		polarCustomerId: sub.customerId,
+		polarCustomerId: sub.customer_id,
 		polarSubscriptionId: sub.id,
-		currentPeriodStart: sub.currentPeriodStart ? new Date(sub.currentPeriodStart) : undefined,
-		currentPeriodEnd: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : undefined,
+		currentPeriodStart: sub.current_period_start ? new Date(sub.current_period_start) : undefined,
+		currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end) : undefined,
 	};
 }
 
 interface CheckoutOutcome {
-	subscriptionId: string | null;
+	subscription_id: string | null;
 	metadata: Record<string, unknown>;
 }
 
@@ -43,9 +46,9 @@ export function subscriptionFromCheckout(
 	checkout: CheckoutOutcome,
 	organizationId: string,
 ): string | null {
-	if (!checkout.subscriptionId) return null;
+	if (!checkout.subscription_id) return null;
 	if (checkout.metadata.referenceId !== organizationId) return null;
-	return checkout.subscriptionId;
+	return checkout.subscription_id;
 }
 
 /**
@@ -59,7 +62,7 @@ export function subscriptionFromCheckout(
  * Returns whether a subscription was applied.
  */
 export async function syncCheckout(checkoutId: string, organizationId: string): Promise<boolean> {
-	const checkout = await polarClient.checkouts.get({ id: checkoutId });
+	const checkout = await getCheckouts(polarClient)(checkoutId);
 	const subscriptionId = subscriptionFromCheckout(checkout, organizationId);
 	if (!subscriptionId) return false;
 

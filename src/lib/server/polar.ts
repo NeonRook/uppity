@@ -1,4 +1,4 @@
-import { Polar } from "@polar-sh/sdk";
+import { createPolarCore } from "@polar-sh/sdk/2026-10";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
 const { POLAR_ACCESS_TOKEN, POLAR_SERVER } = process.env;
@@ -20,11 +20,15 @@ export const polarServer: "sandbox" | "production" =
 /**
  * Shared Polar API client.
  *
+ * A core client rather than `createPolar`, because the better-auth plugin requires
+ * one. It has no service properties: bind operations from
+ * `@polar-sh/sdk/2026-10/services/*`, e.g. `getSubscriptions(polarClient)(id)`.
+ *
  * Constructing this is lazy - no request is made until a method is called - so
  * a single module-level instance is safe even in self-hosted mode where
  * POLAR_ACCESS_TOKEN is unset and no Polar call ever happens.
  */
-export const polarClient = new Polar({
-	accessToken: POLAR_ACCESS_TOKEN,
-	server: polarServer,
+export const polarClient = createPolarCore({
+	accessToken: POLAR_ACCESS_TOKEN ?? "",
+	environment: polarServer,
 });

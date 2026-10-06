@@ -1,12 +1,13 @@
-import { updateMaintenanceWindowSchema } from "$lib/schemas/maintenance-window";
-import { db } from "$lib/server/db";
-import { monitor } from "$lib/server/db/schema";
-import { maintenanceErrorMessage } from "$lib/server/maintenance-messages";
-import { MaintenanceWindowService } from "$lib/server/services/maintenance-window.service";
 import { error, fail, redirect } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
+
+import { updateMaintenanceWindowSchema } from "#lib/schemas/maintenance-window.js";
+import { db } from "#lib/server/db/index.js";
+import { monitor } from "#lib/server/db/schema.js";
+import { maintenanceErrorMessage } from "#lib/server/maintenance-messages.js";
+import { MaintenanceWindowService } from "#lib/server/services/maintenance-window.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -56,6 +57,6 @@ export const actions: Actions = {
 	},
 
 	// Cancel and delete are discrete mutations, not form submissions, so they live as
-	// remote commands in `$lib/remote/maintenance.remote.ts` alongside every other
+	// remote commands in `#lib/remote/maintenance.remote.ts` alongside every other
 	// row action in the app. Only the superforms-backed update stays an action.
 };

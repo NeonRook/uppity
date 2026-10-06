@@ -172,11 +172,11 @@ Not Started
 ### 3.1 Create Worker Entry Point (`src/worker/index.ts`)
 
 ```typescript
+import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF, CHECK_RETRY } from "$lib/constants/worker";
 import { db } from "$lib/server/db";
 import { monitor } from "$lib/server/db/schema";
 import { checkService } from "$lib/server/services/check.service";
 import { sql, and, eq, lte, or, isNull } from "drizzle-orm";
-import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF, CHECK_RETRY } from "$lib/constants/worker";
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -518,8 +518,8 @@ await db
 import { db } from "$lib/server/db";
 import { maintenanceJob } from "$lib/server/db/schema";
 import { statsService } from "$lib/server/services/stats.service";
-import { eq, lte, sql } from "drizzle-orm";
 import cronParser from "cron-parser";
+import { eq, lte, sql } from "drizzle-orm";
 
 const jobHandlers: Record<string, () => Promise<void>> = {
 	"daily-stats": async () => {

@@ -2,9 +2,6 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { signOut } from "$lib/auth-client";
-	import { Button } from "$lib/components/ui/button";
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
 	import {
 		LayoutDashboard,
 		Users,
@@ -16,6 +13,10 @@
 		ShieldCheck,
 		ScrollText,
 	} from "@lucide/svelte";
+
+	import { signOut } from "#lib/auth-client.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 
 	let { data, children } = $props();
 
@@ -38,7 +39,7 @@
 
 	async function handleSignOut() {
 		await signOut();
-		goto(resolve("/admin/login"));
+		goto(resolve("admin/login"));
 	}
 </script>
 
@@ -82,11 +83,8 @@
 							)
 								? 'bg-primary text-primary-foreground'
 								: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-							onclick={() => (sidebarOpen = false)}
+							onclick={() => (sidebarOpen = false)}><item.icon class="h-5 w-5" />{item.name}</a
 						>
-							<item.icon class="h-5 w-5" />
-							{item.name}
-						</a>
 					{/each}
 				</nav>
 
@@ -100,6 +98,7 @@
 							>
 								{data.user.name.charAt(0).toUpperCase()}
 							</div>
+
 							<div class="flex flex-1 flex-col items-start overflow-hidden">
 								<span class="w-full truncate text-sm font-medium">{data.user.name}</span>
 								<span class="text-muted-foreground w-full truncate text-xs">{data.user.email}</span>
@@ -114,7 +113,7 @@
 							<DropdownMenu.Label>Admin Account</DropdownMenu.Label>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
-								<a href={resolve("/dashboard")} class="flex w-full items-center">
+								<a href={resolve("dashboard")} class="flex w-full items-center">
 									<LayoutDashboard class="mr-2 h-4 w-4" />
 									Back to App
 								</a>

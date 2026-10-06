@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { polarClient } from "@polar-sh/better-auth/client";
 import { adminClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/svelte";

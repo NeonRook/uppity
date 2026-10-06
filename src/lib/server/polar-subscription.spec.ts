@@ -7,7 +7,7 @@ describe("subscriptionFromCheckout", () => {
 
 	it("returns the subscription when the checkout belongs to the organization", () => {
 		const result = subscriptionFromCheckout(
-			{ subscriptionId: "sub_1", metadata: { referenceId: orgId } },
+			{ subscription_id: "sub_1", metadata: { referenceId: orgId } },
 			orgId,
 		);
 		expect(result).toBe("sub_1");
@@ -15,7 +15,7 @@ describe("subscriptionFromCheckout", () => {
 
 	it("returns null before Polar has attached a subscription", () => {
 		const result = subscriptionFromCheckout(
-			{ subscriptionId: null, metadata: { referenceId: orgId } },
+			{ subscription_id: null, metadata: { referenceId: orgId } },
 			orgId,
 		);
 		expect(result).toBeNull();
@@ -23,14 +23,14 @@ describe("subscriptionFromCheckout", () => {
 
 	it("returns null when the checkout was started for a different organization", () => {
 		const result = subscriptionFromCheckout(
-			{ subscriptionId: "sub_1", metadata: { referenceId: "org_2" } },
+			{ subscription_id: "sub_1", metadata: { referenceId: "org_2" } },
 			orgId,
 		);
 		expect(result).toBeNull();
 	});
 
 	it("returns null when the checkout carries no organization reference", () => {
-		const result = subscriptionFromCheckout({ subscriptionId: "sub_1", metadata: {} }, orgId);
+		const result = subscriptionFromCheckout({ subscription_id: "sub_1", metadata: {} }, orgId);
 		expect(result).toBeNull();
 	});
 });

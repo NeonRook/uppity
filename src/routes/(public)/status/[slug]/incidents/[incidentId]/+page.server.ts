@@ -1,5 +1,6 @@
-import { statusPageService } from "$lib/server/services/status-page.service";
 import { error } from "@sveltejs/kit";
+
+import { statusPageService } from "#lib/server/services/status-page.service.js";
 
 import type { PageServerLoad } from "./$types";
 

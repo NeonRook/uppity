@@ -1,5 +1,6 @@
-import { monitorService } from "$lib/server/services/monitor.service";
-import { error, json } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
+
+import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { RequestHandler } from "./$types";
 
@@ -17,5 +18,5 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 		error(404, "Monitor not found");
 	}
 
-	return json({ success: true, monitor: result });
+	return Response.json({ success: true, monitor: result });
 };

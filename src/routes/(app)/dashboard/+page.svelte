@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import StatCard from "$lib/components/stat-card.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { formatUptime, formatResponseTime } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getStatusColor, getStatusLabel } from "$lib/utils/status";
 	import { Activity, TriangleAlert, CircleCheck, Clock, Plus } from "@lucide/svelte";
+
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import StatCard from "#lib/components/stat-card.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatUptime, formatResponseTime } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getStatusColor, getStatusLabel } from "#lib/utils/status.js";
 
 	let { data } = $props();
 </script>
@@ -82,7 +83,7 @@
 				<div class="space-y-3">
 					{#each data.monitors as mon (mon.id)}
 						<a
-							href={resolve(`/monitors/${mon.id}`)}
+							href={resolve(`monitors/${mon.id}`)}
 							class="hover:bg-muted/50 block rounded-lg border p-4 transition-colors"
 						>
 							<div class="flex items-start justify-between gap-3">

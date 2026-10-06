@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { formatUsdCents } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import type { Plan } from "$lib/types/plans";
 	import { Check, LoaderCircle } from "@lucide/svelte";
+
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatUsdCents } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import type { Plan } from "#lib/types/plans.js";
 
 	type BillingPeriod = "monthly" | "annual";
 

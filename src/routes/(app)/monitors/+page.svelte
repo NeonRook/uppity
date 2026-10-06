@@ -1,18 +1,5 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import MonitorsListSkeleton from "$lib/components/monitors-list-skeleton.svelte";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-	import * as Table from "$lib/components/ui/table";
-	import * as Tooltip from "$lib/components/ui/tooltip";
-	import { formatResponseTime } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getMonitors, toggleMonitor, deleteMonitor } from "$lib/remote/monitors.remote";
-	import { getStatusBadge, getStatusColor } from "$lib/utils/status";
 	import {
 		Activity,
 		ExternalLink,
@@ -25,6 +12,20 @@
 		Trash2,
 	} from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import MonitorsListSkeleton from "#lib/components/monitors-list-skeleton.svelte";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import * as Table from "#lib/components/ui/table/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
+	import { formatResponseTime } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getMonitors, toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
+	import { getStatusBadge, getStatusColor } from "#lib/utils/status.js";
 
 	type MonitorWithStatus = Awaited<ReturnType<typeof getMonitors>>[number];
 
@@ -165,7 +166,7 @@
 										class={`h-2 w-2 shrink-0 rounded-full ${getStatusColor(mon.status, mon.active)}`}
 									></div>
 									<a
-										href={resolve(`/monitors/${mon.id}`)}
+										href={resolve(`monitors/${mon.id}`)}
 										class="truncate font-medium hover:underline"
 									>
 										{mon.name}
@@ -192,14 +193,14 @@
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
 									<DropdownMenu.Item>
-										<a href={resolve(`/monitors/${mon.id}`)} class="flex w-full items-center">
-											{m.monitors_view_details()}
-										</a>
+										<a href={resolve(`monitors/${mon.id}`)} class="flex w-full items-center"
+											>{m.monitors_view_details()}</a
+										>
 									</DropdownMenu.Item>
 									<DropdownMenu.Item>
-										<a href={resolve(`/monitors/${mon.id}/edit`)} class="flex w-full items-center">
-											{m.common_edit()}
-										</a>
+										<a href={resolve(`monitors/${mon.id}/edit`)} class="flex w-full items-center"
+											>{m.common_edit()}</a
+										>
 									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
 									<DropdownMenu.Item
@@ -219,10 +220,8 @@
 									<DropdownMenu.Item
 										variant="destructive"
 										onclick={() => (deleteMonitorId = mon.id)}
+										><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</DropdownMenu.Item
 									>
-										<Trash2 class="mr-2 h-4 w-4" />
-										{m.common_delete()}
-									</DropdownMenu.Item>
 								</DropdownMenu.Content>
 							</DropdownMenu.Root>
 						</div>
@@ -236,13 +235,13 @@
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-10"></Table.Head>
+						<Table.Head class="w-10" />
 						<Table.Head>{m.monitors_table_name()}</Table.Head>
 						<Table.Head>{m.monitors_table_endpoint()}</Table.Head>
 						<Table.Head>{m.monitors_table_status()}</Table.Head>
 						<Table.Head class="text-right">{m.monitors_table_uptime()}</Table.Head>
 						<Table.Head class="text-right">{m.monitors_table_avg_response()}</Table.Head>
-						<Table.Head class="w-12.5"></Table.Head>
+						<Table.Head class="w-12.5" />
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -257,9 +256,10 @@
 								</div>
 							</Table.Cell>
 							<Table.Cell>
-								<a href={resolve(`/monitors/${mon.id}`)} class="font-medium hover:underline"
+								<a href={resolve(`monitors/${mon.id}`)} class="font-medium hover:underline"
 									>{mon.name}</a
 								>
+
 								{#if mon.description}
 									<p class="text-muted-foreground text-xs">{mon.description}</p>
 								{/if}
@@ -281,15 +281,16 @@
 									{/if}
 								</div>
 							</Table.Cell>
-							<Table.Cell>
-								<Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-sm">
-								{formatUptime(mon.uptimePercent24h)}
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-sm">
-								{formatResponseTime(mon.avgResponseTimeMs24h)}
-							</Table.Cell>
+
+							<Table.Cell><Badge variant={statusInfo.variant}>{statusInfo.label}</Badge></Table.Cell
+							>
+							<Table.Cell class="text-right font-mono text-sm"
+								>{formatUptime(mon.uptimePercent24h)}</Table.Cell
+							>
+							<Table.Cell class="text-right font-mono text-sm"
+								>{formatResponseTime(mon.avgResponseTimeMs24h)}</Table.Cell
+							>
+
 							<Table.Cell>
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger class="hover:bg-muted rounded p-1">
@@ -297,15 +298,12 @@
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
 										<DropdownMenu.Item>
-											<a href={resolve(`/monitors/${mon.id}`)} class="flex w-full items-center">
-												{m.monitors_view_details()}
-											</a>
+											<a href={resolve(`monitors/${mon.id}`)} class="flex w-full items-center"
+												>{m.monitors_view_details()}</a
+											>
 										</DropdownMenu.Item>
 										<DropdownMenu.Item>
-											<a
-												href={resolve(`/monitors/${mon.id}/edit`)}
-												class="flex w-full items-center"
-											>
+											<a href={resolve(`monitors/${mon.id}/edit`)} class="flex w-full items-center">
 												{m.common_edit()}
 											</a>
 										</DropdownMenu.Item>
@@ -327,10 +325,8 @@
 										<DropdownMenu.Item
 											variant="destructive"
 											onclick={() => (deleteMonitorId = mon.id)}
+											><Trash2 class="mr-2 h-4 w-4" />{m.common_delete()}</DropdownMenu.Item
 										>
-											<Trash2 class="mr-2 h-4 w-4" />
-											{m.common_delete()}
-										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
 							</Table.Cell>

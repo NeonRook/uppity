@@ -1,17 +1,18 @@
 <script lang="ts">
-	import MonitorPicker from "$lib/components/maintenance-monitor-picker.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import { dateToLocalInput, getTimeZoneLabel, localInputToDate } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getLocale } from "$lib/paraglide/runtime";
 	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
 	import { untrack } from "svelte";
 	import { superForm } from "sveltekit-superforms";
+
+	import MonitorPicker from "#lib/components/maintenance-monitor-picker.svelte";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { dateToLocalInput, getTimeZoneLabel, localInputToDate } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
 
 	let { data } = $props();
 

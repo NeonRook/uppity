@@ -1,4 +1,4 @@
-import { adminService } from "$lib/server/services/admin.service";
+import { adminService } from "#lib/server/services/admin.service.js";
 
 import type { PageServerLoad } from "./$types";
 

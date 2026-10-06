@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Badge } from "$lib/components/ui/badge";
-	import * as Card from "$lib/components/ui/card";
-	import { formatDateTimeShort } from "$lib/format";
-	import { m } from "$lib/paraglide/messages.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatDateTimeShort } from "#lib/format.js";
+	import { m } from "#lib/paraglide/messages.js";
 	// Type-only, so it is erased at build time and pulls no server code into the
 	// client bundle.
-	import type { AuditLog } from "$lib/server/db/schema";
+	import type { AuditLog } from "#lib/server/db/schema.js";
 
 	interface Props {
 		entries: AuditLog[];

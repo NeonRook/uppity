@@ -1,16 +1,17 @@
+import { fail, redirect, error } from "@sveltejs/kit";
+import { superValidate, message } from "sveltekit-superforms";
+import { valibot } from "sveltekit-superforms/adapters";
+
 import {
 	updateStatusPageSchema,
 	addMonitorSchema,
 	removeMonitorSchema,
 	createGroupSchema,
 	deleteGroupSchema,
-} from "$lib/schemas/status-page";
-import { FeatureNotAvailableError } from "$lib/server/errors";
-import { monitorService } from "$lib/server/services/monitor.service";
-import { statusPageService } from "$lib/server/services/status-page.service";
-import { fail, redirect, error } from "@sveltejs/kit";
-import { superValidate, message } from "sveltekit-superforms";
-import { valibot } from "sveltekit-superforms/adapters";
+} from "#lib/schemas/status-page.js";
+import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { monitorService } from "#lib/server/services/monitor.service.js";
+import { statusPageService } from "#lib/server/services/status-page.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

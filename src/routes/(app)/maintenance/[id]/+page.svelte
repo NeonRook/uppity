@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import DeleteDialog from "$lib/components/delete-dialog.svelte";
-	import MonitorPicker from "$lib/components/maintenance-monitor-picker.svelte";
-	import { Alert, AlertDescription } from "$lib/components/ui/alert";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import * as Field from "$lib/components/ui/field";
-	import { Input } from "$lib/components/ui/input";
-	import { Textarea } from "$lib/components/ui/textarea";
+	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
+	import { untrack } from "svelte";
+	import { superForm } from "sveltekit-superforms";
+
+	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import MonitorPicker from "#lib/components/maintenance-monitor-picker.svelte";
+	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import {
 		dateToLocalInput,
 		formatDateTimeRange,
@@ -17,14 +21,14 @@
 		formatRelativeTime,
 		getTimeZoneLabel,
 		localInputToDate,
-	} from "$lib/format";
-	import { getMaintenanceStatusBadge } from "$lib/maintenance";
-	import { m } from "$lib/paraglide/messages.js";
-	import { getLocale } from "$lib/paraglide/runtime";
-	import { cancelMaintenanceWindow, deleteMaintenanceWindow } from "$lib/remote/maintenance.remote";
-	import { ArrowLeft, CircleAlert, LoaderCircle } from "@lucide/svelte";
-	import { untrack } from "svelte";
-	import { superForm } from "sveltekit-superforms";
+	} from "#lib/format.js";
+	import { getMaintenanceStatusBadge } from "#lib/maintenance.js";
+	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
+	import {
+		cancelMaintenanceWindow,
+		deleteMaintenanceWindow,
+	} from "#lib/remote/maintenance.remote.js";
 
 	type FormMessage = { type: "success" } | { type: "error"; text?: string };
 
@@ -70,7 +74,7 @@
 		} catch (err) {
 			throw toError(err);
 		}
-		await goto(resolve("/maintenance"));
+		await goto(resolve("maintenance"));
 	}
 
 	async function handleDelete(id: string) {
@@ -79,7 +83,7 @@
 		} catch (err) {
 			throw toError(err);
 		}
-		await goto(resolve("/maintenance"));
+		await goto(resolve("maintenance"));
 	}
 
 	let startsAtStr = $state(dateToLocalInput($form.startsAt));
@@ -150,9 +154,11 @@
 		{#if $message}
 			<Alert variant={$message.type === "success" ? "default" : "destructive"} class="mb-6">
 				<CircleAlert class="h-4 w-4" />
-				<AlertDescription>
-					{$message.type === "success" ? m.maintenance_edit_updated() : ($message.text ?? "")}
-				</AlertDescription>
+				<AlertDescription
+					>{$message.type === "success"
+						? m.maintenance_edit_updated()
+						: ($message.text ?? "")}</AlertDescription
+				>
 			</Alert>
 		{/if}
 

@@ -1,5 +1,5 @@
-import { m } from "$lib/paraglide/messages.js";
-import { MaintenanceWindowError } from "$lib/server/services/maintenance-window.service";
+import { m } from "#lib/paraglide/messages.js";
+import { MaintenanceWindowError } from "#lib/server/services/maintenance-window.service.js";
 
 /**
  * Translate a maintenance-window rejection into copy a form can show.

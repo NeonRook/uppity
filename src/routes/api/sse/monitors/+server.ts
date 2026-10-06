@@ -1,8 +1,9 @@
-import { db } from "$lib/server/db";
-import { monitorStatus, monitor } from "$lib/server/db/schema";
-import { logger } from "$lib/server/logger";
-import { addConnection, removeConnection } from "$lib/server/sse";
 import { eq } from "drizzle-orm";
+
+import { db } from "#lib/server/db/index.js";
+import { monitorStatus, monitor } from "#lib/server/db/schema.js";
+import { logger } from "#lib/server/logger/index.js";
+import { addConnection, removeConnection } from "#lib/server/sse.js";
 
 import type { RequestHandler } from "./$types";
 
