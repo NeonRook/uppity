@@ -1,4 +1,4 @@
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import {
@@ -12,7 +12,6 @@ import {
 	DEFAULT_EXPECTED_STATUS_CODES,
 	PUSH_TOKEN_LENGTH,
 } from "#lib/constants/defaults.js";
-import { CHECK_RETRY } from "#lib/constants/worker.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor, monitorStatus, type Monitor } from "#lib/server/db/schema.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
@@ -182,41 +181,6 @@ export class MonitorService {
 		}
 
 		return this.update(id, organizationId, { active: !existingMonitor.active });
-	}
-
-	/**
-	 * Returns monitors that have exceeded the max retry count (dead letter state).
-	 */
-	async findDeadLetterMonitors(organizationId: string): Promise<Monitor[]> {
-		return db
-			.select()
-			.from(monitor)
-			.where(
-				and(
-					eq(monitor.organizationId, organizationId),
-					gte(monitor.checkRetryCount, CHECK_RETRY.MAX_ATTEMPTS),
-				),
-			)
-			.orderBy(desc(monitor.updatedAt));
-	}
-
-	/**
-	 * Resets a monitor from dead letter state, allowing it to be checked again.
-	 */
-	async resetDeadLetter(id: string, organizationId: string): Promise<Monitor | null> {
-		const [updated] = await db
-			.update(monitor)
-			.set({
-				checkRetryCount: 0,
-				checkLastError: null,
-				checkBackoffUntil: null,
-				nextCheckAt: sql`NOW()`,
-				updatedAt: new Date(),
-			})
-			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
-			.returning();
-
-		return updated ?? null;
 	}
 }
 

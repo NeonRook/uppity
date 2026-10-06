@@ -12,11 +12,13 @@
 		X,
 		ShieldCheck,
 		ScrollText,
+		EyeOff,
 	} from "@lucide/svelte";
 
 	import { signOut } from "#lib/auth-client.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { m } from "#lib/paraglide/messages.js";
 
 	let { data, children } = $props();
 
@@ -28,6 +30,7 @@
 		{ name: "Users", href: "/admin/users", icon: Users },
 		{ name: "Organizations", href: "/admin/organizations", icon: Building2 },
 		{ name: "Audit Log", href: "/admin/audit", icon: ScrollText },
+		{ name: m.admin_dead_letter_title(), href: "/admin/dead-letters", icon: EyeOff },
 	];
 
 	function isActive(href: string): boolean {
