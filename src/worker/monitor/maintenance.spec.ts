@@ -102,4 +102,41 @@ describe("runUsageSnapshot", () => {
 			expect.objectContaining({ metadata: { blocks: 1, organization_count: 1 } }),
 		]);
 	});
+
+	test("stamps block events with the cutoff the sweep used", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const suffix = nanoid();
+		const orgId = `test-org-${suffix}`;
+		const polarCustomerId = `polar-cust-${suffix}`;
+		await drizzleDb.insert(organization).values({
+			id: orgId,
+			name: `Test Org ${suffix}`,
+			slug: `test-org-${suffix}`,
+			createdAt: new Date(),
+		});
+		await drizzleDb.insert(subscription).values({
+			id: nanoid(),
+			organizationId: orgId,
+			planId: "uppity",
+			status: "active",
+			blocks: 4,
+			scheduledBlocks: 1,
+			// Not yet due at the cutoff; the period may end while the report is in flight.
+			currentPeriodEnd: new Date(Date.now() + 60_000),
+			polarCustomerId,
+		});
+
+		const before = Date.now();
+		const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+		await runUsageSnapshot(drizzleDb, new MeterService(drizzleDb, ingest, 100));
+
+		const event = ingest.mock.calls
+			.flatMap((call) => call[0] as { name: string; customer_id: string; timestamp?: string }[])
+			.find((e) => e.name === "monitor_blocks" && e.customer_id === polarCustomerId);
+		// Stamped at the cutoff, the old count lands in the period that billed it.
+		expect(event?.timestamp).toBeDefined();
+		const stamped = Date.parse(event?.timestamp ?? "");
+		expect(stamped).toBeGreaterThanOrEqual(before);
+		expect(stamped).toBeLessThan(before + 60_000);
+	});
 });

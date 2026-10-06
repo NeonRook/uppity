@@ -1051,6 +1051,43 @@ describe("SubscriptionService", () => {
 			expect(renewed.blocks).toBe(1);
 		});
 
+		test("a renewal does not overwrite an increase made after the subscription was read", async ({
+			db,
+		}) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedOrganization(drizzleDb);
+
+			await drizzleDb.insert(subscription).values({
+				id: nanoid(),
+				organizationId: orgId,
+				planId: "uppity",
+				status: "active",
+				blocks: 3,
+				scheduledBlocks: 1,
+				currentPeriodStart: new Date("2026-02-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-03-12T00:00:00Z"),
+			});
+
+			// The webhook reads the pending reduction, then the customer buys more before
+			// it writes.
+			const read = service.getSubscription.bind(service);
+			vi.spyOn(service, "getSubscription").mockImplementationOnce(async (id) => {
+				const stale = await read(id);
+				await service.setBlocks(orgId, 5);
+				return stale;
+			});
+
+			const renewed = await service.syncFromPolar(orgId, {
+				planId: "uppity",
+				status: "active",
+				currentPeriodStart: new Date("2026-03-12T00:00:00Z"),
+				currentPeriodEnd: new Date("2026-04-12T00:00:00Z"),
+			});
+			expect(renewed.blocks).toBe(5);
+			expect(renewed.scheduledBlocks).toBeNull();
+		});
+
 		test("a mid-period webhook leaves a scheduled reduction pending", async ({ db }) => {
 			const { db: drizzleDb } = db;
 			const service = new SubscriptionService(drizzleDb);
