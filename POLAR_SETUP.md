@@ -420,10 +420,10 @@ the code deployed.
 
 ## Verify before merging
 
-- [ ] `aubr check` — passes (0 errors)
-- [ ] `aubr lint:ci` — exits 0
-- [ ] `aubr test:unit run` — all tests pass
-- [ ] Local dev still reaches sandbox: `aubr dev`, open `/settings/billing`,
+- [ ] `pnpm check` — passes (0 errors)
+- [ ] `pnpm lint:ci` — exits 0
+- [ ] `pnpm test:unit run` — all tests pass
+- [ ] Local dev still reaches sandbox: `pnpm dev`, open `/settings/billing`,
       confirm plan cards render and the upgrade button opens a Polar sandbox
       checkout
 - [ ] Admin resync still works: `/admin/organizations/<id>` → "Resync subscription"

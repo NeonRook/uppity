@@ -63,4 +63,4 @@ jobs:
           paraglide: "false"
       - name: Audit resolved dependencies
         continue-on-error: true
-        run: aube audit --audit-level high
+        run: pnpm audit --audit-level high

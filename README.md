@@ -22,7 +22,7 @@ Svelte 5.
   [Deno](https://deno.com) inside the production image. See
   [ADR 0001](docs/adr/0001-node-aube-build-deno-runtime.md) for why the two
   differ; contributors only need Node.
-- **Package manager**: [aube](https://aube.jdx.dev)
+- **Package manager**: [pnpm](https://pnpm.io)
 - **Framework**: [SvelteKit 2](https://svelte.dev/docs/kit) with
   [Svelte 5](https://svelte.dev)
 - **Database**: PostgreSQL via [Drizzle ORM](https://orm.drizzle.team)
@@ -38,7 +38,7 @@ Svelte 5.
 ### Prerequisites
 
 - [mise](https://mise.jdx.dev) — `mise install` reads [`mise.toml`](mise.toml)
-  and gives you Node and aube at the pinned versions. CI installs from the same
+  and gives you Node and pnpm at the pinned versions. CI installs from the same
   file. You do not need Deno: it only runs inside the production image.
 - [PostgreSQL](https://www.postgresql.org) (v15+) or use Docker
 
@@ -55,7 +55,7 @@ Svelte 5.
 
    ```bash
    mise install
-   aube install
+   pnpm install
    ```
 
 3. **Start PostgreSQL** (using Docker)
@@ -77,13 +77,13 @@ Svelte 5.
 5. **Push database schema**
 
    ```bash
-   aubr db:push
+   pnpm db:push
    ```
 
 6. **Start the development server**
 
    ```bash
-   aubr dev
+   pnpm dev
    ```
 
    Open [http://localhost:5173](http://localhost:5173) in your browser.
@@ -92,32 +92,30 @@ Svelte 5.
 
 ### Commands
 
-`aubr` is aube's script runner, the equivalent of `npm run`.
-
 ```bash
 # Start dev server
-aubr dev
+pnpm dev
 
 # Type checking
-aubr check
+pnpm check
 
 # Linting (with auto-fix)
-aubr lint
+pnpm lint
 
 # Linting and formatting as CI checks them, without fixing
-aubr lint:ci
+pnpm lint:ci
 
 # Formatting
-aubr fmt
+pnpm fmt
 
 # Run unit tests
-aubr test:unit run
+pnpm test:unit run
 
 # Run e2e tests
-aubr test:e2e
+pnpm test:e2e
 
 # Database GUI
-aubr db:studio
+pnpm db:studio
 ```
 
 ### Project Structure

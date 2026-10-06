@@ -20,12 +20,12 @@
 ## Checklist
 
 - [ ] I have read the [Contributing Guide](../CONTRIBUTING.md)
-- [ ] I have added a changeset (`aubr changeset`, or `aubr changeset --empty` if no release is needed)
+- [ ] I have added a changeset (`pnpm changeset`, or `pnpm changeset --empty` if no release is needed)
 - [ ] My code follows the project's code style
 - [ ] I have added tests that prove my fix/feature works
-- [ ] All new and existing tests pass (`aubr test:unit run`)
-- [ ] Linting and formatting pass (`aubr lint:ci`)
-- [ ] Type checking passes (`aubr check`)
+- [ ] All new and existing tests pass (`pnpm test:unit run`)
+- [ ] Linting and formatting pass (`pnpm lint:ci`)
+- [ ] Type checking passes (`pnpm check`)
 - [ ] I have updated documentation if needed
 
 ## Screenshots (if applicable)

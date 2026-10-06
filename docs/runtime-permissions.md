@@ -62,7 +62,7 @@ handler into a `NotCapable` error instead of an outbound connection.
 ## Changing it
 
 Adding an outbound call to the web tier means adding its host to `serve`'s allowlist in
-`scripts/entrypoint.sh`. Because `aubr dev` runs on Node, a missing entry will not show up
+`scripts/entrypoint.sh`. Because `pnpm dev` runs on Node, a missing entry will not show up
 locally; it shows up as `NotCapable: Requires net access to "…"` in the container. The same goes
 for a dependency that starts reading a new file or making a new `sys` call.
 

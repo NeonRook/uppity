@@ -1,6 +1,6 @@
 name: Set up the toolchain
 description: >-
-  Installs the mise-pinned Node and aube toolchain, restores the dependency cache, installs
+  Installs the mise-pinned Node and pnpm toolchain, restores the dependency cache, installs
   dependencies and optionally compiles Paraglide messages. Assumes the repository is already
   checked out.
 
@@ -17,20 +17,22 @@ runs:
   steps:
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4
       with:
-        install_args: node github:aubepkg/aube
+        install_args: node pnpm
 
-    # aube's content-addressable store, not pnpm's ~/.pnpm-store — aube neither
-    # reads nor writes that one.
+    - id: pnpm-store
+      run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      shell: bash
+
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
-        path: ~/.local/share/aube/store
-        key: aube-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('aube-lock.yaml') }}
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
         restore-keys: |
-          aube-${{ runner.os }}-${{ runner.arch }}-
+          pnpm-${{ runner.os }}-${{ runner.arch }}-
 
-    - run: aube ci
+    - run: pnpm install --frozen-lockfile
       shell: bash
 
     - if: inputs.paraglide == 'true'
-      run: aubr i18n:generate
+      run: pnpm i18n:generate
       shell: bash
