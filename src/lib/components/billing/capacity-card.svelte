@@ -24,7 +24,8 @@
 	interface Props {
 		blocks: number;
 		scheduledBlocks: number | null;
-		annual: boolean;
+		/** Null when the billing interval is unknown; changes are refused until it is. */
+		annual: boolean | null;
 		canManage: boolean;
 		periodEnd: string | null;
 		monitorsUsed: number;
@@ -140,7 +141,9 @@
 			</div>
 		{/if}
 
-		{#if canManage}
+		{#if canManage && annual === null}
+			<p class="text-muted-foreground text-sm">{m.billing_block_interval_unknown()}</p>
+		{:else if canManage}
 			<div class="flex flex-wrap items-end justify-between gap-6">
 				<div class="space-y-2">
 					<p class="text-sm font-medium" id="capacity-blocks-label">
@@ -208,7 +211,7 @@
 			<p class="text-muted-foreground text-sm">{m.billing_block_read_only()}</p>
 		{/if}
 	</Card.Content>
-	{#if canManage}
+	{#if canManage && annual !== null}
 		<Card.Footer class="justify-end gap-2">
 			<Button variant="ghost" disabled={!dirty || saving} onclick={() => setDraft(committed)}>
 				{m.billing_block_reset()}

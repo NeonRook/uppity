@@ -231,7 +231,7 @@
 				periodEnd={data.subscription.currentPeriodEnd}
 				monitorsUsed={data.usage.monitors.current}
 			/>
-		{:else if data.subscription.planId === "free" && uppityPlan}
+		{:else if data.subscription.planId === "free" && data.canManageBilling && uppityPlan}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>
@@ -292,7 +292,8 @@
 						isCurrentPlan={plan.id === data.subscription.planId}
 						onUpgrade={() => startCheckout(plan)}
 						loading={loadingCheckout === plan.id}
-						disabled={loadingCheckout !== null && loadingCheckout !== plan.id}
+						disabled={!data.canManageBilling ||
+							(loadingCheckout !== null && loadingCheckout !== plan.id)}
 					/>
 				{/each}
 			</div>

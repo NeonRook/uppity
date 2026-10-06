@@ -742,5 +742,6 @@
 	"billing_block_upgrade_action": "Auf Uppity upgraden",
 	"monitors_limit_reached": "Du hast dein Limit von {limit} Monitoren erreicht.",
 	"monitors_limit_add_capacity": "Kapazität hinzufügen",
-	"billing_block_error_multi_org_unnamed": "Zusätzliche Kapazität für dein Konto wird bereits in einer anderen Organisation abgerechnet. Entferne die Blöcke dort, bevor du sie hier hinzufügst."
+	"billing_block_error_multi_org_unnamed": "Zusätzliche Kapazität für dein Konto wird bereits in einer anderen Organisation abgerechnet. Entferne die Blöcke dort, bevor du sie hier hinzufügst.",
+	"billing_block_interval_unknown": "Dein Abrechnungszeitraum konnte nicht bestätigt werden, daher lässt sich die Kapazität gerade nicht ändern. Lade die Seite neu, um es erneut zu versuchen."
 }
