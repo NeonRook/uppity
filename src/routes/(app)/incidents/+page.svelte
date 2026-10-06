@@ -6,6 +6,7 @@
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { formatDuration } from "#lib/format.js";
 	import { formatIncidentDate, getImpactInfo, getStatusInfo } from "#lib/incidents.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteIncident, getIncidents } from "#lib/remote/incidents.remote.js";
@@ -13,23 +14,6 @@
 	let { data } = $props();
 
 	let deleteIncidentId = $state<string | null>(null);
-
-	function getDuration(startedAt: Date, resolvedAt: Date | null): string {
-		const end = resolvedAt ? new Date(resolvedAt) : new Date();
-		const start = new Date(startedAt);
-		const diffMs = end.getTime() - start.getTime();
-		const diffMins = Math.floor(diffMs / 60000);
-		const diffHours = Math.floor(diffMins / 60);
-		const diffDays = Math.floor(diffHours / 24);
-
-		if (diffDays > 0) {
-			return `${diffDays}d ${diffHours % 24}h`;
-		}
-		if (diffHours > 0) {
-			return `${diffHours}h ${diffMins % 60}m`;
-		}
-		return `${diffMins}m`;
-	}
 
 	async function handleDelete(incidentId: string) {
 		await deleteIncident({ incidentId }).updates(
@@ -51,13 +35,12 @@
 			<p class="text-muted-foreground">{m.incidents_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
-			{#if data.includeResolved}
-				<Button variant="outline" href="/incidents">{m.incidents_hide_resolved()}</Button>
-			{:else}
-				<Button variant="outline" href="/incidents?resolved=true"
-					>{m.incidents_show_resolved()}</Button
-				>
-			{/if}
+			<Button
+				variant="outline"
+				href={data.includeResolved ? "/incidents" : "/incidents?resolved=true"}
+			>
+				{data.includeResolved ? m.incidents_hide_resolved() : m.incidents_show_resolved()}
+			</Button>
 			<Button href="/incidents/new">
 				<Plus class="mr-2 h-4 w-4" />
 				{m.incidents_report()}
@@ -104,7 +87,7 @@
 									{/if}
 									<span
 										>{m.incidents_duration({
-											duration: getDuration(inc.startedAt, inc.resolvedAt),
+											duration: formatDuration(inc.startedAt, inc.resolvedAt),
 										})}</span
 									>
 								</div>

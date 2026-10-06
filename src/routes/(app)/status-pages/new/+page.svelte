@@ -1,43 +1,26 @@
 <script lang="ts">
-	import { CircleAlert, ArrowLeft, LoaderCircle, AlertTriangle } from "@lucide/svelte";
+	import { CircleAlert, LoaderCircle, AlertTriangle } from "@lucide/svelte";
 	import { untrack } from "svelte";
-	import { SvelteSet } from "svelte/reactivity";
 	import { superForm } from "sveltekit-superforms";
 
+	import MonitorPicker from "#lib/components/maintenance-monitor-picker.svelte";
+	import PageHeader from "#lib/components/page-header.svelte";
+	import StatusPageFields from "#lib/components/status-page-fields.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
-	import * as Field from "#lib/components/ui/field/index.js";
-	import { Input } from "#lib/components/ui/input/index.js";
-	import { Switch } from "#lib/components/ui/switch/index.js";
-	import { Textarea } from "#lib/components/ui/textarea/index.js";
-	import { generateSlug } from "#lib/format.js";
 
 	let { data } = $props();
 
-	const { form, errors, message, enhance, delayed } = superForm(untrack(() => data.form));
+	const superform = superForm(
+		untrack(() => data.form),
+		{ dataType: "json" },
+	);
+	const { form, message, enhance, delayed } = superform;
 
 	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
 	const canAddStatusPage = $derived(data.selfHosted || (usageLimits?.statusPages.canAdd ?? true));
-
-	let selectedMonitors = new SvelteSet<string>();
-
-	function handleNameChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		$form.name = target.value;
-		$form.slug = generateSlug(target.value);
-	}
-
-	function toggleMonitor(id: string) {
-		if (selectedMonitors.has(id)) {
-			selectedMonitors.delete(id);
-		} else {
-			selectedMonitors.add(id);
-		}
-		$form.monitors = Array.from(selectedMonitors);
-	}
 </script>
 
 <svelte:head>
@@ -45,15 +28,11 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/status-pages">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div>
-			<h1 class="text-3xl font-bold tracking-tight">New Status Page</h1>
-			<p class="text-muted-foreground">Create a public status page for your users</p>
-		</div>
-	</div>
+	<PageHeader
+		backHref="/status-pages"
+		title="New Status Page"
+		description="Create a public status page for your users"
+	/>
 
 	<form method="POST" use:enhance>
 		{#if !canAddStatusPage}
@@ -73,115 +52,7 @@
 			</Alert>
 		{/if}
 
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Basic Information</Card.Title>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<Field.Field>
-					<Field.Label for="name">Name *</Field.Label>
-					<Input
-						id="name"
-						name="name"
-						placeholder="My Status Page"
-						bind:value={$form.name}
-						oninput={handleNameChange}
-						required
-						disabled={$delayed}
-						aria-invalid={$errors.name ? "true" : undefined}
-					/>
-					<Field.Error errors={$errors.name} />
-				</Field.Field>
-
-				<Field.Field>
-					<Field.Label for="slug">URL Slug *</Field.Label>
-					<div class="flex items-center gap-2">
-						<span class="text-muted-foreground text-sm">/status/</span>
-						<Input
-							id="slug"
-							name="slug"
-							placeholder="my-status-page"
-							bind:value={$form.slug}
-							required
-							disabled={$delayed}
-							class="flex-1"
-							aria-invalid={$errors.slug ? "true" : undefined}
-						/>
-					</div>
-					<Field.Description>
-						Only lowercase letters, numbers, and hyphens allowed.
-					</Field.Description>
-					<Field.Error errors={$errors.slug} />
-				</Field.Field>
-
-				<Field.Field>
-					<Field.Label for="description">Description</Field.Label>
-					<Textarea
-						id="description"
-						name="description"
-						placeholder="Status updates for our services"
-						bind:value={$form.description}
-						disabled={$delayed}
-						aria-invalid={$errors.description ? "true" : undefined}
-					/>
-					<Field.Error errors={$errors.description} />
-				</Field.Field>
-
-				<Field.Field orientation="horizontal">
-					<Field.Label>Public</Field.Label>
-					<Field.Description>Make this status page publicly accessible</Field.Description>
-					<Switch
-						checked={$form.isPublic}
-						onCheckedChange={(checked) => ($form.isPublic = checked)}
-					/>
-					<input type="hidden" name="isPublic" value={String($form.isPublic)} />
-				</Field.Field>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root class="mt-6">
-			<Card.Header>
-				<Card.Title>Branding</Card.Title>
-				<Card.Description>Customize the appearance of your status page</Card.Description>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<Field.Field>
-					<Field.Label for="logoUrl">Logo URL</Field.Label>
-					<Input
-						id="logoUrl"
-						name="logoUrl"
-						type="url"
-						placeholder="https://example.com/logo.png"
-						bind:value={$form.logoUrl}
-						disabled={$delayed}
-						aria-invalid={$errors.logoUrl ? "true" : undefined}
-					/>
-					<Field.Error errors={$errors.logoUrl} />
-				</Field.Field>
-
-				<Field.Field>
-					<Field.Label for="primaryColor">Primary Color</Field.Label>
-					<div class="flex items-center gap-2">
-						<input
-							type="color"
-							id="primaryColor"
-							name="primaryColor"
-							bind:value={$form.primaryColor}
-							class="h-10 w-10 cursor-pointer rounded border"
-							disabled={$delayed}
-						/>
-						<Input
-							name="primaryColorHex"
-							placeholder="#000000"
-							bind:value={$form.primaryColor}
-							disabled={$delayed}
-							class="flex-1"
-						/>
-					</div>
-					<Field.Error errors={$errors.primaryColor} />
-				</Field.Field>
-			</Card.Content>
-		</Card.Root>
+		<StatusPageFields {superform} autoSlug />
 
 		<Card.Root class="mt-6">
 			<Card.Header>
@@ -189,38 +60,11 @@
 				<Card.Description>Select which monitors to display on this status page</Card.Description>
 			</Card.Header>
 			<Card.Content>
-				{#if data.monitors.length === 0}
-					<p class="text-muted-foreground py-4 text-center text-sm">
-						No monitors available. Create monitors first to add them to your status page.
-					</p>
-				{:else}
-					<div class="space-y-3">
-						{#each data.monitors as monitor (monitor.id)}
-							<label
-								class="hover:bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors"
-							>
-								<Checkbox
-									checked={selectedMonitors.has(monitor.id)}
-									onCheckedChange={() => toggleMonitor(monitor.id)}
-								/>
-								<input
-									type="checkbox"
-									name="monitors"
-									value={monitor.id}
-									checked={selectedMonitors.has(monitor.id)}
-									class="hidden"
-								/>
-								<div class="flex-1">
-									<div class="font-medium">{monitor.name}</div>
-									<div class="text-muted-foreground text-xs">
-										{monitor.type.toUpperCase()} - {monitor.url ||
-											`${monitor.hostname}:${monitor.port}`}
-									</div>
-								</div>
-							</label>
-						{/each}
-					</div>
-				{/if}
+				<MonitorPicker
+					monitors={data.monitors}
+					bind:selected={() => $form.monitors ?? [], (value) => ($form.monitors = value)}
+					disabled={$delayed}
+				/>
 			</Card.Content>
 		</Card.Root>
 

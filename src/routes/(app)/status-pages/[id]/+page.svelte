@@ -16,30 +16,28 @@
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
+	import StatusPageFields from "#lib/components/status-page-fields.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { Switch } from "#lib/components/ui/switch/index.js";
 	import * as Tabs from "#lib/components/ui/tabs/index.js";
-	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import { deleteStatusPage } from "#lib/remote/status-pages.remote.js";
+	import { getStatusPageUrl } from "#lib/status-page.js";
 
 	let { data } = $props();
 
-	const {
-		form: updateForm,
-		errors: updateErrors,
-		message: updateMessage,
-		enhance: updateEnhance,
-		delayed: updateDelayed,
-	} = superForm(
+	const updateSuperform = superForm(
 		untrack(() => data.updateForm),
 		{
 			resetForm: false,
 		},
 	);
+	const {
+		message: updateMessage,
+		enhance: updateEnhance,
+		delayed: updateDelayed,
+	} = updateSuperform;
 
 	let showDeleteDialog = $state(false);
 
@@ -52,13 +50,6 @@
 	const availableMonitors = $derived(
 		data.allMonitors.filter((m) => !data.selectedMonitorIds.includes(m.id)),
 	);
-
-	function getStatusPageUrl(): string {
-		if (data.statusPage.customDomain) {
-			return `https://${data.statusPage.customDomain}`;
-		}
-		return `/status/${data.statusPage.slug}`;
-	}
 </script>
 
 <svelte:head>
@@ -72,7 +63,7 @@
 		description="Edit status page settings"
 	>
 		{#snippet actions()}
-			<Button variant="outline" href={getStatusPageUrl()} target="_blank"
+			<Button variant="outline" href={getStatusPageUrl(data.statusPage)} target="_blank"
 				><ExternalLink class="mr-2 h-4 w-4" />View Page</Button
 			>
 
@@ -106,99 +97,7 @@
 
 		<Tabs.Content value="settings" class="mt-6">
 			<form method="POST" action="?/update" use:updateEnhance>
-				<Card.Root>
-					<Card.Header>
-						<Card.Title>Basic Information</Card.Title>
-					</Card.Header>
-					<Card.Content class="space-y-4">
-						<Field.Field>
-							<Field.Label for="name">Name *</Field.Label>
-							<Input
-								id="name"
-								name="name"
-								bind:value={$updateForm.name}
-								required
-								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.name ? "true" : undefined}
-							/>
-							<Field.Error errors={$updateErrors.name} />
-						</Field.Field>
-
-						<Field.Field>
-							<Field.Label for="slug">URL Slug *</Field.Label>
-							<div class="flex items-center gap-2">
-								<span class="text-muted-foreground text-sm">/status/</span>
-								<Input
-									id="slug"
-									name="slug"
-									bind:value={$updateForm.slug}
-									required
-									disabled={$updateDelayed}
-									class="flex-1"
-									aria-invalid={$updateErrors.slug ? "true" : undefined}
-								/>
-							</div>
-							<Field.Error errors={$updateErrors.slug} />
-						</Field.Field>
-
-						<Field.Field>
-							<Field.Label for="description">Description</Field.Label>
-							<Textarea
-								id="description"
-								name="description"
-								bind:value={$updateForm.description}
-								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.description ? "true" : undefined}
-							/>
-							<Field.Error errors={$updateErrors.description} />
-						</Field.Field>
-
-						<Field.Field orientation="horizontal">
-							<Field.Label>Public</Field.Label>
-							<Field.Description>Make this status page publicly accessible</Field.Description>
-							<Switch
-								checked={$updateForm.isPublic}
-								onCheckedChange={(checked) => ($updateForm.isPublic = checked)}
-							/>
-							<input type="hidden" name="isPublic" value={String($updateForm.isPublic)} />
-						</Field.Field>
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root class="mt-6">
-					<Card.Header>
-						<Card.Title>Branding</Card.Title>
-					</Card.Header>
-					<Card.Content class="space-y-4">
-						<Field.Field>
-							<Field.Label for="logoUrl">Logo URL</Field.Label>
-							<Input
-								id="logoUrl"
-								name="logoUrl"
-								type="url"
-								bind:value={$updateForm.logoUrl}
-								disabled={$updateDelayed}
-								aria-invalid={$updateErrors.logoUrl ? "true" : undefined}
-							/>
-							<Field.Error errors={$updateErrors.logoUrl} />
-						</Field.Field>
-
-						<Field.Field>
-							<Field.Label for="primaryColor">Primary Color</Field.Label>
-							<div class="flex items-center gap-2">
-								<input
-									type="color"
-									id="primaryColor"
-									name="primaryColor"
-									bind:value={$updateForm.primaryColor}
-									class="h-10 w-10 cursor-pointer rounded border"
-									disabled={$updateDelayed}
-								/>
-							</div>
-							<Field.Error errors={$updateErrors.primaryColor} />
-						</Field.Field>
-					</Card.Content>
-				</Card.Root>
+				<StatusPageFields superform={updateSuperform} />
 
 				<div class="mt-6 flex justify-end">
 					<Button type="submit" disabled={$updateDelayed}>
