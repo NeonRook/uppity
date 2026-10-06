@@ -49,10 +49,7 @@ export class MonitorService {
 		// Check subscription limits before creating
 		const limitCheck = await subscriptionService.canAddMonitor(input.organizationId);
 		if (!limitCheck.allowed) {
-			throw new SubscriptionLimitError(limitCheck.message ?? "Monitor limit reached", {
-				limit: limitCheck.limit,
-				currentUsage: limitCheck.currentUsage,
-			});
+			throw new SubscriptionLimitError(limitCheck.message ?? "Monitor limit reached");
 		}
 
 		// Check if the requested interval is allowed
@@ -62,9 +59,7 @@ export class MonitorService {
 			intervalSeconds,
 		);
 		if (!intervalCheck.allowed) {
-			throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed", {
-				limit: intervalCheck.limit,
-			});
+			throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed");
 		}
 
 		const id = nanoid();
@@ -107,12 +102,6 @@ export class MonitorService {
 		return newMonitor;
 	}
 
-	async findById(id: string): Promise<Monitor | null> {
-		const [result] = await db.select().from(monitor).where(eq(monitor.id, id)).limit(1);
-
-		return result || null;
-	}
-
 	async findByIdAndOrg(id: string, organizationId: string): Promise<Monitor | null> {
 		const [result] = await db
 			.select()
@@ -129,10 +118,6 @@ export class MonitorService {
 			.from(monitor)
 			.where(eq(monitor.organizationId, organizationId))
 			.orderBy(desc(monitor.createdAt));
-	}
-
-	async findActiveMonitors(): Promise<Monitor[]> {
-		return db.select().from(monitor).where(eq(monitor.active, true));
 	}
 
 	async update(
@@ -152,9 +137,7 @@ export class MonitorService {
 				input.intervalSeconds,
 			);
 			if (!intervalCheck.allowed) {
-				throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed", {
-					limit: intervalCheck.limit,
-				});
+				throw new SubscriptionLimitError(intervalCheck.message ?? "Check interval not allowed");
 			}
 		}
 
@@ -184,16 +167,12 @@ export class MonitorService {
 	}
 
 	async delete(id: string, organizationId: string): Promise<boolean> {
-		const existingMonitor = await this.findByIdAndOrg(id, organizationId);
-		if (!existingMonitor) {
-			return false;
-		}
-
-		await db
+		const deleted = await db
 			.delete(monitor)
-			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)));
+			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
+			.returning({ id: monitor.id });
 
-		return true;
+		return deleted.length > 0;
 	}
 
 	async toggleActive(id: string, organizationId: string): Promise<Monitor | null> {
@@ -225,11 +204,6 @@ export class MonitorService {
 	 * Resets a monitor from dead letter state, allowing it to be checked again.
 	 */
 	async resetDeadLetter(id: string, organizationId: string): Promise<Monitor | null> {
-		const existingMonitor = await this.findByIdAndOrg(id, organizationId);
-		if (!existingMonitor) {
-			return null;
-		}
-
 		const [updated] = await db
 			.update(monitor)
 			.set({
@@ -242,7 +216,7 @@ export class MonitorService {
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
 			.returning();
 
-		return updated || null;
+		return updated ?? null;
 	}
 }
 

@@ -1,16 +1,13 @@
 import { eq, and, lte, gte, inArray, sql, desc } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
-import * as schema from "#lib/server/db/schema.js";
+import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import {
 	maintenanceWindow,
 	maintenanceWindowMonitor,
 	type MaintenanceWindow,
 } from "#lib/server/db/schema.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export type MaintenanceWindowStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
 
@@ -246,15 +243,7 @@ export class MaintenanceWindowService {
 		return { ...row, monitorIds: links.map((l) => l.monitorId) };
 	}
 
-	async listByOrg(
-		orgId: string,
-		filter?: { status?: MaintenanceWindowStatus[] },
-	): Promise<MaintenanceWindowSummary[]> {
-		const conditions = [eq(maintenanceWindow.organizationId, orgId)];
-		if (filter?.status && filter.status.length > 0) {
-			conditions.push(inArray(maintenanceWindow.status, filter.status));
-		}
-
+	async listByOrg(orgId: string): Promise<MaintenanceWindowSummary[]> {
 		const rows = await this.db
 			.select({
 				window: maintenanceWindow,
@@ -265,7 +254,7 @@ export class MaintenanceWindowService {
 				maintenanceWindowMonitor,
 				eq(maintenanceWindowMonitor.windowId, maintenanceWindow.id),
 			)
-			.where(and(...conditions))
+			.where(eq(maintenanceWindow.organizationId, orgId))
 			.groupBy(maintenanceWindow.id)
 			.orderBy(desc(maintenanceWindow.startsAt));
 
@@ -291,22 +280,6 @@ export class MaintenanceWindowService {
 			)
 			.limit(1);
 		return row?.window ?? null;
-	}
-
-	async findActiveMonitorIds(at?: Date): Promise<Set<string>> {
-		const now = at ?? new Date();
-		const rows = await this.db
-			.selectDistinct({ monitorId: maintenanceWindowMonitor.monitorId })
-			.from(maintenanceWindowMonitor)
-			.innerJoin(maintenanceWindow, eq(maintenanceWindow.id, maintenanceWindowMonitor.windowId))
-			.where(
-				and(
-					eq(maintenanceWindow.status, "in_progress"),
-					lte(maintenanceWindow.startsAt, now),
-					gte(maintenanceWindow.endsAt, now),
-				),
-			);
-		return new Set(rows.map((r) => r.monitorId));
 	}
 
 	async runStatusTransitions(at?: Date): Promise<{ started: number; completed: number }> {

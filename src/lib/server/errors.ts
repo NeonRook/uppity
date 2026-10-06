@@ -1,31 +1,11 @@
-/**
- * Error thrown when a subscription limit is exceeded.
- */
+/** Thrown when an organization's plan limit blocks the action. */
 export class SubscriptionLimitError extends Error {
-	readonly code = "SUBSCRIPTION_LIMIT_EXCEEDED";
-	readonly limit: number;
-	readonly currentUsage: number;
-
-	constructor(message: string, options?: { limit?: number; currentUsage?: number }) {
-		super(message);
-		this.name = "SubscriptionLimitError";
-		this.limit = options?.limit ?? 0;
-		this.currentUsage = options?.currentUsage ?? 0;
-	}
+	override name = "SubscriptionLimitError";
 }
 
-/**
- * Error thrown when a feature is not available on the current plan.
- */
+/** Thrown when the organization's plan does not include the requested feature. */
 export class FeatureNotAvailableError extends Error {
-	readonly code = "FEATURE_NOT_AVAILABLE";
-	readonly feature: string;
-
-	constructor(message: string, feature: string) {
-		super(message);
-		this.name = "FeatureNotAvailableError";
-		this.feature = feature;
-	}
+	override name = "FeatureNotAvailableError";
 }
 
 /**

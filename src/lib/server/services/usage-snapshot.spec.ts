@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
 
-import { member, organization, user } from "../db/auth-schema";
-import { monitor, statusPage, subscription } from "../db/schema";
+import { statusPage } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedMember, seedMonitor, seedOrg, seedSubscription } from "../test/seed";
 import {
 	collectBlockSnapshots,
 	collectUsageSnapshots,
@@ -12,44 +12,6 @@ import {
 	sumByCustomer,
 	type OrganizationUsageSnapshot,
 } from "./usage-snapshot";
-
-async function seedOrganization(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: `test-org-${suffix}`,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
-async function seedSubscription(
-	drizzleDb: TestDb["db"],
-	orgId: string,
-	polarCustomerId: string | null,
-	overrides: { planId?: string; status?: string; blocks?: number } = {},
-): Promise<void> {
-	await drizzleDb.insert(subscription).values({
-		id: nanoid(),
-		organizationId: orgId,
-		planId: overrides.planId ?? "uppity",
-		status: overrides.status ?? "active",
-		blocks: overrides.blocks ?? 0,
-		polarCustomerId,
-	});
-}
-
-async function seedMonitor(drizzleDb: TestDb["db"], orgId: string): Promise<void> {
-	await drizzleDb.insert(monitor).values({
-		id: nanoid(),
-		organizationId: orgId,
-		name: `Monitor ${nanoid()}`,
-		type: "http",
-		url: "https://example.com",
-	});
-}
 
 async function seedStatusPage(drizzleDb: TestDb["db"], orgId: string): Promise<void> {
 	const suffix = nanoid();
@@ -61,29 +23,10 @@ async function seedStatusPage(drizzleDb: TestDb["db"], orgId: string): Promise<v
 	});
 }
 
-async function seedMember(drizzleDb: TestDb["db"], orgId: string): Promise<void> {
-	const suffix = nanoid();
-	const userId = `test-user-${suffix}`;
-	await drizzleDb.insert(user).values({
-		id: userId,
-		name: `Test User ${suffix}`,
-		email: `user-${suffix}@example.com`,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-	});
-	await drizzleDb.insert(member).values({
-		id: nanoid(),
-		organizationId: orgId,
-		userId,
-		role: "member",
-		createdAt: new Date(),
-	});
-}
-
 describe("collectUsageSnapshots", () => {
 	test("counts monitors, status pages and members for a billed organization", async ({ db }) => {
-		const orgId = await seedOrganization(db.db);
-		await seedSubscription(db.db, orgId, "polar-cust-1");
+		const orgId = await seedOrg(db.db);
+		await seedSubscription(db.db, orgId, { polarCustomerId: "polar-cust-1" });
 		await seedMonitor(db.db, orgId);
 		await seedMonitor(db.db, orgId);
 		await seedStatusPage(db.db, orgId);
@@ -104,8 +47,8 @@ describe("collectUsageSnapshots", () => {
 	});
 
 	test("excludes organizations with no Polar customer", async ({ db }) => {
-		const orgId = await seedOrganization(db.db);
-		await seedSubscription(db.db, orgId, null);
+		const orgId = await seedOrg(db.db);
+		await seedSubscription(db.db, orgId, { polarCustomerId: null });
 		await seedMonitor(db.db, orgId);
 
 		const snapshots = await collectUsageSnapshots(db.db);
@@ -123,10 +66,13 @@ describe("collectUsageSnapshots", () => {
 		// to free — reproduces the exact shape that would otherwise inflate the
 		// customer's summed total.
 		const sharedCustomerId = `polar-cust-shared-${nanoid()}`;
-		const paidOrg = await seedOrganization(db.db);
-		const downgradedOrg = await seedOrganization(db.db);
-		await seedSubscription(db.db, paidOrg, sharedCustomerId, { planId: "uppity" });
-		await seedSubscription(db.db, downgradedOrg, sharedCustomerId, { planId: "free" });
+		const paidOrg = await seedOrg(db.db);
+		const downgradedOrg = await seedOrg(db.db);
+		await seedSubscription(db.db, paidOrg, { polarCustomerId: sharedCustomerId, planId: "uppity" });
+		await seedSubscription(db.db, downgradedOrg, {
+			polarCustomerId: sharedCustomerId,
+			planId: "free",
+		});
 		for (let i = 0; i < 4; i++) await seedMonitor(db.db, paidOrg);
 		for (let i = 0; i < 9; i++) await seedMonitor(db.db, downgradedOrg);
 
@@ -146,8 +92,9 @@ describe("collectUsageSnapshots", () => {
 	test("keeps a past_due organization in the snapshot — it is still on a paid plan", async ({
 		db,
 	}) => {
-		const orgId = await seedOrganization(db.db);
-		await seedSubscription(db.db, orgId, "polar-cust-past-due", {
+		const orgId = await seedOrg(db.db);
+		await seedSubscription(db.db, orgId, {
+			polarCustomerId: "polar-cust-past-due",
 			planId: "uppity",
 			status: "past_due",
 		});
@@ -159,10 +106,10 @@ describe("collectUsageSnapshots", () => {
 	});
 
 	test("attributes counts to the right organization when several are billed", async ({ db }) => {
-		const first = await seedOrganization(db.db);
-		const second = await seedOrganization(db.db);
-		await seedSubscription(db.db, first, "polar-cust-a");
-		await seedSubscription(db.db, second, "polar-cust-b");
+		const first = await seedOrg(db.db);
+		const second = await seedOrg(db.db);
+		await seedSubscription(db.db, first, { polarCustomerId: "polar-cust-a" });
+		await seedSubscription(db.db, second, { polarCustomerId: "polar-cust-b" });
 		await seedMonitor(db.db, first);
 		await seedMonitor(db.db, second);
 		await seedMonitor(db.db, second);
@@ -174,8 +121,8 @@ describe("collectUsageSnapshots", () => {
 	});
 
 	test("reports zero for a billed organization with no resources", async ({ db }) => {
-		const orgId = await seedOrganization(db.db);
-		await seedSubscription(db.db, orgId, "polar-cust-empty");
+		const orgId = await seedOrg(db.db);
+		await seedSubscription(db.db, orgId, { polarCustomerId: "polar-cust-empty" });
 
 		const snapshots = await collectUsageSnapshots(db.db);
 
@@ -197,10 +144,10 @@ describe("collectUsageSnapshots", () => {
 		// this query's — collectUsageSnapshots stays per-organization so the
 		// usage_snapshot_org audit stream has something to key on.
 		const sharedCustomerId = "polar-cust-shared";
-		const first = await seedOrganization(db.db);
-		const second = await seedOrganization(db.db);
-		await seedSubscription(db.db, first, sharedCustomerId);
-		await seedSubscription(db.db, second, sharedCustomerId);
+		const first = await seedOrg(db.db);
+		const second = await seedOrg(db.db);
+		await seedSubscription(db.db, first, { polarCustomerId: sharedCustomerId });
+		await seedSubscription(db.db, second, { polarCustomerId: sharedCustomerId });
 		await seedMonitor(db.db, first);
 		await seedMonitor(db.db, second);
 
@@ -304,8 +251,8 @@ describe("collectBlockSnapshots", () => {
 	test("reports the stored block count for a block-eligible organization", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const polarCustomerId = `polar-cust-${nanoid()}`;
-		const orgId = await seedOrganization(drizzleDb);
-		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 3 });
+		const orgId = await seedOrg(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, { polarCustomerId: polarCustomerId, blocks: 3 });
 
 		const rows = await collectBlockSnapshots(drizzleDb, polarCustomerId);
 
@@ -315,8 +262,8 @@ describe("collectBlockSnapshots", () => {
 	test("keeps an organization holding zero blocks", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const polarCustomerId = `polar-cust-${nanoid()}`;
-		const orgId = await seedOrganization(drizzleDb);
-		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 0 });
+		const orgId = await seedOrg(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, { polarCustomerId: polarCustomerId, blocks: 0 });
 
 		expect(await collectBlockSnapshots(drizzleDb, polarCustomerId)).toEqual([
 			{ organizationId: orgId, polarCustomerId, blocks: 0 },
@@ -328,11 +275,13 @@ describe("collectBlockSnapshots", () => {
 		const dedicatedCustomer = `polar-cust-${nanoid()}`;
 		const freeCustomer = `polar-cust-${nanoid()}`;
 
-		await seedSubscription(drizzleDb, await seedOrganization(drizzleDb), dedicatedCustomer, {
+		await seedSubscription(drizzleDb, await seedOrg(drizzleDb), {
+			polarCustomerId: dedicatedCustomer,
 			planId: "dedicated",
 			blocks: 4,
 		});
-		await seedSubscription(drizzleDb, await seedOrganization(drizzleDb), freeCustomer, {
+		await seedSubscription(drizzleDb, await seedOrg(drizzleDb), {
+			polarCustomerId: freeCustomer,
 			planId: "free",
 			blocks: 4,
 		});
@@ -343,8 +292,8 @@ describe("collectBlockSnapshots", () => {
 
 	test("excludes organizations with no Polar customer", async ({ db }) => {
 		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		await seedSubscription(drizzleDb, orgId, null, { blocks: 2 });
+		const orgId = await seedOrg(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, { polarCustomerId: null, blocks: 2 });
 
 		const rows = await collectBlockSnapshots(drizzleDb);
 
@@ -354,10 +303,10 @@ describe("collectBlockSnapshots", () => {
 	test("returns one row per organization when several share one Polar customer", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const polarCustomerId = `polar-cust-${nanoid()}`;
-		const first = await seedOrganization(drizzleDb);
-		const second = await seedOrganization(drizzleDb);
-		await seedSubscription(drizzleDb, first, polarCustomerId, { blocks: 1 });
-		await seedSubscription(drizzleDb, second, polarCustomerId, { blocks: 2 });
+		const first = await seedOrg(drizzleDb);
+		const second = await seedOrg(drizzleDb);
+		await seedSubscription(drizzleDb, first, { polarCustomerId: polarCustomerId, blocks: 1 });
+		await seedSubscription(drizzleDb, second, { polarCustomerId: polarCustomerId, blocks: 2 });
 
 		const rows = await collectBlockSnapshots(drizzleDb, polarCustomerId);
 
@@ -373,8 +322,8 @@ describe("collectBlockSnapshots", () => {
 	test("omitting the customer filter reports every block-eligible organization", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const polarCustomerId = `polar-cust-${nanoid()}`;
-		const orgId = await seedOrganization(drizzleDb);
-		await seedSubscription(drizzleDb, orgId, polarCustomerId, { blocks: 5 });
+		const orgId = await seedOrg(drizzleDb);
+		await seedSubscription(drizzleDb, orgId, { polarCustomerId: polarCustomerId, blocks: 5 });
 
 		const rows = await collectBlockSnapshots(drizzleDb);
 

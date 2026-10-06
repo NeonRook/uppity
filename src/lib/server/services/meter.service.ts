@@ -1,7 +1,6 @@
 import { ingestEvents } from "@polar-sh/sdk/2026-10/services/events";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
-import * as schema from "#lib/server/db/schema.js";
+import type { Db } from "#lib/server/db/index.js";
 import { logger } from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
 
@@ -15,8 +14,6 @@ import {
 	type OrganizationBlockSnapshot,
 	type OrganizationUsageSnapshot,
 } from "./usage-snapshot";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 /** Return shape of the Polar SDK's `events.ingest`, isolated so tests can supply a double. */
 type IngestResult = Awaited<ReturnType<ReturnType<typeof ingestEvents>>>;

@@ -12,7 +12,6 @@ import {
 	sql,
 	type SQL,
 } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 import { ORGANIZATION_MEMBERSHIP_LIMIT } from "#lib/constants/auth.js";
@@ -26,7 +25,7 @@ import {
 	SELF_HOSTED_LIMITS,
 } from "#lib/constants/plans.js";
 import { invitation, member, organization } from "#lib/server/db/auth-schema.js";
-import * as schema from "#lib/server/db/schema.js";
+import type { Db } from "#lib/server/db/index.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
 	BillingInterval,
@@ -37,15 +36,6 @@ import type {
 	PlanLimits,
 	SubscriptionStatus,
 } from "#lib/types/plans.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
-
-/**
- * Gets a plan definition by ID.
- */
-export function getPlanById(planId: PlanId): Plan | undefined {
-	return PLANS[planId];
-}
 
 /** Outcome of a capacity-block change. */
 export type SetBlocksResult =
@@ -87,14 +77,11 @@ function periodRolled(
 	incoming: { currentPeriodStart?: Date; currentPeriodEnd?: Date },
 ): boolean {
 	if (incoming.currentPeriodEnd == null || incoming.currentPeriodStart == null) return false;
-	if (
+	return (
 		existing.currentPeriodEnd != null &&
 		incoming.currentPeriodStart.getTime() >=
 			existing.currentPeriodEnd.getTime() - PERIOD_BOUNDARY_TOLERANCE_MS
-	) {
-		return true;
-	}
-	return false;
+	);
 }
 
 /** The Polar subscription a webhook is about, which must be the one on record to apply. */
@@ -192,7 +179,7 @@ export class SubscriptionService {
 
 		const sub = await this.getOrCreateSubscription(organizationId);
 		// Fall back to the free plan if the stored id is one we no longer ship.
-		const plan = getPlanById(sub.planId as PlanId) ?? PLANS[DEFAULT_PLAN_ID];
+		const plan = PLANS[sub.planId] ?? PLANS[DEFAULT_PLAN_ID];
 
 		return applyCapacityBlocks(plan, sub.blocks);
 	}
@@ -218,7 +205,7 @@ export class SubscriptionService {
 		}
 
 		const sub = await this.getOrCreateSubscription(organizationId);
-		const plan = getPlanById(sub.planId as PlanId);
+		const plan = PLANS[sub.planId];
 		if (!plan || !BLOCK_ELIGIBLE_PLAN_IDS.has(plan.id)) {
 			return { ok: false, reason: "plan_ineligible" };
 		}
@@ -334,9 +321,7 @@ export class SubscriptionService {
 		}
 
 		const sub = await this.getOrCreateSubscription(organizationId);
-		const plan = getPlanById(sub.planId as PlanId);
-
-		return plan ?? PLANS[DEFAULT_PLAN_ID];
+		return PLANS[sub.planId] ?? PLANS[DEFAULT_PLAN_ID];
 	}
 
 	/**
@@ -402,52 +387,37 @@ export class SubscriptionService {
 		return { used, limit, canInvite: used < limit };
 	}
 
-	/**
-	 * Checks if an organization can add more monitors.
-	 */
-	async canAddMonitor(organizationId: string): Promise<LimitCheckResult> {
+	private async canAdd(
+		organizationId: string,
+		resource: "monitors" | "statusPages",
+		label: string,
+	): Promise<LimitCheckResult> {
 		const limits = await this.getEffectiveLimits(organizationId);
 
 		// -1 means unlimited
-		if (limits.monitors === -1) {
+		if (limits[resource] === -1) {
 			return { allowed: true };
 		}
 
 		const usage = await this.getUsage(organizationId);
-		const allowed = usage.monitors < limits.monitors;
+		const allowed = usage[resource] < limits[resource];
 
 		return {
 			allowed,
-			currentUsage: usage.monitors,
-			limit: limits.monitors,
+			currentUsage: usage[resource],
+			limit: limits[resource],
 			message: allowed
 				? undefined
-				: `You've reached the limit of ${limits.monitors} monitors on your current plan. Upgrade to add more.`,
+				: `You've reached the limit of ${limits[resource]} ${label} on your current plan. Upgrade to add more.`,
 		};
 	}
 
-	/**
-	 * Checks if an organization can add more status pages.
-	 */
-	async canAddStatusPage(organizationId: string): Promise<LimitCheckResult> {
-		const limits = await this.getEffectiveLimits(organizationId);
+	canAddMonitor(organizationId: string): Promise<LimitCheckResult> {
+		return this.canAdd(organizationId, "monitors", "monitors");
+	}
 
-		// -1 means unlimited
-		if (limits.statusPages === -1) {
-			return { allowed: true };
-		}
-
-		const usage = await this.getUsage(organizationId);
-		const allowed = usage.statusPages < limits.statusPages;
-
-		return {
-			allowed,
-			currentUsage: usage.statusPages,
-			limit: limits.statusPages,
-			message: allowed
-				? undefined
-				: `You've reached the limit of ${limits.statusPages} status pages on your current plan. Upgrade to add more.`,
-		};
+	canAddStatusPage(organizationId: string): Promise<LimitCheckResult> {
+		return this.canAdd(organizationId, "statusPages", "status pages");
 	}
 
 	/**

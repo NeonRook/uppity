@@ -1,16 +1,12 @@
 import { eq, desc, ilike, or, count, sql } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
 import { auth } from "#lib/server/auth.js";
 import { organization, member, user } from "#lib/server/db/auth-schema.js";
-import { db } from "#lib/server/db/index.js";
-import * as schema from "#lib/server/db/schema.js";
+import { db, type Db } from "#lib/server/db/index.js";
 import { monitor, incident } from "#lib/server/db/schema.js";
 
 import { auditService, AuditService, type Actor } from "./audit.service";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 /**
  * The slice of Better Auth's server API this service needs.
@@ -44,43 +40,6 @@ export interface UpdateOrganizationInput {
 	logo?: string | null;
 }
 
-export interface OrganizationWithMembers {
-	id: string;
-	name: string;
-	slug: string;
-	logo: string | null;
-	createdAt: Date;
-	members: {
-		id: string;
-		role: string;
-		createdAt: Date;
-		user: {
-			id: string;
-			name: string;
-			email: string;
-		};
-	}[];
-}
-
-export interface DashboardStats {
-	totalUsers: number;
-	totalOrganizations: number;
-	totalMonitors: number;
-	totalIncidents: number;
-	recentUsers: {
-		id: string;
-		name: string;
-		email: string;
-		createdAt: Date;
-	}[];
-	recentOrganizations: {
-		id: string;
-		name: string;
-		slug: string;
-		createdAt: Date;
-	}[];
-}
-
 export class AdminService {
 	private db: Db;
 	private audit: AuditService;
@@ -92,7 +51,7 @@ export class AdminService {
 		this.authApi = authApi;
 	}
 
-	async getDashboardStats(): Promise<DashboardStats> {
+	async getDashboardStats() {
 		const [userCount] = await this.db.select({ count: count() }).from(user);
 		const [orgCount] = await this.db.select({ count: count() }).from(organization);
 		const [monitorCount] = await this.db.select({ count: count() }).from(monitor);
@@ -130,45 +89,31 @@ export class AdminService {
 		};
 	}
 
-	async listAllOrganizations(
-		limit: number = 50,
-		offset: number = 0,
-		search?: string,
-	): Promise<{ organizations: OrganizationWithMembers[]; total: number }> {
-		let query = this.db.select().from(organization).$dynamic();
+	async listAllOrganizations(limit: number = 50, offset: number = 0, search?: string) {
+		const where = search
+			? or(ilike(organization.name, `%${search}%`), ilike(organization.slug, `%${search}%`))
+			: undefined;
 
-		if (search) {
-			query = query.where(
-				or(ilike(organization.name, `%${search}%`), ilike(organization.slug, `%${search}%`)),
-			);
-		}
+		const [totalResult] = await this.db.select({ count: count() }).from(organization).where(where);
 
-		const [totalResult] = await this.db
-			.select({ count: count() })
+		const orgs = await this.db
+			.select()
 			.from(organization)
-			.where(
-				search
-					? or(ilike(organization.name, `%${search}%`), ilike(organization.slug, `%${search}%`))
-					: undefined,
-			);
+			.where(where)
+			.orderBy(desc(organization.createdAt))
+			.limit(limit)
+			.offset(offset);
 
-		const orgs = await query.orderBy(desc(organization.createdAt)).limit(limit).offset(offset);
-
-		// Fetch members for each organization
-		const orgsWithMembers: OrganizationWithMembers[] = await Promise.all(
-			orgs.map(async (org) => {
-				const members = await this.getOrganizationMembers(org.id);
-				return Object.assign(org, { members });
-			}),
+		const organizations = await Promise.all(
+			orgs.map(async (org) =>
+				Object.assign(org, { members: await this.getOrganizationMembers(org.id) }),
+			),
 		);
 
-		return {
-			organizations: orgsWithMembers,
-			total: totalResult.count,
-		};
+		return { organizations, total: totalResult.count };
 	}
 
-	async getOrganizationById(id: string): Promise<OrganizationWithMembers | null> {
+	async getOrganizationById(id: string) {
 		const [org] = await this.db.select().from(organization).where(eq(organization.id, id)).limit(1);
 
 		if (!org) return null;
@@ -181,31 +126,18 @@ export class AdminService {
 		};
 	}
 
-	private async getOrganizationMembers(organizationId: string) {
-		const membersResult = await this.db
+	private getOrganizationMembers(organizationId: string) {
+		return this.db
 			.select({
 				id: member.id,
 				role: member.role,
 				createdAt: member.createdAt,
-				userId: user.id,
-				userName: user.name,
-				userEmail: user.email,
+				user: { id: user.id, name: user.name, email: user.email },
 			})
 			.from(member)
 			.innerJoin(user, eq(member.userId, user.id))
 			.where(eq(member.organizationId, organizationId))
 			.orderBy(desc(member.createdAt));
-
-		return membersResult.map((m) => ({
-			id: m.id,
-			role: m.role,
-			createdAt: m.createdAt,
-			user: {
-				id: m.userId,
-				name: m.userName,
-				email: m.userEmail,
-			},
-		}));
 	}
 
 	// --- Drizzle-native mutations -------------------------------------------
@@ -500,32 +432,6 @@ export class AdminService {
 			targetId: impersonatedUserId,
 			targetLabel: userLabel,
 		});
-	}
-
-	async listAllUsers(
-		limit: number = 50,
-		offset: number = 0,
-		search?: string,
-	): Promise<{ users: (typeof user.$inferSelect)[]; total: number }> {
-		let whereClause;
-		if (search) {
-			whereClause = or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`));
-		}
-
-		const [totalResult] = await this.db.select({ count: count() }).from(user).where(whereClause);
-
-		const users = await this.db
-			.select()
-			.from(user)
-			.where(whereClause)
-			.orderBy(desc(user.createdAt))
-			.limit(limit)
-			.offset(offset);
-
-		return {
-			users,
-			total: totalResult.count,
-		};
 	}
 
 	async getUsersNotInOrg(orgId: string) {

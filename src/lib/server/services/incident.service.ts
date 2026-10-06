@@ -1,11 +1,9 @@
-import { eq, and, desc, inArray, ne } from "drizzle-orm";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { DEFAULT_INCIDENT_STATUS, DEFAULT_INCIDENT_IMPACT } from "#lib/constants/defaults.js";
 import type { IncidentImpact, IncidentStatus } from "#lib/constants/status.js";
-import { db } from "#lib/server/db/index.js";
-import * as schema from "#lib/server/db/schema.js";
+import { db, type Db } from "#lib/server/db/index.js";
 import {
 	incident,
 	incidentMonitor,
@@ -18,8 +16,6 @@ import {
 import { NotFoundError } from "#lib/server/errors.js";
 import type { IncidentEventPayload } from "#lib/server/notifications/events.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
-
-type Db = PostgresJsDatabase<typeof schema>;
 
 export interface CreateIncidentInput {
 	organizationId: string;
@@ -126,12 +122,6 @@ export class IncidentService {
 		return newIncident;
 	}
 
-	async findById(id: string): Promise<Incident | null> {
-		const [result] = await this.db.select().from(incident).where(eq(incident.id, id)).limit(1);
-
-		return result || null;
-	}
-
 	async findByIdAndOrg(id: string, organizationId: string): Promise<Incident | null> {
 		const [result] = await this.db
 			.select()
@@ -165,12 +155,7 @@ export class IncidentService {
 			return null;
 		}
 
-		// Get updates
-		const updates = await this.db
-			.select()
-			.from(incidentUpdate)
-			.where(eq(incidentUpdate.incidentId, id))
-			.orderBy(desc(incidentUpdate.createdAt));
+		const updates = await this.getUpdates(id);
 
 		// Get affected monitors
 		const affectedMonitorLinks = await this.db
@@ -203,20 +188,15 @@ export class IncidentService {
 			return null;
 		}
 
-		const updateData: Record<string, unknown> = {
-			...input,
-			updatedAt: new Date(),
-		};
-
 		const isFlippingToResolved = input.status === "resolved" && existing.status !== "resolved";
-
-		if (isFlippingToResolved) {
-			updateData.resolvedAt = new Date();
-		}
 
 		const [updated] = await this.db
 			.update(incident)
-			.set(updateData)
+			.set({
+				...input,
+				updatedAt: new Date(),
+				...(isFlippingToResolved && { resolvedAt: new Date() }),
+			})
 			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
 			.returning();
 
@@ -250,39 +230,28 @@ export class IncidentService {
 			})
 			.returning();
 
-		const updateData: Record<string, unknown> = {
-			status: input.status,
-			updatedAt: new Date(),
-		};
-
-		if (input.status === "resolved") {
-			updateData.resolvedAt = new Date();
-		}
-
 		const [updatedIncident] = await this.db
 			.update(incident)
-			.set(updateData)
+			.set({
+				status: input.status,
+				updatedAt: new Date(),
+				...(input.status === "resolved" && { resolvedAt: new Date() }),
+			})
 			.where(
 				and(eq(incident.id, input.incidentId), eq(incident.organizationId, input.organizationId)),
 			)
 			.returning({ id: incident.id, organizationId: incident.organizationId });
 
-		// A postmortem is post-resolution writing, not paging-worthy.
-		if (updatedIncident && input.status !== "postmortem") {
-			if (input.status === "resolved") {
-				if (!wasAlreadyResolved) {
-					await this.enqueueIncidentEvent("incident_resolved", updatedIncident, {
-						updateId: id,
-						updateMessage: input.message,
-					});
-				}
-				// Re-resolving an already-resolved incident → no notification fires.
-			} else {
-				await this.enqueueIncidentEvent("incident_updated", updatedIncident, {
-					updateId: id,
-					updateMessage: input.message,
-				});
-			}
+		// A postmortem is post-resolution writing, not paging-worthy, and re-resolving
+		// an already-resolved incident must not enqueue a duplicate event.
+		const notifiable =
+			input.status !== "postmortem" && !(input.status === "resolved" && wasAlreadyResolved);
+		if (updatedIncident && notifiable) {
+			await this.enqueueIncidentEvent(
+				input.status === "resolved" ? "incident_resolved" : "incident_updated",
+				updatedIncident,
+				{ updateId: id, updateMessage: input.message },
+			);
 		}
 
 		return update;
@@ -323,89 +292,13 @@ export class IncidentService {
 		return updated || null;
 	}
 
-	async getAffectedMonitors(incidentId: string): Promise<
-		Array<{
-			id: string;
-			name: string;
-			type: string;
-		}>
-	> {
-		return this.db
-			.select({
-				id: monitor.id,
-				name: monitor.name,
-				type: monitor.type,
-			})
-			.from(incidentMonitor)
-			.innerJoin(monitor, eq(incidentMonitor.monitorId, monitor.id))
-			.where(eq(incidentMonitor.incidentId, incidentId));
-	}
-
 	async delete(id: string, organizationId: string): Promise<boolean> {
-		const existing = await this.findByIdAndOrg(id, organizationId);
-		if (!existing) {
-			return false;
-		}
-
-		await this.db
+		const deleted = await this.db
 			.delete(incident)
-			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)));
+			.where(and(eq(incident.id, id), eq(incident.organizationId, organizationId)))
+			.returning({ id: incident.id });
 
-		return true;
-	}
-
-	// Get active incidents for a set of monitors
-	async getActiveIncidentsForMonitors(monitorIds: string[]): Promise<Incident[]> {
-		if (monitorIds.length === 0) return [];
-
-		const incidentIds = await this.db
-			.selectDistinct({ incidentId: incidentMonitor.incidentId })
-			.from(incidentMonitor)
-			.where(inArray(incidentMonitor.monitorId, monitorIds));
-
-		if (incidentIds.length === 0) return [];
-
-		return this.db
-			.select()
-			.from(incident)
-			.where(
-				and(
-					inArray(
-						incident.id,
-						incidentIds.map((i) => i.incidentId),
-					),
-					ne(incident.status, "resolved"),
-				),
-			)
-			.orderBy(desc(incident.startedAt));
-	}
-
-	// Get active auto-created incident for a specific monitor
-	async getActiveAutoIncidentForMonitor(monitorId: string): Promise<Incident | null> {
-		const incidentIds = await this.db
-			.select({ incidentId: incidentMonitor.incidentId })
-			.from(incidentMonitor)
-			.where(eq(incidentMonitor.monitorId, monitorId));
-
-		if (incidentIds.length === 0) return null;
-
-		const [result] = await this.db
-			.select()
-			.from(incident)
-			.where(
-				and(
-					inArray(
-						incident.id,
-						incidentIds.map((i) => i.incidentId),
-					),
-					ne(incident.status, "resolved"),
-					eq(incident.isAutoCreated, true),
-				),
-			)
-			.orderBy(desc(incident.startedAt))
-			.limit(1);
-
-		return result || null;
+		return deleted.length > 0;
 	}
 }
 

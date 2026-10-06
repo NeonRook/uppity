@@ -2,11 +2,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { db } from "#lib/server/db/index.js";
-import {
-	notificationChannel,
-	monitorNotificationChannel,
-	type NotificationChannel,
-} from "#lib/server/db/schema.js";
+import { notificationChannel, type NotificationChannel } from "#lib/server/db/schema.js";
 import { FeatureNotAvailableError } from "#lib/server/errors.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
@@ -34,7 +30,6 @@ export class NotificationChannelService {
 		if (!channelCheck.allowed) {
 			throw new FeatureNotAvailableError(
 				channelCheck.message ?? `${input.type} notifications not available`,
-				`notification:${input.type}`,
 			);
 		}
 
@@ -53,16 +48,6 @@ export class NotificationChannelService {
 			.returning();
 
 		return newChannel;
-	}
-
-	async findById(id: string): Promise<NotificationChannel | null> {
-		const [result] = await db
-			.select()
-			.from(notificationChannel)
-			.where(eq(notificationChannel.id, id))
-			.limit(1);
-
-		return result || null;
 	}
 
 	async findByIdAndOrg(id: string, organizationId: string): Promise<NotificationChannel | null> {
@@ -90,11 +75,6 @@ export class NotificationChannelService {
 		organizationId: string,
 		input: UpdateChannelInput,
 	): Promise<NotificationChannel | null> {
-		const existingChannel = await this.findByIdAndOrg(id, organizationId);
-		if (!existingChannel) {
-			return null;
-		}
-
 		const [updated] = await db
 			.update(notificationChannel)
 			.set({
@@ -106,22 +86,18 @@ export class NotificationChannelService {
 			)
 			.returning();
 
-		return updated || null;
+		return updated ?? null;
 	}
 
 	async delete(id: string, organizationId: string): Promise<boolean> {
-		const existingChannel = await this.findByIdAndOrg(id, organizationId);
-		if (!existingChannel) {
-			return false;
-		}
-
-		await db
+		const deleted = await db
 			.delete(notificationChannel)
 			.where(
 				and(eq(notificationChannel.id, id), eq(notificationChannel.organizationId, organizationId)),
-			);
+			)
+			.returning({ id: notificationChannel.id });
 
-		return true;
+		return deleted.length > 0;
 	}
 
 	async toggleEnabled(id: string, organizationId: string): Promise<NotificationChannel | null> {
@@ -131,34 +107,6 @@ export class NotificationChannelService {
 		}
 
 		return this.update(id, organizationId, { enabled: !existingChannel.enabled });
-	}
-
-	// Get all channels linked to a monitor
-	async getMonitorChannels(monitorId: string): Promise<
-		Array<{
-			channel: NotificationChannel;
-			notifyOnDown: boolean;
-			notifyOnUp: boolean;
-			notifyOnDegraded: boolean;
-			notifyOnSslExpiry: boolean;
-		}>
-	> {
-		const results = await db
-			.select({
-				channel: notificationChannel,
-				notifyOnDown: monitorNotificationChannel.notifyOnDown,
-				notifyOnUp: monitorNotificationChannel.notifyOnUp,
-				notifyOnDegraded: monitorNotificationChannel.notifyOnDegraded,
-				notifyOnSslExpiry: monitorNotificationChannel.notifyOnSslExpiry,
-			})
-			.from(monitorNotificationChannel)
-			.innerJoin(
-				notificationChannel,
-				eq(monitorNotificationChannel.channelId, notificationChannel.id),
-			)
-			.where(eq(monitorNotificationChannel.monitorId, monitorId));
-
-		return results;
 	}
 }
 

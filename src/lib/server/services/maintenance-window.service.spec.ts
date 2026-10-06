@@ -2,51 +2,11 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
-import { organization, user } from "../db/auth-schema";
-import { monitor, maintenanceWindow, maintenanceWindowMonitor } from "../db/schema";
+import { maintenanceWindow, maintenanceWindowMonitor } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
+import { seedMonitor, seedOrg, seedUser } from "../test/seed";
 import { MaintenanceWindowService } from "./maintenance-window.service";
-
-async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: orgId,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
-async function seedUser(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const userId = `test-user-${suffix}`;
-	await drizzleDb.insert(user).values({
-		id: userId,
-		name: "Test User",
-		email: `${userId}@example.com`,
-		emailVerified: true,
-		createdAt: new Date(),
-		updatedAt: new Date(),
-	});
-	return userId;
-}
-
-async function seedMonitor(drizzleDb: TestDb["db"], orgId: string): Promise<string> {
-	const id = `mon-${nanoid()}`;
-	await drizzleDb.insert(monitor).values({
-		id,
-		organizationId: orgId,
-		name: "Probe",
-		type: "http",
-		url: "https://example.com",
-		intervalSeconds: 300,
-		timeoutSeconds: 30,
-	});
-	return id;
-}
 
 describe("MaintenanceWindowService.create", () => {
 	test("creates a window with associated monitors", async ({ db }) => {
@@ -266,28 +226,6 @@ describe("MaintenanceWindowService.listByOrg", () => {
 		const byName = new Map(results.map((r) => [r.name, r]));
 		expect(byName.get("Window A")!.monitorCount).toBe(3);
 		expect(byName.get("Window B")!.monitorCount).toBe(1);
-	});
-
-	test("filters by status", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
-		const orgId = await seedOrg(drizzleDb);
-		const monitorId = await seedMonitor(drizzleDb, orgId);
-
-		const created = await service.create({
-			organizationId: orgId,
-			name: "Scheduled then cancelled",
-			startsAt: new Date(Date.now() + 60_000),
-			endsAt: new Date(Date.now() + 3_600_000),
-			monitorIds: [monitorId],
-		});
-		await service.cancel(created.id, orgId);
-
-		const scheduled = await service.listByOrg(orgId, { status: ["scheduled"] });
-		expect(scheduled).toHaveLength(0);
-
-		const cancelled = await service.listByOrg(orgId, { status: ["cancelled"] });
-		expect(cancelled).toHaveLength(1);
 	});
 
 	test("is scoped to organization", async ({ db }) => {
@@ -613,49 +551,6 @@ describe("MaintenanceWindowService.findActiveForMonitor", () => {
 
 		const result = await service.findActiveForMonitor(monitorId, now);
 		expect(result).toBeNull();
-	});
-});
-
-describe("MaintenanceWindowService.findActiveMonitorIds", () => {
-	test("returns set of monitor ids under active in_progress windows", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
-		const orgId = await seedOrg(drizzleDb);
-		const m1 = await seedMonitor(drizzleDb, orgId);
-		const m2 = await seedMonitor(drizzleDb, orgId);
-		const m3 = await seedMonitor(drizzleDb, orgId);
-
-		const now = new Date();
-		const id = nanoid();
-		await drizzleDb.insert(maintenanceWindow).values({
-			id,
-			organizationId: orgId,
-			name: "Active",
-			status: "in_progress",
-			startsAt: new Date(now.getTime() - 60_000),
-			endsAt: new Date(now.getTime() + 60_000),
-		});
-		await drizzleDb.insert(maintenanceWindowMonitor).values([
-			{ windowId: id, monitorId: m1 },
-			{ windowId: id, monitorId: m2 },
-		]);
-
-		const result = await service.findActiveMonitorIds(now);
-		expect(result.has(m1)).toBe(true);
-		expect(result.has(m2)).toBe(true);
-		expect(result.has(m3)).toBe(false);
-	});
-
-	test("returns empty set for monitors with no active windows", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
-		const orgId = await seedOrg(drizzleDb);
-		const monitorId = await seedMonitor(drizzleDb, orgId);
-
-		const result = await service.findActiveMonitorIds();
-		// Other tests in this file seed unrelated active windows; assert
-		// only that our freshly-seeded monitor isn't in the result set.
-		expect(result.has(monitorId)).toBe(false);
 	});
 });
 
