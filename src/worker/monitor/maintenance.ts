@@ -63,11 +63,14 @@ export async function runUsageSnapshot(
 	targetDb: Db,
 	meterService: MeterService,
 ): Promise<Partial<MaintenanceWideEvent>> {
-	const reductions = await new SubscriptionService(targetDb).applyScheduledReductions();
+	// One cutoff for both: a period ending while the reports are in flight must neither
+	// skip the sweep nor receive the old count.
+	const at = new Date();
+	const reductions = await new SubscriptionService(targetDb).applyScheduledReductions(at);
 	const report = await meterService.reportUsageSnapshots();
 	// The heartbeat gets a second chance tomorrow, so a failed report is logged inside
 	// the service and recorded here as zero rather than failing the job.
-	const blocks = await meterService.reportBlocks();
+	const blocks = await meterService.reportBlocks(undefined, at);
 
 	return {
 		block_reductions_applied: reductions,

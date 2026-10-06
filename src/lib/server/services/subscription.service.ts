@@ -1,4 +1,4 @@
-import { and, count, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { nanoid } from "nanoid";
 
@@ -422,11 +422,17 @@ export class SubscriptionService {
 				BLOCK_ELIGIBLE_PLAN_IDS.has(existing.planId as PlanId) &&
 				!BLOCK_ELIGIBLE_PLAN_IDS.has(data.planId);
 
-			let blocks: Partial<Pick<Subscription, "blocks" | "scheduledBlocks">> = {};
+			let blocks: { blocks?: number | SQL; scheduledBlocks?: null } = {};
 			if (leavingBlockEligibility) {
 				blocks = { blocks: 0, scheduledBlocks: null };
 			} else if (existing.scheduledBlocks !== null && periodRolled(existing, data)) {
-				blocks = { blocks: existing.scheduledBlocks, scheduledBlocks: null };
+				// Read from the row being written, not from `existing`: a `setBlocks` landing
+				// between the read and this write may have raised the count or cancelled the
+				// reduction, and the stale value would overwrite it.
+				blocks = {
+					blocks: sql`coalesce(${subscription.scheduledBlocks}, ${subscription.blocks})`,
+					scheduledBlocks: null,
+				};
 			}
 
 			const [updated] = await this.db

@@ -153,8 +153,12 @@ export class MeterService {
 	 * too late — a purchase an hour before renewal. A silent zero there would let a
 	 * transient Polar outage under-bill a whole period, so the caller gets a result it
 	 * can retry on. The daily heartbeat has a second chance and simply logs.
+	 *
+	 * `at` stamps the events with the moment the counts were read instead of the moment
+	 * Polar receives them. Without it, a period that ends while the report is in flight
+	 * meters the old count into the new period.
 	 */
-	async reportBlocks(polarCustomerId?: string): Promise<BlockReportResult> {
+	async reportBlocks(polarCustomerId?: string, at?: Date): Promise<BlockReportResult> {
 		if (!this.enabled) return { ok: true, ingested: 0 };
 
 		let rows: OrganizationBlockSnapshot[];
@@ -191,7 +195,7 @@ export class MeterService {
 
 		const { ingested, failedChunks } = await this.ingestInChunks(
 			snapshots,
-			toBlocksIngestEvent,
+			(snapshot) => toBlocksIngestEvent(snapshot, at),
 			METER_EVENTS.MONITOR_BLOCKS,
 		);
 
@@ -272,10 +276,11 @@ function toOrgIngestEvent(row: OrganizationUsageSnapshot) {
  * property. Renaming either without re-provisioning the meter
  * (`scripts/polar-capacity-blocks.sh`) silently stops billing capacity.
  */
-function toBlocksIngestEvent(snapshot: CustomerBlockSnapshot) {
+function toBlocksIngestEvent(snapshot: CustomerBlockSnapshot, at?: Date) {
 	return {
 		name: METER_EVENTS.MONITOR_BLOCKS,
 		customer_id: snapshot.polarCustomerId,
+		...(at && { timestamp: at.toISOString() }),
 		metadata: {
 			blocks: snapshot.blocks,
 			organization_count: snapshot.organizationCount,
