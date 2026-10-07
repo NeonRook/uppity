@@ -464,34 +464,36 @@ export class StatusPageService {
 	}
 
 	async getMonitors(statusPageId: string) {
-		return this.db
-			.select({
-				pageMonitor: statusPageMonitor,
-				monitor: {
-					id: monitor.id,
-					name: monitor.name,
-					description: monitor.description,
-					type: monitor.type,
-					url: monitor.url,
-				},
-				status: {
-					status: monitorStatus.status,
-					lastCheckAt: monitorStatus.lastCheckAt,
-				},
-			})
-			.from(statusPageMonitor)
-			.innerJoin(monitor, eq(statusPageMonitor.monitorId, monitor.id))
-			// A link to another organization's monitor is never shown, even if one exists.
-			.innerJoin(
-				statusPage,
-				and(
-					eq(statusPage.id, statusPageMonitor.statusPageId),
-					eq(statusPage.organizationId, monitor.organizationId),
-				),
-			)
-			.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
-			.where(eq(statusPageMonitor.statusPageId, statusPageId))
-			.orderBy(asc(statusPageMonitor.order));
+		return (
+			this.db
+				.select({
+					pageMonitor: statusPageMonitor,
+					monitor: {
+						id: monitor.id,
+						name: monitor.name,
+						description: monitor.description,
+						type: monitor.type,
+						url: monitor.url,
+					},
+					status: {
+						status: monitorStatus.status,
+						lastCheckAt: monitorStatus.lastCheckAt,
+					},
+				})
+				.from(statusPageMonitor)
+				.innerJoin(monitor, eq(statusPageMonitor.monitorId, monitor.id))
+				// A link to another organization's monitor is never shown, even if one exists.
+				.innerJoin(
+					statusPage,
+					and(
+						eq(statusPage.id, statusPageMonitor.statusPageId),
+						eq(statusPage.organizationId, monitor.organizationId),
+					),
+				)
+				.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
+				.where(eq(statusPageMonitor.statusPageId, statusPageId))
+				.orderBy(asc(statusPageMonitor.order))
+		);
 	}
 
 	async removeMonitor(
