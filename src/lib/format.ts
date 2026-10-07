@@ -97,10 +97,16 @@ export function formatInterval(seconds: number): string {
  * Format uptime percentage for display
  * Returns formatted string like "99.9%" or "-" if null
  */
+/** Floored rather than rounded, so any downtime keeps the figure below 100. */
+export function floorPercent(percent: number, digits: number): string {
+	const scale = 10 ** digits;
+	// The epsilon absorbs float error, so 99.29 stays 99.29 rather than 99.28.
+	return (Math.floor(percent * scale + 1e-9) / scale).toFixed(digits);
+}
+
 export function formatUptime(percent: number | null): string {
 	if (percent === null) return "-";
-	// Floored, so any downtime keeps the figure below 100%.
-	return `${(Math.floor(percent * 100) / 100).toFixed(2)}%`;
+	return `${floorPercent(percent, 2)}%`;
 }
 
 /**

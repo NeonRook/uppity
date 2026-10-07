@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDateMonthDay } from "#lib/format.js";
+	import { floorPercent, formatDateMonthDay } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getDayStatusColor } from "#lib/utils/status.js";
 
@@ -17,7 +17,7 @@
 	function dayTitle(date: string, dayPercent: number | null): string {
 		return dayPercent === null
 			? `${formatDateMonthDay(date)}: ${m.public_status_no_data()}`
-			: `${formatDateMonthDay(date)}: ${dayPercent.toFixed(1)}% uptime`;
+			: `${formatDateMonthDay(date)}: ${floorPercent(dayPercent, 1)}% uptime`;
 	}
 </script>
 
@@ -32,7 +32,7 @@
 		<span class="text-muted-foreground font-mono text-sm">
 			{percent === null
 				? m.public_status_no_data()
-				: m.public_status_uptime({ percent: percent.toFixed(2) })}
+				: m.public_status_uptime({ percent: floorPercent(percent, 2) })}
 		</span>
 	</figcaption>
 	<div class="flex gap-0.5" role="presentation">
