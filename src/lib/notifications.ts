@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Webhook } from "@lucide/svelte";
+import { Bell, Mail, MessageSquare, Webhook } from "@lucide/svelte";
 
 import { m } from "#lib/paraglide/messages.js";
 
@@ -24,9 +24,11 @@ export const CHANNEL_TYPES = {
 
 export type ChannelType = keyof typeof CHANNEL_TYPES;
 
-/** Stored channel types are constrained to `ChannelType` by the plan limits and the schema. */
+/** The stored type is unconstrained text, so an unknown one still renders and can be deleted. */
 export function getChannelType(type: string) {
-	return CHANNEL_TYPES[type as ChannelType];
+	return (
+		CHANNEL_TYPES[type as ChannelType] ?? { label: () => type, description: () => "", icon: Bell }
+	);
 }
 
 export const CHANNEL_TYPE_KEYS = Object.keys(CHANNEL_TYPES) as ChannelType[];
