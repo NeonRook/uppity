@@ -389,6 +389,29 @@ describe("StatusPageService.getFeaturedUptime", () => {
 		expect(result?.days.at(-2)).toMatchObject({ status: "partial", uptimePercent: 50 });
 	});
 
+	test("ignores an existing link to another organization's monitor", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const ownerOrg = await seedOrg(drizzleDb);
+		const ownMonitor = await seedMonitor(drizzleDb, ownerOrg);
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, ownerOrg, ownMonitor);
+
+		const foreignMonitor = await seedMonitor(drizzleDb, await seedOrg(drizzleDb));
+		await drizzleDb.insert(statusPageMonitor).values({
+			id: `spm-${nanoid()}`,
+			statusPageId: pageId,
+			monitorId: foreignMonitor,
+			order: 1,
+		});
+
+		await seedCheck(drizzleDb, ownMonitor, "up", daysAgo(1, 9));
+		await seedCheck(drizzleDb, foreignMonitor, "down", daysAgo(1, 10));
+
+		const result = await service.getFeaturedUptime(slug);
+
+		expect(result?.days.at(-2)).toMatchObject({ status: "up", uptimePercent: 100 });
+	});
+
 	test("checks older than the window are excluded", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new StatusPageService(drizzleDb);

@@ -345,6 +345,27 @@ describe("IncidentService organization scoping", () => {
 		).toHaveLength(0);
 	});
 
+	test("create links a monitor listed twice once", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+
+		const created = await service.create({
+			organizationId: orgId,
+			title: "Outage",
+			message: "x",
+			monitorIds: [monitorId, monitorId],
+		});
+
+		expect(
+			await drizzleDb
+				.select()
+				.from(incidentMonitor)
+				.where(eq(incidentMonitor.incidentId, created.id)),
+		).toHaveLength(1);
+	});
+
 	test("findWithDetails hides an existing link to another organization's monitor", async ({
 		db,
 	}) => {
