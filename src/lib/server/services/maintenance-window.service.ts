@@ -1,7 +1,7 @@
-import { eq, and, lte, gte, inArray, sql, desc } from "drizzle-orm";
+import { eq, and, lte, gte, sql, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import type { Db, DbExecutor } from "#lib/server/db/index.js";
+import type { Db } from "#lib/server/db/index.js";
 import {
 	maintenanceWindow,
 	maintenanceWindowMonitor,
