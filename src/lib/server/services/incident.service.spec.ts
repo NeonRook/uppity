@@ -1,14 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect } from "vitest";
 
-import { organization } from "../db/auth-schema";
-import {
-	incident,
-	incidentMonitor,
-	incidentUpdate,
-	monitor,
-	notificationEvent,
-} from "../db/schema";
+import { incident, incidentMonitor, incidentUpdate, notificationEvent } from "../db/schema";
 import { NotFoundError } from "../errors";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
