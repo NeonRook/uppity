@@ -1,1 +1,1 @@
-DROP TABLE "usage_warning" CASCADE;
+DROP TABLE "usage_warning";
