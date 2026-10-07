@@ -633,9 +633,11 @@ describe("StatusPageService organization scoping", () => {
 		const attackerOrg = await seedOrg(drizzleDb);
 		const victimMonitor = await seedMonitor(drizzleDb, victimOrg);
 		const attackerMonitor = await seedMonitor(drizzleDb, attackerOrg);
-		await drizzleDb
-			.insert(monitorStatusTable)
-			.values({ monitorId: attackerMonitor, status: "down" });
+		// The victim's own monitor is up, so any outage on its page can only come from the leak.
+		await drizzleDb.insert(monitorStatusTable).values([
+			{ monitorId: victimMonitor, status: "up" },
+			{ monitorId: attackerMonitor, status: "down" },
+		]);
 		const victimPage = await seedStatusPageWithMonitor(drizzleDb, victimOrg, victimMonitor);
 		const attackerPage = await seedStatusPageWithMonitor(drizzleDb, attackerOrg, attackerMonitor);
 		// Links written before writes were scoped, in both directions.
@@ -695,6 +697,27 @@ describe("StatusPageService.getPublicStatusPage — dead-lettered monitors", () 
 
 		expect((await service.getPublicStatusPage(slug))!.overallStatus).toBe("operational");
 
+		await drizzleDb
+			.update(monitor)
+			.set({ deadLetteredAt: new Date() })
+			.where(eq(monitor.id, monitorId));
+
+		const result = await service.getPublicStatusPage(slug);
+		expect(result!.ungroupedMonitors[0].status).toBe("unknown");
+		expect(result!.overallStatus).toBe("unmonitored");
+	});
+
+	test("a dead-lettered monitor under maintenance still reads as unknown", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		await seedMaintenanceWindow(drizzleDb, orgId, monitorId, {
+			status: "in_progress",
+			startsAt: new Date(Date.now() - 60_000),
+			endsAt: new Date(Date.now() + 3_600_000),
+		});
 		await drizzleDb
 			.update(monitor)
 			.set({ deadLetteredAt: new Date() })

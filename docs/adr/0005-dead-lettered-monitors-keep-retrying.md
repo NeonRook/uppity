@@ -66,7 +66,9 @@ has stopped.
 checked" in the `status-unknown` gray, with the time of the next attempt, or "now" while
 one is due or running. On the public status page it reads `unknown`, and any `unknown`
 monitor replaces "All systems operational" with "Some systems are not being monitored
-right now". Outages and degradation still take precedence over that banner. The
+right now". Outages and degradation still take precedence over that banner. An active
+maintenance window does not: it explains why a monitor may be down, not that it is being
+checked, so a dead-lettered monitor in a window still reads `unknown`. The
 `monitor_checks_stopped` webhook carries no status for the same reason.
 
 A paused monitor is outside this. The app shows it as Paused, and the public page keeps

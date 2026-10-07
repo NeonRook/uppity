@@ -639,8 +639,9 @@ export class StatusPageService {
 		// An active dead-lettered monitor's last status is stale, so it reads as unknown.
 		// A paused one keeps its last status, as the app shows it Paused rather than Not checked.
 		const statusOf = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus["status"] => {
-			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
+			// Before maintenance: a window says why a monitor may be down, not that it is checked.
 			if (pm.monitor.active && pm.monitor.deadLetteredAt) return "unknown";
+			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
 			return (pm.status?.status as PublicMonitorStatus["status"] | undefined) || "unknown";
 		};
 
