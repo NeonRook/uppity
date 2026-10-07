@@ -82,7 +82,8 @@ export class IncidentService {
 	}
 
 	async create(input: CreateIncidentInput): Promise<Incident> {
-		if (!(await monitorsBelongToOrg(this.db, input.organizationId, input.monitorIds ?? []))) {
+		const monitorIds = [...new Set(input.monitorIds)];
+		if (!(await monitorsBelongToOrg(this.db, input.organizationId, monitorIds))) {
 			throw new NotFoundError("Monitor not found");
 		}
 
@@ -102,10 +103,9 @@ export class IncidentService {
 			})
 			.returning();
 
-		// Link monitors
-		if (input.monitorIds && input.monitorIds.length > 0) {
+		if (monitorIds.length > 0) {
 			await this.db.insert(incidentMonitor).values(
-				input.monitorIds.map((monitorId) => ({
+				monitorIds.map((monitorId) => ({
 					incidentId: id,
 					monitorId,
 				})),
