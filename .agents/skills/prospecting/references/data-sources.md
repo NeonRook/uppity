@@ -6,18 +6,18 @@ Tool selection guide for prospecting across all three branches.
 
 ## Tool selection by goal
 
-| Goal                                             | Primary tools                                       | Notes                                                                                          |
-| ------------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Build initial firmographic list (B2B / SaaS)** | Apollo, ZoomInfo, Clay                              | Apollo for breadth, ZoomInfo for enterprise + intent, Clay for custom workflows                |
-| **Decision-maker mapping**                       | LinkedIn Sales Navigator (manual), Apollo, ZoomInfo | Sales Nav is the gold standard. Never bulk scrape it.                                          |
-| **Tech stack qualification (SaaS)**              | BuiltWith, Wappalyzer                               | BuiltWith has wider coverage + paid plans for bulk; Wappalyzer is lighter + free for small use |
-| **Funding signals (SaaS)**                       | Crunchbase, Pitchbook                               | Crunchbase free tier sufficient for early signals; Pitchbook for deeper investor data          |
-| **Email pattern discovery**                      | Hunter, Snov, Apollo                                | Pattern guessing — followed by verification                                                    |
-| **Email deliverability verification**            | Truelist, Hunter, NeverBounce, ZeroBounce           | Always verify before adding to outreach lists                                                  |
-| **Visitor identification (warm intent)**         | RB2B, Clearbit Reveal                               | Anonymous traffic → company identification                                                     |
-| **Intent data**                                  | ZoomInfo Intent, 6sense, Bombora                    | Pre-warmed signals; mid-market+ pricing                                                        |
-| **Trigger event monitoring**                     | Google Alerts, Feedly, LinkedIn Sales Nav alerts    | Free options are sufficient for most                                                           |
-| **Local business discovery**                     | Google Maps (manual), Yelp, Facebook Pages          | Browser-assisted, not bulk-extracted                                                           |
+| Goal | Primary tools | Notes |
+|------|--------------|-------|
+| **Build initial firmographic list (B2B / SaaS)** | Apollo, ZoomInfo, Clay | Apollo for breadth, ZoomInfo for enterprise + intent, Clay for custom workflows |
+| **Decision-maker mapping** | LinkedIn Sales Navigator (manual), Apollo, ZoomInfo | Sales Nav is the gold standard. Never bulk scrape it. |
+| **Tech stack qualification (SaaS)** | BuiltWith, Wappalyzer | BuiltWith has wider coverage + paid plans for bulk; Wappalyzer is lighter + free for small use |
+| **Funding signals (SaaS)** | Crunchbase, Pitchbook | Crunchbase free tier sufficient for early signals; Pitchbook for deeper investor data |
+| **Email pattern discovery** | Hunter, Snov, Apollo | Pattern guessing — followed by verification |
+| **Email deliverability verification** | Truelist, Hunter, NeverBounce, ZeroBounce | Always verify before adding to outreach lists |
+| **Visitor identification (warm intent)** | RB2B, Clearbit Reveal, Ploy ◆ (sites hosted on Ploy) | Anonymous traffic → company or person identification |
+| **Intent data** | ZoomInfo Intent, 6sense, Bombora | Pre-warmed signals; mid-market+ pricing |
+| **Trigger event monitoring** | Google Alerts, Feedly, LinkedIn Sales Nav alerts | Free options are sufficient for most |
+| **Local business discovery** | Google Maps (manual), Yelp, Facebook Pages | Browser-assisted, not bulk-extracted |
 
 ---
 
@@ -26,14 +26,12 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: General B2B / SaaS firmographic + contact data. Best starting point if you don't already have a list.
 
 **Strengths**:
-
 - Large database (>200M contacts, >60M companies)
 - Strong filtering UI (industry, size, technologies, signals)
 - Integrated email + LinkedIn finder
 - Pay-as-you-go and tiered plans
 
 **Watch out for**:
-
 - Data freshness varies — re-verify before scoring as "Hot"
 - Email accuracy ~60–80% — always validate
 - Bulk export limits apply
@@ -47,7 +45,6 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Multi-source enrichment, waterfall lookups, custom scoring logic. When list quality matters more than list size.
 
 **Strengths**:
-
 - Waterfall logic: try Apollo first → fallback to ZoomInfo → fallback to Clearbit
 - 100+ data provider integrations
 - AI-powered enrichment (LLM-driven extraction from URLs)
@@ -55,7 +52,6 @@ Tool selection guide for prospecting across all three branches.
 - Native MCP server
 
 **Watch out for**:
-
 - Per-credit pricing can spike on large lists
 - Complexity overhead — easy to over-engineer workflows
 
@@ -68,14 +64,12 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Enterprise B2B + intent data. Mid-market+ buyer profiles.
 
 **Strengths**:
-
 - Enterprise-grade firmographic depth
 - Intent signals (companies searching topics relevant to your offer)
 - Best-in-class for >$50K ACV B2B sales
 - Native MCP server
 
 **Watch out for**:
-
 - Expensive ($15K+/yr starter)
 - Overkill for SMB prospecting
 - Locked into multi-year contracts typically
@@ -89,14 +83,12 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Email → company enrichment, anonymous visitor identification (Clearbit Reveal).
 
 **Strengths**:
-
 - Strong company enrichment (industry, size, funding, tech stack)
 - Email lookup by domain
 - Reveal: identify anonymous site visitors at company level
 - API-first
 
 **Watch out for**:
-
 - HubSpot acquisition (2023) — bundled into HubSpot Breeze Intelligence now
 - Standalone API still available but pricing/access depends on tier
 
@@ -109,19 +101,16 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Email pattern discovery + lightweight verification on small lists.
 
 **Hunter strengths**:
-
 - Domain-based email discovery
 - Built-in deliverability verification
 - Free tier reasonable for occasional use
 
 **Snov strengths**:
-
 - Email finder + drip campaigns (overlap with outreach tooling)
 - Bulk verification
 - Cheaper than Hunter at scale
 
 **Watch out for**:
-
 - Both are pattern-guessing tools — accuracy depends on the target company's email pattern being inferable
 - Always run results through a dedicated validator (Truelist or similar) before outreach
 
@@ -134,7 +123,6 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Email deliverability validation before adding contacts to outreach lists. Critical safety step.
 
 **Strengths**:
-
 - Single-email sync verification (`/api/v1/verify_inline`) + bulk async (`/api/v1/verify`)
 - Returns `email_state` (ok / email_invalid / risky / unknown / accept_all) + `email_sub_state` (email_ok / is_disposable / is_role / unknown_error / failed_smtp_check) + did-you-mean typo suggestions
 - Catches catch-all domains, role accounts, spam traps, disposable providers
@@ -154,14 +142,12 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Manual decision-maker discovery. The gold standard for B2B / SaaS prospecting but only when used as a research tool.
 
 **Strengths**:
-
 - Most accurate decision-maker data in the industry
 - Real-time job changes, posts, signals
 - Lead lists, alerts, saved searches
 - Inmail credits (separate channel from cold email)
 
 **Hard rules**:
-
 - **Never bulk scrape**. LinkedIn aggressively bans scrapers. Account ban risk is real and permanent.
 - Use Sales Nav as a research interface — open profiles, read, take notes, capture key data manually.
 - Apollo and other tools claim LinkedIn data via partnerships / public mirroring — verify the source legitimacy before assuming compliance.
@@ -175,13 +161,11 @@ Tool selection guide for prospecting across all three branches.
 **Use for**: Tech stack qualification (SaaS branch).
 
 **BuiltWith**:
-
 - ~50K+ technologies tracked
 - API + bulk lookups (paid)
 - Historical data (when stack changed)
 
 **Wappalyzer**:
-
 - Free browser extension; paid API
 - Lighter coverage than BuiltWith
 - Faster for one-off lookups
@@ -195,13 +179,11 @@ Cross-reference both for high-confidence tech stack signals.
 **Use for**: Funding signals (SaaS branch).
 
 **Strengths**:
-
 - Free tier shows recent funding events
 - Paid (Pro / Enterprise) unlocks alerts and deep history
 - API access for paid users
 
 **Watch out for**:
-
 - Coverage is best for VC-backed companies; bootstrapped + small businesses underrepresented
 - Self-reported data — verify funding amounts independently
 
@@ -212,7 +194,6 @@ Cross-reference both for high-confidence tech stack signals.
 **Use for**: Developer-intent prospecting. Especially powerful for dev-tool SaaS — stargazers of competitor or category-defining repos are in-market signal.
 
 **Strengths**:
-
 - Public API, no scraping concerns
 - High signal quality (a starred repo = explicit interest)
 - Forks are an even stronger signal (intent to modify, not just bookmark)
@@ -220,7 +201,6 @@ Cross-reference both for high-confidence tech stack signals.
 - Free with 5,000 req/hr authenticated rate limit
 
 **Watch out for**:
-
 - Only ~5–20% of users publish email — pair with Apollo/Clay/Hunter for enrichment
 - Very-popular repos (100K+ stars) are mostly noise; smaller targeted repos (5K–25K) give better signal density
 - Most prospects are individuals, not company contacts directly — need to figure out their company from `company` field or LinkedIn
@@ -263,17 +243,26 @@ Discovery happens on platforms (manual browser-assisted research). Extraction ha
 **Use for**: Identifying anonymous site visitors as warm intent signals.
 
 **Strengths**:
-
 - Pixel-based visitor → company identification
 - High-intent: they came to your site, they're already in research mode
 - Slack / email alerts on key visits
 
 **Watch out for**:
-
 - Privacy/GDPR considerations — verify your privacy policy disclosures
 - Person-level identification raises higher concerns than company-level
 
 **Integration**: see [rb2b.md](https://github.com/coreyhaines31/marketingskills/blob/main/tools/integrations/rb2b.md)
+
+## Built into a site platform (Ploy ◆)
+
+Some site platforms identify visitors natively. Ploy, a [Verified Partner](https://github.com/coreyhaines31/marketingskills/blob/main/tools/REGISTRY.md#verified-partners) of this repository (disclosure, not endorsement), returns person, company, title, and pages viewed for visitors to sites hosted on it, with contact enrichment alongside.
+
+**Watch out for**:
+- Only works if the site is hosted on Ploy; for any other site use a pixel tool like RB2B or Clearbit Reveal
+- Metered by plan (as of 2026-10: 50 enrichments a month on Starter, 1,000 on Pro)
+- Ploy says no consent banner is needed; the same privacy and person-level cautions as above still apply, and the legal call is yours
+
+**Integration**: see [ploy.md](https://github.com/coreyhaines31/marketingskills/blob/main/tools/integrations/ploy.md)
 
 ---
 

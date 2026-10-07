@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 2,
-	"generatedAt": "2026-08-10T05:32:00Z",
+	"generatedAt": "2026-10-07T05:30:55Z",
 	"title": "Design System: Uppity",
 	"extensions": {
 		"colorMeta": {
@@ -241,6 +241,132 @@
 				"canonical": "oklch(0.708 0 0)",
 				"dark": "oklch(0.556 0 0)",
 				"note": "Achromatic on purpose. The absence of a reading is not a reading."
+			},
+			"status-up-foreground": {
+				"role": "tertiary",
+				"displayName": "Vital Emerald Foreground",
+				"canonical": "oklch(0.262 0.051 172.552)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "var(--primary-foreground)"
+			},
+			"status-up-surface": {
+				"role": "tertiary",
+				"displayName": "Vital Emerald Surface",
+				"canonical": "oklch(0.95 0.052 163.051)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0.052 163.051)"
+			},
+			"status-up-ink": {
+				"role": "tertiary",
+				"displayName": "Vital Emerald Ink",
+				"canonical": "oklch(0.378 0.077 168.94)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.378 0.077 168.94)"
+			},
+			"status-degraded-foreground": {
+				"role": "tertiary",
+				"displayName": "Ward Amber Foreground",
+				"canonical": "oklch(0.2 0.06 70.08)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "oklch(0.2 0.06 70.08)"
+			},
+			"status-degraded-surface": {
+				"role": "tertiary",
+				"displayName": "Ward Amber Surface",
+				"canonical": "oklch(0.95 0.05 70.08)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0.05 70.08)"
+			},
+			"status-degraded-ink": {
+				"role": "tertiary",
+				"displayName": "Ward Amber Ink",
+				"canonical": "oklch(0.4 0.1 70.08)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.4 0.1 70.08)"
+			},
+			"status-partial-foreground": {
+				"role": "tertiary",
+				"displayName": "Ward Ember Foreground",
+				"canonical": "oklch(0.985 0 0)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"status-partial-surface": {
+				"role": "tertiary",
+				"displayName": "Ward Ember Surface",
+				"canonical": "oklch(0.95 0.05 47.604)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0.05 47.604)"
+			},
+			"status-partial-ink": {
+				"role": "tertiary",
+				"displayName": "Ward Ember Ink",
+				"canonical": "oklch(0.4 0.12 47.604)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.4 0.12 47.604)"
+			},
+			"status-down-foreground": {
+				"role": "tertiary",
+				"displayName": "Alarm Scarlet Foreground",
+				"canonical": "oklch(0.985 0 0)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"status-down-surface": {
+				"role": "tertiary",
+				"displayName": "Alarm Scarlet Surface",
+				"canonical": "oklch(0.95 0.04 27.325)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0.04 27.325)"
+			},
+			"status-down-ink": {
+				"role": "tertiary",
+				"displayName": "Alarm Scarlet Ink",
+				"canonical": "oklch(0.4 0.16 27.325)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.4 0.16 27.325)"
+			},
+			"status-maintenance-foreground": {
+				"role": "tertiary",
+				"displayName": "Ward Blue Foreground",
+				"canonical": "oklch(0.985 0 0)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "oklch(0.985 0 0)"
+			},
+			"status-maintenance-surface": {
+				"role": "tertiary",
+				"displayName": "Ward Blue Surface",
+				"canonical": "oklch(0.95 0.04 259.815)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0.04 259.815)"
+			},
+			"status-maintenance-ink": {
+				"role": "tertiary",
+				"displayName": "Ward Blue Ink",
+				"canonical": "oklch(0.4 0.14 259.815)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.4 0.14 259.815)"
+			},
+			"status-unknown-foreground": {
+				"role": "tertiary",
+				"displayName": "Ward Slate Foreground",
+				"canonical": "oklch(0.145 0 0)",
+				"note": "Text on the solid; chosen by contrast with the solid in each theme (The Ink Follows Lightness Rule).",
+				"dark": "oklch(0.145 0 0)"
+			},
+			"status-unknown-surface": {
+				"role": "tertiary",
+				"displayName": "Ward Slate Surface",
+				"canonical": "oklch(0.95 0 0)",
+				"note": "Pale wash of the signal hue for badges, timeline chips and callouts.",
+				"dark": "oklch(0.95 0 0)"
+			},
+			"status-unknown-ink": {
+				"role": "tertiary",
+				"displayName": "Ward Slate Ink",
+				"canonical": "oklch(0.4 0 0)",
+				"note": "Deep text color of the signal hue, placed on its surface.",
+				"dark": "oklch(0.4 0 0)"
 			}
 		},
 		"typographyMeta": {
@@ -254,7 +380,7 @@
 			},
 			"title": {
 				"displayName": "Title",
-				"purpose": "Section headings and card titles. Card titles additionally set line-height 1 for grid alignment."
+				"purpose": "Section headings. Card titles take the 600 weight at the inherited 14px with line-height 1."
 			},
 			"body": {
 				"displayName": "Body",
@@ -273,7 +399,12 @@
 			{
 				"name": "overlay",
 				"value": "0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)",
-				"purpose": "The only sanctioned resting shadow, and only for portaled elements: dialogs, sheets, dropdown menus, popovers. Tooltips are portaled too but skip the shadow, separating by inversion (bg-foreground / text-background) instead."
+				"purpose": "Dialogs, alert dialogs, sheets: portaled elements that take over the task."
+			},
+			{
+				"name": "menu",
+				"value": "0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1)",
+				"purpose": "Dropdown menus and popovers, which sit next to the thing that opened them rather than over the page."
 			},
 			{
 				"name": "focus-ring",
@@ -314,17 +445,52 @@
 			}
 		],
 		"breakpoints": [
-			{ "name": "sm", "value": "640px" },
-			{ "name": "md", "value": "768px" },
-			{ "name": "lg", "value": "1024px" },
-			{ "name": "xl", "value": "1280px" }
+			{
+				"name": "sm",
+				"value": "640px"
+			},
+			{
+				"name": "md",
+				"value": "768px"
+			},
+			{
+				"name": "lg",
+				"value": "1024px"
+			},
+			{
+				"name": "xl",
+				"value": "1280px"
+			}
 		],
 		"containers": [
-			{ "name": "sidebar", "value": "256px" },
-			{ "name": "mobile-header", "value": "56px" },
-			{ "name": "auth", "value": "448px" },
-			{ "name": "form", "value": "672px" },
-			{ "name": "public", "value": "896px" }
+			{
+				"name": "sidebar",
+				"value": "256px"
+			},
+			{
+				"name": "mobile-header",
+				"value": "56px"
+			},
+			{
+				"name": "auth",
+				"value": "448px"
+			},
+			{
+				"name": "form",
+				"value": "672px"
+			},
+			{
+				"name": "detail",
+				"value": "768px"
+			},
+			{
+				"name": "reading",
+				"value": "896px"
+			},
+			{
+				"name": "marketing",
+				"value": "1280px"
+			}
 		]
 	},
 	"components": [
@@ -358,7 +524,7 @@
 			"refersTo": "badge-default",
 			"description": "Fully round, 12px label type. Variant maps to monitor state via getStatusBadge(): default for up, destructive for down, outline for degraded, secondary for paused.",
 			"html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><span class=\"ds-badge ds-badge-default\">Operational</span><span class=\"ds-badge ds-badge-outline\">Degraded</span><span class=\"ds-badge ds-badge-destructive\">Down</span><span class=\"ds-badge ds-badge-secondary\">Paused</span></div>",
-			"css": ".ds-badge { display: inline-flex; width: fit-content; align-items: center; justify-content: center; gap: 4px; overflow: hidden; padding: 3px 8px; border: 1px solid transparent; border-radius: 9999px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; white-space: nowrap; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-badge-default { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.262 0.051 172.552)); } .ds-badge-outline { border-color: var(--border, oklch(0.922 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-badge-destructive { background: var(--destructive, oklch(0.577 0.245 27.325)); color: oklch(1 0 0); } .ds-badge-secondary { background: var(--secondary, oklch(0.97 0 0)); color: var(--secondary-foreground, oklch(0.205 0 0)); }"
+			"css": ".ds-badge { display: inline-flex; width: fit-content; align-items: center; justify-content: center; gap: 4px; overflow: hidden; padding: 2px 8px; border: 1px solid transparent; border-radius: 9999px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; white-space: nowrap; transition: color 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1); } .ds-badge-default { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.262 0.051 172.552)); } .ds-badge-outline { border-color: var(--border, oklch(0.922 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-badge-destructive { background: var(--destructive, oklch(0.577 0.245 27.325)); color: oklch(1 0 0); } .ds-badge-secondary { background: var(--secondary, oklch(0.97 0 0)); color: var(--secondary-foreground, oklch(0.205 0 0)); } .ds-badge-maintenance { background: oklch(0.95 0.04 259.815); color: oklch(0.4 0.14 259.815); }"
 		},
 		{
 			"name": "Text Field",
@@ -404,9 +570,9 @@
 			"name": "Overall Status Banner",
 			"kind": "custom",
 			"refersTo": "status-banner-operational",
-			"description": "The one element in the system that fills a large area with saturated color. It works because nothing else competes with it, so its color is the message. Six states, one per signal token.",
+			"description": "Overall state of a public status page in six states: operational, degraded, partial outage, major outage, unmonitored, under maintenance. Text takes each state's -foreground token.",
 			"html": "<div class=\"ds-banner ds-banner--up\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21.801 10A10 10 0 1 1 17 3.335\"/><path d=\"m9 11 3 3L22 4\"/></svg><span>All Systems Operational</span></div>",
-			"css": ".ds-banner { display: flex; align-items: center; gap: 12px; width: 420px; padding: 24px; border-radius: 10px; color: oklch(1 0 0); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; } .ds-banner svg { flex-shrink: 0; } .ds-banner--up { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.262 0.051 172.552)); } .ds-banner--degraded { background: oklch(0.769 0.188 70.08); color: oklch(0.2 0.06 70.08); } .ds-banner--partial { background: oklch(0.705 0.213 47.604); } .ds-banner--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-banner--maintenance { background: oklch(0.623 0.214 259.815); } .ds-banner--unknown { background: oklch(0.708 0 0); }"
+			"css": ".ds-banner { display: flex; align-items: center; gap: 12px; width: 420px; padding: 24px; border-radius: 10px; color: oklch(0.985 0 0); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; font-size: 24px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; } .ds-banner svg { flex-shrink: 0; } .ds-banner--up { background: var(--primary, oklch(0.696 0.17 162.48)); color: var(--primary-foreground, oklch(0.262 0.051 172.552)); } .ds-banner--degraded { background: oklch(0.769 0.188 70.08); color: oklch(0.2 0.06 70.08); } .ds-banner--partial { background: oklch(0.705 0.213 47.604); } .ds-banner--down { background: var(--destructive, oklch(0.577 0.245 27.325)); } .ds-banner--maintenance { background: oklch(0.623 0.214 259.815); } .ds-banner--unknown { background: oklch(0.708 0 0); color: oklch(0.145 0 0); }"
 		},
 		{
 			"name": "Incident Timeline Entry",
@@ -459,7 +625,12 @@
 			},
 			{
 				"name": "The Emerald Never Takes White Rule",
-				"body": "Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink oklch(0.262 0.051 172.552), which reaches 6.14:1. Because primary is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons — primary, status-up, and sidebar-primary all take the same ink, in both themes. Where a token's fill is derived (--status-up: var(--primary)), its foreground is derived too. A literal copy is a second source of truth that will eventually disagree with the first; that is exactly how the near-white value survived a theme rewrite.",
+				"body": "Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink oklch(0.262 0.051 172.552), which reaches 6.14:1. Because primary is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons — primary, status-up, and sidebar-primary all take the same ink, in both themes.",
+				"section": "colors"
+			},
+			{
+				"name": "The Ink Follows Lightness Rule",
+				"body": "The same arithmetic governs every signal solid. A solid's -foreground is chosen by contrast against that solid in that theme, and must reach 3:1 at banner size and 4.5:1 below it. Near-white only works on a solid dark enough to carry it. The dark theme lifts most solids to around 0.70–0.75 lightness, so a near-white foreground that passes in light mode can fail in dark. Check both themes whenever a solid or its foreground changes.",
 				"section": "colors"
 			},
 			{
@@ -504,23 +675,23 @@
 			}
 		],
 		"dos": [
-			"Do reach for a semantic token first: bg-card, text-muted-foreground, border-border. Every color in this product has a name, and using the name is what makes dark mode work for free.",
+			"Do reach for a semantic token first: `bg-card`, `text-muted-foreground`, `border-border`. Every color in this product has a name, and using the name is what makes dark mode work for free.",
 			"Do set every measured value in mono — uptime, latency, timestamps, durations, IPs, URLs, IDs. The Measured-Value Rule is the single most load-bearing typographic decision in the system.",
 			"Do render monitor status as a 12px circle plus a text label. Color alone never carries state; roughly 8% of the operators reading a down-alert at 3am cannot distinguish your amber from your emerald.",
-			"Do verify every new surface in both themes before considering it finished. Light and dark are equal citizens; mode-watcher is wired and the token layer is fully doubled.",
-			"Do route all user-facing copy through Paraglide m.* messages across en, de, and pt-br, and design for German — it runs roughly 30% longer than English and is where fixed-width labels break.",
-			"Do express depth as a change in surface tone. hover:bg-muted/50, bg-card over bg-background, bg-sidebar beside both.",
-			"Do extend src/lib/components/ui/ and the shadcn-svelte registry rather than introducing a parallel component vocabulary.",
+			"Do verify every new surface in both themes before considering it finished. Light and dark are equal citizens; `mode-watcher` is wired and the token layer is fully doubled.",
+			"Do route all user-facing copy through Paraglide `m.*` messages across `en`, `de`, and `pt-br`, and design for German — it runs roughly 30% longer than English and is where fixed-width labels break.",
+			"Do express depth as a change in surface tone. `hover:bg-muted/50`, `bg-card` over `bg-background`, `bg-sidebar` beside both.",
+			"Do extend `src/lib/components/ui/` and the shadcn-svelte registry rather than introducing a parallel component vocabulary.",
 			"Do design the empty and unknown states deliberately. A monitor that has never been checked is a real, common state, and it is gray."
 		],
 		"donts": [
-			"Don't hardcode a hex, an rgb(), or a Tailwind palette literal. bg-gray-50, bg-white, text-gray-900, and bg-green-500 are all prohibited. The unit specs for status.ts and incidents.ts fail on any palette literal escaping those helpers; keep it that way.",
-			"Don't introduce a second green. There is one, it is primary, and every other green in the codebase is legacy.",
+			"Don't hardcode a hex, an `rgb()`, or a Tailwind palette literal. `bg-gray-50`, `bg-white`, `text-gray-900`, and `bg-green-500` are all prohibited. The unit specs for `status.ts` and `incidents.ts` fail on any palette literal escaping those helpers; keep it that way.",
+			"Don't introduce a second green. There is one, it is `primary`, and every other green in the codebase is legacy.",
 			"Don't put a shadow on anything that has not left the page. Cards, rows, panels, and sidebars are flat at rest.",
 			"Don't use saturated color for anything that is not reporting the state of a monitored thing. No colored headings, no decorative accents, no category tints.",
 			"Don't exceed font-weight 600. If something needs more emphasis than 600 gives it, the problem is hierarchy, not weight.",
-			"Don't hardcode a value that .env owns. Check intervals, retention days, degraded-response thresholds, and SSL warning windows are all UPPITY_* configurable and must be read, not assumed.",
-			"Don't let plan-limit or billing UI become load-bearing. It vanishes entirely under SELF_HOSTED=true, and the layout must not notice.",
+			"Don't hardcode a value that `.env` owns. Check intervals, retention days, degraded-response thresholds, and SSL warning windows are all `UPPITY_*` configurable and must be read, not assumed.",
+			"Don't let plan-limit or billing UI become load-bearing. It vanishes entirely under `SELF_HOSTED=true`, and the layout must not notice.",
 			"Don't invent social proof. There are no customers, testimonials, logos, uptime figures, or review scores. Any surface that appears to need them must be designed to work without them.",
 			"Don't animate for decoration. Motion acknowledges a state change — a 200ms color shift, a drawer sliding, a spinner while a check is in flight — and then stops."
 		]

@@ -5,7 +5,6 @@ Adapted from a contribution by @fyscleaning-jpg (PR #381).
 Structures for the most common crisis statements. Fill in real specifics. Nothing ships with brackets still in it. For when to use each one, see [crisis-communications.md](crisis-communications.md).
 
 ## Contents
-
 - Holding statement
 - Full incident statement
 - Data breach / security incident notification
@@ -71,7 +70,6 @@ We're sorry for the concern this has caused. If you have questions, contact us a
 ## Product Outage Statement
 
 **Initial (status page or pinned post):**
-
 ```
 We're experiencing [specific symptom, e.g. "elevated error rates on [feature]" or "a full service outage"] affecting [scope: all users / users in region X / users on plan Y].
 
@@ -79,7 +77,6 @@ We're investigating and will post an update by [time].
 ```
 
 **Resolution:**
-
 ```
 This incident was resolved as of [time].
 

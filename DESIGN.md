@@ -21,38 +21,56 @@ colors:
   input: "oklch(0.922 0 0)"
   ring: "oklch(0.696 0.17 162.48)"
   status-up: "oklch(0.696 0.17 162.48)"
+  status-up-foreground: "oklch(0.262 0.051 172.552)"
+  status-up-surface: "oklch(0.95 0.052 163.051)"
+  status-up-ink: "oklch(0.378 0.077 168.94)"
   status-degraded: "oklch(0.769 0.188 70.08)"
+  status-degraded-foreground: "oklch(0.2 0.06 70.08)"
+  status-degraded-surface: "oklch(0.95 0.05 70.08)"
+  status-degraded-ink: "oklch(0.4 0.1 70.08)"
   status-partial: "oklch(0.705 0.213 47.604)"
+  status-partial-foreground: "oklch(0.985 0 0)"
+  status-partial-surface: "oklch(0.95 0.05 47.604)"
+  status-partial-ink: "oklch(0.4 0.12 47.604)"
   status-down: "oklch(0.577 0.245 27.325)"
+  status-down-foreground: "oklch(0.985 0 0)"
+  status-down-surface: "oklch(0.95 0.04 27.325)"
+  status-down-ink: "oklch(0.4 0.16 27.325)"
   status-maintenance: "oklch(0.623 0.214 259.815)"
+  status-maintenance-foreground: "oklch(0.985 0 0)"
+  status-maintenance-surface: "oklch(0.95 0.04 259.815)"
+  status-maintenance-ink: "oklch(0.4 0.14 259.815)"
   status-unknown: "oklch(0.708 0 0)"
+  status-unknown-foreground: "oklch(0.145 0 0)"
+  status-unknown-surface: "oklch(0.95 0 0)"
+  status-unknown-ink: "oklch(0.4 0 0)"
 typography:
   display:
-    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "clamp(2.25rem, 5.5vw, 4.5rem)"
     fontWeight: 300
     lineHeight: 1.05
     letterSpacing: "-0.02em"
   headline:
-    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "normal"
   body:
-    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "normal"
   label:
-    fontFamily: "IBM Plex Sans Variable, IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans Variable, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -130,6 +148,12 @@ components:
     typography: "{typography.label}"
     rounded: "{rounded.full}"
     padding: "2px 8px"
+  badge-maintenance:
+    backgroundColor: "{colors.status-maintenance-surface}"
+    textColor: "{colors.status-maintenance-ink}"
+    typography: "{typography.label}"
+    rounded: "{rounded.full}"
+    padding: "2px 8px"
   card:
     backgroundColor: "{colors.card}"
     textColor: "{colors.card-foreground}"
@@ -152,20 +176,26 @@ components:
     height: "32px"
   status-banner-operational:
     backgroundColor: "{colors.status-up}"
-    textColor: "{colors.primary-foreground}"
+    textColor: "{colors.status-up-foreground}"
+    typography: "{typography.headline}"
+    rounded: "{rounded.lg}"
+    padding: "24px"
+  status-banner-unmonitored:
+    backgroundColor: "{colors.status-unknown}"
+    textColor: "{colors.status-unknown-foreground}"
     typography: "{typography.headline}"
     rounded: "{rounded.lg}"
     padding: "24px"
   nav-item-active:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.primary-foreground}"
-    typography: "{typography.label}"
+    typography: "{typography.body}"
     rounded: "{rounded.lg}"
     padding: "8px 12px"
   nav-item-rest:
     backgroundColor: "transparent"
     textColor: "{colors.muted-foreground}"
-    typography: "{typography.label}"
+    typography: "{typography.body}"
     rounded: "{rounded.lg}"
     padding: "8px 12px"
 ---
@@ -211,7 +241,9 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 - **Ward Ember** (`status-partial`) — a partial outage: some monitors in a group are down. Sits deliberately between amber and scarlet in hue so a partial outage reads as _closer to down than to degraded_.
 - **Alarm Scarlet** (`status-down`) — down. Resolves to the same value as `destructive`, because a failed check and a destructive action carry the same weight of attention. Rare and total.
 - **Ward Blue** (`status-maintenance`) — a scheduled maintenance window is active. The only cool signal, because planned downtime is categorically different from failure and must never be mistaken for it.
-- **Ward Slate** (`status-unknown`) — no data, never checked, or paused. Achromatic on purpose: the absence of a reading is not a reading.
+- **Ward Slate** (`status-unknown`) — no data, never checked, paused, or not checked because Uppity's own checks are failing. Achromatic on purpose: the absence of a reading is not a reading.
+
+Each signal comes as a set of four tokens. The solid (`status-down`) fills dots, uptime cells and the status banner. `-foreground` is the text on that solid. `-surface` is a pale wash of the same hue, and `-ink` is the deep text color that goes on it. Badges, timeline chips and maintenance callouts take surface plus ink. Only the dot, the cell and the banner use the solid.
 
 ### Neutral
 
@@ -233,6 +265,8 @@ Five states plus a null. These are semantic tokens, not palette picks, and they 
 
 **The Emerald Never Takes White Rule.** Vital Emerald sits at 0.696 lightness, so near-white text on it computes to 2.36:1 — under half of WCAG AA. Any foreground placed on an emerald fill is the dark emerald ink `oklch(0.262 0.051 172.552)`, which reaches 6.14:1. Because `primary` is theme-invariant, its foreground must be too: light and dark carry the same value. This applies to every emerald surface, not just buttons — `primary`, `status-up`, and `sidebar-primary` all take the same ink, in both themes.
 
+**The Ink Follows Lightness Rule.** The same arithmetic governs every signal solid. A solid's `-foreground` is chosen by contrast against that solid in that theme, and must reach 3:1 at banner size and 4.5:1 below it. Near-white only works on a solid dark enough to carry it. The dark theme lifts most solids to around 0.70–0.75 lightness, so a near-white foreground that passes in light mode can fail in dark. Check both themes whenever a solid or its foreground changes.
+
 Where a token's fill is derived (`--status-up: var(--primary)`), its foreground is derived too. A literal copy is a second source of truth that will eventually disagree with the first; that is exactly how the near-white value survived a theme rewrite.
 
 ## Typography
@@ -241,13 +275,15 @@ Where a token's fill is derived (`--status-up: var(--primary)`), its foreground 
 **Body Font:** IBM Plex Sans Variable (same stack)
 **Label/Mono Font:** IBM Plex Mono (with `ui-monospace`, `SFMono-Regular`, `Menlo`, `monospace`)
 
+Plex Sans ships as the variable font and is preloaded. Plex Mono ships at weight 400 only.
+
 **Character:** Plex is a humanist grotesque with slightly open apertures and a faintly mechanical spine — engineered but not cold, which is exactly the register a monitoring tool that runs on a schedule should speak in. Its mono companion shares the same skeleton, so a response time set in Plex Mono sits beside a label set in Plex Sans without the visual seam a mismatched pairing creates. Weights stay low: 300 for display, 400 for body, 500–600 for emphasis. Nothing is set in 700.
 
 ### Hierarchy
 
 - **Display** (300, `clamp(2.25rem, 5.5vw, 4.5rem)`, 1.05, `-0.02em`): the landing hero and nothing else, available as the `text-display` utility. Light weight at large size — the quietest possible way to be big. The ceiling is 4.5rem because at 3rem the headline wrapped to two lines at every breakpoint and stopped reading as the focal element.
 - **Headline** (600, 24px, 1.2, `-0.01em`): page titles (`Dashboard`, `Monitors`) and the overall status banner on a public page.
-- **Title** (600, 18px, 1.3): section headings and card titles. Card titles additionally set `line-height: 1` because they sit in a fixed grid row.
+- **Title** (600, 18px, 1.3): section headings. Card titles take the weight but not the size: 600 at the inherited 14px with `line-height: 1`, because they sit in a fixed grid row.
 - **Body** (400, 14px, 1.6): the dominant size across the entire application. Line-height 1.6 is generous for 14px and is the main lever making dense operational screens feel unhurried. Cap prose at 65–75ch; incident descriptions and postmortems are the surfaces this matters on.
 - **Label** (500, 12px, 1.4, `+0.01em`): badges, table headers, timestamps, monitor-type tags, and secondary meta. Uppercase only for monitor type (`HTTP`, `TCP`, `PUSH`).
 - **Readout** (Plex Mono, 400, 14px, 1.4): every measured value.
@@ -264,17 +300,17 @@ Where a token's fill is derived (`--status-up: var(--primary)`), its foreground 
 
 **Content padding** is 16px on mobile, 24px from `sm` (640px) up. Vertical rhythm inside a page is 24px between major blocks and 16px within them — `space-y-6` wrapping `space-y-4` is the single most repeated structure in the codebase and should stay that way.
 
-**Reading surfaces** are centered in an 896px column with 16px side padding: the status page and its incident detail pages. 896px is a _prose_ measure — it exists to hold a 65–75ch line — and it belongs only where the dominant content is text.
+**Reading surfaces** are centered in an 896px column with 16px side padding: the status page and its incident detail pages. They share one shell component, which holds the header band, the main column and the footer band on `card` over `background`. 896px is a _prose_ measure — it exists to hold a 65–75ch line — and it belongs only where the dominant content is text.
 
 **The marketing surface** (the landing page) uses a 1280px column with 16px side padding, rising to 24px from `sm`. Its dominant content is a wide comparison chart and multi-column plan tables, none of which is prose and none of which wants a prose measure. Prose blocks inside it are individually capped at `65ch` rather than being constrained by the container. The header and footer inner rails follow the page container, not the reading column: at 896px on a 2560px screen the navigation became a floating island in an empty white band, which is the single clearest tell of a dated layout.
 
-Forms and settings panes use a 672px column. Authentication uses 448px, vertically centered in the viewport. These five widths are the entire container vocabulary.
+Detail and settings pages (an incident, a status page's configuration, organization settings, an admin organization) use a 768px column. Forms use 672px. Authentication, including the admin login, uses 448px, vertically centered in the viewport. These six widths are the entire container vocabulary.
 
 **The Measure-Not-Membership Rule.** A surface gets the 896px column because its content is prose, never because it appears on a list of public routes. When a surface's dominant element is a chart, a table, or a grid, it takes the wider container and caps its prose individually.
 
-**Responsive behavior has one major reflow, at `sm` (640px).** Stat grids go 2-up → 4-up, header rows go stacked → justified, secondary metadata (monitor URLs, separator dots) appears. `lg` is reserved almost exclusively for the sidebar. `md` is used three times in the whole product. Design mobile-first and treat the 640px step as the real breakpoint.
+**Responsive behavior has one major reflow, at `sm` (640px).** Header rows go stacked → justified, secondary metadata (monitor URLs, separator dots) appears, and page titles step up a size. `lg` (1024px) carries the sidebar and the stat grids, which go 2-up → 4-up there. `md` is rare and should stay rare. Design mobile-first and treat the 640px step as the real breakpoint.
 
-**Spacing scale in practice:** 8px binds an icon to its label, 12px binds a status dot to a monitor name, 16px separates rows and pads cards, 24px separates sections, 32px separates page regions, 64px is the marketing rhythm.
+**Spacing scale in practice:** 8px binds an icon to its label, 12px binds a status dot to a monitor name, 16px separates rows and pads cards, 24px separates sections, 32px separates page regions, 64px is the rhythm inside a marketing section, and 128–160px separates the landing page's sections from each other.
 
 ### Named Rules
 
@@ -288,7 +324,11 @@ Shadow is reserved for elements that have genuinely left the page: dialogs, popo
 
 ### Shadow Vocabulary
 
-- **Overlay** (`box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)`): dialogs, sheets, dropdown menus, popovers. The only sanctioned resting shadow, and only for elements rendered in a portal. Tooltips are portaled too, but they skip the shadow for an inverted `bg-foreground`/`text-background` chip instead.
+- **Overlay** (`box-shadow: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.1)`): dialogs, alert dialogs, sheets. Elements that take over the task.
+- **Menu** (`box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.1), 0 2px 4px -2px oklch(0 0 0 / 0.1)`): dropdown menus and popovers. Smaller than Overlay, because they sit next to the thing that opened them rather than over the page.
+
+These two are the only sanctioned resting shadows, and only for elements rendered in a portal. Tooltips are portaled too, but they skip the shadow for an inverted `bg-foreground`/`text-background` chip instead. Toasts take the popover surface and border.
+
 - **Focus ring** (`box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5)`): not elevation, but the system's other box-shadow. A 3px emerald halo paired with a `ring`-colored border, applied on `:focus-visible` only. Uniform across buttons, inputs, textareas, selects, checkboxes, switches, and badges.
 
 ### Named Rules
@@ -320,7 +360,7 @@ Borders are always exactly 1px, always `border`-token colored, and always the pr
 ### Buttons
 
 - **Shape:** softly rounded (8px), 36px tall by default, with 32px (`sm`) and 40px (`lg`) alternates and square 32/36/40px icon variants.
-- **Primary:** Vital Emerald fill, near-white text, 16px horizontal padding, 8px gap between icon and label. Icons are always 16px and always precede the label.
+- **Primary:** Vital Emerald fill, dark emerald ink text (`primary-foreground`), 16px horizontal padding (12px when an icon leads), 8px gap between icon and label. Icons are always 16px and always precede the label.
 - **Hover / Focus:** primary drops to 90% opacity; outline and ghost shift their background to Emerald Breath. Focus-visible applies the 3px emerald ring plus a `ring`-colored border. Transition is `all` — but only color and border actually move.
 - **Outline:** transparent-to-background fill with a 1px border; in dark mode it takes a translucent `input/30` fill instead so it does not read as a hole.
 - **Ghost:** no border, no fill at rest. The default for icon-only actions — back arrows, menu toggles, row actions.
@@ -329,8 +369,10 @@ Borders are always exactly 1px, always `border`-token colored, and always the pr
 
 ### Badges
 
-- **Style:** fully round, 1px border, 12px label type, 8px horizontal padding, 3px vertical. Icons inside are 12px.
-- **State mapping:** `default` (emerald) for operational, `destructive` for down, `outline` for degraded, `secondary` for paused and unknown. This mapping lives in `getStatusBadge()` and should not be re-derived at call sites.
+- **Style:** fully round, 1px border (transparent on every variant except `outline`), 12px label type, 8px horizontal padding, 2px vertical. Icons inside are 12px.
+- **Monitor state mapping:** `default` (emerald) for operational, `destructive` for down, `outline` for degraded, `secondary` for paused, unknown, and not checked. One state table in `src/lib/utils/status.ts` drives the badge, its icon, the dot, and the uptime cell color, and `getStatusBadge()` reads it. Never re-derive the mapping at a call site.
+- **Maintenance mapping:** `secondary` for scheduled, the `maintenance` variant (Ward Blue surface and ink) for in progress, `outline` for completed, and `outline` with a dashed border and muted text for cancelled. `getMaintenanceStatusBadge()` owns it.
+- **Incident mapping:** investigating takes the down tone, identified partial, monitoring degraded, resolved up. `src/lib/incidents.ts` owns it.
 
 ### Cards / Containers
 
@@ -350,22 +392,37 @@ Borders are always exactly 1px, always `border`-token colored, and always the pr
 ### Navigation
 
 - **Style:** vertical list of 10px-radius rows, 12px horizontal and 8px vertical padding, 12px gap between the 20px icon and its 14px medium-weight label.
-- **Active:** solid Vital Emerald fill with near-white text. Matched by exact path or path-prefix, so `/monitors/abc` keeps `Monitors` lit.
+- **Active:** solid Vital Emerald fill with dark emerald ink text. Matched by exact path or path-prefix, so `/monitors/abc` keeps `Monitors` lit.
 - **Rest / Hover:** `muted-foreground` text over nothing; hover fills with `muted` and promotes text to `foreground`.
 - **Mobile:** off-canvas drawer at 256px, translating in over a `black/50` scrim in 200ms `ease-in-out`, dismissed by scrim click, Escape, or navigation.
 - **Chrome:** the org switcher pins to the top behind a 1px divider, the account menu to the bottom behind another. Both use a 32px rounded avatar — square-ish (8px) for organizations, circular for people — and a chevron that rotates 180° over 200ms when open.
+- **Impersonation:** while an administrator impersonates a user, a full-width Alarm Scarlet bar pins above the whole shell. It is the one piece of chrome allowed a signal color, because acting as someone else is a state the operator must not forget.
 
 ### The Uptime Bar
 
-The signature component: ninety day-cells in a row, each `flex-1` with a 6px radius and a 2px gap, 32px tall, colored by that day's aggregate state. Hovering a cell lightens it one step and surfaces a native tooltip with the date and that day's uptime percentage. It is anchored by two 12px `muted-foreground` captions — "90 days ago" on the left, "Today" on the right — and it is the one place in the product where a hundred data points are shown at once. It works because every cell is the same size and only its color varies.
+The signature component: one day-cell per day of history (`UPPITY_STATUS_PAGE_HISTORY_DAYS`, 90 by default), each `flex-1` with a 6px radius and a 2px gap, 32px tall, colored by that day's aggregate state. Hovering a cell brightens it over 200ms and surfaces a native tooltip with the date and that day's uptime percentage. It is anchored by two 12px `muted-foreground` captions, the start of the window on the left and "Today" on the right. It sits in a `figure` whose caption carries an optional 12px status dot, the monitor name, and the uptime figure in mono. It is the one place in the product where a hundred data points are shown at once. It works because every cell is the same size and only its color varies. The landing page reuses it as live proof.
 
 ### The Status Banner
 
-The full-width overall-state block at the top of a public status page: 10px radius, 24px padding, a solid fill of the current state color, a 32px icon, and a 24px semibold label in white. It is the only element in the entire system that fills a large area with saturated color, and that is precisely why it works — nothing else competes with it, so its color _is_ the message. It has six states, one per signal token plus unknown.
+The full-width overall-state block at the top of a public status page: 10px radius, 24px padding, a solid fill of the current state color, a 32px icon, and a 24px semibold label in that state's `-foreground` token. It is the only element in the entire system that fills a large area with saturated color, and that is precisely why it works — nothing else competes with it, so its color _is_ the message.
+
+It has six states: operational, degraded, partial outage, major outage, unmonitored, and under maintenance. Unmonitored is Ward Slate with an eye-off icon and reads "Some systems are not being monitored right now". It appears whenever any monitor on the page is unknown, and it outranks maintenance, because a maintenance window explains why something may be down, not that it is being watched. Outages and degradation outrank it. Under maintenance shows only when every monitor is in a window.
+
+### Not Checked
+
+A monitor Uppity's own checks keep failing on is shown as not checked, never as its last recorded status. In lists it takes the Ward Slate dot, the "Not checked" badge with an eye-off icon, and a 12px muted line with the time of the next attempt. On its detail page a neutral alert with the same icon explains it. On public pages it is simply unknown.
+
+### Maintenance Callouts
+
+Active and upcoming maintenance windows on a public page sit above the monitors as Ward Blue boxes: `status-maintenance-surface` fill, a 1px `status-maintenance` border at 40%, 10px radius, 16px padding, times in mono. Upcoming windows render at reduced opacity so the active one leads.
+
+### Toasts
+
+Confirmations and errors after an action appear as toasts on the popover surface, with a 1px border, a 16px icon, and the theme following mode-watcher. A toast confirms what just happened; anything the operator must act on belongs on the page.
 
 ### The Incident Timeline
 
-A vertical sequence of updates, each led by a 32px circular chip tinted with its status color and holding a 16px icon, connected by a 2px vertical line in `border`. Each entry pairs a rounded status pill with a monospaced timestamp and a 14px body message. Truncates to three entries in list contexts with a "+N more updates" affordance.
+A vertical sequence of updates, each led by a 32px circular chip in its status color's surface and ink, holding a 16px icon, connected by a 2px vertical line in `border`. Each entry pairs a rounded status pill with a monospaced timestamp and a 14px body message. Callers in list contexts pass a limit of three, and the timeline adds a "+N more updates" affordance with tighter spacing.
 
 ### Empty States
 

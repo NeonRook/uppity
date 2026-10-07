@@ -8,23 +8,23 @@ Bezos's line was **"your margin is my opportunity"** — where a competitor mone
 
 ## Case Library
 
-| Tool              | Company     | Build cost                      | Result                                          |
-| ----------------- | ----------- | ------------------------------- | ----------------------------------------------- |
-| Unsplash          | Crew        | 3 hrs, leftover redesign photos | 11M monthly visitors; acquired by Getty         |
-| Website Grader    | HubSpot     | 2 engineers, 2 weeks            | 250K leads, 98% auto-qualification, $6M revenue |
-| Forecasting       | Baremetrics | —                               | 35% trial conversion                            |
-| Headline Analyzer | CoSchedule  | —                               | ~20% of users convert to subscribers            |
-| Keyword Explorer  | Moz         | —                               | 40% trial conversion, CAC down 65%              |
-| Salary Calculator | Buffer      | —                               | 1.5M visitors, 12% signup rate                  |
-| Hatchful          | Shopify     | —                               | 25% trial conversion                            |
+| Tool | Company | Build cost | Result |
+|------|---------|-----------|--------|
+| Unsplash | Crew | 3 hrs, leftover redesign photos | 11M monthly visitors; acquired by Getty |
+| Website Grader | HubSpot | 2 engineers, 2 weeks | 250K leads, 98% auto-qualification, $6M revenue |
+| Forecasting | Baremetrics | — | 35% trial conversion |
+| Headline Analyzer | CoSchedule | — | ~20% of users convert to subscribers |
+| Keyword Explorer | Moz | — | 40% trial conversion, CAC down 65% |
+| Salary Calculator | Buffer | — | 1.5M visitors, 12% signup rate |
+| Hatchful | Shopify | — | 25% trial conversion |
 
 ## What each case teaches
 
 - **Crew → Unsplash** — The anchor case. A near-zero-cost byproduct (leftover photos from a redesign, ~3 hrs to ship) became a top-of-funnel giant. Give away what others charge for; the reach compounds.
-- **HubSpot Website Grader** — Small build (2 engineers, 2 weeks), enormous return. Proof that an analyzer/grader can double as a lead engine _and_ a qualification engine — 98% of leads auto-qualified because the tool's inputs revealed fit.
+- **HubSpot Website Grader** — Small build (2 engineers, 2 weeks), enormous return. Proof that an analyzer/grader can double as a lead engine *and* a qualification engine — 98% of leads auto-qualified because the tool's inputs revealed fit.
 - **Baremetrics Forecasting** — A tool adjacent to the core product (revenue analytics) that converts trials at 35% because using it makes the paid product's value obvious.
 - **CoSchedule Headline Analyzer** — Repeat-use analyzer with a low-friction path to subscription (~20%). High recurring usage keeps the brand in front of the audience.
-- **Moz Keyword Explorer** — A free surface of the paid product itself: 40% trial conversion and a 65% drop in CAC because the tool _is_ the demo.
+- **Moz Keyword Explorer** — A free surface of the paid product itself: 40% trial conversion and a 65% drop in CAC because the tool *is* the demo.
 - **Buffer Salary Calculator** — Not adjacent to the product at all, but massively shareable: 1.5M visitors, 12% signup. Pure reach + brand play that still converts.
 - **Shopify Hatchful** — A generator (logo maker) that feeds the core product's onboarding, converting trials at 25%.
 

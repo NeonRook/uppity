@@ -77,9 +77,8 @@ are free on paid plans because their marginal cost rounds to zero.
 - Atlassian Statuspage as a public benchmark. It performs **no monitoring at all**; naming
   it signals "we make status pages" and invites a brand comparison we lose. Keep it as an
   internal design bar for the public status page surface only.
-- Any uptime SLA figure until one has actually been measured (see Capabilities).
-
-Full competitive analysis: `competitor-profiles/_summary.md`.
+- Any uptime figure other than the 99.9% paid-plan target, and never that target as a
+  contractual SLA or as measured uptime (see Capabilities).
 
 ## Operating Context
 
@@ -95,23 +94,22 @@ Full competitive analysis: `competitor-profiles/_summary.md`.
 
 - Monitor types: `http`, `tcp`, `push`.
 - Monitor status vocabulary: `up`, `down`, `degraded`, `unknown`. Degraded is response-time driven (`UPPITY_DEGRADED_RESPONSE_TIME_MS`).
+- **Not checked** (dead-lettered, since 2026-10-06). A monitor whose checks keep failing inside Uppity, as opposed to a target that is down, keeps retrying at the capped backoff (`UPPITY_CHECK_BACKOFF_MAX_MS`, 5 minutes by default). Until a check succeeds the app shows it as "Not checked" with the next attempt time, and the public page shows it as `unknown`. Any `unknown` monitor replaces "All systems operational" with "Some systems are not being monitored right now", and that banner outranks maintenance. Outages and degradation still outrank it. A paused monitor is outside this. `docs/adr/0005` has the rules.
 - Incident lifecycle: `investigating` → `identified` → `monitoring` → `resolved`.
-- Notification channels: `email`, `slack`, `discord`, `webhook`. Events include monitor down/up/degraded, incident created/updated, and SSL expiry warnings.
+- Notification channels: `email`, `slack`, `discord`, `webhook`. Events include monitor down/up/degraded, checks stopped/resumed (sent to every enabled channel on the monitor, with no per-channel toggle), incident created/updated, and SSL expiry warnings.
 - Scheduled maintenance windows: `scheduled` → `in_progress` → `completed`, scoped to selected monitors, suppressing alerts while active.
 - Public status pages with monitor groups, uptime history (`UPPITY_STATUS_PAGE_HISTORY_DAYS`, default 90), and custom domains on qualifying plans.
-- Admin surface: users, organizations, audit log with CSV export, session management, impersonation.
+- Admin surface: users, organizations, audit log with CSV export, session management, impersonation, and a cross-organization list of not-checked monitors with a retry-now action.
+- Capacity blocks, self-serve from Billing settings on the Uppity plan: up to 40 blocks of 50 monitors. Increases apply at once; annual customers confirm an increase with the amount due at renewal. Reductions wait for the end of the billing period, because each period bills the most blocks held during it (`docs/adr/0004`). Only owners and admins can change capacity or start a checkout; other members see billing read-only.
 - SSL certificate expiry tracking with a configurable threshold and warning cooldown.
 - Live updates over SSE (`/api/sse/monitors`); push check-ins over `/api/webhooks/push`.
 - Three locales shipped: `en`, `de`, `pt-br`.
 
 **Plan tiers — confirmed 2026-07-30, implemented 2026-07-31**
 
-> Capacity blocks are implemented in the product but not yet purchasable. Since
-> NEO-33 (2026-08-15) the Uppity ceiling derives as `50 + 50 × blocks` from a
-> `blocks` column on `subscription`, and every limit check reads it — but nothing
-> writes a non-zero value until the Polar meter lands, so the effective ceiling is
-> still 50 for every customer. **The "+50 per block" row is not yet publishable.**
-> See "Outstanding implementation work" below.
+> Capacity blocks are purchasable since 2026-10-06 (NEO-35), and every row of this table
+> is publishable. Uppity owns the block count and reports it to a Polar meter; Polar never
+> holds it (`docs/adr/0002`).
 
 |                      | Free  | **Uppity**                     | **Dedicated**  | Self-hosted |
 | -------------------- | ----- | ------------------------------ | -------------- | ----------- |
@@ -146,29 +144,25 @@ caps worst-case cost per monitor**; if that floor ever drops, the billing unit m
 
 **Uptime commitments — deliberately laddered**
 
-| Level      | Commitment                                          |
-| ---------- | --------------------------------------------------- |
-| Free       | Best-effort, explicitly stated                      |
-| Paid       | Published target — **number still OPEN, see below** |
-| Enterprise | Contractual SLA with service credits                |
+| Level      | Commitment                           |
+| ---------- | ------------------------------------ |
+| Free       | Best-effort, explicitly stated       |
+| Paid       | Published target of **99.9%**        |
+| Enterprise | Contractual SLA with service credits |
 
-**The published uptime target remains an open decision — reviewed 2026-08-15, still open.**
-The dogfooded status page has run continuously since 2026-07-30, so the measurement channel
-now has weeks rather than the days it had when this was first written; it is still far short
-of the window a published target would need to survive a bad month. Do not publish a number
-until one has been measured from the live status page. "Target" and "contractual SLA with
-credits" are different commitments; the gap between them is where Enterprise revenue lives.
+**The paid-plan target is 99.9% (decided 2026-10-07).** It is a target: no credits, no
+contract. "Target" and "contractual SLA with credits" are different commitments, and the
+gap between them is where Enterprise revenue lives. Never present the target as measured
+uptime. The dogfooded status page is where the measurement shows.
 
 **Outstanding implementation work**
 
-- **Capacity blocks — half done.** The product side shipped in NEO-33 (2026-08-15): a
-  `blocks` column on `subscription`, and a ceiling derived as `50 + 50 × blocks` in
-  `getEffectiveLimits`, which every limit check already reads through. Still outstanding is
-  the billing side — a `monitor_blocks` meter in Polar, a metered price stacked on both
-  Uppity products, and the UI to add and remove blocks. Polar supports stacking metered
-  prices on fixed ones, which is why this mechanism was chosen over the beta seat-pricing
-  feature. **Until the meter exists nothing writes a non-zero `blocks`, so no customer can
-  exceed 50 monitors and the pricing row must not be published.**
+- **No grace period over capacity (NEO-69).** A scheduled reduction, or a downgrade to Free,
+  can leave an organization above its ceiling. Enforcement only refuses new monitors and
+  nothing deletes existing ones, so this state is tolerated but has no humane path yet.
+- **No operator alert channel (NEO-67).** Internal failures reach the operator only through
+  logs. A not-checked monitor logs `event_type: "monitor_dead_lettered"` at error level,
+  and a Railway log alert on that field is the stopgap.
 - **First per-plan retention sweep has run.** It executed on the first `UPPITY_CRON_CLEANUP`
   after the 2026-07-31 deploy, at the low volumes this instance held. The hazard it warned
   about is not retired, only spent here: on a populated instance the first sweep after
@@ -201,14 +195,14 @@ Two consequences worth remembering:
 
 **Technical constraints**
 
-- SvelteKit 2 / Svelte 5 on Bun; PostgreSQL via Drizzle; better-auth for identity; superforms + **valibot** for form validation; Paraglide for i18n; Tailwind 4.
+- SvelteKit / Svelte 5, built on Node with pnpm and served by Deno in the production image (`docs/adr/0001`, `docs/adr/0003`); PostgreSQL via Drizzle; better-auth for identity; superforms + **valibot** for form validation; Paraglide for i18n; Tailwind 4.
 - Two background workers (`monitor`, `notifier`) run as separate processes from the web app. Anything the UI shows about check freshness depends on them.
 - Almost every operational threshold is environment-configurable (`UPPITY_*`); UI must not hardcode values that `.env` owns.
 
 **Explicitly undecided — do not invent**
 
-- Positioning and any competitive or category claim (see above).
-- Accessibility standard. No target level (WCAG or otherwise) has been confirmed as a product requirement.
+- Any competitive or category claim beyond the confirmed Positioning above.
+- Accessibility standard. No target level (WCAG or otherwise) has been confirmed as a product requirement (reviewed 2026-10-07, still open).
 - Whether a public marketing site exists separately from the in-app landing page at `/`.
 
 ## Brand Commitments
@@ -228,16 +222,13 @@ Name: **Uppity**, by NeonRook (`hello@neonrook.com`). No confirmed voice or tone
 - Real product assets: `src/lib/assets/logo.svg`, `static/apple-touch-icon.webp`, `static/icons/`, `static/manifest.webmanifest`.
 - Real repository presence: public GitHub repo under `NeonRook/uppity`, AGPL-3.0-only license, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md`.
 - Real internal planning record: `docs/superpowers/specs/` and `docs/superpowers/plans/`, plus `docs/rfc-001-monitor-scheduler-architecture.md`. Local artifacts, not published material.
-- Real pricing: the table above is a confirmed product decision. The Free, Uppity base and Dedicated rows are backed by enforced limits and safe to display. **The "+50 per block" row is not** — the ceiling derives from blocks, but no purchase path exists, so publishing it would advertise something a customer cannot buy.
+- Real pricing: the table above is a confirmed product decision, every row backed by enforced limits and a purchase path, and safe to display.
 - **Live dogfooded status page: <https://uppity.cloud/status/uppity>** (since 2026-07-30).
   Uppity monitoring itself, publicly. This is the first real evidence asset — self-
   demonstrating rather than asserted, and it compounds: every month it runs is proof that
-  cannot be bought or fabricated. It is also the measurement channel that will eventually
-  justify a published uptime target.
-- Real unit economics: `docs/pricing-cost-model.md` — Railway-measured infrastructure
-  baseline plus a derived cost model. Internal; not for publication.
+  cannot be bought or fabricated. It is also where the 99.9% target can be checked.
 
-**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.1.5` (2026-08-15); every release so far has been a patch, and nothing about the version implies maturity that can be claimed. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
+**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.3.3` (2026-10-06), still pre-1.0, and nothing about the version implies maturity that can be claimed. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
 
 ## Product Principles
 

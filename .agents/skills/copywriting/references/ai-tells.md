@@ -5,12 +5,10 @@ Patterns that make marketing copy read as machine-written. Clients and buyers sp
 Most of these are old human rhetoric. AI copy gives itself away by using them **by default**, **stacked**, and **with nothing specific behind them**. So the rules below are a mix of hard bans (for patterns that are tells even once) and frequency caps (for devices that are fine when chosen on purpose).
 
 **Confidence key**
-
 - **Ban**: a tell even once. Don't write it.
 - **Cap**: fine once, a tell when repeated or stacked. Stay under the cap.
 
 **What the scopes mean**
-
 - **Short copy**: headlines, subheads, the hero, CTAs, ads, social posts, email subject lines.
 - **Long copy**: body sections of a page, articles, long emails.
 - **Section**: one hero, one page section, or one whole short post.
@@ -21,7 +19,6 @@ Most of these are old human rhetoric. AI copy gives itself away by using them **
 ---
 
 ## Contents
-
 - Structural Patterns (the worst offenders)
 - Openers, Closers, and Setups
 - Marketing Phrases
@@ -144,36 +141,36 @@ Calling the same thing a dashboard, an interface, a portal, and a hub in one pag
 
 ## Openers, Closers, and Setups (Ban)
 
-| Pattern               | Example                                                                             | Instead                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Era opener            | "In today's fast-paced world..."                                                    | Open with the customer's problem                                          |
-| False-choice opener   | "Whether you're a solo founder or a Fortune 500..."                                 | Name who the page is for                                                  |
-| "Imagine..."          | "Imagine never chasing an invoice again."                                           | Show the actual before and after                                          |
-| "When it comes to..." | "When it comes to billing, ..."                                                     | Start with the subject                                                    |
-| Throat-clearing       | "Here's the thing:" "The truth is" "Let me be clear" "Here's what nobody tells you" | Cut it. If the claim can't stand alone, it needs evidence, not a drumroll |
-| Announcing            | "In this guide, we'll explore..." "Let's dive in"                                   | Start with the content                                                    |
-| Recap ending          | "In conclusion" "Ultimately" "At the end of the day"                                | End on the last concrete point or the CTA                                 |
-| Fake-profound kicker  | "Because growth shouldn't wait." "And that changes everything."                     | Cut it. End on a concrete sentence                                        |
-| Filler transitions    | "It's worth noting" "Moreover" "Additionally" "Importantly"                         | Delete. The sentence usually works without it                             |
+| Pattern | Example | Instead |
+|---------|---------|---------|
+| Era opener | "In today's fast-paced world..." | Open with the customer's problem |
+| False-choice opener | "Whether you're a solo founder or a Fortune 500..." | Name who the page is for |
+| "Imagine..." | "Imagine never chasing an invoice again." | Show the actual before and after |
+| "When it comes to..." | "When it comes to billing, ..." | Start with the subject |
+| Throat-clearing | "Here's the thing:" "The truth is" "Let me be clear" "Here's what nobody tells you" | Cut it. If the claim can't stand alone, it needs evidence, not a drumroll |
+| Announcing | "In this guide, we'll explore..." "Let's dive in" | Start with the content |
+| Recap ending | "In conclusion" "Ultimately" "At the end of the day" | End on the last concrete point or the CTA |
+| Fake-profound kicker | "Because growth shouldn't wait." "And that changes everything." | Cut it. End on a concrete sentence |
+| Filler transitions | "It's worth noting" "Moreover" "Additionally" "Importantly" | Delete. The sentence usually works without it |
 
 ---
 
 ## Marketing Phrases (Ban)
 
-| Phrase                                     | Instead                                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| "Say goodbye to X" / "Say hello to Y"      | Show the new workflow: "Reconciliation runs nightly. You review the exceptions."              |
-| "Unlock / unleash the power of X"          | Name the outcome and the number                                                               |
-| "X, reimagined" / "X, redefined"           | Say what's actually different: "Billing that retries on payday"                               |
-| "Take X to the next level"                 | Name the level: the metric and the target                                                     |
-| "Transform the way you work"               | A before and after with numbers                                                               |
-| "The X you deserve"                        | The specific gap you close                                                                    |
-| "The future of X is here"                  | What ships today                                                                              |
-| "Built for teams who move fast"            | The real customer and trigger: "For subscription teams past $1M ARR fighting failed payments" |
-| "Everything you need to X" / "all-in-one"  | The 2–3 things buyers actually check for                                                      |
-| "Effortless" / "in just a few clicks"      | The real step count or time: "3 steps, about 4 minutes"                                       |
-| "Join thousands of happy customers"        | The real count, logos, or a named quote                                                       |
-| "Game-changer" / "this changes everything" | What changes, for whom, by how much                                                           |
+| Phrase | Instead |
+|--------|---------|
+| "Say goodbye to X" / "Say hello to Y" | Show the new workflow: "Reconciliation runs nightly. You review the exceptions." |
+| "Unlock / unleash the power of X" | Name the outcome and the number |
+| "X, reimagined" / "X, redefined" | Say what's actually different: "Billing that retries on payday" |
+| "Take X to the next level" | Name the level: the metric and the target |
+| "Transform the way you work" | A before and after with numbers |
+| "The X you deserve" | The specific gap you close |
+| "The future of X is here" | What ships today |
+| "Built for teams who move fast" | The real customer and trigger: "For subscription teams past $1M ARR fighting failed payments" |
+| "Everything you need to X" / "all-in-one" | The 2–3 things buyers actually check for |
+| "Effortless" / "in just a few clicks" | The real step count or time: "3 steps, about 4 minutes" |
+| "Join thousands of happy customers" | The real count, logos, or a named quote |
+| "Game-changer" / "this changes everything" | What changes, for whom, by how much |
 
 ---
 

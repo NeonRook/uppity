@@ -18,11 +18,10 @@ The document is stored at `.agents/product-marketing.md`.
 First, check if `.agents/product-marketing.md` already exists. Also check `.claude/product-marketing.md` and the legacy filename `product-marketing-context.md` (in either `.agents/` or `.claude/`) for older setups — if found anywhere other than `.agents/product-marketing.md`, offer to move it to the canonical location.
 
 **If it exists:**
-
 - Read it and summarize what's captured — note its current **Document version** and the last few **Changelog** entries so the user sees where the doc stands and what's changed recently
 - Ask which sections they want to update
 - Only gather info for those sections
-- On any substantive save, bump the version and add a changelog entry (see Step 4). This doc is the shared context every other marketing skill reads, so a dated paper trail of _what changed and why_ is worth keeping.
+- On any substantive save, bump the version and add a changelog entry (see Step 4). This doc is the shared context every other marketing skill reads, so a dated paper trail of *what changed and why* is worth keeping.
 
 **If it doesn't exist, offer two options:**
 
@@ -35,7 +34,6 @@ Most users prefer option 1. After presenting the draft, ask: "What needs correct
 ### Step 2: Gather Information
 
 **If auto-drafting:**
-
 1. Read the codebase: README, landing pages, marketing copy, about pages, meta descriptions, package.json, any existing docs
 2. Draft all sections based on what you find
 3. Present the draft and ask what needs correcting or is missing
@@ -45,7 +43,6 @@ Most users prefer option 1. After presenting the draft, ask: "What needs correct
 Walk through each section below conversationally, one at a time. Don't dump all questions at once.
 
 For each section:
-
 1. Briefly explain what you're capturing
 2. Ask relevant questions
 3. Confirm accuracy
@@ -58,7 +55,6 @@ Push for verbatim customer language — exact phrases are more valuable than pol
 ## Sections to Capture
 
 ### 1. Product Overview
-
 - One-line description
 - What it does (2-3 sentences)
 - Product category (what "shelf" you sit on—how customers search for you)
@@ -66,7 +62,6 @@ Push for verbatim customer language — exact phrases are more valuable than pol
 - Business model and pricing
 
 ### 2. Target Audience
-
 - Target company type (industry, size, stage)
 - Target decision-makers (roles, departments)
 - Primary use case (the main problem you solve)
@@ -74,49 +69,40 @@ Push for verbatim customer language — exact phrases are more valuable than pol
 - Specific use cases or scenarios
 
 ### 3. Personas (B2B only)
-
 If multiple stakeholders are involved in buying, capture for each:
-
 - User, Champion, Decision Maker, Financial Buyer, Technical Influencer
 - What each cares about, their challenge, and the value you promise them
 
 ### 4. Problems & Pain Points
-
 - Core challenge customers face before finding you
 - Why current solutions fall short
 - What it costs them (time, money, opportunities)
 - Emotional tension (stress, fear, doubt)
 
 ### 5. Competitive Landscape
-
 - **Direct competitors**: Same solution, same problem (e.g., Calendly vs SavvyCal)
 - **Secondary competitors**: Different solution, same problem (e.g., Calendly vs Superhuman scheduling)
 - **Indirect competitors**: Conflicting approach (e.g., Calendly vs personal assistant)
 - How each falls short for customers
 
 ### 6. Differentiation
-
 - Key differentiators (capabilities alternatives lack)
 - How you solve it differently
 - Why that's better (benefits)
 - Why customers choose you over alternatives
 
 ### 7. Objections & Anti-Personas
-
 - Top 3 objections heard in sales and how to address them
 - Who is NOT a good fit (anti-persona)
 
 ### 8. Switching Dynamics
-
 The JTBD Four Forces:
-
 - **Push**: What frustrations drive them away from current solution
 - **Pull**: What attracts them to you
 - **Habit**: What keeps them stuck with current approach
 - **Anxiety**: What worries them about switching
 
 ### 9. Customer Language
-
 - How customers describe the problem (verbatim)
 - How they describe your solution (verbatim)
 - Words/phrases to use
@@ -124,20 +110,17 @@ The JTBD Four Forces:
 - Glossary of product-specific terms
 
 ### 10. Brand Voice
-
 - Tone (professional, casual, playful, etc.)
 - Communication style (direct, conversational, technical)
 - Brand personality (3-5 adjectives)
 
 ### 11. Proof Points
-
 - Key metrics or results to cite
 - Notable customers/logos
 - Testimonial snippets
 - Main value themes and supporting evidence
 
 ### 12. Goals
-
 - Primary business goal
 - Key conversion action (what you want people to do)
 - Current metrics (if known)
@@ -155,7 +138,6 @@ After gathering information, create `.agents/product-marketing.md` with this str
 **Last updated:** [date]
 
 ## Product Overview
-
 **One-liner:**
 **What it does:**
 **Product category:**
@@ -163,101 +145,85 @@ After gathering information, create `.agents/product-marketing.md` with this str
 **Business model:**
 
 ## Target Audience
-
 **Target companies:**
 **Decision-makers:**
 **Primary use case:**
 **Jobs to be done:**
 -
-
 **Use cases:**
 -
 
 ## Personas
-
 | Persona | Cares about | Challenge | Value we promise |
-| ------- | ----------- | --------- | ---------------- |
-|         |             |           |                  |
+|---------|-------------|-----------|------------------|
+| | | | |
 
 ## Problems & Pain Points
-
 **Core problem:**
 **Why alternatives fall short:**
 -
-
 **What it costs them:**
 **Emotional tension:**
 
 ## Competitive Landscape
-
 **Direct:** [Competitor] — falls short because...
 **Secondary:** [Approach] — falls short because...
 **Indirect:** [Alternative] — falls short because...
 
 ## Differentiation
-
 **Key differentiators:**
 -
-
 **How we do it differently:**
 **Why that's better:**
 **Why customers choose us:**
 
 ## Objections
-
 | Objection | Response |
-| --------- | -------- |
-|           |          |
+|-----------|----------|
+| | |
 
 **Anti-persona:**
 
 ## Switching Dynamics
-
 **Push:**
 **Pull:**
 **Habit:**
 **Anxiety:**
 
 ## Customer Language
-
 **How they describe the problem:**
-
 - "[verbatim]"
-  **How they describe us:**
+**How they describe us:**
 - "[verbatim]"
-  **Words to use:**
-  **Words to avoid:**
-  **Glossary:**
-  | Term | Meaning | |------|---------|
-  | | |
+**Words to use:**
+**Words to avoid:**
+**Glossary:**
+| Term | Meaning |
+|------|---------|
+| | |
 
 ## Brand Voice
-
 **Tone:**
 **Style:**
 **Personality:**
 
 ## Proof Points
-
 **Metrics:**
 **Customers:**
 **Testimonials:**
-
 > "[quote]" — [who]
-> **Value themes:**
-> | Theme | Proof | |-------|-------|
-> | | |
+**Value themes:**
+| Theme | Proof |
+|-------|-------|
+| | |
 
 ## Goals
-
 **Business goal:**
 **Conversion action:**
 **Current metrics:**
 
 ## Changelog
-
-_Newest first. One line per revision: what changed and why._
-
+*Newest first. One line per revision: what changed and why.*
 - v1 ([date]) — Initial context.
 ```
 
@@ -269,7 +235,7 @@ _Newest first. One line per revision: what changed and why._
 - Ask if anything needs adjustment
 - **Set the version and changelog** — this is the paper trail for a doc every other skill reads:
   - **New document:** set `Document version: v1` and a single Changelog entry — `- v1 ([today]) — Initial context.`
-  - **Updating an existing document:** increment the version (v2 → v3 …), update `Last updated` to today, and **prepend a new Changelog entry** at the top of the list (newest first) summarizing _what changed and why_ in one line. Never rewrite or reorder past entries.
+  - **Updating an existing document:** increment the version (v2 → v3 …), update `Last updated` to today, and **prepend a new Changelog entry** at the top of the list (newest first) summarizing *what changed and why* in one line. Never rewrite or reorder past entries.
   - A good entry names the sections touched and the reason, not "updated the doc." Examples:
     - `- v3 (2026-07-16) — Repositioned from "email tool" to "deliverability platform"; added RevOps to the ICP.`
     - `- v2 (2026-06-02) — Rewrote value prop and objections after 5 customer interviews; added competitor Acme.`
