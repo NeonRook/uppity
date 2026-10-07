@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#125](https://github.com/NeonRook/uppity/pull/125) [`411d90d`](https://github.com/NeonRook/uppity/commit/411d90d196a77f3294ec256fcd4abd18eeb0e272) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Uppity plan customers can add monitor capacity from Billing settings, in blocks of 50 monitors at $8 a month or $80 a year, up to 40 blocks. Removing blocks takes effect at the end of the billing period, since each period is billed at the most blocks held during it. Annual customers confirm an increase before it applies, with the amount they'll pay at renewal. Owners and admins can change capacity; other members see it read-only.
+
+- [#131](https://github.com/NeonRook/uppity/pull/131) [`741fcd6`](https://github.com/NeonRook/uppity/commit/741fcd679cf46891a1fb5e97fc0436be6cf0b62f) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A monitor that Uppity itself repeatedly fails to check no longer goes quiet. Before, three failed attempts stopped its checks for 24 hours while the dashboard and the public status page kept showing its last status. It now keeps retrying every few minutes. Until a check succeeds, the dashboard and monitor pages show it as "Not checked" with the time of the next attempt, and the public status page shows it with no status and replaces "All systems operational" with "Some systems are not being monitored right now". The monitor's notification channels hear when checks stop and again when they resume. Webhooks receive these as `monitor_checks_stopped` and `monitor_checks_resumed`, and `monitor_checks_stopped` leaves `status` empty because the last recorded one is out of date.
+
+  A check cut short by a worker restart or crash is now retried within about a minute, where it used to wait an hour. A notification that hits a database error while being sent is retried a few minutes later instead of being dropped.
+
+  For operators, the admin area lists these monitors across organizations and can retry one immediately. Each one also logs an error with `event_type` set to `monitor_dead_lettered`, which a log alert can match. `UPPITY_DEAD_LETTER_HOURS` is no longer read and can be removed; `UPPITY_CHECK_BACKOFF_MAX_MS` (5 minutes by default) now sets how often these monitors retry. Upgrading runs a quick migration, and monitors currently held back by the old 24-hour rule are checked right away.
+
+### Patch Changes
+
+- [#127](https://github.com/NeonRook/uppity/pull/127) [`50c9696`](https://github.com/NeonRook/uppity/commit/50c969661bea5dbf7b065b8beb2af3b1d12d46b0) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Fixes a security issue in the admin area. Any signed-in account could read its data, including every user's email address, the organization list and the audit log. It could also use the admin forms, including changing another user's email address, editing organizations and their members, and resyncing subscriptions. The admin area now requires an admin account for every request. Operators should review the audit log for admin changes made by accounts that are not admins.
+
+- [#124](https://github.com/NeonRook/uppity/pull/124) [`99498ed`](https://github.com/NeonRook/uppity/commit/99498eddfd046959eaa1d106aa6e189338f0d16e) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Groundwork for buying extra monitor capacity. Nothing changes for customers yet. Upgrading runs a short database migration on the subscription table.
+
+- [#121](https://github.com/NeonRook/uppity/pull/121) [`41777ea`](https://github.com/NeonRook/uppity/commit/41777ea341ba37fcc7ad5c7066b56d397ae10988) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Groundwork for buying extra monitor capacity. Nothing changes for customers yet. Upgrading runs a short database migration on the subscription table.
+
+- [#126](https://github.com/NeonRook/uppity/pull/126) [`f0b9939`](https://github.com/NeonRook/uppity/commit/f0b9939c5be37df06618c4b29cfe47c01844c6cf) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Security: fixed a flaw that let any signed-in user start a checkout for an organization they did not belong to. The resulting subscription could replace that organization's billing, and cancelling it could move the organization to Free while its real subscription kept being charged. Only owners and admins of an organization can now start a checkout or view its subscriptions, and subscription events from Polar change an organization only when they concern the subscription it is billed through.
+
+  Instances running with Polar billing should check that every paid organization is billed to one of its own owners or admins. This release stops new mismatches but does not repair existing ones. Self-hosted instances without Polar billing were not affected.
+
+- [#130](https://github.com/NeonRook/uppity/pull/130) [`71a8091`](https://github.com/NeonRook/uppity/commit/71a8091a01a84cb62b3a0f602124d7f276c15763) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Security: fixed flaws that let any signed-in user change another organization's incidents and status pages. An attacker could post updates to someone else's incident, which could resolve it and send that organization's notifications. They could rewrite any postmortem shown on a public status page, and add or remove monitors and groups on another organization's status page. By linking another organization's monitors to their own incidents and status pages, they could make a public status page show an outage that wasn't real, or show another organization's incidents, including ones never meant to be public. Incident and status page changes now apply only within your own organization, and public status pages no longer send internal page details to visitors.
+
+  Status pages and notifications now ignore links between organizations, including ones that already exist, so nothing leaks after upgrading. Operators should still remove such links: status page monitors and incident monitors that join two organizations, and incident updates written by someone outside the incident's organization. The pull request linked from this entry has read-only queries that find them.
+
+- [#128](https://github.com/NeonRook/uppity/pull/128) [`ec24651`](https://github.com/NeonRook/uppity/commit/ec246510fb79d8574de1411c0f72d5a4f6c57cc4) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Public status pages now show correct uptime for monitors with more than one day of history; the figure was wrong before. An incident affecting several monitors on the same page no longer lists each update more than once.
+
+- [#129](https://github.com/NeonRook/uppity/pull/129) [`e3411c6`](https://github.com/NeonRook/uppity/commit/e3411c603a3b3585234bce16b2915fe9e7c7c978) Thanks [@lucasvienna](https://github.com/lucasvienna)! - HTTP monitors can use the OPTIONS method, which the method picker offered but saving rejected.
+
+  The HTTP check timeout now also covers reading the response body. A monitor that checks the body for expected text now reports down when the body takes longer than its timeout to arrive, where before the check could wait indefinitely.
+
+  Alert messages read the same across Discord, Slack and email, and every channel now shows when the event happened. Long titles and values are shortened to fit Slack's and Discord's limits instead of failing to send. The notification worker lets sends in progress finish before shutting down, so a redeploy no longer risks sending the same alert twice.
+
+  Confirmation and error messages in the app now appear; they were silently dropped before. Monitor uptime shows two decimals and is rounded down, so any downtime keeps it below 100%. Incident update times on public status pages show correctly for viewers outside UTC.
+
+  In the admin area, user pages load for every user, not only the first thousand, and role and plan selections are submitted once. Organization slugs created from settings drop punctuation instead of turning it into hyphens, as slugs elsewhere already did.
+
+  Two unused endpoints are removed: the monitor dead-letter reset JSON endpoint and the monitor live-updates stream. Nothing in Uppity called either.
+
+  Upgrading runs a migration that drops an unused table. The `UPPITY_DEFAULT_LIST_LIMIT`, `UPPITY_QUEUE_POLL_INTERVAL_MS` and `UPPITY_WORKER_POLL_INTERVAL_MS` variables were never read and are no longer documented; it is safe to remove them.
+
 ## 0.3.3
 
 ### Patch Changes
