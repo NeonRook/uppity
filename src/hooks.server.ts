@@ -5,6 +5,7 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { handleAdminGate } from "#lib/server/admin-gate.js";
 import { auth } from "#lib/server/auth.js";
+import { clientAddress } from "#lib/server/client-ip.js";
 import { wideEvent, type RequestWideEvent } from "#lib/server/logger/index.js";
 
 /**
@@ -13,13 +14,6 @@ import { wideEvent, type RequestWideEvent } from "#lib/server/logger/index.js";
  */
 const handleLogging: Handle = async ({ event, resolve }) => {
 	const reqEvent = wideEvent<RequestWideEvent>("http", "http_request", "req");
-	let client_ip: string | undefined;
-	try {
-		client_ip = event.getClientAddress();
-	} catch (error) {
-		// best effort, this may fail with no recovery method
-		console.debug("Failed to determine client IP address, ignoring", error);
-	}
 
 	// Set initial HTTP context
 	reqEvent.merge({
@@ -27,7 +21,7 @@ const handleLogging: Handle = async ({ event, resolve }) => {
 		http_path: event.url.pathname,
 		http_route: event.route.id ?? undefined,
 		user_agent: event.request.headers.get("user-agent") ?? undefined,
-		client_ip,
+		client_ip: clientAddress(event) ?? undefined,
 	});
 
 	// Store in locals for enrichment by other handlers/services

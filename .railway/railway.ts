@@ -99,6 +99,8 @@ export default defineRailway(() => {
 			BETTER_AUTH_SECRET: preserve(),
 			BETTER_AUTH_TRUSTED_ORIGINS: preserve(),
 			BETTER_AUTH_URL: preserve(),
+			// Railway's edge overwrites this header; X-Forwarded-For arrives as a chain.
+			CLIENT_IP_HEADER: "x-real-ip",
 			DATABASE_URL: preserve(),
 			NODE_ENV: preserve(),
 			POLAR_ACCESS_TOKEN: preserve(),
