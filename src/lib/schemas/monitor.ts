@@ -10,6 +10,27 @@ import {
 } from "#lib/constants/defaults.js";
 import { HTTP_METHODS } from "#lib/constants/monitor.js";
 
+const channelLinkSchema = v.object({
+	channelId: v.string(),
+	notifyOnDown: v.boolean(),
+	notifyOnUp: v.boolean(),
+	notifyOnDegraded: v.boolean(),
+	notifyOnSslExpiry: v.boolean(),
+});
+
+export type MonitorChannelLink = v.InferOutput<typeof channelLinkSchema>;
+
+/** The events a channel hears about when it is first attached to a monitor. */
+export function defaultChannelLink(channelId: string): MonitorChannelLink {
+	return {
+		channelId,
+		notifyOnDown: true,
+		notifyOnUp: true,
+		notifyOnDegraded: false,
+		notifyOnSslExpiry: true,
+	};
+}
+
 const baseMonitorSchema = {
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
 	description: v.optional(v.string()),
@@ -30,18 +51,7 @@ const baseMonitorSchema = {
 	timeoutSeconds: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_TIMEOUT_SECONDS),
 	retries: v.optional(v.pipe(v.number(), v.minValue(0)), DEFAULT_RETRIES),
 	alertAfterFailures: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_ALERT_AFTER_FAILURES),
-	channels: v.optional(
-		v.array(
-			v.object({
-				channelId: v.string(),
-				notifyOnDown: v.boolean(),
-				notifyOnUp: v.boolean(),
-				notifyOnDegraded: v.boolean(),
-				notifyOnSslExpiry: v.boolean(),
-			}),
-		),
-		[],
-	),
+	channels: v.optional(v.array(channelLinkSchema), []),
 };
 
 const httpMonitorSchema = v.object({

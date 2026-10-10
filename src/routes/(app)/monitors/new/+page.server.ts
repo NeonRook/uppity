@@ -19,8 +19,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(302, "/settings");
 	}
 
-	const form = await superValidate({ type: "http" }, valibot(createMonitorSchema));
-	const channels = await new MonitorChannelService(db).options(locals.session.activeOrganizationId);
+	const service = new MonitorChannelService(db);
+	const channels = await service.options(locals.session.activeOrganizationId);
+	const form = await superValidate(
+		{ type: "http", channels: service.defaultsFor(channels) },
+		valibot(createMonitorSchema),
+		{ errors: false },
+	);
 	return { form, channels };
 };
 

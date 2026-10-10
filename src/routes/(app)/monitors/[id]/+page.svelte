@@ -3,6 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import {
+		BellOff,
 		Check,
 		Copy,
 		EyeOff,
@@ -32,6 +33,7 @@
 		formatInterval,
 		formatUptime,
 	} from "#lib/format.js";
+	import { getChannelType } from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
 	import { getStatusBadgeWithIcon, getCheckIcon, uncheckedSummary } from "#lib/utils/status.js";
@@ -70,6 +72,25 @@
 		await deleteMonitor({ monitorId: data.monitor.id });
 		goto(resolve("monitors"));
 	}
+
+	const sslExpiryAlerts = $derived(data.monitor.type === "http" && data.monitor.sslCheckEnabled);
+
+	function alertEvents(link: (typeof data.alerts)[number]): string {
+		return (
+			[
+				link.notifyOnDown && m.status_down(),
+				link.notifyOnUp && m.monitor_notify_up(),
+				link.notifyOnDegraded && m.status_degraded(),
+				sslExpiryAlerts && link.notifyOnSslExpiry && m.monitor_notify_ssl(),
+			]
+				.filter(Boolean)
+				.join(" · ") || m.monitor_alerts_no_events()
+		);
+	}
+
+	const nobodyHearsDown = $derived(
+		!data.alerts.some((alert) => alert.enabled && alert.notifyOnDown),
+	);
 
 	const statusInfo = $derived(
 		getStatusBadgeWithIcon(
@@ -272,6 +293,54 @@
 				{@render field(m.monitor_retries(), data.monitor.retries)}
 				{@render field(m.monitor_alert_after(), data.monitor.alertAfterFailures)}
 			</dl>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.monitor_alerts_title()}</Card.Title>
+			<Card.Description>{m.monitor_alerts_desc()}</Card.Description>
+			<Card.Action>
+				<Button variant="ghost" size="sm" href="/monitors/{data.monitor.id}/edit#notifications">
+					{m.monitor_alerts_choose()}
+				</Button>
+			</Card.Action>
+		</Card.Header>
+		<Card.Content>
+			{#if data.alerts.length === 0}
+				<p class="text-muted-foreground flex items-start gap-2 text-sm">
+					<BellOff class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+					{m.monitor_alerts_none()}
+				</p>
+			{:else}
+				<ul class="divide-y rounded-lg border">
+					{#each data.alerts as alert (alert.channelId)}
+						{@const type = getChannelType(alert.type)}
+						<li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+							<a
+								href="/notifications/{alert.channelId}"
+								class="flex min-w-0 items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
+							>
+								<type.icon class="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+								<span class="truncate">{alert.name}</span>
+								<span class="sr-only">({type.label()})</span>
+							</a>
+							{#if !alert.enabled}
+								<Badge variant="secondary">{m.common_disabled()}</Badge>
+							{/if}
+							<span class="text-muted-foreground w-full text-xs sm:ml-auto sm:w-auto">
+								{alertEvents(alert)}
+							</span>
+						</li>
+					{/each}
+				</ul>
+				{#if nobodyHearsDown}
+					<p class="text-muted-foreground mt-3 flex items-start gap-2 text-sm">
+						<BellOff class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+						{m.monitor_notifications_none_attached()}
+					</p>
+				{/if}
+			{/if}
 		</Card.Content>
 	</Card.Root>
 

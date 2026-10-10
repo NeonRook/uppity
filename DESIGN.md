@@ -198,6 +198,20 @@ components:
     typography: "{typography.body}"
     rounded: "{rounded.lg}"
     padding: "8px 12px"
+  event-chip-on:
+    backgroundColor: "{colors.secondary}"
+    textColor: "{colors.foreground}"
+    typography: "{typography.label}"
+    rounded: "{rounded.full}"
+    padding: "0 12px"
+    height: "28px"
+  event-chip-off:
+    backgroundColor: "transparent"
+    textColor: "{colors.muted-foreground}"
+    typography: "{typography.label}"
+    rounded: "{rounded.full}"
+    padding: "0 12px"
+    height: "28px"
 ---
 
 # Design System: Uppity
@@ -427,6 +441,20 @@ A vertical sequence of updates, each led by a 32px circular chip in its status c
 ### Empty States
 
 Centered column with a 48px icon at 50% `muted-foreground` opacity, an 18px semibold title, a 14px muted description, and a single primary action. Renders inside a card by default and bare when nested in one. When the action is blocked by a plan limit, the button goes disabled and a tooltip carries the reason — the limit is explained, never silently enforced.
+
+### Selectable Lists
+
+A bordered list for choosing many things: 10px radius, 1px border, hairline dividers between rows, no gaps. Each row is a full-width label with a checkbox, 12px gap, and a 14px medium name; hover tones to `muted/50`, and a disabled list drops to 60%. A toolbar above carries an outline count badge plus ghost `sm` Select all and Clear, each shown only when it would do something. Past eight items the list gains a search filter and scrolls inside a fixed 384px frame; at eight or fewer it shows whole. A read-only view lists only the selected items.
+
+Channel rows use the same list with 12px vertical padding: a 16px muted type icon, the name, a secondary Disabled badge when the channel is off, and the destination below in 12px mono. The monitor page's Alerts card shows those rows read-only, with the subscribed events as a muted 12px line joined by " · ". When a list is saved on its own, its Save sits in the card footer as an outline button, disabled until the selection differs from what is stored.
+
+### Event Chips
+
+Toggle buttons for which events a channel hears, indented under their channel row. Fully round, 1px border, 12px medium label, 12px horizontal padding, 28px tall from `sm` and 32px below it. On: `secondary` fill, `foreground` text, solid border, and a leading 12px check. Off: no fill, `muted-foreground` text, dashed border, toning to `muted/50` on hover. State is `aria-pressed`, never color alone. They carry no emerald: a subscription is a setting, not a monitor state (the Signal Monopoly Rule).
+
+### The Silent-Monitor Warning
+
+When no enabled channel will hear a monitor go down, a 14px `muted-foreground` line with a 16px bell-off icon says so, under the channel list in the form and in the Alerts card. It stays neutral on purpose. It states a configuration fact, and alarm color belongs to monitor state.
 
 ## Do's and Don'ts
 

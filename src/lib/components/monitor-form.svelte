@@ -13,6 +13,7 @@
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
 	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from "#lib/constants/monitor.js";
+	import type { ChannelOption } from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import type { createMonitorSchema } from "#lib/schemas/monitor.js";
 
@@ -22,7 +23,7 @@
 		mode: "create" | "edit";
 		cancelHref: string;
 		/** The organization's notification channels the monitor can alert. */
-		channels: { id: string; name: string; type: string; enabled: boolean }[];
+		channels: ChannelOption[];
 		intervals?: readonly (typeof CHECK_INTERVALS)[number][];
 		submitDisabled?: boolean;
 		notice?: Snippet;
@@ -339,7 +340,7 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root class="mt-6">
+	<Card.Root id="notifications" class="mt-6 scroll-mt-6">
 		<Card.Header>
 			<Card.Title>{m.monitor_notifications()}</Card.Title>
 			<Card.Description>{m.monitor_notifications_desc()}</Card.Description>
