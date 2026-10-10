@@ -25,9 +25,13 @@ import { statsService } from "./stats";
 
 const maintenanceLogger = childLogger("maintenance");
 
-type JobHandler = (event: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
+/** How long a claimed job holds its slot before another pass may retry it. */
+const JOB_RETRY_MS = 15 * 60_000;
 
-const JOBS: Record<string, { name: string; cron: string; run: JobHandler }> = {
+type JobHandler = (event: WideEventBuilder<MaintenanceWideEvent>) => Promise<void>;
+type JobRegistry = Record<string, { name: string; cron: string; run: JobHandler }>;
+
+const JOBS: JobRegistry = {
 	"daily-stats": {
 		name: "Daily Stats Aggregation",
 		cron: CRON_DAILY_STATS,
@@ -123,59 +127,64 @@ function calculateNextRun(cronExpression: string, from: Date = new Date()): Date
 }
 
 /**
- * Runs all due maintenance jobs using SKIP LOCKED for distributed safety.
+ * Runs every due maintenance job that this pass manages to claim.
+ *
+ * Claiming moves `nextRunAt` to the next cron slot or the retry delay, whichever
+ * comes first, before the handler runs. A concurrent pass sees the job as not due,
+ * and a job that fails or dies mid-run is retried after the delay instead of on
+ * every pass.
  */
-export async function runDueMaintenanceJobs(): Promise<void> {
+export async function runDueMaintenanceJobs(
+	targetDb: Db = db,
+	jobs: JobRegistry = JOBS,
+): Promise<void> {
 	const now = new Date();
 
-	// Find and lock due jobs
-	const dueJobs = await db
+	const dueJobs = await targetDb
 		.select()
 		.from(maintenanceJob)
-		.where(and(eq(maintenanceJob.enabled, true), lte(maintenanceJob.nextRunAt, now)))
-		.for("update", { skipLocked: true });
+		.where(and(eq(maintenanceJob.enabled, true), lte(maintenanceJob.nextRunAt, now)));
 
 	for (const job of dueJobs) {
-		const handler = JOBS[job.id]?.run;
+		const handler = jobs[job.id]?.run;
 		if (!handler) {
 			maintenanceLogger.warn({ job_id: job.id }, "Unknown job handler");
 			continue;
 		}
 
-		// Create wide event for this job execution
+		const retryAt = new Date(
+			Math.min(calculateNextRun(job.cronExpression, now).getTime(), now.getTime() + JOB_RETRY_MS),
+		);
+		const claimed = await targetDb
+			.update(maintenanceJob)
+			.set({ nextRunAt: retryAt })
+			.where(and(eq(maintenanceJob.id, job.id), lte(maintenanceJob.nextRunAt, now)))
+			.returning({ id: maintenanceJob.id });
+		if (claimed.length === 0) continue;
+
 		const event = wideEvent<MaintenanceWideEvent>("maintenance", "maintenance_job", "mnt");
-		event.merge({
-			job_id: job.id,
-			job_name: job.name,
-		});
+		event.merge({ job_id: job.id, job_name: job.name });
 
 		try {
 			await handler(event);
 
-			// Calculate next run time
 			const nextRun = calculateNextRun(job.cronExpression);
-
-			await db
+			await targetDb
 				.update(maintenanceJob)
-				.set({
-					lastRunAt: now,
-					nextRunAt: nextRun,
-					lastError: null,
-				})
+				.set({ lastRunAt: now, nextRunAt: nextRun, lastError: null })
 				.where(eq(maintenanceJob.id, job.id));
 
-			event.merge({
-				next_run_at: nextRun,
-			});
+			event.merge({ next_run_at: nextRun });
 			event.setSuccess();
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 
-			await db
+			await targetDb
 				.update(maintenanceJob)
 				.set({ lastError: errorMessage })
 				.where(eq(maintenanceJob.id, job.id));
 
+			event.merge({ next_run_at: retryAt });
 			event.setError(error);
 		} finally {
 			event.emit("maintenance");
