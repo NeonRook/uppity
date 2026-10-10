@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#135](https://github.com/NeonRook/uppity/pull/135) [`94e8e35`](https://github.com/NeonRook/uppity/commit/94e8e35bf278de8b4fb34179ba4c7ffbe8a7e667) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Monitors can now alert your notification channels. Until now there was no way to attach a channel, so no alerts were sent.
+
+  - New monitors start with every enabled channel attached. On the monitor form you can detach channels and choose which events each one hears: down, recovered, degraded, and certificate expiry for HTTP monitors with the SSL check on.
+  - A monitor's page lists where its alerts go, and warns when nobody will hear it go down.
+  - A channel's page lists the monitors that alert it, so you can attach or detach many at once.
+
+### Patch Changes
+
+- [#132](https://github.com/NeonRook/uppity/pull/132) [`d81b9a9`](https://github.com/NeonRook/uppity/commit/d81b9a9b3a5531cda23c66f7b4efe7eb6120c8fa) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Email notification channels now deliver. Self-hosters on the published `docker-compose.yml` should pull the new file; if you run the notifier another way, give it the same `SMTP_*` variables as the app.
+
+  Uppity now refuses to send SMTP credentials over a connection without TLS. Set `SMTP_FROM` to an address on your own domain; the fallback sender is now `noreply@uppity.cloud`.
+
+- [#134](https://github.com/NeonRook/uppity/pull/134) [`b2c2849`](https://github.com/NeonRook/uppity/commit/b2c28490cabe737b63bfaf03d1a00d88b2c74ca9) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The published image can now reach your SMTP server. Before, it blocked the connection, so password reset and email alerts failed with `getaddrinfo EPERM`.
+
 ## 0.4.0
 
 ### Minor Changes
