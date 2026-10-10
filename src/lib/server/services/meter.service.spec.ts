@@ -92,10 +92,11 @@ describe("MeterService", () => {
 		expect(result).toEqual({
 			customerSnapshots: totalOrgs - 1,
 			organizationSnapshots: totalOrgs,
+			failure: "ingest_failed",
 		});
 	});
 
-	test("a snapshot query failure resolves to an all-zero report instead of throwing", async ({
+	test("a snapshot query failure resolves to a failed all-zero report instead of throwing", async ({
 		db,
 	}) => {
 		// A dedicated, already-closed connection reproduces a real query failure
@@ -109,7 +110,11 @@ describe("MeterService", () => {
 
 		const result = await service.reportUsageSnapshots();
 
-		expect(result).toEqual({ customerSnapshots: 0, organizationSnapshots: 0 });
+		expect(result).toEqual({
+			customerSnapshots: 0,
+			organizationSnapshots: 0,
+			failure: "collect_failed",
+		});
 		expect(ingest).not.toHaveBeenCalled();
 	});
 

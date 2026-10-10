@@ -139,6 +139,10 @@ export interface MaintenanceWideEvent extends WideEventBase {
 	block_reductions_applied?: number;
 	/** `usage-snapshot` job only: `monitor_blocks` events ingested. */
 	block_records_processed?: number;
+	/** `usage-snapshot` job only: why the usage report did not fully reach Polar. */
+	usage_report_failure?: "collect_failed" | "ingest_failed";
+	/** `usage-snapshot` job only: why the blocks report did not fully reach Polar. */
+	block_report_failure?: "collect_failed" | "ingest_failed";
 	next_run_at?: Date;
 }
 
