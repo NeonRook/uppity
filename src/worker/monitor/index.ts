@@ -59,18 +59,25 @@ function interruptSleep(): void {
 	}
 }
 
-// Maintenance job check counter (check every ~60 seconds)
-const MAINTENANCE_CHECK_INTERVAL = 60;
+// Wall clock rather than loop count, so a busy instance still reaches maintenance.
+const MAINTENANCE_INTERVAL_MS = 60_000;
 
 /**
  * Main polling loop with adaptive backoff.
  */
 async function pollLoop() {
-	let maintenanceCheckCounter = 0;
+	let lastMaintenanceAt = 0;
 
 	// oxlint-disable-next-line no-unmodified-loop-condition -- modified by shutdown() signal handler
 	while (running) {
 		try {
+			if (Date.now() - lastMaintenanceAt >= MAINTENANCE_INTERVAL_MS) {
+				// Stamped first, so a failing pass waits out the interval instead of spinning.
+				lastMaintenanceAt = Date.now();
+				await runDueMaintenanceJobs();
+				await releaseOverlongSchedules(db);
+			}
+
 			const monitors = await claimDueMonitors(db);
 
 			if (monitors.length > 0) {
@@ -92,14 +99,6 @@ async function pollLoop() {
 				currentBackoffMs * WORKER_BACKOFF.MULTIPLIER,
 				WORKER_BACKOFF.MAX_MS,
 			);
-
-			// Check maintenance jobs periodically
-			maintenanceCheckCounter++;
-			if (maintenanceCheckCounter >= MAINTENANCE_CHECK_INTERVAL) {
-				await runDueMaintenanceJobs();
-				await releaseOverlongSchedules(db);
-				maintenanceCheckCounter = 0;
-			}
 		} catch (error) {
 			schedulerLogger.error({ error }, "Poll loop error");
 			await sleep(WORKER_BACKOFF.MAX_MS);
@@ -130,7 +129,6 @@ async function start() {
 
 	// Initialize maintenance jobs if needed
 	await initializeMaintenanceJobs();
-	await releaseOverlongSchedules(db);
 
 	// Start the main polling loop
 	await pollLoop();
