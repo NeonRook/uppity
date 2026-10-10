@@ -122,7 +122,7 @@
 			<Button
 				class="w-full"
 				variant="outline"
-				href="mailto:sales@uppity.app"
+				href="mailto:sales@uppity.cloud"
 				disabled={loading || disabled}
 			>
 				{m.billing_contact_sales()}

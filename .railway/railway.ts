@@ -41,6 +41,13 @@ export default defineRailway(() => {
 			DATABASE_URL: preserve(),
 			NODE_ENV: preserve(),
 			SERVICE_NAME: preserve(),
+			// Alerts send from their own domain. Recipients are typed in by customers,
+			// so their bounces cannot get the auth domain blocked.
+			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
+			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_PASSWORD: preserve(),
+			SMTP_PORT: "465",
+			SMTP_USER: preserve(),
 		},
 	});
 	const workerMonitor = service("worker-monitor", {
@@ -102,6 +109,11 @@ export default defineRailway(() => {
 			POLAR_PRODUCT_UPPITY_MONTHLY: preserve(),
 			POLAR_SERVER: preserve(),
 			POLAR_WEBHOOK_SECRET: preserve(),
+			SMTP_FROM: "Uppity <noreply@uppity.cloud>",
+			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_PASSWORD: preserve(),
+			SMTP_PORT: "465",
+			SMTP_USER: preserve(),
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 		},
 	});
