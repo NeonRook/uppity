@@ -1,3 +1,5 @@
+import { type AddressInfo, createServer } from "node:net";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 async function loadTransport(env: Record<string, string>) {
@@ -35,5 +37,28 @@ describe("smtpTransport", () => {
 	it("uses implicit TLS on 465", async () => {
 		const options = await loadTransport({ SMTP_HOST: "smtp.example.com", SMTP_PORT: "465" });
 		expect(options?.secure).toBe(true);
+	});
+
+	it("holds an SMTP session over the socket it dials", async () => {
+		const server = createServer((socket) => {
+			socket.write("220 test ESMTP\r\n");
+			socket.on("data", (data) => {
+				const command = data.toString().slice(0, 4).toUpperCase();
+				socket.write(command === "QUIT" ? "221 bye\r\n" : "250 ok\r\n");
+				if (command === "QUIT") socket.end();
+			});
+		});
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+
+		vi.resetModules();
+		vi.stubEnv("SMTP_HOST", "localhost");
+		vi.stubEnv("SMTP_PORT", String(port));
+		vi.stubEnv("SMTP_USER", "");
+		vi.stubEnv("SMTP_PASSWORD", "");
+		const { smtpTransport } = await import("./smtp");
+
+		await expect(smtpTransport?.verify()).resolves.toBe(true);
+		server.close();
 	});
 });
