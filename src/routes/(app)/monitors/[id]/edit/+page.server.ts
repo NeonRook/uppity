@@ -3,8 +3,10 @@ import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { createMonitorSchema } from "#lib/schemas/monitor.js";
+import { db } from "#lib/server/db/index.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
 import { toMonitorInput } from "#lib/server/monitor-input.js";
+import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -14,10 +16,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		redirect(302, "/settings");
 	}
 
-	const monitor = await monitorService.findByIdAndOrg(
-		params.id,
-		locals.session.activeOrganizationId,
-	);
+	const organizationId = locals.session.activeOrganizationId;
+	const monitor = await monitorService.findByIdAndOrg(params.id, organizationId);
 
 	if (!monitor) {
 		error(404, "Monitor not found");
@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		timeoutSeconds: monitor.timeoutSeconds,
 		retries: monitor.retries,
 		alertAfterFailures: monitor.alertAfterFailures,
+		channels: await new MonitorChannelService(db).list(monitor.id, organizationId),
 	};
 
 	let formData;
@@ -63,7 +64,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const form = await superValidate(formData, valibot(createMonitorSchema));
 
-	return { form, monitor };
+	const channels = await new MonitorChannelService(db).options(organizationId);
+	return { form, monitor, channels };
 };
 
 export const actions: Actions = {
@@ -96,6 +98,15 @@ export const actions: Actions = {
 
 			if (!updated) {
 				return message(form, "Monitor not found", { status: 404 });
+			}
+
+			const linked = await new MonitorChannelService(db).replace(
+				params.id,
+				locals.session.activeOrganizationId,
+				data.channels,
+			);
+			if (!linked) {
+				return message(form, "Notification channel not found", { status: 400 });
 			}
 		} catch (err) {
 			if (err instanceof SubscriptionLimitError) {

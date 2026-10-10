@@ -3,6 +3,7 @@
 	import type { Snippet } from "svelte";
 	import type { Infer, SuperForm } from "sveltekit-superforms";
 
+	import MonitorChannelPicker from "#lib/components/monitor-channel-picker.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
@@ -20,6 +21,8 @@
 		/** Create lets the type be chosen; edit fixes it and exposes the push grace period. */
 		mode: "create" | "edit";
 		cancelHref: string;
+		/** The organization's notification channels the monitor can alert. */
+		channels: { id: string; name: string; type: string; enabled: boolean }[];
 		intervals?: readonly (typeof CHECK_INTERVALS)[number][];
 		submitDisabled?: boolean;
 		notice?: Snippet;
@@ -29,6 +32,7 @@
 		superform,
 		mode,
 		cancelHref,
+		channels,
 		intervals = CHECK_INTERVALS,
 		submitDisabled = false,
 		notice,
@@ -332,6 +336,21 @@
 					<Field.Error errors={$errors.alertAfterFailures} />
 				</Field.Field>
 			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root class="mt-6">
+		<Card.Header>
+			<Card.Title>{m.monitor_notifications()}</Card.Title>
+			<Card.Description>{m.monitor_notifications_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<MonitorChannelPicker
+				{channels}
+				bind:selected={$form.channels}
+				showSslExpiry={$form.type === "http" && ($form.sslCheckEnabled ?? false)}
+				disabled={$delayed}
+			/>
 		</Card.Content>
 	</Card.Root>
 
