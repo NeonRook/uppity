@@ -88,4 +88,4 @@ export const DEFAULT_INCIDENT_STATUS = "investigating" as const;
 export const DEFAULT_INCIDENT_IMPACT = "minor" as const;
 
 /** Sender address for outgoing email notifications. */
-export const DEFAULT_EMAIL_FROM = envString("UPPITY_EMAIL_FROM", "Uppity <noreply@uppity.app>");
+export const DEFAULT_EMAIL_FROM = envString("UPPITY_EMAIL_FROM", "Uppity <noreply@uppity.cloud>");

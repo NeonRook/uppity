@@ -198,7 +198,7 @@
 			{#if draft === MAX_MONITOR_BLOCKS}
 				<p class="text-sm">
 					{m.billing_block_max({ max: MAX_MONITOR_BLOCKS })}
-					<a href="mailto:sales@uppity.app" class="underline underline-offset-4">
+					<a href="mailto:sales@uppity.cloud" class="underline underline-offset-4">
 						{m.billing_contact_sales()}
 					</a>
 				</p>

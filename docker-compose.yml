@@ -5,6 +5,11 @@ x-worker: &worker
   restart: unless-stopped
   environment: &worker-env
     DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+    SMTP_HOST: "${SMTP_HOST:-}"
+    SMTP_PORT: "${SMTP_PORT:-587}"
+    SMTP_USER: "${SMTP_USER:-}"
+    SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+    SMTP_FROM: "${SMTP_FROM:-}"
   healthcheck:
     disable: true
   depends_on:
