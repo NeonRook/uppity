@@ -15,6 +15,7 @@ import {
 } from "#lib/constants/auth.js";
 import { DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
+import { clientIpHeader } from "#lib/server/client-ip.js";
 import * as authSchema from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { subscription } from "#lib/server/db/schema.js";
@@ -219,6 +220,10 @@ export const auth = betterAuth({
 	}),
 	baseURL: baseURL,
 	trustedOrigins: trustedOrigins,
+	// Rate limits are keyed by this address. Unset, better-auth reads
+	// x-forwarded-for, which a proxy chain makes multi-valued and unusable, so
+	// every client falls into one shared bucket.
+	advanced: clientIpHeader ? { ipAddress: { ipAddressHeaders: [clientIpHeader] } } : undefined,
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false,

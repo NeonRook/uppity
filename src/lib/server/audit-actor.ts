@@ -1,6 +1,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 
+import { clientAddress } from "#lib/server/client-ip.js";
 import { user } from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import type { Actor } from "#lib/server/services/audit.service.js";
@@ -14,13 +15,7 @@ import type { Actor } from "#lib/server/services/audit.service.js";
  * passes `locals.session.impersonatedBy` to name the admin instead.
  */
 export async function getActor(event: RequestEvent, overrideUserId?: string): Promise<Actor> {
-	let ip: string | null = null;
-	try {
-		ip = event.getClientAddress();
-	} catch {
-		// Best effort — matches the handling in hooks.server.ts. Some adapters
-		// cannot determine a client address and there is no recovery.
-	}
+	const ip = clientAddress(event);
 	const userAgent = event.request.headers.get("user-agent");
 
 	if (overrideUserId) {

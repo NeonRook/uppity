@@ -30,6 +30,7 @@ services:
       BETTER_AUTH_URL: "${BETTER_AUTH_URL:-https://localhost:3000}"
       BETTER_AUTH_TRUSTED_ORIGINS: "${BETTER_AUTH_TRUSTED_ORIGINS:-https://localhost:3000}"
       ORIGIN: "${ORIGIN:-}"
+      CLIENT_IP_HEADER: "${CLIENT_IP_HEADER:-}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-}"
