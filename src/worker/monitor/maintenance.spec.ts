@@ -20,6 +20,28 @@ async function insertDueJob(drizzleDb: TestDb["db"], id: string, cronExpression:
 	});
 }
 
+async function seedBlockCustomer(drizzleDb: TestDb["db"], blocks: number) {
+	const suffix = nanoid();
+	const orgId = `test-org-${suffix}`;
+	const polarCustomerId = `polar-cust-${suffix}`;
+	await drizzleDb.insert(organization).values({
+		id: orgId,
+		name: `Test Org ${suffix}`,
+		slug: `test-org-${suffix}`,
+		createdAt: new Date(),
+	});
+	await drizzleDb.insert(subscription).values({
+		id: nanoid(),
+		organizationId: orgId,
+		planId: "uppity",
+		status: "active",
+		blocks,
+		currentPeriodEnd: new Date(Date.now() + 86_400_000),
+		polarCustomerId,
+	});
+	return polarCustomerId;
+}
+
 async function getJob(drizzleDb: TestDb["db"], id: string) {
 	const [row] = await drizzleDb.select().from(maintenanceJob).where(eq(maintenanceJob.id, id));
 	return row;
@@ -215,5 +237,30 @@ describe("runUsageSnapshot", () => {
 		const stamped = Date.parse(event?.timestamp ?? "");
 		expect(stamped).toBeGreaterThanOrEqual(before);
 		expect(stamped).toBeLessThan(before + 60_000);
+	});
+
+	test("reports why each stream failed to reach Polar", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		await seedBlockCustomer(drizzleDb, 2);
+
+		const ingest = vi.fn().mockRejectedValue(new Error("Polar unavailable"));
+		const result = await runUsageSnapshot(drizzleDb, new MeterService(drizzleDb, ingest, 100));
+
+		expect(result).toMatchObject({
+			usage_report_failure: "ingest_failed",
+			block_report_failure: "ingest_failed",
+			block_records_processed: 0,
+		});
+	});
+
+	test("reports no failure when every stream is delivered", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		await seedBlockCustomer(drizzleDb, 2);
+
+		const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+		const result = await runUsageSnapshot(drizzleDb, new MeterService(drizzleDb, ingest, 100));
+
+		expect(result.usage_report_failure).toBeUndefined();
+		expect(result.block_report_failure).toBeUndefined();
 	});
 });

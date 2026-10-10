@@ -45,7 +45,11 @@ export interface UsageSnapshotReport {
 	customerSnapshots: number;
 	/** `usage_snapshot_org` events ingested — the unmetered per-organization audit trail. */
 	organizationSnapshots: number;
+	/** Set when any snapshot was not delivered; the counts still cover what was. */
+	failure?: MeterReportFailure;
 }
+
+export type MeterReportFailure = "collect_failed" | "ingest_failed";
 
 const EMPTY_REPORT: UsageSnapshotReport = { customerSnapshots: 0, organizationSnapshots: 0 };
 
@@ -58,7 +62,7 @@ const EMPTY_REPORT: UsageSnapshotReport = { customerSnapshots: 0, organizationSn
  */
 export type BlockReportResult =
 	| { ok: true; ingested: number }
-	| { ok: false; reason: "collect_failed" | "ingest_failed" };
+	| { ok: false; reason: MeterReportFailure };
 
 /**
  * Reports organization usage to Polar meters.
@@ -107,11 +111,10 @@ export class MeterService {
 	 * from the result, which should stay a meaningful count of one kind of
 	 * record rather than an opaque total of two.
 	 *
-	 * Never throws: a metering outage — whether the snapshot query or either
-	 * Polar ingest call — must not fail the maintenance job that calls this.
-	 * The two streams are ingested independently, each in its own chunked
-	 * loop with its own try/catch per chunk, so a failure in one never stops
-	 * the other from being attempted or reported.
+	 * Never throws. A failed snapshot query or ingest chunk sets `failure` instead,
+	 * and the caller decides what that costs. The two streams are ingested
+	 * independently, each chunk in its own try/catch, so a failure in one never
+	 * stops the other from being attempted or counted.
 	 */
 	async reportUsageSnapshots(): Promise<UsageSnapshotReport> {
 		if (!this.enabled) return EMPTY_REPORT;
@@ -121,22 +124,27 @@ export class MeterService {
 			rows = await collectUsageSnapshots(this.db);
 		} catch (error) {
 			logger.error({ error }, "Failed to collect usage snapshots for Polar metering");
-			return EMPTY_REPORT;
+			return { ...EMPTY_REPORT, failure: "collect_failed" };
 		}
 		if (rows.length === 0) return EMPTY_REPORT;
 
-		const { ingested: customerSnapshots } = await this.ingestInChunks(
+		const customers = await this.ingestInChunks(
 			sumByCustomer(rows),
 			toIngestEvent,
 			METER_EVENTS.USAGE_SNAPSHOT,
 		);
-		const { ingested: organizationSnapshots } = await this.ingestInChunks(
+		const organizations = await this.ingestInChunks(
 			rows,
 			toOrgIngestEvent,
 			METER_EVENTS.USAGE_SNAPSHOT_ORG,
 		);
 
-		return { customerSnapshots, organizationSnapshots };
+		const report: UsageSnapshotReport = {
+			customerSnapshots: customers.ingested,
+			organizationSnapshots: organizations.ingested,
+		};
+		if (customers.failedChunks + organizations.failedChunks > 0) report.failure = "ingest_failed";
+		return report;
 	}
 
 	/**
@@ -144,12 +152,11 @@ export class MeterService {
 	 * it to one customer's total across every block-eligible organization they own;
 	 * omitting it reports every customer.
 	 *
-	 * Never throws, but unlike `reportUsageSnapshots` it distinguishes failure from
-	 * having nothing to send. The targeted call is what a route makes right after
-	 * `setBlocks`, and it exists for the case where waiting for tomorrow's heartbeat is
-	 * too late — a purchase an hour before renewal. A silent zero there would let a
-	 * transient Polar outage under-bill a whole period, so the caller gets a result it
-	 * can retry on. The daily heartbeat has a second chance and simply logs.
+	 * Never throws, and distinguishes failure from having nothing to send. The targeted
+	 * call is what a route makes right after `setBlocks`, and it exists for the case
+	 * where waiting for tomorrow's heartbeat is too late — a purchase an hour before
+	 * renewal. A silent zero there would let a transient Polar outage under-bill a whole
+	 * period, so the caller gets a result it can retry on.
 	 *
 	 * `at` stamps the events with the moment the counts were read instead of the moment
 	 * Polar receives them. Without it, a period that ends while the report is in flight
@@ -210,8 +217,7 @@ export class MeterService {
 	 *
 	 * `failedChunks` is reported alongside so a caller that cannot afford a silent
 	 * shortfall can tell "nothing to send" from "sending failed" — the ingested count
-	 * alone is zero in both cases. `reportUsageSnapshots` ignores it; `reportBlocks`
-	 * does not.
+	 * alone is zero in both cases. Both public reports surface it.
 	 */
 	private async ingestInChunks<T>(
 		items: T[],

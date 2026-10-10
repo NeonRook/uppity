@@ -66,7 +66,11 @@ const JOBS: JobRegistry = {
 		name: "Polar Usage Snapshot",
 		cron: CRON_USAGE_SNAPSHOT,
 		run: async (event) => {
-			event.merge(await runUsageSnapshot(db, new MeterService(db)));
+			const result = await runUsageSnapshot(db, new MeterService(db));
+			event.merge(result);
+			if (result.usage_report_failure || result.block_report_failure) {
+				throw new Error("Polar did not receive every usage report");
+			}
 		},
 	},
 };
@@ -86,8 +90,6 @@ export async function runUsageSnapshot(
 	const at = new Date();
 	const reductions = await new SubscriptionService(targetDb).applyScheduledReductions(at);
 	const report = await meterService.reportUsageSnapshots();
-	// The heartbeat gets a second chance tomorrow, so a failed report is logged inside
-	// the service and recorded here as zero rather than failing the job.
 	const blocks = await meterService.reportBlocks(undefined, at);
 
 	return {
@@ -95,6 +97,8 @@ export async function runUsageSnapshot(
 		records_processed: report.customerSnapshots,
 		org_records_processed: report.organizationSnapshots,
 		block_records_processed: blocks.ok ? blocks.ingested : 0,
+		usage_report_failure: report.failure,
+		block_report_failure: blocks.ok ? undefined : blocks.reason,
 	};
 }
 
