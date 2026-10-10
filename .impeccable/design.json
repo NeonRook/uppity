@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 2,
-	"generatedAt": "2026-10-07T05:30:55Z",
+	"generatedAt": "2026-10-10T12:43:23Z",
 	"title": "Design System: Uppity",
 	"extensions": {
 		"colorMeta": {
@@ -589,6 +589,28 @@
 			"description": "48px icon at 50% muted opacity, 18px semibold title, 14px muted description, single primary action. Renders inside a card by default, bare when nested in one.",
 			"html": "<div class=\"ds-empty\"><svg width=\"48\" height=\"48\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/></svg><h3>No monitors yet</h3><p>Add your first monitor and Uppity will start checking it right away.</p><button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Add monitor</button></div>",
 			"css": ".ds-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 380px; padding: 48px 24px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--card, oklch(1 0 0)); color: var(--card-foreground, oklch(0.145 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; text-align: center; } .ds-empty > svg { color: color-mix(in oklab, var(--muted-foreground, oklch(0.556 0 0)) 50%, transparent); } .ds-empty h3 { margin: 16px 0 0; font-size: 18px; font-weight: 600; line-height: 1.3; } .ds-empty p { margin: 8px 0 16px; max-width: 34ch; color: var(--muted-foreground, oklch(0.556 0 0)); font-size: 14px; line-height: 1.6; }"
+		},
+		{
+			"name": "Event Chips",
+			"kind": "chip",
+			"refersTo": "event-chip-on",
+			"description": "aria-pressed toggles for which events a channel hears. On: secondary fill, solid border, check. Off: dashed border, muted text. No emerald.",
+			"html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>Down</button><button class=\"ds-chip\" aria-pressed=\"true\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>Recovered</button><button class=\"ds-chip\" aria-pressed=\"false\">Degraded</button></div>",
+			"css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 8px; font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 9999px; border: 1px dashed var(--border, oklch(0.922 0 0)); background: transparent; color: var(--muted-foreground, oklch(0.556 0 0)); font: 500 12px/1 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: color 0.15s, background-color 0.15s; outline: none; } .ds-chip:hover { background: color-mix(in oklab, var(--muted, oklch(0.97 0 0)) 50%, transparent); color: var(--foreground, oklch(0.145 0 0)); } .ds-chip[aria-pressed=\"true\"] { border-style: solid; background: var(--secondary, oklch(0.97 0 0)); color: var(--foreground, oklch(0.145 0 0)); } .ds-chip:focus-visible { border-color: var(--ring, oklch(0.696 0.17 162.48)); box-shadow: 0 0 0 3px oklch(0.696 0.17 162.48 / 0.5); }"
+		},
+		{
+			"name": "Selectable List",
+			"kind": "custom",
+			"description": "10px bordered list with hairline dividers; checkbox rows that tone on hover. Filter and 384px scroll frame appear past eight items.",
+			"html": "<ul class=\"ds-sel\"><li><label><input type=\"checkbox\" checked>api.example.com</label></li><li><label><input type=\"checkbox\">checkout</label></li><li><label><input type=\"checkbox\" checked>status worker</label></li></ul>",
+			"css": ".ds-sel { list-style: none; margin: 0; padding: 0; width: 360px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 10px; overflow: hidden; background: var(--card, oklch(1 0 0)); font-family: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-sel li + li { border-top: 1px solid var(--border, oklch(0.922 0 0)); } .ds-sel label { display: flex; align-items: center; gap: 12px; padding: 10px 16px; font-size: 14px; font-weight: 500; color: var(--foreground, oklch(0.145 0 0)); cursor: pointer; transition: background-color 0.15s; } .ds-sel label:hover { background: color-mix(in oklab, var(--muted, oklch(0.97 0 0)) 50%, transparent); } .ds-sel input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary, oklch(0.696 0.17 162.48)); }"
+		},
+		{
+			"name": "Silent-Monitor Warning",
+			"kind": "custom",
+			"description": "Neutral muted line with a bell-off icon, shown when no enabled channel will hear a monitor go down.",
+			"html": "<p class=\"ds-silent\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10.268 21a2 2 0 0 0 3.464 0\"/><path d=\"M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742\"/><path d=\"m2 2 20 20\"/><path d=\"M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05\"/></svg><span>Nobody will hear when this monitor goes down.</span></p>",
+			"css": ".ds-silent { display: flex; align-items: flex-start; gap: 8px; margin: 0; max-width: 360px; color: var(--muted-foreground, oklch(0.556 0 0)); font: 400 14px/1.6 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif; } .ds-silent svg { flex-shrink: 0; margin-top: 2px; }"
 		}
 	],
 	"narrative": {

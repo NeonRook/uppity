@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 
 import { db } from "#lib/server/db/index.js";
 import { monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
+import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { PageServerLoad } from "./$types";
@@ -36,9 +37,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.orderBy(desc(monitorCheck.checkedAt))
 		.limit(50);
 
+	const alerts = await new MonitorChannelService(db).summary(
+		params.id,
+		locals.session.activeOrganizationId,
+	);
+
 	return {
 		monitor: monitorData,
 		status: statusData || null,
 		recentChecks,
+		alerts,
 	};
 };

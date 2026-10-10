@@ -1,9 +1,13 @@
 import { fail, redirect, error } from "@sveltejs/kit";
+import { asc, eq } from "drizzle-orm";
 import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
+import { db } from "#lib/server/db/index.js";
+import { monitor } from "#lib/server/db/schema.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
+import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -50,7 +54,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const form = await superValidate(initialData, valibot(notificationChannelSchema));
 
-	return { channel, form };
+	const [monitors, attachedMonitorIds] = await Promise.all([
+		db
+			.select({ id: monitor.id, name: monitor.name })
+			.from(monitor)
+			.where(eq(monitor.organizationId, locals.session.activeOrganizationId))
+			.orderBy(asc(monitor.name)),
+		new MonitorChannelService(db).monitorsFor(channel.id, locals.session.activeOrganizationId),
+	]);
+
+	return { channel, form, monitors, attachedMonitorIds };
 };
 
 export const actions: Actions = {
@@ -90,5 +103,30 @@ export const actions: Actions = {
 		}
 
 		return redirect(302, "/notifications");
+	},
+	monitors: async ({ request, params, locals }) => {
+		if (!locals.session?.activeOrganizationId) {
+			return fail(401, { error: "Not authenticated" });
+		}
+
+		const monitorIds = (await request.formData())
+			.getAll("monitorIds")
+			.filter((id): id is string => typeof id === "string");
+
+		locals.event.merge({
+			action: "set_notification_channel_monitors",
+			resource_type: "notification_channel",
+			resource_id: params.id,
+		});
+
+		const saved = await new MonitorChannelService(db).setMonitors(
+			params.id,
+			locals.session.activeOrganizationId,
+			monitorIds,
+		);
+		if (!saved) {
+			return fail(400, { error: "Monitor or channel not found" });
+		}
+		return { monitorsSaved: true };
 	},
 };

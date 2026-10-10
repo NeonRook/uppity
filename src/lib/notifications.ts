@@ -31,6 +31,16 @@ export function getChannelType(type: string) {
 	);
 }
 
+/** A channel as monitor forms list it. */
+export interface ChannelOption {
+	id: string;
+	name: string;
+	type: string;
+	enabled: boolean;
+	/** Where alerts land, when that can be shown without exposing a secret. */
+	destination: string | null;
+}
+
 export const CHANNEL_TYPE_KEYS = Object.keys(CHANNEL_TYPES) as ChannelType[];
 
 /** Channel types the plan allows. Self-hosted instances have no plan limits. */

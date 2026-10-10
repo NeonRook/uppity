@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { enhance as enhanceForm } from "$app/forms";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { CircleAlert, LoaderCircle, Trash2 } from "@lucide/svelte";
 	import { untrack } from "svelte";
+	import { toast } from "svelte-sonner";
 	import { superForm } from "sveltekit-superforms";
 
 	import ChannelConfigFields from "#lib/components/channel-config-fields.svelte";
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
+	import MaintenanceMonitorPicker from "#lib/components/maintenance-monitor-picker.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
@@ -27,6 +30,13 @@
 	const { form, errors, enhance, delayed, message } = superform;
 
 	let showDeleteDialog = $state(false);
+	let attachedMonitorIds = $state(untrack(() => data.attachedMonitorIds));
+	let savingMonitors = $state(false);
+	let savedMonitorIds = $state(untrack(() => data.attachedMonitorIds));
+	const monitorsDirty = $derived(
+		attachedMonitorIds.length !== savedMonitorIds.length ||
+			attachedMonitorIds.some((id) => !savedMonitorIds.includes(id)),
+	);
 
 	async function handleDelete() {
 		await deleteChannel({ channelId: data.channel.id });
@@ -114,6 +124,51 @@
 				{/if}
 			</Button>
 		</div>
+	</form>
+
+	<form
+		method="POST"
+		action="?/monitors"
+		use:enhanceForm={() => {
+			savingMonitors = true;
+			return async ({ result, update }) => {
+				savingMonitors = false;
+				if (result.type === "success") {
+					savedMonitorIds = attachedMonitorIds;
+					toast.success(m.channel_monitors_saved());
+				} else {
+					toast.error(m.channel_monitors_save_failed());
+				}
+				await update({ reset: false });
+			};
+		}}
+	>
+		{#each attachedMonitorIds as id (id)}
+			<input type="hidden" name="monitorIds" value={id} />
+		{/each}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.channel_monitors_title()}</Card.Title>
+				<Card.Description>{m.channel_monitors_desc()}</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<MaintenanceMonitorPicker
+					monitors={data.monitors}
+					bind:selected={attachedMonitorIds}
+					disabled={savingMonitors}
+				/>
+			</Card.Content>
+			{#if data.monitors.length > 0}
+				<Card.Footer class="justify-end">
+					<Button type="submit" variant="outline" disabled={savingMonitors || !monitorsDirty}>
+						{#if savingMonitors}
+							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						{m.channel_monitors_save()}
+					</Button>
+				</Card.Footer>
+			{/if}
+		</Card.Root>
 	</form>
 </div>
 
