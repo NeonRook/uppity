@@ -77,43 +77,91 @@ async function waitForNotify(received: string[], expectedId: string, timeoutMs =
 	}
 }
 
+async function eventTypes(drizzleDb: TestDb["db"], monitorId: string): Promise<string[]> {
+	const rows = await drizzleDb
+		.select({ type: notificationEvent.type })
+		.from(notificationEvent)
+		.where(eq(notificationEvent.monitorId, monitorId));
+	return rows.map((row) => row.type);
+}
+
 describe("saveCheckResult", () => {
-	test("first check from unknown stays silent: no notification event, no incident", async ({
-		db,
-	}) => {
+	test("first check from unknown that is up stays silent", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const orgId = await seedOrganization(drizzleDb);
 		const monitor = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "unknown" });
 
+		await saveCheckResult(monitor, { status: "up", responseTimeMs: 42 }, drizzleDb);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
+	});
+
+	test("a monitor down from its first check alerts and opens an incident", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
 		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "unknown" });
 
 		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
 
-		const checks = await drizzleDb
-			.select()
-			.from(monitorCheck)
-			.where(eq(monitorCheck.monitorId, monitor.id));
-		expect(checks).toHaveLength(1);
-		expect(checks[0]?.status).toBe("down");
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
+		expect(
+			await drizzleDb.select().from(incident).where(eq(incident.organizationId, orgId)),
+		).toHaveLength(1);
+	});
 
-		const [status] = await drizzleDb
-			.select()
-			.from(monitorStatus)
-			.where(eq(monitorStatus.monitorId, monitor.id));
-		expect(status?.status).toBe("down");
-		expect(status?.consecutiveFailures).toBe(1);
+	test("alerts once, on the failure that reaches the threshold", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, { alertAfterFailures: 2 });
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
+		const down = { status: "down", responseTimeMs: 42 } as const;
 
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events).toHaveLength(0);
+		await saveCheckResult(monitor, down, drizzleDb);
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
 
-		const incidents = await drizzleDb
+		await saveCheckResult(monitor, down, drizzleDb);
+		await saveCheckResult(monitor, down, drizzleDb);
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
+	});
+
+	test("recovery from a blip below the threshold stays silent", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, { alertAfterFailures: 2 });
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
+
+		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
+		await saveCheckResult(monitor, { status: "up", responseTimeMs: 42 }, drizzleDb);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
+	});
+
+	test("a resolved incident does not stop the next outage opening one", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
+		const old = `inc-${nanoid()}`;
+		await drizzleDb.insert(incident).values({
+			id: old,
+			organizationId: orgId,
+			title: "Earlier outage",
+			status: "resolved",
+			impact: "major",
+			isAutoCreated: true,
+			startedAt: new Date(),
+		});
+		await drizzleDb.insert(incidentMonitor).values({ incidentId: old, monitorId: monitor.id });
+
+		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
+
+		const open = await drizzleDb
 			.select()
 			.from(incident)
-			.where(eq(incident.organizationId, orgId));
-		expect(incidents).toHaveLength(0);
+			.where(and(eq(incident.organizationId, orgId), eq(incident.status, "investigating")));
+		expect(open).toHaveLength(1);
 	});
 
 	test("up → down enqueues monitor_down, creates an auto-incident, and fires pg_notify", async ({

@@ -263,10 +263,18 @@ export async function saveCheckResult(
 		.limit(1);
 
 	const previousStatus = currentStatus?.status;
-	const consecutiveFailures =
-		result.status === "down" ? (currentStatus?.consecutiveFailures || 0) + 1 : 0;
+	const previousFailures = currentStatus?.consecutiveFailures ?? 0;
+	const consecutiveFailures = result.status === "down" ? previousFailures + 1 : 0;
 
 	const statusChanged = previousStatus !== result.status;
+	// An outage alerts once, on the check that reaches the threshold, and its
+	// recovery alerts only if the outage did.
+	const alertsDown =
+		result.status === "down" &&
+		consecutiveFailures >= m.alertAfterFailures &&
+		previousFailures < m.alertAfterFailures;
+	const alertsUp =
+		result.status === "up" && previousStatus === "down" && previousFailures >= m.alertAfterFailures;
 
 	const enqueue = async (
 		type: NotificationType,
@@ -374,114 +382,111 @@ export async function saveCheckResult(
 		})
 		.where(eq(monitorStatus.monitorId, m.id));
 
-	// Handle status change: enqueue notification events and manage incidents
-	if (statusChanged && previousStatus !== "unknown") {
-		if (result.status === "down" && consecutiveFailures >= m.alertAfterFailures) {
-			await enqueue("monitor_down", {
-				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
-				newStatus: "down",
-				consecutiveFailures,
-				errorMessage: result.errorMessage,
-				checkId,
+	// Enqueue notification events and manage incidents
+	if (alertsDown) {
+		await enqueue("monitor_down", {
+			previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
+			newStatus: "down",
+			consecutiveFailures,
+			errorMessage: result.errorMessage,
+			checkId,
+		});
+
+		const [existingIncident] = await db
+			.select({ id: incident.id })
+			.from(incident)
+			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
+			.where(and(eq(incidentMonitor.monitorId, m.id), ne(incident.status, "resolved")))
+			.limit(1);
+
+		if (!existingIncident) {
+			// Create auto-incident
+			const incidentId = nanoid();
+			await db.insert(incident).values({
+				id: incidentId,
+				organizationId: m.organizationId,
+				title: `${m.name} is down`,
+				status: DEFAULT_INCIDENT_STATUS,
+				impact: "major",
+				isAutoCreated: true,
+				startedAt: new Date(),
+				createdAt: new Date(),
+				updatedAt: new Date(),
 			});
 
-			// Check for existing auto incident
-			const [existingIncident] = await db
-				.select({ id: incident.id })
-				.from(incident)
-				.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-				.where(eq(incidentMonitor.monitorId, m.id))
-				.limit(1);
-
-			if (!existingIncident) {
-				// Create auto-incident
-				const incidentId = nanoid();
-				await db.insert(incident).values({
-					id: incidentId,
-					organizationId: m.organizationId,
-					title: `${m.name} is down`,
-					status: DEFAULT_INCIDENT_STATUS,
-					impact: "major",
-					isAutoCreated: true,
-					startedAt: new Date(),
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
-
-				await db.insert(incidentMonitor).values({
-					incidentId,
-					monitorId: m.id,
-				});
-
-				await db.insert(incidentUpdate).values({
-					id: nanoid(),
-					incidentId,
-					status: DEFAULT_INCIDENT_STATUS,
-					message: result.errorMessage || "Monitor is not responding.",
-					createdAt: new Date(),
-				});
-
-				// Enrich wide event with incident info
-				event?.merge({
-					incident_created: true,
-					incident_id: incidentId,
-				});
-			}
-		} else if (result.status === "up" && previousStatus === "down") {
-			await enqueue("monitor_up", {
-				previousStatus: "down",
-				newStatus: "up",
-				consecutiveFailures,
-				checkId,
+			await db.insert(incidentMonitor).values({
+				incidentId,
+				monitorId: m.id,
 			});
 
-			// Auto-resolve the active auto-incident for this monitor.
-			// Manual incidents (isAutoCreated=false) are only resolved by humans.
-			const [existingIncident] = await db
-				.select({ id: incident.id })
-				.from(incident)
-				.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-				.where(
-					and(
-						eq(incidentMonitor.monitorId, m.id),
-						eq(incident.isAutoCreated, true),
-						ne(incident.status, "resolved"),
-					),
-				)
-				.limit(1);
+			await db.insert(incidentUpdate).values({
+				id: nanoid(),
+				incidentId,
+				status: DEFAULT_INCIDENT_STATUS,
+				message: result.errorMessage || "Monitor is not responding.",
+				createdAt: new Date(),
+			});
 
-			if (existingIncident) {
-				await db
-					.update(incident)
-					.set({
-						status: "resolved",
-						resolvedAt: new Date(),
-						updatedAt: new Date(),
-					})
-					.where(eq(incident.id, existingIncident.id));
-
-				await db.insert(incidentUpdate).values({
-					id: nanoid(),
-					incidentId: existingIncident.id,
-					status: "resolved",
-					message: "Monitor has recovered automatically.",
-					createdAt: new Date(),
-				});
-
-				// Enrich wide event with resolution info
-				event?.merge({
-					incident_resolved: true,
-					incident_id: existingIncident.id,
-				});
-			}
-		} else if (result.status === "degraded") {
-			await enqueue("monitor_degraded", {
-				previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
-				newStatus: "degraded",
-				consecutiveFailures,
-				checkId,
+			// Enrich wide event with incident info
+			event?.merge({
+				incident_created: true,
+				incident_id: incidentId,
 			});
 		}
+	} else if (alertsUp) {
+		await enqueue("monitor_up", {
+			previousStatus: "down",
+			newStatus: "up",
+			consecutiveFailures,
+			checkId,
+		});
+
+		// Auto-resolve the active auto-incident for this monitor.
+		// Manual incidents (isAutoCreated=false) are only resolved by humans.
+		const [existingIncident] = await db
+			.select({ id: incident.id })
+			.from(incident)
+			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
+			.where(
+				and(
+					eq(incidentMonitor.monitorId, m.id),
+					eq(incident.isAutoCreated, true),
+					ne(incident.status, "resolved"),
+				),
+			)
+			.limit(1);
+
+		if (existingIncident) {
+			await db
+				.update(incident)
+				.set({
+					status: "resolved",
+					resolvedAt: new Date(),
+					updatedAt: new Date(),
+				})
+				.where(eq(incident.id, existingIncident.id));
+
+			await db.insert(incidentUpdate).values({
+				id: nanoid(),
+				incidentId: existingIncident.id,
+				status: "resolved",
+				message: "Monitor has recovered automatically.",
+				createdAt: new Date(),
+			});
+
+			// Enrich wide event with resolution info
+			event?.merge({
+				incident_resolved: true,
+				incident_id: existingIncident.id,
+			});
+		}
+	} else if (statusChanged && previousStatus !== "unknown" && result.status === "degraded") {
+		await enqueue("monitor_degraded", {
+			previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
+			newStatus: "degraded",
+			consecutiveFailures,
+			checkId,
+		});
 	}
 }
 
