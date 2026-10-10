@@ -30,6 +30,18 @@ const baseMonitorSchema = {
 	timeoutSeconds: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_TIMEOUT_SECONDS),
 	retries: v.optional(v.pipe(v.number(), v.minValue(0)), DEFAULT_RETRIES),
 	alertAfterFailures: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_ALERT_AFTER_FAILURES),
+	channels: v.optional(
+		v.array(
+			v.object({
+				channelId: v.string(),
+				notifyOnDown: v.boolean(),
+				notifyOnUp: v.boolean(),
+				notifyOnDegraded: v.boolean(),
+				notifyOnSslExpiry: v.boolean(),
+			}),
+		),
+		[],
+	),
 };
 
 const httpMonitorSchema = v.object({
@@ -61,3 +73,5 @@ export const createMonitorSchema = v.variant("type", [
 	tcpMonitorSchema,
 	pushMonitorSchema,
 ]);
+
+export type MonitorFormData = v.InferOutput<typeof createMonitorSchema>;

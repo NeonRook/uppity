@@ -11,6 +11,7 @@
 	const form = superForm(
 		untrack(() => data.form),
 		{
+			dataType: "json",
 			resetForm: false,
 		},
 	);
@@ -27,5 +28,10 @@
 		description={data.monitor.name}
 	/>
 
-	<MonitorForm superform={form} mode="edit" cancelHref="/monitors/{data.monitor.id}" />
+	<MonitorForm
+		superform={form}
+		mode="edit"
+		cancelHref="/monitors/{data.monitor.id}"
+		channels={data.channels}
+	/>
 </div>

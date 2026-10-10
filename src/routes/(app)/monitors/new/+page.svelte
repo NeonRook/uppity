@@ -10,7 +10,10 @@
 	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
-	const form = superForm(untrack(() => data.form));
+	const form = superForm(
+		untrack(() => data.form),
+		{ dataType: "json" },
+	);
 
 	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
@@ -40,6 +43,7 @@
 		superform={form}
 		mode="create"
 		cancelHref="/monitors"
+		channels={data.channels}
 		intervals={availableIntervals}
 		submitDisabled={!canAddMonitor}
 	>

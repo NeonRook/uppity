@@ -3,8 +3,13 @@ import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { createMonitorSchema } from "#lib/schemas/monitor.js";
+import { db } from "#lib/server/db/index.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
 import { toMonitorInput } from "#lib/server/monitor-input.js";
+import {
+	channelsBelongToOrg,
+	MonitorChannelService,
+} from "#lib/server/services/monitor-channel.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
@@ -15,7 +20,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const form = await superValidate({ type: "http" }, valibot(createMonitorSchema));
-	return { form };
+	const channels = await new MonitorChannelService(db).options(locals.session.activeOrganizationId);
+	return { form, channels };
 };
 
 export const actions: Actions = {
@@ -31,6 +37,17 @@ export const actions: Actions = {
 		}
 
 		const { data } = form;
+		const organizationId = locals.session.activeOrganizationId;
+
+		if (
+			!(await channelsBelongToOrg(
+				db,
+				organizationId,
+				data.channels.map((link) => link.channelId),
+			))
+		) {
+			return message(form, "Notification channel not found", { status: 400 });
+		}
 
 		// Enrich wide event with action context
 		locals.event.merge({
@@ -40,10 +57,8 @@ export const actions: Actions = {
 
 		let monitor;
 		try {
-			monitor = await monitorService.create({
-				organizationId: locals.session.activeOrganizationId,
-				...toMonitorInput(data),
-			});
+			monitor = await monitorService.create({ organizationId, ...toMonitorInput(data) });
+			await new MonitorChannelService(db).replace(monitor.id, organizationId, data.channels);
 
 			// Set resource_id after creation
 			locals.event.set("resource_id", monitor.id);
