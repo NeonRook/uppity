@@ -155,6 +155,13 @@
       "when": 1791748015170,
       "tag": "0021_timestamps_with_time_zone",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791748922721,
+      "tag": "0022_status_page_subscribers",
+      "breakpoints": true
     }
   ]
 }

@@ -803,5 +803,21 @@
 	"api_keys_managers_only": "Somente proprietários e administradores podem criar ou revogar chaves.",
 	"api_keys_at_cap": "Esta organização tem {max} chaves. Revogue uma para criar outra.",
 	"landing_plan_row_api": "API (somente leitura)",
-	"billing_features_api_access": "Acesso à API somente leitura"
+	"billing_features_api_access": "Acesso à API somente leitura",
+	"public_subscribe_title": "Receba atualizações de incidentes por e-mail",
+	"public_subscribe_description": "Enviaremos um e-mail quando um incidente começar, mudar ou for resolvido. Todo e-mail tem um link para cancelar a inscrição.",
+	"public_subscribe_email_label": "Endereço de e-mail",
+	"public_subscribe_submit": "Inscrever-se",
+	"public_subscribe_sent": "Verifique sua caixa de entrada. Enviamos um link de confirmação.",
+	"public_subscribe_rate_limited": "Muitas tentativas. Tente novamente mais tarde.",
+	"public_subscribe_failed": "Não foi possível enviar o e-mail de confirmação. Tente novamente mais tarde.",
+	"public_confirm_page_title": "Confirmar inscrição - Status de {name}",
+	"public_confirm_prompt": "Confirme para receber um e-mail sempre que {name} relatar um incidente.",
+	"public_confirm_submit": "Confirmar inscrição",
+	"public_confirm_done": "Você está inscrito em {name}. Todo e-mail tem um link para cancelar a inscrição.",
+	"public_confirm_invalid": "Este link expirou ou não é mais válido. Inscreva-se novamente pela página de status.",
+	"public_unsubscribe_page_title": "Cancelar inscrição - Status de {name}",
+	"public_unsubscribe_prompt": "Parar de receber e-mails de incidentes de {name}?",
+	"public_unsubscribe_submit": "Cancelar inscrição",
+	"public_unsubscribe_done": "Inscrição cancelada. Não enviaremos mais e-mails sobre {name}."
 }

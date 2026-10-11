@@ -803,5 +803,21 @@
 	"api_keys_managers_only": "Nur Inhaber und Admins können Schlüssel erstellen oder widerrufen.",
 	"api_keys_at_cap": "Diese Organisation hat {max} Schlüssel. Widerrufe einen, um einen neuen zu erstellen.",
 	"landing_plan_row_api": "API (nur lesend)",
-	"billing_features_api_access": "Lesender API-Zugriff"
+	"billing_features_api_access": "Lesender API-Zugriff",
+	"public_subscribe_title": "Vorfälle per E-Mail verfolgen",
+	"public_subscribe_description": "Wir schreiben dir, wenn ein Vorfall beginnt, sich ändert oder behoben ist. Jede E-Mail enthält einen Abmeldelink.",
+	"public_subscribe_email_label": "E-Mail-Adresse",
+	"public_subscribe_submit": "Abonnieren",
+	"public_subscribe_sent": "Sieh in deinem Postfach nach. Wir haben dir einen Bestätigungslink geschickt.",
+	"public_subscribe_rate_limited": "Zu viele Versuche. Versuche es später erneut.",
+	"public_subscribe_failed": "Die Bestätigungs-E-Mail konnte nicht gesendet werden. Versuche es später erneut.",
+	"public_confirm_page_title": "Abonnement bestätigen - Status von {name}",
+	"public_confirm_prompt": "Bestätige, um bei jedem Vorfall von {name} eine E-Mail zu erhalten.",
+	"public_confirm_submit": "Abonnement bestätigen",
+	"public_confirm_done": "Du hast {name} abonniert. Jede E-Mail enthält einen Abmeldelink.",
+	"public_confirm_invalid": "Dieser Link ist abgelaufen oder ungültig. Abonniere erneut über die Statusseite.",
+	"public_unsubscribe_page_title": "Abmelden - Status von {name}",
+	"public_unsubscribe_prompt": "Keine E-Mails mehr zu Vorfällen von {name} erhalten?",
+	"public_unsubscribe_submit": "Abmelden",
+	"public_unsubscribe_done": "Du bist abgemeldet. Wir schreiben dir nicht mehr zu {name}."
 }

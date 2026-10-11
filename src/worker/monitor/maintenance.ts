@@ -22,6 +22,7 @@ import {
 import { runCapacityGrace } from "../../lib/server/services/capacity.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
+import { deleteExpiredUnconfirmedSubscribers } from "../../lib/server/services/status-page-subscriber.service";
 import { SubscriptionService } from "../../lib/server/services/subscription.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
@@ -54,6 +55,13 @@ const JOBS: JobRegistry = {
 		cron: CRON_CLEANUP,
 		run: async (event) => {
 			event.set("records_deleted", await statsService.cleanupOldChecks(CHECK_RETENTION_DAYS));
+		},
+	},
+	"unconfirmed-subscriber-cleanup": {
+		name: "Unconfirmed Subscriber Cleanup",
+		cron: CRON_CLEANUP,
+		run: async (event) => {
+			event.set("records_deleted", await deleteExpiredUnconfirmedSubscribers(db));
 		},
 	},
 	"maintenance-window-transitions": {
