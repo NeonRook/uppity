@@ -25,6 +25,7 @@ export const getMonitors = query(async () => {
 			hostname: monitor.hostname,
 			port: monitor.port,
 			active: monitor.active,
+			capacityPausedAt: monitor.capacityPausedAt,
 			intervalSeconds: monitor.intervalSeconds,
 			createdAt: monitor.createdAt,
 			// A stopped monitor's recorded status is stale; "unchecked" replaces it.

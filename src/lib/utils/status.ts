@@ -104,8 +104,9 @@ export function getStatusLabel(status: string | null, active: boolean): string {
 export function getStatusBadge(
 	status: string | null,
 	active: boolean,
+	capacityPaused = false,
 ): { variant: BadgeVariant; label: string } {
-	const { variant, label } = getStatusBadgeWithIcon(status, active);
+	const { variant, label } = getStatusBadgeWithIcon(status, active, capacityPaused);
 	return { variant, label };
 }
 
@@ -115,9 +116,11 @@ export function getStatusBadge(
 export function getStatusBadgeWithIcon(
 	status: string | null,
 	active: boolean,
+	capacityPaused = false,
 ): { variant: BadgeVariant; label: string; icon: LucideIcon } {
 	const { variant, label, icon } = styleOf(status, active);
-	return { variant, label: label(), icon };
+	const paused = !active && capacityPaused;
+	return { variant, label: paused ? m.status_paused_capacity() : label(), icon };
 }
 
 /**

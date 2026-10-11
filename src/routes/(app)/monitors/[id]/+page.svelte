@@ -100,6 +100,7 @@
 		getStatusBadgeWithIcon(
 			unchecked ? "unchecked" : (data.status?.status ?? null),
 			data.monitor.active,
+			data.monitor.capacityPausedAt !== null,
 		),
 	);
 	const StatusIcon = $derived(statusInfo.icon);

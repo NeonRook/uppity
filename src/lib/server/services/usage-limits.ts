@@ -1,3 +1,9 @@
+import { and, count, eq, isNotNull } from "drizzle-orm";
+
+import { db } from "#lib/server/db/index.js";
+import { monitor } from "#lib/server/db/schema.js";
+
+import { pauseDate } from "./capacity.service";
 import { subscriptionService } from "./subscription.instance";
 
 /**
@@ -24,6 +30,12 @@ export interface UsageLimitsData {
 		notificationChannels: ("email" | "slack" | "discord" | "webhook")[];
 		minCheckIntervalSeconds: number;
 	};
+	capacity: {
+		/** When the newest monitors get paused; null until the grace period has started. */
+		pauseAt: Date | null;
+		/** Monitors paused because the organization went over its ceiling. */
+		paused: number;
+	};
 }
 
 /**
@@ -31,10 +43,15 @@ export interface UsageLimitsData {
  * Call this in page load functions where you need to show/hide UI based on limits.
  */
 export async function getUsageLimitsData(organizationId: string): Promise<UsageLimitsData> {
-	const [plan, usage, limits] = await Promise.all([
+	const [plan, usage, limits, sub, [capacityPaused]] = await Promise.all([
 		subscriptionService.getOrganizationPlan(organizationId),
 		subscriptionService.getUsage(organizationId),
 		subscriptionService.getEffectiveLimits(organizationId),
+		subscriptionService.getSubscription(organizationId),
+		db
+			.select({ count: count() })
+			.from(monitor)
+			.where(and(eq(monitor.organizationId, organizationId), isNotNull(monitor.capacityPausedAt))),
 	]);
 
 	return {
@@ -56,6 +73,10 @@ export async function getUsageLimitsData(organizationId: string): Promise<UsageL
 			customDomains: limits.customDomains,
 			notificationChannels: [...limits.notificationChannels],
 			minCheckIntervalSeconds: limits.checkIntervalSeconds,
+		},
+		capacity: {
+			pauseAt: sub?.overCapacitySince ? pauseDate(sub.overCapacitySince) : null,
+			paused: capacityPaused?.count ?? 0,
 		},
 	};
 }

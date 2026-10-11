@@ -143,6 +143,18 @@ export interface MaintenanceWideEvent extends WideEventBase {
 	usage_report_failure?: "collect_failed" | "ingest_failed";
 	/** `usage-snapshot` job only: why the blocks report did not fully reach Polar. */
 	block_report_failure?: "collect_failed" | "ingest_failed";
+	/** `capacity-grace` job only: organizations above their monitor ceiling. */
+	organizations_over?: number;
+	/** `capacity-grace` job only: grace periods that started this pass. */
+	clocks_started?: number;
+	/** `capacity-grace` job only: grace periods ended by getting back within the ceiling. */
+	clocks_cleared?: number;
+	/** `capacity-grace` job only: over-capacity emails delivered. */
+	notices_sent?: number;
+	/** `capacity-grace` job only: monitors paused at the end of a grace period. */
+	monitors_paused?: number;
+	/** `capacity-grace` job only: organizations the pass could not finish, with the reason. */
+	capacity_failures?: string[];
 	next_run_at?: Date;
 }
 

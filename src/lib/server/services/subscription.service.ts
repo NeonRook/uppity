@@ -27,6 +27,7 @@ import {
 import { invitation, member, organization } from "#lib/server/db/auth-schema.js";
 import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
+import { ceilingOf, resumeAfterRaise } from "#lib/server/services/capacity.service.js";
 import type {
 	BillingInterval,
 	LimitCheckResult,
@@ -241,6 +242,7 @@ export class SubscriptionService {
 			.set({ ...change, updatedAt: new Date() })
 			.where(eq(subscription.organizationId, organizationId))
 			.returning();
+		await resumeAfterRaise(this.db, organizationId, ceilingOf(sub), ceilingOf(updated));
 
 		return { ok: true, subscription: updated };
 	}
@@ -294,8 +296,8 @@ export class SubscriptionService {
 	 * in the same pass, or the new period meters the old peak and the reduction costs the
 	 * customer another full period.
 	 *
-	 * Organizations that have outgrown the smaller ceiling are reduced anyway. Enforcement
-	 * only refuses new monitors, so they keep what they have.
+	 * Organizations that have outgrown the smaller ceiling are reduced anyway; the
+	 * over-capacity grace period in `runCapacityGrace` takes it from there.
 	 */
 	async applyScheduledReductions(at?: Date): Promise<number> {
 		const applied = await this.db
@@ -589,8 +591,10 @@ export class SubscriptionService {
 					and(eq(subscription.organizationId, organizationId), held ? heldBy(held) : undefined),
 				)
 				.returning();
+			if (!updated) return null;
 
-			return updated ?? null;
+			await resumeAfterRaise(this.db, organizationId, ceilingOf(existing), ceilingOf(updated));
+			return updated;
 		}
 
 		// Create new subscription record
