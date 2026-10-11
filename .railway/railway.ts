@@ -48,9 +48,9 @@ export default defineRailway((ctx) => {
 			// Alerts send from their own domain. Recipients are typed in by customers,
 			// so their bounces cannot get the auth domain blocked.
 			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
-			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_HOST: ctx.shared.SMTP_HOST,
 			SMTP_PASSWORD: preserve(),
-			SMTP_PORT: "465",
+			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: preserve(),
 		},
 	});
@@ -102,9 +102,9 @@ export default defineRailway((ctx) => {
 			POLAR_SERVER: ctx.shared.POLAR_SERVER,
 			POLAR_WEBHOOK_SECRET: preserve(),
 			SMTP_FROM: "Uppity <noreply@uppity.cloud>",
-			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_HOST: ctx.shared.SMTP_HOST,
 			SMTP_PASSWORD: preserve(),
-			SMTP_PORT: "465",
+			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: preserve(),
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 		},
@@ -126,9 +126,9 @@ export default defineRailway((ctx) => {
 			// and link back to it.
 			BETTER_AUTH_URL: uppityServer.env.BETTER_AUTH_URL,
 			SMTP_FROM: "Uppity <noreply@uppity.cloud>",
-			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_HOST: ctx.shared.SMTP_HOST,
 			SMTP_PASSWORD: uppityServer.env.SMTP_PASSWORD,
-			SMTP_PORT: "465",
+			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: uppityServer.env.SMTP_USER,
 		},
 	});
