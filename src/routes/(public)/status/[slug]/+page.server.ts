@@ -46,6 +46,7 @@ export const actions: Actions = {
 
 		try {
 			if (!(await statusPageSubscriberService.subscribe(page, form.data.email))) {
+				locals.event.set("confirmation_cap_reached", true);
 				return rateLimited();
 			}
 		} catch (err) {

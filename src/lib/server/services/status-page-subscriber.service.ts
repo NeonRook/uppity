@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 
-import { and, count, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import { SUBSCRIBER_CONFIRMATIONS_PER_DAY } from "#lib/constants/defaults.js";
+import { SUBSCRIBER_CONFIRMATION_CAP } from "#lib/constants/defaults.js";
 import type { Db } from "#lib/server/db/index.js";
 import { statusPageSubscriber } from "#lib/server/db/schema.js";
 import type { SubscriptionConfirmation } from "#lib/server/subscriber-email.js";
@@ -26,7 +26,7 @@ export class StatusPageSubscriberService {
 	constructor(
 		private db: Db,
 		private sendConfirmation: (confirmation: SubscriptionConfirmation) => Promise<void>,
-		private confirmationsPerDay = SUBSCRIBER_CONFIRMATIONS_PER_DAY,
+		private cap = SUBSCRIBER_CONFIRMATION_CAP,
 	) {}
 
 	/**
@@ -49,11 +49,22 @@ export class StatusPageSubscriberService {
 			// Serializes subscribes per page, so concurrent requests cannot all pass the cap.
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${page.id}))`);
 
-			const [{ sent }] = await tx
-				.select({ sent: count() })
+			const [{ sent, confirmed }] = await tx
+				.select({
+					sent: sql<number>`count(*) filter (where ${gt(t.confirmationSentAt, windowStart)})`.mapWith(
+						Number,
+					),
+					confirmed: sql<number>`count(*) filter (where ${isNotNull(t.verifiedAt)})`.mapWith(
+						Number,
+					),
+				})
 				.from(t)
-				.where(and(eq(t.statusPageId, page.id), gt(t.confirmationSentAt, windowStart)));
-			if (sent >= this.confirmationsPerDay) return "capped";
+				.where(eq(t.statusPageId, page.id));
+			const cap = Math.max(
+				this.cap.base,
+				Math.floor((confirmed * this.cap.percentOfConfirmed) / 100),
+			);
+			if (sent >= cap) return "capped";
 
 			const [upserted] = await tx
 				.insert(t)

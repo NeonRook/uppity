@@ -72,13 +72,15 @@ export const DEFAULT_PRIMARY_COLOR = "#000000";
 export const STATUS_PAGE_HISTORY_DAYS = envInt("UPPITY_STATUS_PAGE_HISTORY_DAYS", 90);
 
 /**
- * Confirmation emails one status page may send in 24 hours. Visitors type any address
- * into the subscribe form, so this caps how much mail a page can direct at strangers.
+ * Confirmation emails one status page may send in 24 hours: the base, or this percentage
+ * of its confirmed subscribers when that is more. Visitors type any address into the
+ * subscribe form, so this caps how much mail a page can direct at strangers, while a
+ * page with a real audience gets room to grow during an outage.
  */
-export const SUBSCRIBER_CONFIRMATIONS_PER_DAY = envInt(
-	"UPPITY_SUBSCRIBER_CONFIRMATIONS_PER_DAY",
-	200,
-);
+export const SUBSCRIBER_CONFIRMATION_CAP = {
+	base: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_BASE", 50),
+	percentOfConfirmed: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_PERCENT", 25),
+};
 
 /**
  * Slug of a public status page to feature on the landing page, or empty to
