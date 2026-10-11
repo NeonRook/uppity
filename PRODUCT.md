@@ -77,6 +77,8 @@ are free on paid plans because their marginal cost rounds to zero.
 - Atlassian Statuspage as a public benchmark. It performs **no monitoring at all**; naming
   it signals "we make status pages" and invites a brand comparison we lose. Keep it as an
   internal design bar for the public status page surface only.
+- Any public API before NEO-36 ships, then "Full API" until write endpoints exist
+  (NEO-21/22). The ladder is no API row, then "API (read-only)", then "Full API".
 - Any uptime figure other than the 99.9% paid-plan target, and never that target as a
   contractual SLA or as measured uptime (see Capabilities).
 
@@ -108,7 +110,7 @@ are free on paid plans because their marginal cost rounds to zero.
 **Plan tiers — confirmed 2026-07-30, implemented 2026-07-31**
 
 > Capacity blocks are purchasable since 2026-10-06 (NEO-35), and every row of this table
-> is publishable. Uppity owns the block count and reports it to a Polar meter; Polar never
+> is publishable except API, which waits for NEO-36. Uppity owns the block count and reports it to a Polar meter; Polar never
 > holds it (`docs/adr/0002`).
 
 |                      | Free  | **Uppity**                     | **Dedicated**  | Self-hosted |
@@ -121,7 +123,7 @@ are free on paid plans because their marginal cost rounds to zero.
 | Channels             | email | all                            | all            | all         |
 | Custom domains       | —     | ✅                             | ✅             | ✅          |
 | **SSO + audit logs** | —     | **✅**                         | ✅             | ✅          |
-| Full API             | —     | ✅                             | ✅             | ✅          |
+| API                  | read  | full                           | full           | full        |
 
 **Pricing**
 
@@ -136,6 +138,14 @@ Examples: 100 monitors = $20/mo · 500 monitors = $84/mo · 1,000 monitors = $16
 **Enterprise** = Dedicated plus a contractual SLA with service credits, priority support,
 onboarding, and invoicing. Negotiated. **Zero feature unlocks** — this is the rule that
 keeps the Positioning claim honest.
+
+**API: decided 2026-10-11 (NEO-37).** The table records the destination, not today. No
+public API exists yet. When NEO-36 ships, every tier gets read access, Free included: a read
+costs about what a dashboard load does, so withholding it would gate code. Write endpoints
+(NEO-21/22) come to paid plans and self-hosted. Rate limits are abuse protection, not a
+pricing axis: one low per-organization limit for Free, one higher limit shared by every
+paid plan, and an operator-set limit on self-hosted and Dedicated. The numbers live in the
+API docs, never in the plan table.
 
 Fair use on Dedicated is stated as _"2,000 monitors at 30-second intervals, or equivalent
 check volume"_ — interval-honest, since 2,000 monitors at 5-minute intervals is a tenth of
