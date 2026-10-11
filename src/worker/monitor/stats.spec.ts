@@ -215,6 +215,30 @@ describe("StatsService aggregation", () => {
 		});
 	});
 
+	test("aggregateDailyStats rolls up the UTC day", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatsService(drizzleDb);
+		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+
+		const day = new Date();
+		day.setUTCDate(day.getUTCDate() - 3);
+		day.setUTCHours(0, 0, 0, 0);
+		const lastMinute = new Date(day.getTime() + 24 * 60 * 60 * 1000 - 60 * 1000);
+		const nextDay = new Date(day.getTime() + 24 * 60 * 60 * 1000 + 60 * 1000);
+		await drizzleDb.insert(monitorCheck).values([
+			{ id: nanoid(), monitorId, status: "up", checkedAt: lastMinute },
+			{ id: nanoid(), monitorId, status: "down", checkedAt: nextDay },
+		]);
+
+		await service.aggregateDailyStats(monitorId, lastMinute);
+
+		const [stats] = await drizzleDb
+			.select()
+			.from(monitorDailyStats)
+			.where(eq(monitorDailyStats.monitorId, monitorId));
+		expect(stats).toMatchObject({ date: day, totalChecks: 1, failedChecks: 0 });
+	});
+
 	test("aggregateDailyStats writes nothing for a day without checks", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new StatsService(drizzleDb);

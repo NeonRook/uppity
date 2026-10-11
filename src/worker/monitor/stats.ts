@@ -60,14 +60,14 @@ export class StatsService {
 	}
 
 	/**
-	 * Aggregate stats for a specific monitor and date
+	 * Aggregate stats for a specific monitor over the UTC day containing `date`
 	 */
 	async aggregateDailyStats(monitorId: string, date: Date): Promise<void> {
 		const startOfDay = new Date(date);
-		startOfDay.setHours(0, 0, 0, 0);
+		startOfDay.setUTCHours(0, 0, 0, 0);
 
-		const endOfDay = new Date(date);
-		endOfDay.setHours(23, 59, 59, 999);
+		const endOfDay = new Date(startOfDay);
+		endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
 
 		const {
 			totalChecks,
@@ -146,7 +146,7 @@ export class StatsService {
 	 */
 	async aggregateYesterday(): Promise<number> {
 		const yesterday = new Date();
-		yesterday.setDate(yesterday.getDate() - 1);
+		yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 		return this.aggregateAllMonitorsForDate(yesterday);
 	}
 
@@ -264,7 +264,7 @@ export class StatsService {
 /** Returns the timestamp `days` before now. */
 function cutoffFor(days: number): Date {
 	const cutoff = new Date();
-	cutoff.setDate(cutoff.getDate() - days);
+	cutoff.setUTCDate(cutoff.getUTCDate() - days);
 	return cutoff;
 }
 
