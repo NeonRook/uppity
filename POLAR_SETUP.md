@@ -330,7 +330,7 @@ reporting `skip` for each is the expected outcome, not a failure.
 
 ## Current state
 
-### Sandbox — complete except webhooks
+### Sandbox — configured, backs staging
 
 All five product IDs in `.env` resolve against `sandbox-api.polar.sh`, and prices
 match `src/lib/constants/plans.ts`:
@@ -344,10 +344,17 @@ match `src/lib/constants/plans.ts`:
 | Dedicated (Annual) | `05d4b061-6593-4844-857a-c88c2a3764bb` | $2,990.00 |
 | Enterprise         | `da84a5f2-19c1-48e0-bba0-04db7fd1dfb4` | archived  |
 
-**Zero webhook endpoints are registered in sandbox**, and `POLAR_WEBHOOK_SECRET`
-is unset locally, so the webhook path has never been exercised in development.
-`webhooks({ secret: process.env.POLAR_WEBHOOK_SECRET ?? "" })` means an unset
-secret fails signature validation rather than crashing at boot — silent, not loud.
+The Railway `staging` environment (`https://staging.uppity.cloud`) runs against
+sandbox. Its endpoint is `https://staging.uppity.cloud/api/auth/polar/webhooks`, on
+API version `2026-10` with standard signatures, subscribed to the six events listed
+under production below. Pay with the Stripe test cards from
+<https://docs.stripe.com/testing#cards>.
+
+`POLAR_WEBHOOK_SECRET` is needed on `uppity-server` only; the workers never receive
+webhooks. When it is unset, the plugin answers every delivery with a 500
+`Polar webhook secret not found` and logs nothing, so the only symptom is failed
+deliveries in the Polar dashboard. Local dev has no endpoint, and
+`POLAR_WEBHOOK_SECRET` stays unset there.
 
 ### Production — configured, billing live
 
@@ -393,11 +400,12 @@ the code deployed.
       ever reaches Polar — indistinguishable from having no paying customers. Re-check it
       after any change to that service's variables.
 
-- [x] **The webhook endpoint's format and event subscriptions.** Verified 2026-07-31:
-      `https://uppity.cloud/api/auth/polar/webhooks`, format `raw`, subscribed to all six
-      events the handlers need — including `order.paid` and `customer.state_changed`, which
-      are absent from Polar's default set. Re-check after any dashboard change with
-      `docs/superpowers/pricing/polar-check-webhooks.sh`.
+- [x] **The webhook endpoint's API version and event subscriptions.** Verified 2026-10-11:
+      `https://uppity.cloud/api/auth/polar/webhooks`, API version `2026-10` with standard
+      signatures, subscribed to the six events the handlers need: `customer.state_changed`,
+      `order.paid`, and `subscription.created`, `.updated`, `.canceled`, `.revoked`.
+      `order.paid` and `customer.state_changed` are absent from Polar's default set.
+      Re-check in the Polar dashboard after any endpoint change.
 
 ### Still to confirm
 
