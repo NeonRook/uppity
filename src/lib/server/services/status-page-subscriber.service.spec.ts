@@ -16,7 +16,10 @@ import {
 
 const HOUR_MS = 60 * 60_000;
 
-async function setup(drizzleDb: TestDb["db"], cap?: { base: number; percentOfConfirmed: number }) {
+async function setup(
+	drizzleDb: TestDb["db"],
+	cap?: { base: number; percentOfConfirmed: number; max: number },
+) {
 	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
 	const page = { id: `sp-${suffix}`, name: "Acme", slug: `acme-${suffix}` };
@@ -92,7 +95,7 @@ describe("StatusPageSubscriberService", () => {
 	});
 
 	test("a page over its daily confirmations sends nothing more", async ({ db }) => {
-		const { page, sent, service } = await setup(db.db, { base: 2, percentOfConfirmed: 0 });
+		const { page, sent, service } = await setup(db.db, { base: 2, percentOfConfirmed: 0, max: 10 });
 
 		expect(await service.subscribe(page, "a@example.com")).toBe(true);
 		expect(await service.subscribe(page, "b@example.com")).toBe(true);
@@ -102,7 +105,11 @@ describe("StatusPageSubscriberService", () => {
 	});
 
 	test("confirmed subscribers raise the daily cap above the base", async ({ db }) => {
-		const { page, sent, service } = await setup(db.db, { base: 1, percentOfConfirmed: 50 });
+		const { page, sent, service } = await setup(db.db, {
+			base: 1,
+			percentOfConfirmed: 100,
+			max: 2,
+		});
 		const subscribeAndConfirm = async (email: string) => {
 			await service.subscribe(page, email);
 			await service.confirm(page.id, sent.at(-1)!.token);
@@ -121,7 +128,7 @@ describe("StatusPageSubscriberService", () => {
 				verifiedAt: new Date(),
 			});
 		}
-		// Four confirmed at 50% allow two in the window, one of which is used.
+		// Four confirmed at 100% would allow four; the max allows two, one of which is used.
 		expect(await service.subscribe(page, "b@example.com")).toBe(true);
 		expect(await service.subscribe(page, "f@example.com")).toBe(false);
 	});

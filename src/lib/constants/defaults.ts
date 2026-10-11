@@ -73,13 +73,15 @@ export const STATUS_PAGE_HISTORY_DAYS = envInt("UPPITY_STATUS_PAGE_HISTORY_DAYS"
 
 /**
  * Confirmation emails one status page may send in 24 hours: the base, or this percentage
- * of its confirmed subscribers when that is more. Visitors type any address into the
- * subscribe form, so this caps how much mail a page can direct at strangers, while a
- * page with a real audience gets room to grow during an outage.
+ * of its confirmed subscribers when that is more, never above the max. Visitors type any
+ * address into the subscribe form, so this caps how much mail a page can direct at
+ * strangers, while a page with a real audience gets room to grow during an outage. The
+ * max stops a page from raising its own cap by confirming addresses it controls.
  */
 export const SUBSCRIBER_CONFIRMATION_CAP = {
 	base: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_BASE", 50),
 	percentOfConfirmed: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_PERCENT", 25),
+	max: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_MAX", 300),
 };
 
 /**

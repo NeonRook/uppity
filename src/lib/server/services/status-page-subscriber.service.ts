@@ -60,10 +60,8 @@ export class StatusPageSubscriberService {
 				})
 				.from(t)
 				.where(eq(t.statusPageId, page.id));
-			const cap = Math.max(
-				this.cap.base,
-				Math.floor((confirmed * this.cap.percentOfConfirmed) / 100),
-			);
+			const { base, percentOfConfirmed, max } = this.cap;
+			const cap = Math.min(max, Math.max(base, Math.floor((confirmed * percentOfConfirmed) / 100)));
 			if (sent >= cap) return "capped";
 
 			const [upserted] = await tx
