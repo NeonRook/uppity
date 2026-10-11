@@ -174,7 +174,7 @@
 		<!-- Mobile card view -->
 		<div class="space-y-3 md:hidden">
 			{#each monitors as mon (mon.id)}
-				{@const statusInfo = getStatusBadge(mon.status, mon.active)}
+				{@const statusInfo = getStatusBadge(mon.status, mon.active, mon.capacityPausedAt !== null)}
 				<Card.Root>
 					<Card.Content class="p-4">
 						<div class="flex items-start justify-between gap-3">
@@ -233,7 +233,11 @@
 				</Table.Header>
 				<Table.Body>
 					{#each monitors as mon (mon.id)}
-						{@const statusInfo = getStatusBadge(mon.status, mon.active)}
+						{@const statusInfo = getStatusBadge(
+							mon.status,
+							mon.active,
+							mon.capacityPausedAt !== null,
+						)}
 						<Table.Row>
 							<Table.Cell>
 								<div class="flex items-center">

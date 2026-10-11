@@ -58,7 +58,7 @@ describe("capacity-card.svelte", () => {
 		await render(CapacityCard, { ...base, scheduledBlocks: 1 });
 
 		await expect
-			.element(page.getByText("Your limit drops to 100 monitors on March 12, 2026."))
+			.element(page.getByText("Your limit drops to 100 active monitors on March 12, 2026."))
 			.toBeInTheDocument();
 		await expect
 			.element(page.getByRole("button", { name: "Keep current capacity" }))

@@ -3,12 +3,14 @@ import { eq, lte, and } from "drizzle-orm";
 
 import {
 	CHECK_RETENTION_DAYS,
+	CRON_CAPACITY_GRACE,
 	CRON_CLEANUP,
 	CRON_DAILY_STATS,
 	CRON_MAINTENANCE_WINDOW_TRANSITIONS,
 	CRON_ROLLING_STATS,
 	CRON_USAGE_SNAPSHOT,
 } from "../../lib/constants/scheduler";
+import { sendCapacityNotice } from "../../lib/server/account-email";
 import type { Db } from "../../lib/server/db/index";
 import { maintenanceJob } from "../../lib/server/db/schema";
 import {
@@ -17,6 +19,7 @@ import {
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
 } from "../../lib/server/logger";
+import { runCapacityGrace } from "../../lib/server/services/capacity.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
 import { SubscriptionService } from "../../lib/server/services/subscription.service";
@@ -70,6 +73,18 @@ const JOBS: JobRegistry = {
 			event.merge(result);
 			if (result.usage_report_failure || result.block_report_failure) {
 				throw new Error("Polar did not receive every usage report");
+			}
+		},
+	},
+	"capacity-grace": {
+		name: "Over-capacity Grace Period",
+		cron: CRON_CAPACITY_GRACE,
+		run: async (event) => {
+			const { failures, ...counts } = await runCapacityGrace(db, sendCapacityNotice);
+			event.merge(counts);
+			if (failures.length > 0) {
+				event.set("capacity_failures", failures);
+				throw new Error(`Capacity grace failed for ${failures.length} organizations`);
 			}
 		},
 	},

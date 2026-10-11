@@ -50,21 +50,6 @@ export default defineRailway(() => {
 			SMTP_USER: preserve(),
 		},
 	});
-	const workerMonitor = service("worker-monitor", {
-		source: uppity,
-		build,
-		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-monitor" },
-		networking: { privateNetworkEndpoint: "uppity-worker" },
-		env: {
-			BETTER_AUTH_SECRET: preserve(),
-			DATABASE_URL: preserve(),
-			NODE_ENV: preserve(),
-			POLAR_ACCESS_TOKEN: preserve(),
-			POLAR_SERVER: preserve(),
-			SERVICE_NAME: preserve(),
-		},
-	});
 	const DrizzleGateway = service("Drizzle Gateway", {
 		source: image("ghcr.io/drizzle-team/gateway:latest"),
 		healthcheck: "/health",
@@ -117,6 +102,29 @@ export default defineRailway(() => {
 			SMTP_PORT: "465",
 			SMTP_USER: preserve(),
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
+		},
+	});
+	const workerMonitor = service("worker-monitor", {
+		source: uppity,
+		build,
+		replicas: { "europe-west4-drams3a": 1 },
+		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-monitor" },
+		networking: { privateNetworkEndpoint: "uppity-worker" },
+		env: {
+			BETTER_AUTH_SECRET: preserve(),
+			DATABASE_URL: preserve(),
+			NODE_ENV: preserve(),
+			POLAR_ACCESS_TOKEN: preserve(),
+			POLAR_SERVER: preserve(),
+			SERVICE_NAME: preserve(),
+			// Over-capacity notices are account email, so they send as the server does
+			// and link back to it.
+			BETTER_AUTH_URL: uppityServer.env.BETTER_AUTH_URL,
+			SMTP_FROM: "Uppity <noreply@uppity.cloud>",
+			SMTP_HOST: "smtp.tem.scaleway.com",
+			SMTP_PASSWORD: uppityServer.env.SMTP_PASSWORD,
+			SMTP_PORT: "465",
+			SMTP_USER: uppityServer.env.SMTP_USER,
 		},
 	});
 	const Application = group("Application", [workerNotifier, workerMonitor, uppityServer]);

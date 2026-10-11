@@ -25,6 +25,12 @@ export type SubscriptionStatus = "active" | "canceled" | "past_due" | "trialing"
 export type BillingInterval = "day" | "week" | "month" | "year";
 
 /**
+ * Over-capacity notices in the order they go out: on going over, a week left, a day
+ * left, and when monitors are paused.
+ */
+export type CapacityNoticeKind = "over" | "week" | "day" | "paused";
+
+/**
  * Defines the limits and features available for a subscription plan.
  * A value of -1 indicates unlimited for numeric limits.
  */

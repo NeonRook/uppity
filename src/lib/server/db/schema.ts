@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Import auth tables for foreign key references
-import type { BillingInterval } from "../../types/plans";
+import type { BillingInterval, CapacityNoticeKind } from "../../types/plans";
 import { user, organization, member, invitation } from "./auth-schema";
 
 // ============================================================================
@@ -73,6 +73,8 @@ export const monitor = pgTable(
 		checkBackoffUntil: timestamp("check_backoff_until", { withTimezone: true }),
 		// Set while the checker itself keeps failing on this monitor; cleared by the next successful check.
 		deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+		// Set when the over-capacity grace period ran out and paused this monitor; cleared on resume.
+		capacityPausedAt: timestamp("capacity_paused_at", { withTimezone: true }),
 	},
 	(table) => [
 		index("monitor_org_idx").on(table.organizationId),
@@ -688,6 +690,16 @@ export const subscription = pgTable(
 		 * The date it applies is `currentPeriodEnd`, deliberately not stored again.
 		 */
 		scheduledBlocks: integer("scheduled_blocks"),
+
+		/**
+		 * When active monitors first exceeded the ceiling. `NULL` while within it. Monitors
+		 * are paused once the grace period from here has run out.
+		 */
+		overCapacitySince: timestamp("over_capacity_since", { withTimezone: true }),
+
+		/** The last over-capacity notice delivered, and when. Reset with the clock. */
+		capacityNotice: text("capacity_notice").$type<CapacityNoticeKind>(),
+		capacityNoticedAt: timestamp("capacity_noticed_at", { withTimezone: true }),
 
 		// Billing period
 		billingInterval: text("billing_interval").$type<BillingInterval>(),

@@ -18,5 +18,8 @@ export const CRON_MAINTENANCE_WINDOW_TRANSITIONS = envString(
 	"* * * * *",
 );
 
+/** Cron schedule for the over-capacity grace period: clocks, warnings, and pauses. */
+export const CRON_CAPACITY_GRACE = envString("UPPITY_CRON_CAPACITY_GRACE", "20 * * * *");
+
 /** Number of days to keep individual check records before cleanup deletes them. */
 export const CHECK_RETENTION_DAYS = envInt("UPPITY_CHECK_RETENTION_DAYS", 30);

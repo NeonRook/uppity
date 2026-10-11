@@ -15,6 +15,7 @@ import {
 import { db, type DbExecutor } from "#lib/server/db/index.js";
 import { monitor, monitorStatus, type Monitor } from "#lib/server/db/schema.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
+import { clearIfWithinCeiling } from "#lib/server/services/capacity.service.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 export interface CreateMonitorInput {
@@ -156,6 +157,7 @@ export class MonitorService {
 				.set({
 					...input,
 					updatedAt: new Date(),
+					...(resuming && { capacityPausedAt: null }),
 					// Reset schedule if becoming active or interval changed
 					...(shouldResetSchedule && {
 						nextCheckAt: sql`NOW()`,
@@ -169,7 +171,11 @@ export class MonitorService {
 			return row;
 		};
 
-		if (!resuming) return (await write(db)) ?? null;
+		if (!resuming) {
+			const written = (await write(db)) ?? null;
+			if (input.active === false) await clearIfWithinCeiling(db, organizationId);
+			return written;
+		}
 
 		// Paused monitors sit outside the ceiling, so resuming one takes a slot.
 		const slot = await subscriptionService.takeMonitorSlot(organizationId, write);
@@ -188,8 +194,10 @@ export class MonitorService {
 			.delete(monitor)
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
 			.returning({ id: monitor.id });
+		if (deleted.length === 0) return false;
 
-		return deleted.length > 0;
+		await clearIfWithinCeiling(db, organizationId);
+		return true;
 	}
 
 	async toggleActive(id: string, organizationId: string): Promise<Monitor | null> {

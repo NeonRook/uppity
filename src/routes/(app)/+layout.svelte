@@ -24,6 +24,7 @@
 	import { ModeWatcher, setMode, userPrefersMode } from "mode-watcher";
 
 	import { signOut } from "#lib/auth-client.js";
+	import CapacityBanner from "#lib/components/billing/capacity-banner.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
@@ -251,6 +252,9 @@
 			</header>
 
 			<main class="bg-background overflow-y-auto p-4 sm:p-6">
+				{#if data.usageLimits && !data.selfHosted}
+					<CapacityBanner usage={data.usageLimits} />
+				{/if}
 				{@render children()}
 			</main>
 		</div>
