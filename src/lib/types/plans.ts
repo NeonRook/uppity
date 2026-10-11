@@ -72,6 +72,13 @@ export interface PlanLimits {
 	/** API access level for this plan. */
 	apiAccess: ApiAccessLevel;
 
+	/**
+	 * Requests per minute allowed to each API key. -1 resolves to
+	 * `UPPITY_API_REQUESTS_PER_MINUTE`. Abuse protection rather than a priced limit,
+	 * so it never appears in the plan table.
+	 */
+	apiRequestsPerMinute: number;
+
 	/** Whether SSO/SAML authentication is available. */
 	sso: boolean;
 

@@ -58,6 +58,7 @@ export interface RequestWideEvent extends WideEventBase {
 	user_email?: string;
 	org_id?: string;
 	session_id?: string;
+	api_key_id?: string;
 
 	// Business context (enriched by services)
 	action?: string;
