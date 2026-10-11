@@ -113,6 +113,7 @@ worth telling apart when debugging.
 | Polar API call               | Called by                                        | Capability                |
 | ---------------------------- | ------------------------------------------------ | ------------------------- |
 | `checkouts.create`           | plugin checkout endpoint                         | checkouts — write         |
+| `checkouts.get`              | `polar-subscription.ts`, on return from checkout | checkouts — read          |
 | `customerSessions.create`    | portal, and every `customerPortal.*` read        | customer sessions — write |
 | `customers.getStateExternal` | plugin customer-state endpoint                   | customers — read          |
 | `subscriptions.list`         | plugin subscriptions endpoint                    | subscriptions — read      |
