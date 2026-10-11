@@ -162,6 +162,13 @@
       "when": 1791748922721,
       "tag": "0022_status_page_subscribers",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791751373624,
+      "tag": "0023_subscriber_deliveries",
+      "breakpoints": true
     }
   ]
 }

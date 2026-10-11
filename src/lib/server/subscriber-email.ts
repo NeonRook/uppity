@@ -34,3 +34,61 @@ export async function sendSubscriptionConfirmation({
 		text: [paragraphs[0], "", `Confirm subscription: ${confirmUrl}`, "", paragraphs[1]].join("\n"),
 	});
 }
+
+export interface SubscriberIncidentEmail {
+	email: string;
+	token: string;
+	page: { name: string; slug: string };
+	incident: { id: string; title: string; status: string };
+	kind: "incident_created" | "incident_updated" | "incident_resolved";
+	message: string | undefined;
+}
+
+const SUBJECT_PREFIX = {
+	incident_created: "",
+	incident_updated: "Update: ",
+	incident_resolved: "Resolved: ",
+};
+
+const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+
+/** Sends one subscriber an incident event from a status page they follow. Throws when it cannot. */
+export async function sendSubscriberIncidentEmail({
+	email,
+	token,
+	page,
+	incident,
+	kind,
+	message,
+}: SubscriberIncidentEmail): Promise<void> {
+	if (!smtpTransport) throw new Error("SMTP not configured");
+
+	const incidentUrl = `${appUrl}/status/${page.slug}/incidents/${incident.id}`;
+	const unsubscribeUrl = `${appUrl}/status/${page.slug}/unsubscribe/${token}`;
+	const status = `Status: ${capitalize(incident.status)}`;
+	const footer = `You get this email because you subscribed to ${page.name} status updates.`;
+
+	await smtpTransport.sendMail({
+		from: smtpFrom,
+		to: email,
+		subject: `[${page.name}] ${SUBJECT_PREFIX[kind]}${incident.title}`,
+		headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
+		html: [
+			`<h2>${escapeHtml(incident.title)}</h2>`,
+			`<p><strong>${escapeHtml(status)}</strong></p>`,
+			...(message ? [`<p>${escapeHtml(message)}</p>`] : []),
+			`<p><a href="${incidentUrl}">View incident</a></p>`,
+			`<p><small>${escapeHtml(footer)} <a href="${unsubscribeUrl}">Unsubscribe</a></small></p>`,
+		].join("\n"),
+		text: [
+			incident.title,
+			status,
+			...(message ? ["", message] : []),
+			"",
+			`View incident: ${incidentUrl}`,
+			"",
+			footer,
+			`Unsubscribe: ${unsubscribeUrl}`,
+		].join("\n"),
+	});
+}

@@ -12,7 +12,12 @@ import {
 	notificationChannel,
 	notificationEvent,
 	notificationLog,
+	incidentUpdate,
+	statusPage,
+	statusPageMonitor,
+	statusPageSubscriber,
 } from "../db/schema";
+import type { SubscriberIncidentEmail } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { NotificationService } from "./service";
@@ -311,6 +316,126 @@ describe("NotificationService.dispatchEvent (incident)", () => {
 			.from(notificationLog)
 			.where(eq(notificationLog.incidentId, incidentId));
 		expect(logs).toHaveLength(0);
+	});
+});
+
+async function seedPage(
+	drizzleDb: TestDb["db"],
+	orgId: string,
+	monitorIds: string[],
+	isPublic = true,
+): Promise<string> {
+	const id = `sp-${nanoid()}`;
+	await drizzleDb
+		.insert(statusPage)
+		.values({ id, organizationId: orgId, name: "Acme", slug: id.toLowerCase(), isPublic });
+	for (const monitorId of monitorIds) {
+		await drizzleDb.insert(statusPageMonitor).values({ id: nanoid(), statusPageId: id, monitorId });
+	}
+	return id;
+}
+
+async function seedSubscriber(
+	drizzleDb: TestDb["db"],
+	statusPageId: string,
+	email: string,
+	confirmed = true,
+): Promise<void> {
+	await drizzleDb.insert(statusPageSubscriber).values({
+		id: nanoid(),
+		statusPageId,
+		email,
+		token: nanoid(),
+		verifiedAt: confirmed ? new Date() : null,
+	});
+}
+
+function recordingSender() {
+	const sent: SubscriberIncidentEmail[] = [];
+	const send = vi.fn(async (email: SubscriberIncidentEmail) => {
+		sent.push(email);
+	});
+	return { sent, send };
+}
+
+describe("NotificationService.dispatchEvent (subscribers)", () => {
+	test("emails confirmed subscribers of public pages that show the incident", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const { sent, send } = recordingSender();
+		const service = new NotificationService(drizzleDb, undefined, send);
+		const orgId = await seedOrg(drizzleDb);
+		const affected = await seedMonitor(drizzleDb, orgId);
+		const unrelated = await seedMonitor(drizzleDb, orgId);
+
+		const shown = await seedPage(drizzleDb, orgId, [affected]);
+		await seedSubscriber(drizzleDb, shown, "confirmed@example.com");
+		await seedSubscriber(drizzleDb, shown, "pending@example.com", false);
+		await seedSubscriber(
+			drizzleDb,
+			await seedPage(drizzleDb, orgId, [affected], false),
+			"private@example.com",
+		);
+		await seedSubscriber(
+			drizzleDb,
+			await seedPage(drizzleDb, orgId, [unrelated]),
+			"other@example.com",
+		);
+
+		const incidentId = await seedIncident(drizzleDb, orgId, [affected]);
+		await drizzleDb
+			.insert(incidentUpdate)
+			.values({ id: nanoid(), incidentId, status: "investigating", message: "Looking into it" });
+		const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_created");
+
+		// No operator channels: subscribers alone make the event a success.
+		const result = await service.dispatchEvent(await fetchEvent(drizzleDb, eventId));
+
+		expect(result.status).toBe("sent");
+		expect(sent.map((e) => e.email)).toEqual(["confirmed@example.com"]);
+		expect(sent[0]).toMatchObject({ kind: "incident_created", message: "Looking into it" });
+	});
+
+	test("a retried event emails nobody twice", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const { sent, send } = recordingSender();
+		const service = new NotificationService(drizzleDb, undefined, send);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		await seedSubscriber(drizzleDb, await seedPage(drizzleDb, orgId, [monitorId]), "a@example.com");
+		const incidentId = await seedIncident(drizzleDb, orgId, [monitorId]);
+		const row = await fetchEvent(
+			drizzleDb,
+			await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_resolved"),
+		);
+
+		await service.dispatchEvent(row);
+		const retry = await service.dispatchEvent(row);
+
+		expect(sent).toHaveLength(1);
+		expect(retry.status).toBe("suppressed");
+	});
+
+	test("a failed send makes the event partial when others got through", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const { sent, send } = recordingSender();
+		send.mockRejectedValueOnce(new Error("mailbox full"));
+		const service = new NotificationService(drizzleDb, undefined, send);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const pageId = await seedPage(drizzleDb, orgId, [monitorId]);
+		await seedSubscriber(drizzleDb, pageId, "a@example.com");
+		await seedSubscriber(drizzleDb, pageId, "b@example.com");
+		const incidentId = await seedIncident(drizzleDb, orgId, [monitorId]);
+		const row = await fetchEvent(
+			drizzleDb,
+			await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_updated"),
+		);
+
+		const result = await service.dispatchEvent(row);
+
+		expect(sent).toHaveLength(1);
+		expect(result).toMatchObject({ status: "partial" });
+		expect(result.status !== "sent" && result.errorMessage).toContain("mailbox full");
 	});
 });
 
