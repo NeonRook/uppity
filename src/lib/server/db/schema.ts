@@ -584,6 +584,20 @@ export const notificationLogRelations = relations(notificationLog, ({ one }) => 
 	}),
 }));
 
+/** One row per subscriber an incident event has been sent to, so a retried event skips them. */
+export const statusPageSubscriberDelivery = pgTable(
+	"status_page_subscriber_delivery",
+	{
+		eventId: text("event_id")
+			.notNull()
+			.references(() => notificationEvent.id, { onDelete: "cascade" }),
+		subscriberId: text("subscriber_id")
+			.notNull()
+			.references(() => statusPageSubscriber.id, { onDelete: "cascade" }),
+	},
+	(table) => [primaryKey({ columns: [table.eventId, table.subscriberId] })],
+);
+
 // ============================================================================
 // MAINTENANCE JOB TABLE
 // ============================================================================

@@ -11,15 +11,18 @@ import {
 	notificationLog,
 	monitor as monitorTable,
 	monitorStatus,
+	type Incident,
 	type NotificationChannel,
 	type MonitorStatus,
 	type NotificationEvent,
 } from "../db/schema";
 import { logger as defaultLogger } from "../logger";
+import { sendSubscriberIncidentEmail } from "../subscriber-email";
 import { sendDiscord } from "./discord";
 import { sendEmail } from "./email";
 import { parseEventPayload, type IncidentEventPayload } from "./events";
 import { sendSlack } from "./slack";
+import { notifyIncidentSubscribers, type SendSubscriberIncidentEmail } from "./subscribers";
 import type {
 	NotificationPayload,
 	NotificationResult,
@@ -60,11 +63,42 @@ function send(
 	return null;
 }
 
+/** Summarizes up to three failures, with a count of the rest. */
+function summarize(failures: string[], total: number, noun: string): string {
+	const head = failures.slice(0, 3).join("; ");
+	const suffix = failures.length > 3 ? `; +${failures.length - 3} more` : "";
+	return `${failures.length}/${total} ${noun} failed: ${head}${suffix}`;
+}
+
+/** Folds subscriber delivery into the channels' result. Either reaching anyone is a partial success. */
+function withSubscribers(
+	channels: DispatchResult,
+	subscribers: { sent: number; failures: string[] } | null,
+): DispatchResult {
+	if (!subscribers) return channels;
+
+	const { sent, failures } = subscribers;
+	const errors = [
+		...(channels.status === "failed" || channels.status === "partial"
+			? [channels.errorMessage]
+			: []),
+		...(failures.length > 0 ? [summarize(failures, sent + failures.length, "subscribers")] : []),
+	];
+	if (errors.length === 0) return { status: "sent" };
+
+	const reachedAnyone = sent > 0 || channels.status === "sent" || channels.status === "partial";
+	return { status: reachedAnyone ? "partial" : "failed", errorMessage: errors.join("; ") };
+}
+
 export class NotificationService {
 	private db: Db;
 	private logger: Logger;
 
-	constructor(db: Db, logger?: Logger) {
+	constructor(
+		db: Db,
+		logger?: Logger,
+		private sendSubscriberEmail: SendSubscriberIncidentEmail = sendSubscriberIncidentEmail,
+	) {
 		this.db = db;
 		this.logger = (logger ?? defaultLogger).child({ context: "notification" });
 	}
@@ -232,6 +266,23 @@ export class NotificationService {
 			return { status: "suppressed", errorMessage: "incident not found" };
 		}
 
+		const channels = await this.dispatchIncidentChannels(row, incidentRow, parsed);
+		const subscribers = await notifyIncidentSubscribers(
+			this.db,
+			this.sendSubscriberEmail,
+			row.id,
+			row.type as "incident_created" | "incident_updated" | "incident_resolved",
+			incidentRow,
+			parsed.updateMessage,
+		);
+		return withSubscribers(channels, subscribers);
+	}
+
+	private async dispatchIncidentChannels(
+		row: NotificationEvent,
+		incidentRow: Incident,
+		parsed: IncidentEventPayload,
+	): Promise<DispatchResult> {
 		// Fan-out: union of channels linked to any affected monitor, deduplicated, and
 		// never outside the incident's organization whatever the links say.
 		const linked = await this.db
@@ -249,7 +300,7 @@ export class NotificationService {
 					eq(notificationChannel.enabled, true),
 				),
 			)
-			.where(eq(incidentMonitor.incidentId, row.incidentId));
+			.where(eq(incidentMonitor.incidentId, incidentRow.id));
 
 		let channels: NotificationChannel[] = linked.map((r) => r.channel);
 
@@ -261,7 +312,7 @@ export class NotificationService {
 			const [hasMonitor] = await this.db
 				.select({ monitorId: incidentMonitor.monitorId })
 				.from(incidentMonitor)
-				.where(eq(incidentMonitor.incidentId, row.incidentId))
+				.where(eq(incidentMonitor.incidentId, incidentRow.id))
 				.limit(1);
 
 			if (hasMonitor) {
@@ -293,7 +344,7 @@ export class NotificationService {
 			updateMessage: parsed.updateMessage,
 		};
 
-		return this.fanOut(channels, payload, undefined, row.incidentId);
+		return this.fanOut(channels, payload, undefined, incidentRow.id);
 	}
 
 	private async fanOut(
@@ -316,9 +367,7 @@ export class NotificationService {
 
 		if (failures.length === 0) return { status: "sent" };
 
-		const head = failures.slice(0, 3).join("; ");
-		const suffix = failures.length > 3 ? `; +${failures.length - 3} more` : "";
-		const errorMessage = `${failures.length}/${channels.length} channels failed: ${head}${suffix}`;
+		const errorMessage = summarize(failures, channels.length, "channels");
 		return { status: failures.length === channels.length ? "failed" : "partial", errorMessage };
 	}
 
