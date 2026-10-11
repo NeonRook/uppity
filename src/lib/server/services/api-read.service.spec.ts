@@ -1,7 +1,16 @@
 import { eq } from "drizzle-orm";
 import { describe, expect } from "vitest";
 
-import { incident, incidentMonitor, incidentUpdate, monitor, monitorCheck } from "../db/schema";
+import {
+	incident,
+	incidentMonitor,
+	incidentUpdate,
+	monitor,
+	monitorCheck,
+	monitorStatus,
+	statusPage,
+	statusPageMonitor,
+} from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitor, seedOrg } from "../test/seed";
@@ -141,5 +150,67 @@ describe("ApiReadService incidents", () => {
 
 		const result = await service.listIncidents(orgId, page(50));
 		expect(result?.data.map((i) => i.id).toSorted()).toEqual(["inc-done", "inc-open"]);
+	});
+});
+
+async function seedPage(db: TestDb["db"], orgId: string, second: number, isPublic = true) {
+	const id = `sp-${orgId}-${second}`;
+	await db.insert(statusPage).values({
+		id,
+		organizationId: orgId,
+		name: "Status",
+		slug: id.toLowerCase(),
+		isPublic,
+		customCss: "secret",
+		createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, second)),
+	});
+	return id;
+}
+
+describe("ApiReadService status pages", () => {
+	test("lists private pages too, scoped and paged newest first", async ({ db }) => {
+		const service = new ApiReadService(db.db);
+		const orgId = await seedOrg(db.db);
+		const otherOrg = await seedOrg(db.db);
+		const older = await seedPage(db.db, orgId, 0, false);
+		const newer = await seedPage(db.db, orgId, 1);
+		await seedPage(db.db, otherOrg, 2);
+
+		const first = await service.listStatusPages(orgId, page(1));
+		expect(first).toEqual({ data: [expect.objectContaining({ id: newer })], nextCursor: newer });
+		expect(JSON.stringify(first)).not.toContain("secret");
+
+		const second = await service.listStatusPages(orgId, page(1, newer));
+		expect(second).toEqual({
+			data: [expect.objectContaining({ id: older, isPublic: false })],
+			nextCursor: null,
+		});
+		expect(await service.listStatusPages(otherOrg, page(1, newer))).toBeNull();
+	});
+
+	test("returns components with the status the page shows", async ({ db }) => {
+		const service = new ApiReadService(db.db);
+		const orgId = await seedOrg(db.db);
+		const pageId = await seedPage(db.db, orgId, 0, false);
+		const monitorId = await seedMonitor(db.db, orgId);
+		await db.db.insert(statusPageMonitor).values({
+			id: "spm-1",
+			statusPageId: pageId,
+			monitorId,
+			displayName: "API",
+		});
+		await db.db.insert(monitorStatus).values({ monitorId, status: "down" });
+
+		const detail = await service.getStatusPage(orgId, pageId);
+
+		expect(JSON.stringify(detail)).not.toContain("secret");
+		expect(detail).toMatchObject({
+			id: pageId,
+			isPublic: false,
+			overallStatus: "major_outage",
+			groups: [],
+			components: [{ id: "spm-1", monitorId, name: "API", groupId: null, status: "down" }],
+		});
+		expect(await service.getStatusPage(await seedOrg(db.db), pageId)).toBeNull();
 	});
 });

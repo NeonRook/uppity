@@ -142,6 +142,19 @@ export interface PublicMonitorStatus {
 	}>;
 }
 
+export interface ComponentStatuses {
+	overallStatus: PublicStatusPageData["overallStatus"];
+	groups: Array<{ id: string; name: string }>;
+	components: Array<{
+		/** The component's id on this page, as `PublicMonitorStatus.id`. */
+		id: string;
+		monitorId: string;
+		name: string;
+		groupId: string | null;
+		status: ComponentStatus;
+	}>;
+}
+
 export interface PublicMaintenanceView {
 	id: string;
 	name: string;
@@ -218,6 +231,37 @@ const incidentUpdates = sql<PublicIncidentData["updates"]>`COALESCE(
 
 const countStatus = (status: "up" | "down" | "degraded") =>
 	sql<number>`SUM(CASE WHEN ${monitorCheck.status} = ${status} THEN 1 ELSE 0 END)::int`;
+
+type PageMonitorRow = Awaited<ReturnType<StatusPageService["getMonitors"]>>[number];
+type ComponentStatus = PublicMonitorStatus["status"];
+
+/**
+ * An active dead-lettered or overdue monitor's last status is stale, so it reads as unknown.
+ * A paused one keeps its last status, as the app shows it Paused rather than Not checked.
+ */
+function componentStatus(
+	pm: PageMonitorRow,
+	underMaintenance: ReadonlySet<string>,
+): ComponentStatus {
+	// Before maintenance: a window says why a monitor may be down, not that it is checked.
+	if (pm.monitor.checksStopped) return "unknown";
+	if (underMaintenance.has(pm.monitor.id)) return "maintenance";
+	return (pm.status?.status as ComponentStatus | undefined) || "unknown";
+}
+
+function overallStatusOf(statuses: ComponentStatus[]): PublicStatusPageData["overallStatus"] {
+	const count = (status: ComponentStatus) => statuses.filter((s) => s === status).length;
+	const down = count("down");
+	const maintenance = count("maintenance");
+
+	if (statuses.length > 0 && down === statuses.length) return "major_outage";
+	if (down > 0) return "partial_outage";
+	if (count("degraded") > 0) return "degraded";
+	// "All systems operational" would claim more than the checks can show.
+	if (statuses.includes("unknown")) return "unmonitored";
+	if (maintenance > 0 && maintenance === statuses.length) return "under_maintenance";
+	return "operational";
+}
 
 function dayStatus(counts: { up: number; down: number; degraded: number }) {
 	if (counts.down > 0) return counts.up === 0 ? "down" : "partial";
@@ -579,10 +623,42 @@ export class StatusPageService {
 	// Public status page data
 	async getPublicStatusPage(slug: string): Promise<PublicStatusPageData | null> {
 		const page = await this.findBySlug(slug);
-		if (!page || !page.isPublic) {
-			return null;
-		}
+		return page?.isPublic ? this.publicView(page) : null;
+	}
 
+	/** What `getPublicStatusPage` returns, looked up by id. Null for a private page. */
+	async getPublicSummary(id: string): Promise<PublicStatusPageData | null> {
+		const page = await this.findById(id);
+		return page?.isPublic ? this.publicView(page) : null;
+	}
+
+	/** Each component's status as the public page shows it, whether or not the page is public. */
+	async getComponentStatuses(page: StatusPage): Promise<ComponentStatuses> {
+		const [groups, pageMonitors] = await Promise.all([
+			this.getGroups(page.id),
+			this.getMonitors(page.id),
+		]);
+		const activeMaintenance = await this.getActiveMaintenanceForMonitors(
+			pageMonitors.map((pm) => pm.monitor.id),
+		);
+		const underMaintenance = new Set(activeMaintenance.flatMap((w) => w.affectedMonitorIds));
+
+		const components = pageMonitors.map((pm) => ({
+			id: pm.pageMonitor.id,
+			monitorId: pm.monitor.id,
+			name: pm.pageMonitor.displayName || pm.monitor.name,
+			groupId: pm.pageMonitor.groupId,
+			status: componentStatus(pm, underMaintenance),
+		}));
+
+		return {
+			overallStatus: overallStatusOf(components.map((c) => c.status)),
+			groups: groups.map(({ id, name }) => ({ id, name })),
+			components,
+		};
+	}
+
+	private async publicView(page: StatusPage): Promise<PublicStatusPageData> {
 		// Get groups
 		const groups = await this.getGroups(page.id);
 
@@ -637,15 +713,6 @@ export class StatusPageService {
 
 		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
 
-		// An active dead-lettered or overdue monitor's last status is stale, so it reads as unknown.
-		// A paused one keeps its last status, as the app shows it Paused rather than Not checked.
-		const statusOf = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus["status"] => {
-			// Before maintenance: a window says why a monitor may be down, not that it is checked.
-			if (pm.monitor.checksStopped) return "unknown";
-			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
-			return (pm.status?.status as PublicMonitorStatus["status"] | undefined) || "unknown";
-		};
-
 		const buildMonitorStatus = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus => {
 			const rows = checksByMonitor.get(pm.monitor.id) ?? [];
 			const byDate = new Map(rows.map((r) => [r.date, r]));
@@ -668,7 +735,7 @@ export class StatusPageService {
 				id: pm.pageMonitor.id,
 				name: pm.pageMonitor.displayName || pm.monitor.name,
 				description: pm.monitor.description,
-				status: statusOf(pm),
+				status: componentStatus(pm, activeMonitorIdSet),
 				uptimePercent90d: totalChecks > 0 ? (upChecks / totalChecks) * 100 : null,
 				dailyHistory,
 			};
@@ -683,26 +750,6 @@ export class StatusPageService {
 			isCollapsed: g.isCollapsed,
 			monitors: (monitorsByGroup.get(g.id) ?? []).map(buildMonitorStatus),
 		}));
-
-		// Calculate overall status
-		const allMonitorStatuses = pageMonitors.map(statusOf);
-		let overallStatus: PublicStatusPageData["overallStatus"] = "operational";
-		const downCount = allMonitorStatuses.filter((s) => s === "down").length;
-		const degradedCount = allMonitorStatuses.filter((s) => s === "degraded").length;
-		const maintenanceCount = allMonitorStatuses.filter((s) => s === "maintenance").length;
-
-		if (allMonitorStatuses.length > 0 && downCount === allMonitorStatuses.length) {
-			overallStatus = "major_outage";
-		} else if (downCount > 0) {
-			overallStatus = "partial_outage";
-		} else if (degradedCount > 0) {
-			overallStatus = "degraded";
-		} else if (allMonitorStatuses.includes("unknown")) {
-			// "All systems operational" would claim more than the checks can show.
-			overallStatus = "unmonitored";
-		} else if (maintenanceCount > 0 && maintenanceCount === allMonitorStatuses.length) {
-			overallStatus = "under_maintenance";
-		}
 
 		const onThisPage = and(
 			eq(incident.organizationId, page.organizationId),
@@ -730,7 +777,9 @@ export class StatusPageService {
 			page: toPublicPage(page),
 			groups: groupsWithMonitors,
 			ungroupedMonitors,
-			overallStatus,
+			overallStatus: overallStatusOf(
+				pageMonitors.map((pm) => componentStatus(pm, activeMonitorIdSet)),
+			),
 			activeIncidents,
 			resolvedIncidents,
 			activeMaintenance: activeMaintenance.map(toPublicMaintenance),
