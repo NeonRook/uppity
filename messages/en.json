@@ -749,6 +749,8 @@
 	"billing_block_upgrade_title": "Need more than {count} monitors?",
 	"billing_block_upgrade_desc": "Uppity includes {included} monitors and grows in blocks of {size} as you need them.",
 	"billing_block_upgrade_action": "Upgrade to Uppity",
+	"billing_paid_plans_soon_title": "Paid plans are coming soon",
+	"billing_paid_plans_soon_desc": "Every organization is on the free plan for now. Upgrades open once paid plans are available.",
 	"monitors_limit_reached": "You've reached your limit of {limit} active monitors.",
 	"monitors_limit_add_capacity": "Add capacity",
 	"capacity_over_title": "Over your monitor limit",
