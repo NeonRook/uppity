@@ -16,7 +16,7 @@ import {
 
 const HOUR_MS = 60 * 60_000;
 
-async function setup(drizzleDb: TestDb["db"]) {
+async function setup(drizzleDb: TestDb["db"], confirmationsPerDay?: number) {
 	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
 	const page = { id: `sp-${suffix}`, name: "Acme", slug: `acme-${suffix}` };
@@ -26,7 +26,12 @@ async function setup(drizzleDb: TestDb["db"]) {
 	const send = vi.fn(async (c: SubscriptionConfirmation) => {
 		sent.push(c);
 	});
-	return { page, sent, send, service: new StatusPageSubscriberService(drizzleDb, send) };
+	return {
+		page,
+		sent,
+		send,
+		service: new StatusPageSubscriberService(drizzleDb, send, confirmationsPerDay),
+	};
 }
 
 const backdate = (drizzleDb: TestDb["db"], token: string, ms: number) =>
@@ -84,6 +89,16 @@ describe("StatusPageSubscriberService", () => {
 		await service.subscribe(page, "visitor@example.com");
 
 		expect(sent).toHaveLength(1);
+	});
+
+	test("a page over its daily confirmations sends nothing more", async ({ db }) => {
+		const { page, sent, service } = await setup(db.db, 2);
+
+		expect(await service.subscribe(page, "a@example.com")).toBe(true);
+		expect(await service.subscribe(page, "b@example.com")).toBe(true);
+		expect(await service.subscribe(page, "c@example.com")).toBe(false);
+
+		expect(sent.map((c) => c.email)).toEqual(["a@example.com", "b@example.com"]);
 	});
 
 	test("confirm is idempotent and scoped to the page", async ({ db }) => {
