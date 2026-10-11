@@ -77,8 +77,10 @@ are free on paid plans because their marginal cost rounds to zero.
 - Atlassian Statuspage as a public benchmark. It performs **no monitoring at all**; naming
   it signals "we make status pages" and invites a brand comparison we lose. Keep it as an
   internal design bar for the public status page surface only.
-- Any public API before NEO-36 ships, then "Full API" until write endpoints exist
-  (NEO-21/22). The ladder is no API row, then "API (read-only)", then "Full API".
+- "Full API" until write endpoints exist (NEO-21/22). Until then the row reads
+  "API (read-only)".
+- The API rate limit as "per minute". It is a burst per key that resets after a quiet
+  minute (better-auth#11680), and is described that way until the limiter changes.
 - Any uptime figure other than the 99.9% paid-plan target, and never that target as a
   contractual SLA or as measured uptime (see Capabilities).
 
@@ -105,12 +107,13 @@ are free on paid plans because their marginal cost rounds to zero.
 - Capacity blocks, self-serve from Billing settings on the Uppity plan: up to 40 blocks of 50 monitors. Increases apply at once; annual customers confirm an increase with the amount due at renewal. Reductions wait for the end of the billing period, because each period bills the most blocks held during it (`docs/adr/0004`). Only owners and admins can change capacity or start a checkout; other members see billing read-only.
 - SSL certificate expiry tracking with a configurable threshold and warning cooldown.
 - Live updates over SSE (`/api/sse/monitors`); push check-ins over `/api/webhooks/push`.
+- Read-only public API (NEO-36): monitors, a monitor's checks, and incidents under `/api/v1`, documented at `/api/openapi.json`. Organization-owned keys from Settings → API keys; every member sees them, owners and admins create and revoke. Responses never include a monitor's request headers, body or push token.
 - Three locales shipped: `en`, `de`, `pt-br`.
 
 **Plan tiers — confirmed 2026-07-30, implemented 2026-07-31**
 
 > Capacity blocks are purchasable since 2026-10-06 (NEO-35), and every row of this table
-> is publishable except API, which waits for NEO-36. Uppity owns the block count and reports it to a Polar meter; Polar never
+> is publishable. Uppity owns the block count and reports it to a Polar meter; Polar never
 > holds it (`docs/adr/0002`).
 
 |                      | Free  | **Uppity**                     | **Dedicated**  | Self-hosted |
@@ -139,13 +142,15 @@ Examples: 100 monitors = $20/mo · 500 monitors = $84/mo · 1,000 monitors = $16
 onboarding, and invoicing. Negotiated. **Zero feature unlocks** — this is the rule that
 keeps the Positioning claim honest.
 
-**API: decided 2026-10-11 (NEO-37).** The table records the destination, not today. No
-public API exists yet. When NEO-36 ships, every tier gets read access, Free included: a read
-costs about what a dashboard load does, so withholding it would gate code. Write endpoints
-(NEO-21/22) come to paid plans and self-hosted. Rate limits are abuse protection, not a
-pricing axis: one low per-organization limit for Free, one higher limit shared by every
-paid plan, and an operator-set limit on self-hosted and Dedicated. The numbers live in the
-API docs, never in the plan table.
+**API: decided 2026-10-11 (NEO-37, NEO-20).** The `full` cells record the destination:
+today every tier reads, Free included, because a read costs about what a dashboard load
+does and withholding it would gate code. Write endpoints (NEO-21/22) come to paid plans
+and self-hosted. Rate limits are abuse protection, not a pricing axis. Each key gets 60
+requests on Free and 600 on paid plans, and self-hosted and Dedicated set their own
+(`UPPITY_API_REQUESTS_PER_MINUTE`). The count resets only after a minute without an
+accepted request, so steady polling below the figure still hits it (`docs/adr/0006`). An
+organization holds at most 10 keys, so extra keys cannot multiply the limit. The numbers
+live in the API docs, never in the plan table.
 
 Fair use on Dedicated is stated as _"2,000 monitors at 30-second intervals, or equivalent
 check volume"_ — interval-honest, since 2,000 monitors at 5-minute intervals is a tenth of
