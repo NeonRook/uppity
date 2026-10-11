@@ -1,7 +1,7 @@
 import { getRequestEvent } from "$app/server";
 import { apiKey } from "@better-auth/api-key";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { polar, checkout, portal, webhooks } from "@polar-sh/better-auth";
+import { polar, portal, webhooks } from "@polar-sh/better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
@@ -360,16 +360,6 @@ export const auth = betterAuth({
 			// in settings/billing gates the portal link until one exists.
 			createCustomerOnSignUp: false,
 			use: [
-				checkout({
-					authenticatedUsersOnly: true,
-					products: POLAR_PRODUCTS.flatMap(([productId, , slug]) =>
-						productId && slug ? [{ productId, slug }] : [],
-					),
-					// Polar substitutes the placeholder. The billing page uses it to pull the
-					// new subscription on return instead of waiting for the webhook.
-					successUrl: `${baseURL}/settings/billing?checkout=success&checkout_id={CHECKOUT_ID}`,
-					returnUrl: `${baseURL}/settings/billing`,
-				}),
 				portal({
 					returnUrl: `${baseURL}/settings/billing`,
 				}),

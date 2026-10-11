@@ -1,40 +1,20 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
-	import { page } from "$app/state";
 	import { Sparkles, CreditCard, Check, LoaderCircle } from "@lucide/svelte";
-	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 
 	import { authClient } from "#lib/auth-client.js";
 	import CapacityCard from "#lib/components/billing/capacity-card.svelte";
-	import PlanCard from "#lib/components/billing/plan-card.svelte";
 	import UsageBar from "#lib/components/billing/usage-bar.svelte";
 	import SettingsHeader from "#lib/components/settings-header.svelte";
-	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
+	import { Alert, AlertDescription, AlertTitle } from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import { MONITOR_BLOCK_SIZE, UPPITY_PLAN } from "#lib/constants/plans.js";
 	import { m } from "#lib/paraglide/messages.js";
-	import type { Plan } from "#lib/types/plans.js";
 
 	let { data } = $props();
 
-	type BillingPeriod = "monthly" | "annual";
-
 	let loadingPortal = $state(false);
-	let loadingCheckout = $state<string | null>(null);
-	let billingPeriod = $state<BillingPeriod>("monthly");
-
-	const uppityPlan = $derived(data.plans.find((plan) => plan.id === "uppity"));
-
-	onMount(() => {
-		if (data.checkoutSuccess) {
-			toast.success(m.billing_checkout_success());
-			// Drop the checkout query parameter so a reload does not repeat the toast
-			goto(page.url.pathname, { replaceState: true });
-		}
-	});
 
 	async function openBillingPortal() {
 		loadingPortal = true;
@@ -51,37 +31,6 @@
 			toast.error(m.billing_portal_error());
 		} finally {
 			loadingPortal = false;
-		}
-	}
-
-	async function startCheckout(plan: Plan) {
-		if (!data.organizationId) {
-			toast.error("No active organization");
-			return;
-		}
-
-		loadingCheckout = plan.id;
-		try {
-			// Map plan ID and billing period to Polar product slug. Dedicated is
-			// contact-sales and never reaches this path.
-			const slug = billingPeriod === "annual" ? `${plan.id}-annual` : `${plan.id}-monthly`;
-
-			const { data: checkoutData, error } = await authClient.checkout({
-				slug,
-				reference_id: data.organizationId,
-			});
-
-			if (error) {
-				toast.error(m.billing_checkout_error());
-				return;
-			}
-			if (checkoutData?.url) {
-				window.location.href = checkoutData.url;
-			}
-		} catch {
-			toast.error(m.billing_checkout_error());
-		} finally {
-			loadingCheckout = null;
 		}
 	}
 
@@ -199,73 +148,13 @@
 				periodEnd={data.subscription.currentPeriodEnd}
 				monitorsUsed={data.usage.monitors.current}
 			/>
-		{:else if data.subscription.planId === "free" && data.canManageBilling && uppityPlan}
-			<Card.Root>
-				<Card.Header>
-					<Card.Title>
-						{m.billing_block_upgrade_title({ count: data.usage?.monitors.limit ?? 0 })}
-					</Card.Title>
-					<Card.Description>
-						{m.billing_block_upgrade_desc({
-							included: UPPITY_PLAN.limits.monitors,
-							size: MONITOR_BLOCK_SIZE,
-						})}
-					</Card.Description>
-				</Card.Header>
-				<Card.Footer>
-					<Button onclick={() => startCheckout(uppityPlan)} disabled={loadingCheckout !== null}>
-						{#if loadingCheckout === uppityPlan.id}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						{/if}
-						{m.billing_block_upgrade_action()}
-					</Button>
-				</Card.Footer>
-			</Card.Root>
+		{:else if data.subscription.planId === "free"}
+			<Alert>
+				<Sparkles class="h-4 w-4" />
+				<AlertTitle>{m.billing_paid_plans_soon_title()}</AlertTitle>
+				<AlertDescription>{m.billing_paid_plans_soon_desc()}</AlertDescription>
+			</Alert>
 		{/if}
-
-		<!-- Plan Comparison -->
-		<div class="space-y-4">
-			<div class="flex items-center justify-between">
-				<h2 class="text-xl font-semibold">{m.billing_compare_plans()}</h2>
-				<div class="bg-muted flex items-center gap-2 rounded-lg p-1">
-					<button
-						type="button"
-						class="rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
-						'monthly'
-							? 'border-input bg-background'
-							: 'text-muted-foreground hover:text-foreground border-transparent'}"
-						onclick={() => (billingPeriod = "monthly")}>{m.billing_monthly()}</button
-					>
-
-					<button
-						type="button"
-						class="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {billingPeriod ===
-						'annual'
-							? 'border-input bg-background'
-							: 'text-muted-foreground hover:text-foreground border-transparent'}"
-						onclick={() => (billingPeriod = "annual")}
-					>
-						{m.billing_annual()}
-						<Badge variant="secondary" class="text-xs"
-							>{m.billing_save_percent({ percent: 17 })}</Badge
-						>
-					</button>
-				</div>
-			</div>
-			<div class="grid gap-4 md:grid-cols-3">
-				{#each data.plans as plan (plan.id)}
-					<PlanCard
-						{plan}
-						{billingPeriod}
-						isCurrentPlan={plan.id === data.subscription.planId}
-						onUpgrade={() => startCheckout(plan)}
-						loading={loadingCheckout === plan.id}
-						disabled={!data.canManageBilling ||
-							(loadingCheckout !== null && loadingCheckout !== plan.id)}
-					/>
-				{/each}
-			</div>
-		</div>
 	{:else}
 		<!-- No Organization Selected -->
 		<Alert>
