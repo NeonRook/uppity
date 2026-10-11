@@ -119,7 +119,7 @@ export async function runUsageSnapshot(
 
 /**
  * Ensures every known job row exists, inserting on the primary key and
- * ignoring conflicts. Runs unconditionally on every boot — existing rows
+ * ignoring conflicts. Runs once per process, on its first maintenance pass. Existing rows
  * (including operator edits to `cronExpression` or `enabled`) are left alone.
  */
 export async function initializeMaintenanceJobs(targetDb: Db = db): Promise<void> {
