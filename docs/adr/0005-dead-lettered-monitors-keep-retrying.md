@@ -75,7 +75,7 @@ A paused monitor is outside this. The app shows it as Paused, and the public pag
 showing its last recorded status, whether or not it was dead-lettered when paused.
 
 **The operator hears through the log.** Entry logs at error level with
-`event_type: "monitor_dead_lettered"`. A Railway log alert on that field is the operator
+`event_type: "monitor_dead_lettered"`. A log alert on that field is the operator
 alert until NEO-67 provides a channel.
 
 **An admin reset means "retry now".** It makes the monitor due immediately and leaves

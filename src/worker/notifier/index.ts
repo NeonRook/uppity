@@ -60,7 +60,7 @@ async function reportOverdueChecks(): Promise<void> {
 	try {
 		const { overdue, oldestDueAt } = await overdueChecks(db);
 		if (overdue === 0) return;
-		// Railway log alerts match on this event_type.
+		// Log alerts match on this event_type.
 		consumerLogger.error(
 			{ event_type: "monitor_checks_overdue", overdue, oldest_due_at: oldestDueAt },
 			"Monitors are not being checked",
