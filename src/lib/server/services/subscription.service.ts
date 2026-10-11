@@ -326,6 +326,9 @@ export class SubscriptionService {
 
 	/**
 	 * Gets the current usage for an organization.
+	 *
+	 * Only active monitors count: the ceiling limits what gets checked, and a paused
+	 * monitor is not checked, whoever paused it.
 	 */
 	async getUsage(organizationId: string): Promise<{
 		monitors: number;
@@ -334,7 +337,7 @@ export class SubscriptionService {
 		const [monitorCount] = await this.db
 			.select({ count: count() })
 			.from(monitor)
-			.where(eq(monitor.organizationId, organizationId));
+			.where(and(eq(monitor.organizationId, organizationId), eq(monitor.active, true)));
 
 		const [statusPageCount] = await this.db
 			.select({ count: count() })
@@ -413,7 +416,7 @@ export class SubscriptionService {
 	}
 
 	canAddMonitor(organizationId: string): Promise<LimitCheckResult> {
-		return this.canAdd(organizationId, "monitors", "monitors");
+		return this.canAdd(organizationId, "monitors", "active monitors");
 	}
 
 	canAddStatusPage(organizationId: string): Promise<LimitCheckResult> {

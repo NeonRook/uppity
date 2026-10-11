@@ -140,9 +140,21 @@ export class MonitorService {
 			}
 		}
 
+		const resuming = input.active === true && !existingMonitor.active;
+
+		// Paused monitors sit outside the ceiling, so resuming one takes a slot.
+		if (resuming) {
+			const limitCheck = await subscriptionService.canAddMonitor(organizationId);
+			if (!limitCheck.allowed) {
+				throw new SubscriptionLimitError(
+					`You've reached the limit of ${limitCheck.limit} active monitors on your current plan. Pause another monitor or add capacity to resume this one.`,
+				);
+			}
+		}
+
 		// If activating or changing interval, reset the schedule
 		const shouldResetSchedule =
-			(input.active === true && !existingMonitor.active) ||
+			resuming ||
 			(input.intervalSeconds !== undefined &&
 				input.intervalSeconds !== existingMonitor.intervalSeconds);
 

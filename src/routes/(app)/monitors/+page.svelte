@@ -10,6 +10,7 @@
 		RefreshCw,
 		Trash2,
 	} from "@lucide/svelte";
+	import { isHttpError } from "@sveltejs/kit";
 	import { toast } from "svelte-sonner";
 
 	import AddButton from "#lib/components/add-button.svelte";
@@ -69,7 +70,7 @@
 				),
 			);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to toggle monitor");
+			toast.error(isHttpError(e) ? e.body.message : "Failed to toggle monitor");
 		} finally {
 			togglingMonitorId = null;
 		}

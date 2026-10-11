@@ -1,7 +1,8 @@
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
 
-import { statusPage } from "../db/schema";
+import { monitor, statusPage } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMember, seedMonitor, seedOrg, seedSubscription } from "../test/seed";
@@ -24,11 +25,15 @@ async function seedStatusPage(drizzleDb: TestDb["db"], orgId: string): Promise<v
 }
 
 describe("collectUsageSnapshots", () => {
-	test("counts monitors, status pages and members for a billed organization", async ({ db }) => {
+	test("counts active monitors, status pages and members for a billed organization", async ({
+		db,
+	}) => {
 		const orgId = await seedOrg(db.db);
 		await seedSubscription(db.db, orgId, { polarCustomerId: "polar-cust-1" });
 		await seedMonitor(db.db, orgId);
 		await seedMonitor(db.db, orgId);
+		const paused = await seedMonitor(db.db, orgId);
+		await db.db.update(monitor).set({ active: false }).where(eq(monitor.id, paused));
 		await seedStatusPage(db.db, orgId);
 		await seedMember(db.db, orgId);
 		await seedMember(db.db, orgId);

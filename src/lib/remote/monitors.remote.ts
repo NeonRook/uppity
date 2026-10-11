@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { error } from "@sveltejs/kit";
 import { eq, desc, sql } from "drizzle-orm";
 import * as v from "valibot";
 
@@ -6,6 +7,7 @@ import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/orga
 import { checksOverdue, checksStopped } from "#lib/server/check-state.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor, monitorStatus } from "#lib/server/db/schema.js";
+import { SubscriptionLimitError } from "#lib/server/errors.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
 // Query: List monitors with status for the current organization
@@ -49,7 +51,14 @@ const monitorIdSchema = v.object({
 export const toggleMonitor = command(monitorIdSchema, async ({ monitorId }) => {
 	const organizationId = requireOrganizationId();
 
-	const updated = await monitorService.toggleActive(monitorId, organizationId);
+	let updated;
+	try {
+		updated = await monitorService.toggleActive(monitorId, organizationId);
+	} catch (err) {
+		// A bare throw reaches the client masked as "Internal Error".
+		if (err instanceof SubscriptionLimitError) error(403, err.message);
+		throw err;
+	}
 
 	if (!updated) {
 		throw new Error("Monitor not found");
