@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
 
-import { and, eq, gt, isNull, lt, or } from "drizzle-orm";
+import { and, count, eq, gt, isNull, lt, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import { SUBSCRIBER_CONFIRMATIONS_PER_DAY } from "#lib/constants/defaults.js";
 import type { Db } from "#lib/server/db/index.js";
 import { statusPageSubscriber } from "#lib/server/db/schema.js";
 import type { SubscriptionConfirmation } from "#lib/server/subscriber-email.js";
@@ -20,17 +21,33 @@ export class StatusPageSubscriberService {
 	constructor(
 		private db: Db,
 		private sendConfirmation: (confirmation: SubscriptionConfirmation) => Promise<void>,
+		private confirmationsPerDay = SUBSCRIBER_CONFIRMATIONS_PER_DAY,
 	) {}
 
 	/**
 	 * Records a pending subscription and emails its confirmation link. An address that is
 	 * already confirmed, or was sent a link within the resend interval, gets nothing, so
-	 * the response cannot reveal who subscribes.
+	 * the response cannot reveal who subscribes. False when the page has used up its
+	 * daily confirmations.
 	 */
-	async subscribe(page: { id: string; name: string; slug: string }, email: string): Promise<void> {
+	async subscribe(
+		page: { id: string; name: string; slug: string },
+		email: string,
+	): Promise<boolean> {
 		const t = statusPageSubscriber;
 		const address = email.trim().toLowerCase();
 		const now = new Date();
+
+		const [{ sent }] = await this.db
+			.select({ sent: count() })
+			.from(t)
+			.where(
+				and(
+					eq(t.statusPageId, page.id),
+					gt(t.confirmationSentAt, new Date(now.getTime() - 24 * 60 * 60_000)),
+				),
+			);
+		if (sent >= this.confirmationsPerDay) return false;
 
 		const [row] = await this.db
 			.insert(t)
@@ -53,7 +70,7 @@ export class StatusPageSubscriberService {
 				),
 			})
 			.returning({ id: t.id, token: t.token });
-		if (!row) return;
+		if (!row) return true;
 
 		try {
 			await this.sendConfirmation({ email: address, token: row.token, page });
@@ -62,6 +79,7 @@ export class StatusPageSubscriberService {
 			await this.db.update(t).set({ confirmationSentAt: null }).where(eq(t.id, row.id));
 			throw error;
 		}
+		return true;
 	}
 
 	/** Null when the token is unknown, or its confirmation link has expired. */

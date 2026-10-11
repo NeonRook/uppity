@@ -39,12 +39,15 @@ export const actions: Actions = {
 			resource_id: page.id,
 		});
 
+		const rateLimited = () => message(form, m.public_subscribe_rate_limited(), { status: 429 });
 		if (!subscribeLimiter.attempt(`${clientAddress(event) ?? "unknown"}:${page.id}`)) {
-			return message(form, m.public_subscribe_rate_limited(), { status: 429 });
+			return rateLimited();
 		}
 
 		try {
-			await statusPageSubscriberService.subscribe(page, form.data.email);
+			if (!(await statusPageSubscriberService.subscribe(page, form.data.email))) {
+				return rateLimited();
+			}
 		} catch (err) {
 			locals.event.setError(err);
 			return message(form, m.public_subscribe_failed(), { status: 500 });
