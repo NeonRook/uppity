@@ -54,6 +54,12 @@ a session and never reaches the app, the admin surface, or better-auth's own end
 
 ## Consequences
 
+- **The limit is per burst, not per minute.** The plugin resets a key's count only after
+  a full window with no requests, so steady traffic below the limit still runs into it:
+  at 40 requests a minute against 60, a key is refused for about a minute after every 60
+  requests. Measured locally, and reported upstream as better-auth#11680. Until that is
+  fixed, public docs must not describe the figure as "per minute".
+
 - One extra comparison per API request, and a write only after a plan change.
 - Rate limiting writes to the key row on every request. At the volumes 60 to 600 requests
   a minute per key allow, this is cheap; `deferUpdates` is available if it is not.
