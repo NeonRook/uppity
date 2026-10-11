@@ -92,9 +92,12 @@
 		!data.alerts.some((alert) => alert.enabled && alert.notifyOnDown),
 	);
 
+	const unchecked = $derived(
+		data.monitor.active && (data.monitor.deadLetteredAt !== null || data.checksOverdue),
+	);
 	const statusInfo = $derived(
 		getStatusBadgeWithIcon(
-			data.monitor.deadLetteredAt ? "unchecked" : (data.status?.status ?? null),
+			unchecked ? "unchecked" : (data.status?.status ?? null),
 			data.monitor.active,
 		),
 	);
@@ -202,13 +205,15 @@
 		{/snippet}
 	</PageHeader>
 
-	{#if data.monitor.deadLetteredAt && data.monitor.active}
+	{#if unchecked}
 		<Alert.Root>
 			<EyeOff class="h-4 w-4" />
 			<Alert.Title>{m.monitor_unchecked_title()}</Alert.Title>
 			<Alert.Description>
-				{uncheckedSummary(data.monitor.nextCheckAt)}
-				{m.monitor_unchecked_since({ since: formatDateTimeShort(data.monitor.deadLetteredAt) })}
+				{uncheckedSummary(data.monitor.nextCheckAt, data.checksOverdue)}
+				{#if data.monitor.deadLetteredAt}
+					{m.monitor_unchecked_since({ since: formatDateTimeShort(data.monitor.deadLetteredAt) })}
+				{/if}
 			</Alert.Description>
 		</Alert.Root>
 	{/if}

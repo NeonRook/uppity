@@ -196,7 +196,7 @@
 								</p>
 								{#if mon.status === "unchecked"}
 									<p class="text-muted-foreground mt-1 text-xs">
-										{uncheckedSummary(mon.nextCheckAt)}
+										{uncheckedSummary(mon.nextCheckAt, mon.checksOverdue)}
 									</p>
 								{/if}
 								<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
@@ -250,7 +250,9 @@
 									<p class="text-muted-foreground text-xs">{mon.description}</p>
 								{/if}
 								{#if mon.status === "unchecked"}
-									<p class="text-muted-foreground text-xs">{uncheckedSummary(mon.nextCheckAt)}</p>
+									<p class="text-muted-foreground text-xs">
+										{uncheckedSummary(mon.nextCheckAt, mon.checksOverdue)}
+									</p>
 								{/if}
 							</Table.Cell>
 							<Table.Cell>

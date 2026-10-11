@@ -2,6 +2,7 @@ import { eq, and, desc, asc, gte, lte, inArray, sql, type SQL } from "drizzle-or
 import { nanoid } from "nanoid";
 
 import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
+import { checksStopped } from "#lib/server/check-state.js";
 import { db, type Db } from "#lib/server/db/index.js";
 import {
 	statusPage,
@@ -476,7 +477,7 @@ export class StatusPageService {
 						type: monitor.type,
 						url: monitor.url,
 						active: monitor.active,
-						deadLetteredAt: monitor.deadLetteredAt,
+						checksStopped,
 					},
 					status: {
 						status: monitorStatus.status,
@@ -636,11 +637,11 @@ export class StatusPageService {
 
 		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
 
-		// An active dead-lettered monitor's last status is stale, so it reads as unknown.
+		// An active dead-lettered or overdue monitor's last status is stale, so it reads as unknown.
 		// A paused one keeps its last status, as the app shows it Paused rather than Not checked.
 		const statusOf = (pm: (typeof pageMonitors)[0]): PublicMonitorStatus["status"] => {
 			// Before maintenance: a window says why a monitor may be down, not that it is checked.
-			if (pm.monitor.active && pm.monitor.deadLetteredAt) return "unknown";
+			if (pm.monitor.checksStopped) return "unknown";
 			if (activeMonitorIdSet.has(pm.monitor.id)) return "maintenance";
 			return (pm.status?.status as PublicMonitorStatus["status"] | undefined) || "unknown";
 		};

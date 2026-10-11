@@ -58,7 +58,7 @@ const STATES: Record<string, StateStyle> = {
 		bg: "bg-status-down",
 		text: "text-status-down",
 	},
-	// Dead-lettered: the last recorded status is stale, so it is not shown.
+	// Dead-lettered or overdue: the last recorded status is stale, so it is not shown.
 	unchecked: { ...UNKNOWN, label: m.status_unchecked, icon: EyeOff },
 };
 
@@ -73,8 +73,14 @@ export function nextAttempt(nextCheckAt: Date | null, now = new Date()): string 
 	return formatRelativeTime(nextCheckAt > now ? nextCheckAt : now, getLocale(), now);
 }
 
-/** Why a dead-lettered monitor shows no status, and when the next attempt runs. */
-export function uncheckedSummary(nextCheckAt: Date | null): string {
+/**
+ * Why a monitor shows no status. A dead-lettered one says when the next attempt
+ * runs; an overdue one has no next attempt, as no worker is picking it up.
+ */
+export function uncheckedSummary(nextCheckAt: Date | null, overdue: boolean): string {
+	if (overdue && nextCheckAt) {
+		return m.monitor_overdue_summary({ due: formatRelativeTime(nextCheckAt, getLocale()) });
+	}
 	return m.monitor_unchecked_summary({ next: nextAttempt(nextCheckAt) });
 }
 

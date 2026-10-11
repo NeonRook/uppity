@@ -757,6 +757,7 @@
 	"billing_block_interval_unknown": "Your billing period couldn't be confirmed, so capacity can't be changed right now. Reload the page to try again.",
 	"status_unchecked": "Not checked",
 	"monitor_unchecked_summary": "Uppity can't run this monitor's checks. Next attempt {next}.",
+	"monitor_overdue_summary": "Uppity's checks are not running. This monitor's check was due {due}.",
 	"monitor_unchecked_title": "This monitor is not being checked",
 	"monitor_unchecked_since": "Not checked since {since}. Linked notification channels are told when checks resume.",
 	"public_status_unmonitored": "Some systems are not being monitored right now",

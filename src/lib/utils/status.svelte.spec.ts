@@ -6,6 +6,7 @@ import {
 	getMonitorStatusColor,
 	getStatusColor,
 	nextAttempt,
+	uncheckedSummary,
 } from "./status";
 
 /** Any Tailwind palette literal. The system forbids these; see DESIGN.md. */
@@ -91,5 +92,14 @@ describe("nextAttempt", () => {
 
 	it("reads a scheduled attempt relative to now", () => {
 		expect(nextAttempt(new Date("2026-01-01T12:05:00Z"), now)).toBe("in 5 minutes");
+	});
+});
+
+describe("uncheckedSummary", () => {
+	it("gives an overdue monitor no next attempt, as nothing is picking it up", () => {
+		const due = new Date(Date.now() - 10 * 60_000);
+		expect(uncheckedSummary(due, true)).toBe(
+			"Uppity's checks are not running. This monitor's check was due 10 minutes ago.",
+		);
 	});
 });
