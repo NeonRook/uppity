@@ -7,7 +7,7 @@ import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ params }) => {
 	const page = await statusPageService.findBySlug(params.slug);
-	if (!page) error(404, "Status page not found");
+	if (!page?.isPublic) error(404, "Status page not found");
 
 	const { name, slug, description, logoUrl, faviconUrl } = page;
 	return {
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	default: async ({ params }) => {
 		const page = await statusPageService.findBySlug(params.slug);
-		if (!page) error(404, "Status page not found");
+		if (!page?.isPublic) error(404, "Status page not found");
 		await statusPageSubscriberService.unsubscribe(page.id, params.token);
 	},
 };
