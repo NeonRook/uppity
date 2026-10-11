@@ -39,7 +39,8 @@ export default defineRailway((ctx) => {
 		source: uppity,
 		build,
 		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-notifier" },
+		// A stopped worker fails silently; a crash-looping one shows in the logs.
+		deploy: { restartPolicyType: "ALWAYS", startCommand: "./entrypoint.sh worker-notifier" },
 		env: {
 			BETTER_AUTH_SECRET: ctx.shared.BETTER_AUTH_SECRET,
 			DATABASE_URL: Postgres.env.DATABASE_URL,
@@ -113,7 +114,8 @@ export default defineRailway((ctx) => {
 		source: uppity,
 		build,
 		replicas: { "europe-west4-drams3a": 1 },
-		deploy: { restartPolicyMaxRetries: 3, startCommand: "./entrypoint.sh worker-monitor" },
+		// A stopped worker fails silently; a crash-looping one shows in the logs.
+		deploy: { restartPolicyType: "ALWAYS", startCommand: "./entrypoint.sh worker-monitor" },
 		networking: { privateNetworkEndpoint: "uppity-worker" },
 		env: {
 			BETTER_AUTH_SECRET: ctx.shared.BETTER_AUTH_SECRET,
