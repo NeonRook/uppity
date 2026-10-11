@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 import { nanoid } from "nanoid";
 import pino, { type Logger } from "pino";
 
@@ -24,7 +26,10 @@ function buildPinoOptions(): pino.LoggerOptions {
 	// the unresolvable target with it.
 	if (import.meta.env.DEV) {
 		options.transport = {
-			target: "pino-pretty",
+			// pino resolves a bare target against its caller's file, read from the call
+			// stack. Vite's module runner evaluates this module as a nameless function, so
+			// the stack offers no file and the bare name cannot be resolved.
+			target: createRequire(import.meta.url).resolve("pino-pretty"),
 			options: {
 				colorize: true,
 				translateTime: "SYS:HH:MM:ss",
