@@ -12,7 +12,7 @@ import {
 	DEFAULT_EXPECTED_STATUS_CODES,
 	PUSH_TOKEN_LENGTH,
 } from "#lib/constants/defaults.js";
-import { db } from "#lib/server/db/index.js";
+import { db, type DbExecutor } from "#lib/server/db/index.js";
 import { monitor, monitorStatus, type Monitor } from "#lib/server/db/schema.js";
 import { SubscriptionLimitError } from "#lib/server/errors.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
@@ -45,12 +45,6 @@ export interface UpdateMonitorInput extends Partial<Omit<CreateMonitorInput, "or
 
 export class MonitorService {
 	async create(input: CreateMonitorInput): Promise<Monitor> {
-		// Check subscription limits before creating
-		const limitCheck = await subscriptionService.canAddMonitor(input.organizationId);
-		if (!limitCheck.allowed) {
-			throw new SubscriptionLimitError(limitCheck.message ?? "Monitor limit reached");
-		}
-
 		// Check if the requested interval is allowed
 		const intervalSeconds = input.intervalSeconds || DEFAULT_INTERVAL_SECONDS;
 		const intervalCheck = await subscriptionService.isCheckIntervalAllowed(
@@ -63,42 +57,50 @@ export class MonitorService {
 
 		const id = nanoid();
 
-		const [newMonitor] = await db
-			.insert(monitor)
-			.values({
-				id,
-				organizationId: input.organizationId,
-				name: input.name,
-				description: input.description,
-				type: input.type || "http",
-				url: input.url,
-				method: input.method || DEFAULT_HTTP_METHOD,
-				headers: input.headers,
-				body: input.body,
-				expectedStatusCodes: input.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES],
-				expectedBodyContains: input.expectedBodyContains,
-				hostname: input.hostname,
-				port: input.port,
-				intervalSeconds: input.intervalSeconds || DEFAULT_INTERVAL_SECONDS,
-				timeoutSeconds: input.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS,
-				retries: input.retries ?? DEFAULT_RETRIES,
-				sslCheckEnabled: input.sslCheckEnabled ?? true,
-				sslExpiryThresholdDays: input.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
-				alertAfterFailures: input.alertAfterFailures || DEFAULT_ALERT_AFTER_FAILURES,
-				pushToken: input.type === "push" ? nanoid(PUSH_TOKEN_LENGTH) : null,
-				pushGracePeriodSeconds: input.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
-				nextCheckAt: new Date(),
-			})
-			.returning();
+		const slot = await subscriptionService.takeMonitorSlot(input.organizationId, async (tx) => {
+			const [created] = await tx
+				.insert(monitor)
+				.values({
+					id,
+					organizationId: input.organizationId,
+					name: input.name,
+					description: input.description,
+					type: input.type || "http",
+					url: input.url,
+					method: input.method || DEFAULT_HTTP_METHOD,
+					headers: input.headers,
+					body: input.body,
+					expectedStatusCodes: input.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES],
+					expectedBodyContains: input.expectedBodyContains,
+					hostname: input.hostname,
+					port: input.port,
+					intervalSeconds: input.intervalSeconds || DEFAULT_INTERVAL_SECONDS,
+					timeoutSeconds: input.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS,
+					retries: input.retries ?? DEFAULT_RETRIES,
+					sslCheckEnabled: input.sslCheckEnabled ?? true,
+					sslExpiryThresholdDays: input.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
+					alertAfterFailures: input.alertAfterFailures || DEFAULT_ALERT_AFTER_FAILURES,
+					pushToken: input.type === "push" ? nanoid(PUSH_TOKEN_LENGTH) : null,
+					pushGracePeriodSeconds: input.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
+					nextCheckAt: new Date(),
+				})
+				.returning();
 
-		// Initialize monitor status
-		await db.insert(monitorStatus).values({
-			monitorId: id,
-			status: "unknown",
-			consecutiveFailures: 0,
+			await tx.insert(monitorStatus).values({
+				monitorId: id,
+				status: "unknown",
+				consecutiveFailures: 0,
+			});
+
+			return created;
 		});
+		if (!slot.ok) {
+			throw new SubscriptionLimitError(
+				`You've reached the limit of ${slot.limit} active monitors on your current plan. Upgrade to add more.`,
+			);
+		}
 
-		return newMonitor;
+		return slot.value;
 	}
 
 	async findByIdAndOrg(id: string, organizationId: string): Promise<Monitor | null> {
@@ -142,37 +144,41 @@ export class MonitorService {
 
 		const resuming = input.active === true && !existingMonitor.active;
 
-		// Paused monitors sit outside the ceiling, so resuming one takes a slot.
-		if (resuming) {
-			const limitCheck = await subscriptionService.canAddMonitor(organizationId);
-			if (!limitCheck.allowed) {
-				throw new SubscriptionLimitError(
-					`You've reached the limit of ${limitCheck.limit} active monitors on your current plan. Pause another monitor or add capacity to resume this one.`,
-				);
-			}
-		}
-
 		// If activating or changing interval, reset the schedule
 		const shouldResetSchedule =
 			resuming ||
 			(input.intervalSeconds !== undefined &&
 				input.intervalSeconds !== existingMonitor.intervalSeconds);
 
-		const [updated] = await db
-			.update(monitor)
-			.set({
-				...input,
-				updatedAt: new Date(),
-				// Reset schedule if becoming active or interval changed
-				...(shouldResetSchedule && {
-					nextCheckAt: sql`NOW()`,
-					checkRetryCount: 0,
-					checkLastError: null,
-					checkBackoffUntil: null,
-				}),
-			})
-			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
-			.returning();
+		const write = async (executor: DbExecutor) => {
+			const [row] = await executor
+				.update(monitor)
+				.set({
+					...input,
+					updatedAt: new Date(),
+					// Reset schedule if becoming active or interval changed
+					...(shouldResetSchedule && {
+						nextCheckAt: sql`NOW()`,
+						checkRetryCount: 0,
+						checkLastError: null,
+						checkBackoffUntil: null,
+					}),
+				})
+				.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)))
+				.returning();
+			return row;
+		};
+
+		if (!resuming) return (await write(db)) ?? null;
+
+		// Paused monitors sit outside the ceiling, so resuming one takes a slot.
+		const slot = await subscriptionService.takeMonitorSlot(organizationId, write);
+		if (!slot.ok) {
+			throw new SubscriptionLimitError(
+				`You've reached the limit of ${slot.limit} active monitors on your current plan. Pause another monitor or add capacity to resume this one.`,
+			);
+		}
+		const updated = slot.value;
 
 		return updated || null;
 	}
