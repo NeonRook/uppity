@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 
 import { member, organization, user } from "../db/auth-schema";
-import type { Db } from "../db/index";
+import type { Db, DbExecutor } from "../db/index";
 import { monitor, subscription } from "../db/schema";
 
 export async function seedOrg(db: Db): Promise<string> {
@@ -41,7 +41,7 @@ export async function seedMember(db: Db, orgId: string, role = "member"): Promis
 	return userId;
 }
 
-export async function seedMonitor(db: Db, orgId: string): Promise<string> {
+export async function seedMonitor(db: DbExecutor, orgId: string): Promise<string> {
 	const id = `mon-${nanoid()}`;
 	await db.insert(monitor).values({
 		id,

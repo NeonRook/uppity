@@ -8,7 +8,14 @@ import { invitation } from "../db/auth-schema";
 import { monitor, statusPage, subscription } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
-import { seedMember, seedMonitors, seedOrg, seedSubscription, seedUser } from "../test/seed";
+import {
+	seedMember,
+	seedMonitor,
+	seedMonitors,
+	seedOrg,
+	seedSubscription,
+	seedUser,
+} from "../test/seed";
 import { SubscriptionService } from "./subscription.service";
 
 async function seedInvitation(
@@ -117,6 +124,25 @@ describe("SubscriptionService", () => {
 			const result = await service.canAddMonitor(orgId);
 			expect(result.allowed).toBe(true);
 			expect(result.currentUsage).toBe(19);
+		});
+
+		test("concurrent takes of the last slot admit one", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedSubscribed(drizzleDb, { planId: "free" });
+			await seedMonitors(drizzleDb, orgId, 19);
+
+			const take = () =>
+				service.takeMonitorSlot(orgId, async (tx) => {
+					// Holds the slot open long enough for the other takes to count it as free.
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					await seedMonitor(tx, orgId);
+				});
+			const results = await Promise.all([take(), take(), take()]);
+
+			expect(results.filter((r) => r.ok)).toHaveLength(1);
+			expect(results.find((r) => !r.ok)).toEqual({ ok: false, limit: 20 });
+			expect((await service.getUsage(orgId)).monitors).toBe(20);
 		});
 
 		test("enforcement reports the block-derived ceiling, not the plan's base 50", async ({

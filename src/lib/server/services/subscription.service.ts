@@ -25,7 +25,7 @@ import {
 	SELF_HOSTED_LIMITS,
 } from "#lib/constants/plans.js";
 import { invitation, member, organization } from "#lib/server/db/auth-schema.js";
-import type { Db } from "#lib/server/db/index.js";
+import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import { subscription, monitor, statusPage, type Subscription } from "#lib/server/db/schema.js";
 import type {
 	BillingInterval,
@@ -118,6 +118,18 @@ function heldBy(held: HeldPolarSubscription): SQL | undefined {
 			eq(subscription.polarCustomerId, held.polarCustomerId),
 		),
 	);
+}
+
+/**
+ * Only active monitors count toward the ceiling: it limits what gets checked, and a
+ * paused monitor is not checked, whoever paused it.
+ */
+async function countActiveMonitors(executor: DbExecutor, organizationId: string): Promise<number> {
+	const [row] = await executor
+		.select({ count: count() })
+		.from(monitor)
+		.where(and(eq(monitor.organizationId, organizationId), eq(monitor.active, true)));
+	return row?.count ?? 0;
 }
 
 export class SubscriptionService {
@@ -326,18 +338,12 @@ export class SubscriptionService {
 
 	/**
 	 * Gets the current usage for an organization.
-	 *
-	 * Only active monitors count: the ceiling limits what gets checked, and a paused
-	 * monitor is not checked, whoever paused it.
 	 */
 	async getUsage(organizationId: string): Promise<{
 		monitors: number;
 		statusPages: number;
 	}> {
-		const [monitorCount] = await this.db
-			.select({ count: count() })
-			.from(monitor)
-			.where(and(eq(monitor.organizationId, organizationId), eq(monitor.active, true)));
+		const monitors = await countActiveMonitors(this.db, organizationId);
 
 		const [statusPageCount] = await this.db
 			.select({ count: count() })
@@ -345,7 +351,7 @@ export class SubscriptionService {
 			.where(eq(statusPage.organizationId, organizationId));
 
 		return {
-			monitors: monitorCount?.count ?? 0,
+			monitors,
 			statusPages: statusPageCount?.count ?? 0,
 		};
 	}
@@ -417,6 +423,36 @@ export class SubscriptionService {
 
 	canAddMonitor(organizationId: string): Promise<LimitCheckResult> {
 		return this.canAdd(organizationId, "monitors", "active monitors");
+	}
+
+	/**
+	 * Runs `take` only while the organization has room for one more active monitor.
+	 *
+	 * Holds the subscription row until `take` commits, so concurrent creates and resumes
+	 * queue on it instead of each counting the same free slot.
+	 */
+	async takeMonitorSlot<T>(
+		organizationId: string,
+		take: (tx: DbExecutor) => Promise<T>,
+	): Promise<{ ok: true; value: T } | { ok: false; limit: number }> {
+		if (isSelfHosted()) return { ok: true, value: await take(this.db) };
+
+		await this.getOrCreateSubscription(organizationId);
+
+		return this.db.transaction(async (tx) => {
+			const [sub] = await tx
+				.select()
+				.from(subscription)
+				.where(eq(subscription.organizationId, organizationId))
+				.for("update");
+			const plan = PLANS[sub.planId] ?? PLANS[DEFAULT_PLAN_ID];
+			const limit = applyCapacityBlocks(plan, sub.blocks).monitors;
+
+			if (limit !== -1 && (await countActiveMonitors(tx, organizationId)) >= limit) {
+				return { ok: false, limit };
+			}
+			return { ok: true, value: await take(tx) };
+		});
 	}
 
 	canAddStatusPage(organizationId: string): Promise<LimitCheckResult> {
