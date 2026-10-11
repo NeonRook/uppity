@@ -757,6 +757,7 @@
 	"billing_block_interval_unknown": "Não foi possível confirmar seu período de cobrança, então a capacidade não pode ser alterada agora. Recarregue a página para tentar novamente.",
 	"status_unchecked": "Não verificado",
 	"monitor_unchecked_summary": "O Uppity não consegue executar as verificações deste monitor. Próxima tentativa {next}.",
+	"monitor_overdue_summary": "As verificações do Uppity não estão rodando. A verificação deste monitor estava prevista {due}.",
 	"monitor_unchecked_title": "Este monitor não está sendo verificado",
 	"monitor_unchecked_since": "Sem verificação desde {since}. Os canais de notificação vinculados são avisados quando as verificações forem retomadas.",
 	"public_status_unmonitored": "Alguns sistemas não estão sendo monitorados no momento",

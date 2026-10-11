@@ -1,8 +1,9 @@
 import { error } from "@sveltejs/kit";
 import { eq, desc } from "drizzle-orm";
 
+import { checksOverdue } from "#lib/server/check-state.js";
 import { db } from "#lib/server/db/index.js";
-import { monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
+import { monitor, monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
 import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 
@@ -29,6 +30,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		.where(eq(monitorStatus.monitorId, params.id))
 		.limit(1);
 
+	const [schedule] = await db
+		.select({ overdue: checksOverdue })
+		.from(monitor)
+		.where(eq(monitor.id, params.id));
+
 	// Get recent checks
 	const recentChecks = await db
 		.select()
@@ -45,6 +51,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		monitor: monitorData,
 		status: statusData || null,
+		checksOverdue: schedule?.overdue ?? false,
 		recentChecks,
 		alerts,
 	};

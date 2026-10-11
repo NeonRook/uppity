@@ -3,6 +3,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import * as v from "valibot";
 
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
+import { checksOverdue, checksStopped } from "#lib/server/check-state.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor, monitorStatus } from "#lib/server/db/schema.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
@@ -24,10 +25,11 @@ export const getMonitors = query(async () => {
 			active: monitor.active,
 			intervalSeconds: monitor.intervalSeconds,
 			createdAt: monitor.createdAt,
-			// A dead-lettered monitor's recorded status is stale; "unchecked" replaces it.
+			// A stopped monitor's recorded status is stale; "unchecked" replaces it.
 			status: sql<
 				string | null
-			>`CASE WHEN ${monitor.active} AND ${monitor.deadLetteredAt} IS NOT NULL THEN 'unchecked' ELSE ${monitorStatus.status} END`,
+			>`CASE WHEN ${checksStopped} THEN 'unchecked' ELSE ${monitorStatus.status} END`,
+			checksOverdue,
 			nextCheckAt: monitor.nextCheckAt,
 			lastCheckAt: monitorStatus.lastCheckAt,
 			consecutiveFailures: monitorStatus.consecutiveFailures,

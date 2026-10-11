@@ -112,7 +112,7 @@
 							</div>
 							{#if mon.status === "unchecked"}
 								<p class="text-muted-foreground mt-2 text-xs sm:ml-6">
-									{uncheckedSummary(mon.nextCheckAt)}
+									{uncheckedSummary(mon.nextCheckAt, mon.checksOverdue)}
 								</p>
 							{/if}
 							<div class="mt-3 flex items-center gap-4 text-sm sm:mt-2 sm:ml-6 sm:gap-6">
