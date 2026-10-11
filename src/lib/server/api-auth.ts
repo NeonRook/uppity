@@ -39,6 +39,15 @@ const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
 const CHALLENGE = { "www-authenticate": "Bearer" };
 
+/**
+ * Whether the matched route is part of the public API. Decided on the route rather than
+ * the URL: SvelteKit decodes the path before matching, so `/%61pi/v1/monitors` reaches
+ * the `/api/v1/monitors` handler while its raw pathname does not start with `/api/v1`.
+ */
+export function isApiRoute(routeId: string | null): boolean {
+	return routeId === "/api/v1" || routeId?.startsWith("/api/v1/") === true;
+}
+
 export function requestsPerMinute(limits: PlanLimits): number {
 	return limits.apiRequestsPerMinute === -1 ? API_REQUESTS_PER_MINUTE : limits.apiRequestsPerMinute;
 }
@@ -100,7 +109,9 @@ export async function authenticateApiRequest(
 
 /**
  * Why a key creation must be refused, or null when it may proceed. The plugin rejects
- * a request without an organization on its own.
+ * a request without an organization on its own. Anything else that is not a string is
+ * refused here, because the plugin coerces it: `["org-1"]` would skip this count and
+ * still create a key for `org-1`.
  *
  * Two concurrent creations can both pass at nine keys. One key over the cap does not
  * matter for a limit that exists to stop multiplying the rate limit tenfold.
@@ -111,7 +122,10 @@ export async function refuseApiKeyCreate(
 ): Promise<string | null> {
 	const organizationId =
 		typeof body === "object" && body !== null ? Reflect.get(body, "organizationId") : undefined;
-	if (typeof organizationId !== "string" || organizationId === "") return null;
+	if (organizationId === undefined) return null;
+	if (typeof organizationId !== "string" || organizationId === "") {
+		return "organizationId must be a string";
+	}
 
 	if ((await countKeys(organizationId)) < API_KEYS_PER_ORGANIZATION) return null;
 	return `An organization can hold ${API_KEYS_PER_ORGANIZATION} API keys. Revoke one to create another.`;

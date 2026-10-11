@@ -6,6 +6,7 @@ import type { PlanLimits } from "#lib/types/plans.js";
 
 import {
 	authenticateApiRequest,
+	isApiRoute,
 	refuseApiKeyCreate,
 	type ApiAuthDeps,
 	type VerifiedKey,
@@ -123,6 +124,16 @@ describe("authenticateApiRequest", () => {
 
 const countKeys = (n: number) => vi.fn(async () => n);
 
+describe("isApiRoute", () => {
+	it("matches the API's routes and nothing else", () => {
+		expect(isApiRoute("/api/v1")).toBe(true);
+		expect(isApiRoute("/api/v1/monitors/[id]")).toBe(true);
+		expect(isApiRoute("/api/v10")).toBe(false);
+		expect(isApiRoute("/api/health")).toBe(false);
+		expect(isApiRoute(null)).toBe(false);
+	});
+});
+
 describe("refuseApiKeyCreate", () => {
 	it("allows a key below the cap", async () => {
 		expect(
@@ -143,6 +154,14 @@ describe("refuseApiKeyCreate", () => {
 		const count = countKeys(99);
 		expect(await refuseApiKeyCreate({ name: "ci" }, count)).toBeNull();
 		expect(await refuseApiKeyCreate(undefined, count)).toBeNull();
+		expect(count).not.toHaveBeenCalled();
+	});
+
+	it("refuses an organization the plugin would coerce past the count", async () => {
+		const count = countKeys(0);
+		for (const organizationId of [["org-1"], 123, null, { toString: () => "org-1" }, ""]) {
+			expect(await refuseApiKeyCreate({ organizationId }, count)).toMatch(/must be a string/);
+		}
 		expect(count).not.toHaveBeenCalled();
 	});
 });

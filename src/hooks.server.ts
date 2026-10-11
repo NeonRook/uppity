@@ -5,7 +5,7 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { handleAdminGate } from "#lib/server/admin-gate.js";
 import { apiAuthDeps } from "#lib/server/api-auth.instance.js";
-import { authenticateApiRequest } from "#lib/server/api-auth.js";
+import { authenticateApiRequest, isApiRoute } from "#lib/server/api-auth.js";
 import { auth } from "#lib/server/auth.js";
 import { clientAddress } from "#lib/server/client-ip.js";
 import { wideEvent, type RequestWideEvent } from "#lib/server/logger/index.js";
@@ -80,8 +80,7 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 /** Resolves the API key on `/api/v1` requests and refuses the request when it fails. */
 const handleApi: Handle = async ({ event, resolve }) => {
 	event.locals.apiCaller = null;
-	const { pathname } = event.url;
-	if (pathname !== "/api/v1" && !pathname.startsWith("/api/v1/")) return resolve(event);
+	if (!isApiRoute(event.route.id)) return resolve(event);
 
 	const caller = await authenticateApiRequest(event.request, apiAuthDeps);
 	if (caller instanceof Response) return caller;
