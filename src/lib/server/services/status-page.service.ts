@@ -668,7 +668,7 @@ export class StatusPageService {
 
 		// Get history for each monitor
 		const historyDaysAgo = new Date();
-		historyDaysAgo.setDate(historyDaysAgo.getDate() - STATUS_PAGE_HISTORY_DAYS);
+		historyDaysAgo.setUTCDate(historyDaysAgo.getUTCDate() - STATUS_PAGE_HISTORY_DAYS);
 
 		const monitorIds = pageMonitors.map((pm) => pm.monitor.id);
 
@@ -894,8 +894,8 @@ export class StatusPageService {
 		}
 
 		const since = new Date();
-		since.setDate(since.getDate() - (STATUS_PAGE_HISTORY_DAYS - 1));
-		since.setHours(0, 0, 0, 0);
+		since.setUTCDate(since.getUTCDate() - (STATUS_PAGE_HISTORY_DAYS - 1));
+		since.setUTCHours(0, 0, 0, 0);
 
 		const rows = await this.db
 			.select({
