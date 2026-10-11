@@ -283,6 +283,25 @@ export const statusPageMonitor = pgTable(
 	],
 );
 
+export const statusPageSubscriber = pgTable(
+	"status_page_subscriber",
+	{
+		id: text("id").primaryKey(),
+		statusPageId: text("status_page_id")
+			.notNull()
+			.references(() => statusPage.id, { onDelete: "cascade" }),
+		email: text("email").notNull(),
+		// Confirms the subscription while unverified, and unsubscribes afterwards.
+		token: text("token").notNull().unique(),
+		confirmationSentAt: timestamp("confirmation_sent_at", { withTimezone: true }),
+		verifiedAt: timestamp("verified_at", { withTimezone: true }),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		uniqueIndex("status_page_subscriber_page_email_idx").on(table.statusPageId, table.email),
+	],
+);
+
 // ============================================================================
 // NOTIFICATION TABLES
 // ============================================================================

@@ -1,8 +1,18 @@
-import { error } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
+import { message, superValidate } from "sveltekit-superforms";
+import { valibot } from "sveltekit-superforms/adapters";
 
+import { m } from "#lib/paraglide/messages.js";
+import { subscribeSchema } from "#lib/schemas/status-page-subscriber.js";
+import { clientAddress } from "#lib/server/client-ip.js";
+import { RateLimiter } from "#lib/server/rate-limit.js";
+import { statusPageSubscriberService } from "#lib/server/services/status-page-subscriber.instance.js";
 import { statusPageService } from "#lib/server/services/status-page.service.js";
 
-import type { PageServerLoad } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
+
+/** Per client address and page. Each address is also throttled on its own by the service. */
+const subscribeLimiter = new RateLimiter(10, 60 * 60_000);
 
 export const load: PageServerLoad = async ({ params }) => {
 	const data = await statusPageService.getPublicStatusPage(params.slug);
@@ -11,5 +21,34 @@ export const load: PageServerLoad = async ({ params }) => {
 		error(404, "Status page not found");
 	}
 
-	return { statusData: data };
+	return { statusData: data, subscribeForm: await superValidate(valibot(subscribeSchema)) };
+};
+
+export const actions: Actions = {
+	subscribe: async (event) => {
+		const { params, request, locals } = event;
+		const form = await superValidate(request, valibot(subscribeSchema));
+		if (!form.valid) return fail(400, { form });
+
+		const page = await statusPageService.findBySlug(params.slug);
+		if (!page?.isPublic) error(404, "Status page not found");
+
+		locals.event.merge({
+			action: "subscribe_status_page",
+			resource_type: "status_page",
+			resource_id: page.id,
+		});
+
+		if (!subscribeLimiter.attempt(`${clientAddress(event) ?? "unknown"}:${page.id}`)) {
+			return message(form, m.public_subscribe_rate_limited(), { status: 429 });
+		}
+
+		try {
+			await statusPageSubscriberService.subscribe(page, form.data.email);
+		} catch (err) {
+			locals.event.setError(err);
+			return message(form, m.public_subscribe_failed(), { status: 500 });
+		}
+		return message(form, m.public_subscribe_sent());
+	},
 };

@@ -14,6 +14,7 @@
 
 	import IncidentTimeline from "#lib/components/incident-timeline.svelte";
 	import StatusPageShell from "#lib/components/status-page-shell.svelte";
+	import StatusPageSubscribe from "#lib/components/status-page-subscribe.svelte";
 	import UptimeBar from "#lib/components/uptime-bar.svelte";
 	import { formatDateTimeMonthDay, formatDuration } from "#lib/format.js";
 	import { getStatusInfo, getImpactInfo } from "#lib/incidents.js";
@@ -230,6 +231,8 @@
 			</section>
 		{/if}
 	{/each}
+
+	<StatusPageSubscribe data={data.subscribeForm} />
 
 	<!-- Incident History -->
 	<section class="mb-8">

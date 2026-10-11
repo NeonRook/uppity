@@ -803,5 +803,21 @@
 	"api_keys_managers_only": "Only owners and admins can create or revoke keys.",
 	"api_keys_at_cap": "This organization holds {max} keys. Revoke one to create another.",
 	"landing_plan_row_api": "API (read-only)",
-	"billing_features_api_access": "Read-only API access"
+	"billing_features_api_access": "Read-only API access",
+	"public_subscribe_title": "Get incident updates by email",
+	"public_subscribe_description": "We'll email you when an incident starts, changes, or is resolved. Every email has an unsubscribe link.",
+	"public_subscribe_email_label": "Email address",
+	"public_subscribe_submit": "Subscribe",
+	"public_subscribe_sent": "Check your inbox. We sent you a link to confirm.",
+	"public_subscribe_rate_limited": "Too many attempts. Try again later.",
+	"public_subscribe_failed": "We couldn't send the confirmation email. Try again later.",
+	"public_confirm_page_title": "Confirm subscription - {name} Status",
+	"public_confirm_prompt": "Confirm to get an email whenever {name} reports an incident.",
+	"public_confirm_submit": "Confirm subscription",
+	"public_confirm_done": "You're subscribed to {name}. Every email has an unsubscribe link.",
+	"public_confirm_invalid": "This link has expired or is no longer valid. Subscribe again from the status page.",
+	"public_unsubscribe_page_title": "Unsubscribe - {name} Status",
+	"public_unsubscribe_prompt": "Stop getting incident emails from {name}?",
+	"public_unsubscribe_submit": "Unsubscribe",
+	"public_unsubscribe_done": "You're unsubscribed. We won't email you about {name} again."
 }

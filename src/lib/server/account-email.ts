@@ -1,9 +1,9 @@
 import { GRACE_PERIOD_DAYS, type CapacityNotice } from "./services/capacity.service";
 import { smtpFrom, smtpTransport } from "./smtp";
 
-const appUrl = process.env.BETTER_AUTH_URL || "https://localhost:3000";
+export const appUrl = process.env.BETTER_AUTH_URL || "https://localhost:3000";
 
-function escapeHtml(input: string): string {
+export function escapeHtml(input: string): string {
 	return input
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
