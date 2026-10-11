@@ -766,3 +766,19 @@ describe("StatusPageService.getPublicStatusPage — dead-lettered monitors", () 
 		expect(result!.overallStatus).toBe("operational");
 	});
 });
+
+describe("StatusPageService.getPublicSummary", () => {
+	test("returns what the public page shows, and nothing for a private page", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+
+		expect(await service.getPublicSummary(pageId)).toEqual(await service.getPublicStatusPage(slug));
+
+		await drizzleDb.update(statusPage).set({ isPublic: false }).where(eq(statusPage.id, pageId));
+		expect(await service.getPublicSummary(pageId)).toBeNull();
+		expect(await service.getPublicSummary("sp-missing")).toBeNull();
+	});
+});

@@ -41,13 +41,17 @@ const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
 const CHALLENGE = { "www-authenticate": "Bearer" };
 
+/** API routes that serve only what a public status page already shows. */
+const KEYLESS_ROUTES: ReadonlySet<string> = new Set(["/api/v1/status-pages/[id]/summary"]);
+
 /**
- * Whether the matched route is part of the public API. Decided on the route rather than
- * the URL: SvelteKit decodes the path before matching, so `/%61pi/v1/monitors` reaches
- * the `/api/v1/monitors` handler while its raw pathname does not start with `/api/v1`.
+ * Whether the matched route needs an API key. Decided on the route rather than the URL:
+ * SvelteKit decodes the path before matching, so `/%61pi/v1/monitors` reaches the
+ * `/api/v1/monitors` handler while its raw pathname does not start with `/api/v1`.
  */
-export function isApiRoute(routeId: string | null): boolean {
-	return routeId === "/api/v1" || routeId?.startsWith("/api/v1/") === true;
+export function requiresApiKey(routeId: string | null): boolean {
+	if (routeId === null || KEYLESS_ROUTES.has(routeId)) return false;
+	return routeId === "/api/v1" || routeId.startsWith("/api/v1/");
 }
 
 export function requestsPerMinute(limits: PlanLimits): number {

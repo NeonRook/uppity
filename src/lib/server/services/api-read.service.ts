@@ -13,7 +13,10 @@ import {
 	monitor,
 	monitorCheck,
 	monitorStatus,
+	statusPage,
 } from "#lib/server/db/schema.js";
+
+import { StatusPageService, type ComponentStatuses } from "./status-page.service";
 
 /**
  * Read models for the public API. Every field is chosen explicitly: a monitor's request
@@ -71,9 +74,23 @@ export interface ApiIncidentDetail extends ApiIncident {
 	affectedMonitors: { id: string; name: string }[];
 }
 
+export interface ApiStatusPage {
+	id: string;
+	name: string;
+	slug: string;
+	description: string | null;
+	isPublic: boolean;
+	customDomain: string | null;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface ApiStatusPageDetail extends ApiStatusPage, ComponentStatuses {}
+
 const anchorMonitor = alias(monitor, "anchor_monitor");
 const anchorCheck = alias(monitorCheck, "anchor_check");
 const anchorIncident = alias(incident, "anchor_incident");
+const anchorStatusPage = alias(statusPage, "anchor_status_page");
 
 const monitorFields = {
 	id: monitor.id,
@@ -119,13 +136,26 @@ const incidentFields = {
 	updatedAt: incident.updatedAt,
 };
 
+const statusPageFields = {
+	id: statusPage.id,
+	name: statusPage.name,
+	slug: statusPage.slug,
+	description: statusPage.description,
+	isPublic: statusPage.isPublic,
+	customDomain: statusPage.customDomain,
+	createdAt: statusPage.createdAt,
+	updatedAt: statusPage.updatedAt,
+};
+
 const redactMonitor = (row: ApiMonitor): ApiMonitor => ({ ...row, url: redactUrl(row.url) });
 
 export class ApiReadService {
 	private readonly db: Db;
+	private readonly statusPages: StatusPageService;
 
 	constructor(database: Db) {
 		this.db = database;
+		this.statusPages = new StatusPageService(database);
 	}
 
 	/** Null when the cursor names no monitor in the organization. */
@@ -247,6 +277,53 @@ export class ApiReadService {
 		]);
 
 		return { ...row, updates, affectedMonitors };
+	}
+
+	/** Public and private status pages, newest first. Null on an unknown cursor. */
+	async listStatusPages(
+		organizationId: string,
+		page: PageRequest,
+	): Promise<Page<ApiStatusPage> | null> {
+		let after: SQL | undefined;
+		if (page.after) {
+			const anchor = this.db
+				.select({ createdAt: anchorStatusPage.createdAt, id: anchorStatusPage.id })
+				.from(anchorStatusPage)
+				.where(
+					and(
+						eq(anchorStatusPage.id, page.after),
+						eq(anchorStatusPage.organizationId, organizationId),
+					),
+				);
+			if ((await anchor).length === 0) return null;
+			after = sql`(${statusPage.createdAt}, ${statusPage.id}) < (${anchor})`;
+		}
+
+		const rows = await this.db
+			.select(statusPageFields)
+			.from(statusPage)
+			.where(and(eq(statusPage.organizationId, organizationId), after))
+			.orderBy(desc(statusPage.createdAt), desc(statusPage.id))
+			.limit(page.limit + 1);
+		return toPage(rows, page.limit);
+	}
+
+	async getStatusPage(organizationId: string, id: string): Promise<ApiStatusPageDetail | null> {
+		const found = await this.statusPages.findByIdAndOrg(id, organizationId);
+		if (!found) return null;
+
+		const { name, slug, description, isPublic, customDomain, createdAt, updatedAt } = found;
+		return {
+			id,
+			name,
+			slug,
+			description,
+			isPublic,
+			customDomain,
+			createdAt,
+			updatedAt,
+			...(await this.statusPages.getComponentStatuses(found)),
+		};
 	}
 }
 

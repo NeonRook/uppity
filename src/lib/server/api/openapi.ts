@@ -8,7 +8,7 @@ const paid = UPPITY_PLAN.limits.apiRequestsPerMinute;
 
 // The limiter resets a key's count only after a full minute with no accepted request,
 // so the figure is a burst size, not a per-minute rate. See ADR 0006.
-const description = `Read-only access to an organization's monitors and incidents.
+const description = `Read-only access to an organization's monitors, incidents and status pages.
 
 Authenticate with an API key from Settings → API keys: \`Authorization: Bearer ${API_KEY_PREFIX}…\`. An organization can hold ${API_KEYS_PER_ORGANIZATION} keys.
 
@@ -16,12 +16,31 @@ Authenticate with an API key from Settings → API keys: \`Authorization: Bearer
 
 **Pagination.** List endpoints return \`{ data, nextCursor }\`, newest first. Pass \`nextCursor\` back as \`cursor\` for the next page; it is \`null\` on the last one.
 
+**Public summaries.** \`/status-pages/{id}/summary\` needs no key and allows any origin. It returns what the public status page shows, or \`404\` when the page is private.
+
 **Errors** share one shape: \`{ "error": { "code", "message" } }\`.`;
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const nullable = (type: string, extra: object = {}) => ({ type: [type, "null"], ...extra });
 const dateTime = { type: "string", format: "date-time" };
 const json = (schema: object) => ({ content: { "application/json": { schema } } });
+
+const overallStatus = {
+	enum: [
+		"operational",
+		"degraded",
+		"partial_outage",
+		"major_outage",
+		"unmonitored",
+		"under_maintenance",
+	],
+	description: "`unmonitored` means at least one component's status is unknown.",
+};
+const componentStatus = {
+	enum: ["up", "down", "degraded", "unknown", "maintenance"],
+	description:
+		"`unknown` covers a monitor that has never been checked and one whose checks are failing or overdue.",
+};
 
 const pageParams = [
 	{
@@ -75,6 +94,29 @@ export const openApiDocument = {
 		),
 		"/incidents": get("List incidents, resolved included", page("Incident"), pageParams, 400),
 		"/incidents/{id}": get("Get an incident", json(ref("IncidentDetail")), [idParam], 404),
+		"/status-pages": get(
+			"List status pages, private included",
+			page("StatusPage"),
+			pageParams,
+			400,
+		),
+		"/status-pages/{id}": get(
+			"Get a status page with its components' current status",
+			json(ref("StatusPageDetail")),
+			[idParam],
+			404,
+		),
+		"/status-pages/{id}/summary": {
+			get: {
+				summary: "Get what a public status page shows",
+				security: [],
+				parameters: [idParam],
+				responses: {
+					200: { description: "OK", ...json(ref("StatusPageSummary")) },
+					404: errorResponse("No public status page with that id"),
+				},
+			},
+		},
 	},
 	components: {
 		securitySchemes: { apiKey: { type: "http", scheme: "bearer" } },
@@ -182,6 +224,141 @@ export const openApiDocument = {
 						},
 					},
 				],
+			},
+			StatusPage: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					name: { type: "string" },
+					slug: { type: "string" },
+					description: nullable("string"),
+					isPublic: { type: "boolean" },
+					customDomain: nullable("string"),
+					createdAt: dateTime,
+					updatedAt: dateTime,
+				},
+			},
+			StatusPageDetail: {
+				allOf: [
+					ref("StatusPage"),
+					{
+						type: "object",
+						properties: {
+							overallStatus,
+							groups: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: { id: { type: "string" }, name: { type: "string" } },
+								},
+							},
+							components: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										id: { type: "string" },
+										monitorId: { type: "string" },
+										name: { type: "string" },
+										groupId: nullable("string"),
+										status: componentStatus,
+									},
+								},
+							},
+						},
+					},
+				],
+			},
+			StatusPageSummary: {
+				type: "object",
+				description:
+					"Component ids belong to the page and do not reveal monitor ids. Daily history covers the last 90 UTC days.",
+				properties: {
+					page: {
+						type: "object",
+						properties: {
+							name: { type: "string" },
+							slug: { type: "string" },
+							description: nullable("string"),
+							logoUrl: nullable("string"),
+							faviconUrl: nullable("string"),
+						},
+					},
+					overallStatus,
+					groups: {
+						type: "array",
+						items: {
+							type: "object",
+							properties: {
+								id: { type: "string" },
+								name: { type: "string" },
+								description: nullable("string"),
+								isCollapsed: { type: "boolean" },
+								monitors: { type: "array", items: ref("SummaryComponent") },
+							},
+						},
+					},
+					ungroupedMonitors: { type: "array", items: ref("SummaryComponent") },
+					activeIncidents: { type: "array", items: ref("SummaryIncident") },
+					resolvedIncidents: { type: "array", items: ref("SummaryIncident") },
+					activeMaintenance: { type: "array", items: ref("SummaryMaintenance") },
+					upcomingMaintenance: { type: "array", items: ref("SummaryMaintenance") },
+				},
+			},
+			SummaryComponent: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					name: { type: "string" },
+					description: nullable("string"),
+					status: componentStatus,
+					uptimePercent90d: nullable("number"),
+					dailyHistory: {
+						type: "array",
+						items: {
+							type: "object",
+							properties: {
+								date: { type: "string", format: "date" },
+								status: { enum: ["up", "down", "degraded", "partial", "unknown"] },
+								uptimePercent: nullable("number"),
+							},
+						},
+					},
+				},
+			},
+			SummaryIncident: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					title: { type: "string" },
+					status: { enum: ["investigating", "identified", "monitoring", "resolved"] },
+					impact: { enum: ["none", "minor", "major", "critical"] },
+					createdAt: dateTime,
+					startedAt: dateTime,
+					resolvedAt: nullable("string", { format: "date-time" }),
+					updates: {
+						type: "array",
+						items: {
+							type: "object",
+							properties: {
+								id: { type: "string" },
+								status: { type: "string" },
+								message: { type: "string" },
+								createdAt: dateTime,
+							},
+						},
+					},
+				},
+			},
+			SummaryMaintenance: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					name: { type: "string" },
+					description: nullable("string"),
+					startsAt: dateTime,
+					endsAt: dateTime,
+				},
 			},
 		},
 	},

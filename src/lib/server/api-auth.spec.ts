@@ -6,7 +6,7 @@ import type { PlanLimits } from "#lib/types/plans.js";
 
 import {
 	authenticateApiRequest,
-	isApiRoute,
+	requiresApiKey,
 	refuseApiKeyCreate,
 	type ApiAuthDeps,
 	type VerifiedKey,
@@ -124,13 +124,15 @@ describe("authenticateApiRequest", () => {
 
 const countKeys = (n: number) => vi.fn(async () => n);
 
-describe("isApiRoute", () => {
-	it("matches the API's routes and nothing else", () => {
-		expect(isApiRoute("/api/v1")).toBe(true);
-		expect(isApiRoute("/api/v1/monitors/[id]")).toBe(true);
-		expect(isApiRoute("/api/v10")).toBe(false);
-		expect(isApiRoute("/api/health")).toBe(false);
-		expect(isApiRoute(null)).toBe(false);
+describe("requiresApiKey", () => {
+	it("matches the API's keyed routes and nothing else", () => {
+		expect(requiresApiKey("/api/v1")).toBe(true);
+		expect(requiresApiKey("/api/v1/monitors/[id]")).toBe(true);
+		expect(requiresApiKey("/api/v1/status-pages/[id]")).toBe(true);
+		expect(requiresApiKey("/api/v1/status-pages/[id]/summary")).toBe(false);
+		expect(requiresApiKey("/api/v10")).toBe(false);
+		expect(requiresApiKey("/api/health")).toBe(false);
+		expect(requiresApiKey(null)).toBe(false);
 	});
 });
 
