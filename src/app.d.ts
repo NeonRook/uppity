@@ -8,6 +8,8 @@ declare global {
 			event: import("#lib/server/logger/index.js").WideEventBuilder<
 				import("#lib/server/logger/index.js").RequestWideEvent
 			>;
+			/** The organization behind an `/api/v1` request, set once its key verifies. */
+			apiCaller: import("#lib/server/api-auth.js").ApiCaller | null;
 		}
 
 		// interface Error {}
@@ -94,6 +96,9 @@ declare global {
 			UPPITY_SESSION_UPDATE_AGE_SECONDS?: string;
 			UPPITY_ORGANIZATION_MEMBERSHIP_LIMIT?: string;
 			UPPITY_ORGANIZATION_LIMIT_PER_USER?: string;
+
+			// Public API [Optional]
+			UPPITY_API_REQUESTS_PER_MINUTE?: string;
 		}
 	}
 }

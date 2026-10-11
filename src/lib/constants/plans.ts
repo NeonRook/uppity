@@ -20,6 +20,7 @@ export const FREE_PLAN: Plan = {
 		notificationChannels: ["email"],
 		customDomains: false,
 		apiAccess: "read",
+		apiRequestsPerMinute: 60,
 		sso: false,
 		auditLogs: false,
 	},
@@ -112,6 +113,7 @@ export const UPPITY_PLAN: Plan = {
 		notificationChannels: ["email", "slack", "discord", "webhook"],
 		customDomains: true,
 		apiAccess: "full",
+		apiRequestsPerMinute: 600,
 		sso: true,
 		auditLogs: true,
 	},
@@ -125,6 +127,7 @@ export const SELF_HOSTED_LIMITS: PlanLimits = {
 	...UPPITY_PLAN.limits,
 	monitors: -1, // Unlimited
 	retentionDays: -1, // Unlimited
+	apiRequestsPerMinute: -1,
 };
 
 /**
@@ -144,6 +147,7 @@ export const DEDICATED_PLAN: Plan = {
 		...UPPITY_PLAN.limits,
 		monitors: 2000,
 		retentionDays: -1, // Unlimited
+		apiRequestsPerMinute: -1,
 	},
 };
 

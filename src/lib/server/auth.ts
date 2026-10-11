@@ -1,19 +1,30 @@
 import { getRequestEvent } from "$app/server";
+import { apiKey } from "@better-auth/api-key";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { polar, checkout, portal, webhooks } from "@polar-sh/better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { admin, organization } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
+import {
+	adminAc,
+	defaultStatements,
+	memberAc,
+	ownerAc,
+} from "better-auth/plugins/organization/access";
 import { sveltekitCookies } from "better-auth/svelte-kit";
+import { count, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+import { API_KEY_PREFIX, API_RATE_LIMIT_WINDOW_MS } from "#lib/constants/api.js";
 import {
 	ORGANIZATION_CREATOR_ROLE,
 	ORGANIZATION_LIMIT_PER_USER,
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
-import { DEFAULT_PLAN_ID } from "#lib/constants/plans.js";
+import { DEFAULT_PLAN_ID, FREE_PLAN } from "#lib/constants/plans.js";
+import { refuseApiKeyCreate } from "#lib/server/api-auth.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
 import { clientIpHeader } from "#lib/server/client-ip.js";
 import * as authSchema from "#lib/server/db/auth-schema.js";
@@ -123,6 +134,29 @@ export function snapshotFrom(sub: {
 	};
 }
 
+/**
+ * The default organization roles plus API key management. Without an `apiKey`
+ * statement only the creator, through `allowCreatorAllPermissions`, could manage keys.
+ */
+const ac = createAccessControl({
+	...defaultStatements,
+	apiKey: ["create", "read", "update", "delete"],
+});
+
+const organizationRoles = {
+	owner: ac.newRole({ ...ownerAc.statements, apiKey: ["create", "read", "update", "delete"] }),
+	admin: ac.newRole({ ...adminAc.statements, apiKey: ["create", "read", "update", "delete"] }),
+	member: ac.newRole({ ...memberAc.statements, apiKey: ["read"] }),
+};
+
+async function countApiKeys(organizationId: string): Promise<number> {
+	const [row] = await db
+		.select({ count: count() })
+		.from(authSchema.apikey)
+		.where(eq(authSchema.apikey.referenceId, organizationId));
+	return row?.count ?? 0;
+}
+
 const NOT_BILLED_THROUGH = "for a subscription the org is not billed through";
 
 /**
@@ -216,6 +250,7 @@ export const auth = betterAuth({
 			organization: authSchema.organization,
 			member: authSchema.member,
 			invitation: authSchema.invitation,
+			apikey: authSchema.apikey,
 		},
 	}),
 	baseURL: baseURL,
@@ -254,6 +289,11 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			if (ctx.path === "/api-key/create") {
+				const refusal = await refuseApiKeyCreate(ctx.body, countApiKeys);
+				if (refusal) throw new APIError("FORBIDDEN", { message: refusal });
+				return;
+			}
 			if (!BILLING_PATHS.has(ctx.path)) return;
 			const session = await getSessionFromCtx(ctx);
 			const refusal = await refuseBillingRequest(
@@ -443,6 +483,8 @@ export const auth = betterAuth({
 			allowUserToCreateOrganization: true,
 			organizationLimit: ORGANIZATION_LIMIT_PER_USER,
 			creatorRole: ORGANIZATION_CREATOR_ROLE,
+			ac,
+			roles: organizationRoles,
 			// better-auth checks this during acceptInvitation against the accepted
 			// member count, which also covers direct member adds. -1 plans resolve to
 			// ORGANIZATION_MEMBERSHIP_LIMIT inside getMemberCapacity.
@@ -460,6 +502,20 @@ export const auth = betterAuth({
 						});
 					}
 				},
+			},
+		}),
+		apiKey({
+			references: "organization",
+			defaultPrefix: API_KEY_PREFIX,
+			requireName: true,
+			// Keys authenticate `/api/v1` only and never stand in for a session.
+			enableSessionForAPIKeys: false,
+			// Creation starts every key on the lowest plan figure. `authenticateApiRequest`
+			// moves it to the organization's own on the key's first request.
+			rateLimit: {
+				enabled: true,
+				timeWindow: API_RATE_LIMIT_WINDOW_MS,
+				maxRequests: FREE_PLAN.limits.apiRequestsPerMinute,
 			},
 		}),
 		admin(),
