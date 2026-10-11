@@ -112,7 +112,10 @@ export const openApiDocument = {
 						description:
 							"`not_checked` means Uppity's own checks of this monitor are failing or overdue, so the last recorded status is stale.",
 					},
-					url: nullable("string"),
+					url: nullable("string", {
+						description:
+							"Credentials, fragment and query values are removed: `?token=abc` reads `?token=***`.",
+					}),
 					method: nullable("string"),
 					hostname: nullable("string"),
 					port: nullable("integer"),

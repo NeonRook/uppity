@@ -32,14 +32,24 @@ describe("ApiReadService monitors", () => {
 		await seedMonitor(db.db, otherOrg);
 		await db.db
 			.update(monitor)
-			.set({ headers: { authorization: "Bearer secret" }, body: "secret", pushToken: "secret" })
+			.set({
+				url: "https://user:secret@example.com/health?token=secret",
+				headers: { authorization: "Bearer secret" },
+				body: "secret",
+				pushToken: "secret",
+			})
 			.where(eq(monitor.id, mine));
 
 		const result = await service.listMonitors(orgId, page(50));
 
 		expect(result?.data.map((m) => m.id)).toEqual([mine]);
 		expect(JSON.stringify(result)).not.toContain("secret");
-		expect(result?.data[0]).toMatchObject({ status: "unknown", method: "GET", active: true });
+		expect(result?.data[0]).toMatchObject({
+			url: "https://example.com/health?token=***",
+			status: "unknown",
+			method: "GET",
+			active: true,
+		});
 	});
 
 	test("pages newest first and refuses a cursor from another organization", async ({ db }) => {

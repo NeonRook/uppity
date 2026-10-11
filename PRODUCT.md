@@ -107,7 +107,7 @@ are free on paid plans because their marginal cost rounds to zero.
 - Capacity blocks, self-serve from Billing settings on the Uppity plan: up to 40 blocks of 50 monitors. Increases apply at once; annual customers confirm an increase with the amount due at renewal. Reductions wait for the end of the billing period, because each period bills the most blocks held during it (`docs/adr/0004`). Only owners and admins can change capacity or start a checkout; other members see billing read-only.
 - SSL certificate expiry tracking with a configurable threshold and warning cooldown.
 - Live updates over SSE (`/api/sse/monitors`); push check-ins over `/api/webhooks/push`.
-- Read-only public API (NEO-36): monitors, a monitor's checks, and incidents under `/api/v1`, documented at `/api/openapi.json`. Organization-owned keys from Settings → API keys; every member sees them, owners and admins create and revoke. Responses never include a monitor's request headers, body or push token.
+- Read-only public API (NEO-36): monitors, a monitor's checks, and incidents under `/api/v1`, documented at `/api/openapi.json`. Organization-owned keys from Settings → API keys; every member sees them, owners and admins create and revoke. Responses never include a monitor's request headers, body or push token, and its URL comes back without credentials or query values.
 - Three locales shipped: `en`, `de`, `pt-br`.
 
 **Plan tiers — confirmed 2026-07-30, implemented 2026-07-31**
