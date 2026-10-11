@@ -16,7 +16,7 @@ import {
 
 const HOUR_MS = 60 * 60_000;
 
-async function setup(drizzleDb: TestDb["db"], confirmationsPerDay?: number) {
+async function setup(drizzleDb: TestDb["db"], cap?: { base: number; percentOfConfirmed: number }) {
 	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
 	const page = { id: `sp-${suffix}`, name: "Acme", slug: `acme-${suffix}` };
@@ -30,7 +30,7 @@ async function setup(drizzleDb: TestDb["db"], confirmationsPerDay?: number) {
 		page,
 		sent,
 		send,
-		service: new StatusPageSubscriberService(drizzleDb, send, confirmationsPerDay),
+		service: new StatusPageSubscriberService(drizzleDb, send, cap),
 	};
 }
 
@@ -92,13 +92,38 @@ describe("StatusPageSubscriberService", () => {
 	});
 
 	test("a page over its daily confirmations sends nothing more", async ({ db }) => {
-		const { page, sent, service } = await setup(db.db, 2);
+		const { page, sent, service } = await setup(db.db, { base: 2, percentOfConfirmed: 0 });
 
 		expect(await service.subscribe(page, "a@example.com")).toBe(true);
 		expect(await service.subscribe(page, "b@example.com")).toBe(true);
 		expect(await service.subscribe(page, "c@example.com")).toBe(false);
 
 		expect(sent.map((c) => c.email)).toEqual(["a@example.com", "b@example.com"]);
+	});
+
+	test("confirmed subscribers raise the daily cap above the base", async ({ db }) => {
+		const { page, sent, service } = await setup(db.db, { base: 1, percentOfConfirmed: 50 });
+		const subscribeAndConfirm = async (email: string) => {
+			await service.subscribe(page, email);
+			await service.confirm(page.id, sent.at(-1)!.token);
+		};
+
+		await subscribeAndConfirm("a@example.com");
+		// One sent against a base of 1: capped until confirmed subscribers lift it.
+		expect(await service.subscribe(page, "b@example.com")).toBe(false);
+
+		for (const email of ["c@example.com", "d@example.com", "e@example.com"]) {
+			await db.db.insert(statusPageSubscriber).values({
+				id: nanoid(),
+				statusPageId: page.id,
+				email,
+				token: nanoid(),
+				verifiedAt: new Date(),
+			});
+		}
+		// Four confirmed at 50% allow two in the window, one of which is used.
+		expect(await service.subscribe(page, "b@example.com")).toBe(true);
+		expect(await service.subscribe(page, "f@example.com")).toBe(false);
 	});
 
 	test("confirm is idempotent and scoped to the page", async ({ db }) => {

@@ -4,4 +4,4 @@
 
 Visitors can subscribe to a public status page by email. They confirm through a link that works for 48 hours, and every email they receive lets them unsubscribe. Addresses that are never confirmed are deleted.
 
-Each status page sends at most 200 confirmation emails a day, so nobody can use the form to flood strangers' inboxes. Self-hosted operators can change the limit with `UPPITY_SUBSCRIBER_CONFIRMATIONS_PER_DAY`.
+Each status page sends a limited number of confirmation emails a day, so nobody can use the form to flood strangers' inboxes. The limit is 50, or a quarter of the page's confirmed subscribers when that is more. Self-hosted operators can change both numbers with `UPPITY_SUBSCRIBER_CONFIRMATIONS_BASE` and `UPPITY_SUBSCRIBER_CONFIRMATIONS_PERCENT`.
