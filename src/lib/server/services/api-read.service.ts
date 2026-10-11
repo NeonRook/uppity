@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import type { Page, PageRequest } from "#lib/server/api/pagination.js";
 import { toPage } from "#lib/server/api/pagination.js";
+import { redactUrl } from "#lib/server/api/redact.js";
 import { checksStopped } from "#lib/server/check-state.js";
 import { db, type Db } from "#lib/server/db/index.js";
 import {
@@ -16,7 +17,8 @@ import {
 
 /**
  * Read models for the public API. Every field is chosen explicitly: a monitor's request
- * headers, body and push token can hold credentials and never leave the app this way.
+ * headers, body and push token can hold credentials and never leave the app this way, and
+ * its URL is returned redacted.
  */
 
 export type ApiMonitorStatus = "up" | "down" | "degraded" | "unknown" | "not_checked";
@@ -117,6 +119,8 @@ const incidentFields = {
 	updatedAt: incident.updatedAt,
 };
 
+const redactMonitor = (row: ApiMonitor): ApiMonitor => ({ ...row, url: redactUrl(row.url) });
+
 export class ApiReadService {
 	private readonly db: Db;
 
@@ -145,7 +149,7 @@ export class ApiReadService {
 			.where(and(eq(monitor.organizationId, organizationId), after))
 			.orderBy(desc(monitor.createdAt), desc(monitor.id))
 			.limit(page.limit + 1);
-		return toPage(rows, page.limit);
+		return toPage(rows.map(redactMonitor), page.limit);
 	}
 
 	async getMonitor(organizationId: string, id: string): Promise<ApiMonitor | null> {
@@ -154,7 +158,7 @@ export class ApiReadService {
 			.from(monitor)
 			.leftJoin(monitorStatus, eq(monitor.id, monitorStatus.monitorId))
 			.where(and(eq(monitor.id, id), eq(monitor.organizationId, organizationId)));
-		return row ?? null;
+		return row ? redactMonitor(row) : null;
 	}
 
 	/**
