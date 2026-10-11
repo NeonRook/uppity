@@ -174,7 +174,7 @@ export async function recordCheckFailure(db: Db, m: Monitor, error: unknown): Pr
 		error: errorMessage,
 	};
 	if (entering) {
-		// Railway log alerts match on this event_type.
+		// Log alerts match on this event_type.
 		log.error({ event_type: "monitor_dead_lettered", ...fields }, "Monitor dead-lettered");
 	} else {
 		log.warn(fields, "Monitor check failed, backing off");
