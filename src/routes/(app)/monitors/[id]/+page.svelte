@@ -17,6 +17,7 @@
 		ShieldX,
 		Trash2,
 	} from "@lucide/svelte";
+	import { isHttpError } from "@sveltejs/kit";
 	import { toast } from "svelte-sonner";
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
@@ -62,7 +63,7 @@
 			await toggleMonitor({ monitorId: data.monitor.id });
 			await refreshAll();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to toggle monitor");
+			toast.error(isHttpError(e) ? e.body.message : "Failed to toggle monitor");
 		} finally {
 			toggling = false;
 		}

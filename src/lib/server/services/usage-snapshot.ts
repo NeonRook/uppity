@@ -68,7 +68,7 @@ export async function collectUsageSnapshots(db: Db): Promise<OrganizationUsageSn
 			organizationId: subscription.organizationId,
 			polarCustomerId: subscription.polarCustomerId,
 			monitors:
-				sql<number>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId})`.mapWith(
+				sql<number>`(select count(*) from ${monitor} where ${monitor.organizationId} = ${outerOrganizationId} and ${monitor.active})`.mapWith(
 					Number,
 				),
 			statusPages:

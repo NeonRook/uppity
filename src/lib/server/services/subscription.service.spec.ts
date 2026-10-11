@@ -100,7 +100,23 @@ describe("SubscriptionService", () => {
 			expect(atLimit.allowed).toBe(false);
 			expect(atLimit.currentUsage).toBe(20);
 			expect(atLimit.limit).toBe(20);
-			expect(atLimit.message).toMatch(/limit of 20 monitors/);
+			expect(atLimit.message).toMatch(/limit of 20 active monitors/);
+		});
+
+		test("paused monitors sit outside the ceiling", async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const service = new SubscriptionService(drizzleDb);
+			const orgId = await seedSubscribed(drizzleDb, { planId: "free" });
+			await seedMonitors(drizzleDb, orgId, 20);
+			await drizzleDb
+				.update(monitor)
+				.set({ active: false })
+				.where(eq(monitor.organizationId, orgId));
+			await seedMonitors(drizzleDb, orgId, 19);
+
+			const result = await service.canAddMonitor(orgId);
+			expect(result.allowed).toBe(true);
+			expect(result.currentUsage).toBe(19);
 		});
 
 		test("enforcement reports the block-derived ceiling, not the plan's base 50", async ({
