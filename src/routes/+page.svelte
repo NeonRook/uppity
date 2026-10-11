@@ -2,18 +2,12 @@
 	import { resolve } from "$app/paths";
 
 	import logoSvg from "#lib/assets/logo.svg";
-	import PricingCliffChart from "#lib/components/pricing-cliff-chart.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import * as Table from "#lib/components/ui/table/index.js";
 	import UptimeBar from "#lib/components/uptime-bar.svelte";
-	import {
-		DEDICATED_PLAN,
-		FREE_PLAN,
-		SELF_HOSTED_LIMITS,
-		UPPITY_PLAN,
-	} from "#lib/constants/plans.js";
+	import { FREE_PLAN, SELF_HOSTED_LIMITS } from "#lib/constants/plans.js";
 	import { formatUsdCents } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getLocale } from "#lib/paraglide/runtime.js";
@@ -57,10 +51,7 @@
 		{ key: "instatus", name: "Instatus" },
 		{ key: "hyperping", name: "Hyperping" },
 	] as const;
-	const ours = [
-		{ name: "Uppity", value: m.landing_gate_included() },
-		{ name: m.landing_gate_col_selfhosted(), value: m.landing_gate_free() },
-	];
+	const ours = [{ name: m.landing_gate_col_selfhosted(), value: m.landing_gate_free() }];
 
 	const footerColumns = [
 		{
@@ -103,20 +94,6 @@
 			note: "",
 			limits: FREE_PLAN.limits,
 			channels: m.landing_plan_email_only(),
-		},
-		{
-			name: m.landing_plan_uppity(),
-			price: usd(UPPITY_PLAN.monthlyPriceCents),
-			note: m.landing_plan_blocks_note(),
-			limits: UPPITY_PLAN.limits,
-			channels: m.landing_plan_all_channels(),
-		},
-		{
-			name: m.landing_plan_dedicated(),
-			price: usd(DEDICATED_PLAN.monthlyPriceCents),
-			note: m.landing_plan_fair_use(),
-			limits: DEDICATED_PLAN.limits,
-			channels: m.landing_plan_all_channels(),
 		},
 		{
 			name: m.landing_plan_selfhosted(),
@@ -245,15 +222,7 @@
 			{@render ctas()}
 		</section>
 
-		<!-- The chart leads: the composition argues with the picture before the prose. -->
-		<section class="mt-20 flex flex-col gap-6" aria-labelledby="chart-heading">
-			<h2 id="chart-heading" class="text-foreground text-2xl font-semibold">
-				{m.landing_chart_title()}
-			</h2>
-			<PricingCliffChart />
-		</section>
-
-		<section class="mt-16 flex flex-col gap-6" aria-labelledby="gate-heading">
+		<section class="mt-20 flex flex-col gap-6" aria-labelledby="gate-heading">
 			<div class="flex flex-col gap-3">
 				<h2 id="gate-heading" class="text-foreground text-2xl font-semibold">
 					{m.landing_gate_title()}
@@ -298,7 +267,6 @@
 							<Table.Head scope="col">{m.landing_gate_col_capability()}</Table.Head>
 							<Table.Head scope="col" class="text-right">Instatus</Table.Head>
 							<Table.Head scope="col" class="text-right">Hyperping</Table.Head>
-							<Table.Head scope="col" class="text-right">Uppity</Table.Head>
 							<Table.Head scope="col" class="text-right"
 								>{m.landing_gate_col_selfhosted()}</Table.Head
 							>
@@ -317,9 +285,6 @@
 									class="text-muted-foreground text-right {cap.hyperping.mono ? 'font-mono' : ''}"
 								>
 									{cap.hyperping.text}
-								</Table.Cell>
-								<Table.Cell class="text-status-up-ink text-right">
-									{m.landing_gate_included()}
 								</Table.Cell>
 								<Table.Cell class="text-status-up-ink text-right">
 									{m.landing_gate_free()}
