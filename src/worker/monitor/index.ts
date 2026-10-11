@@ -67,6 +67,9 @@ const MAINTENANCE_INTERVAL_MS = 60_000;
  */
 async function pollLoop() {
 	let lastMaintenanceAt = 0;
+	// Seeded inside the guarded loop: during a migration the table can be briefly unwritable,
+	// and the worker must keep checking monitors until it is.
+	let jobsSeeded = false;
 
 	// oxlint-disable-next-line no-unmodified-loop-condition -- modified by shutdown() signal handler
 	while (running) {
@@ -74,6 +77,10 @@ async function pollLoop() {
 			if (Date.now() - lastMaintenanceAt >= MAINTENANCE_INTERVAL_MS) {
 				// Stamped first, so a failing pass waits out the interval instead of spinning.
 				lastMaintenanceAt = Date.now();
+				if (!jobsSeeded) {
+					await initializeMaintenanceJobs();
+					jobsSeeded = true;
+				}
 				await runDueMaintenanceJobs();
 				await releaseOverlongSchedules(db);
 			}
@@ -126,9 +133,6 @@ async function start() {
 		},
 		"Starting monitor scheduler worker",
 	);
-
-	// Initialize maintenance jobs if needed
-	await initializeMaintenanceJobs();
 
 	// Start the main polling loop
 	await pollLoop();
