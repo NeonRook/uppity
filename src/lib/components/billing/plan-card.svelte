@@ -74,6 +74,7 @@
 				? m.billing_features_all_notifications()
 				: m.billing_features_email_notifications(),
 			...(limits.customDomains ? [m.billing_features_custom_domains()] : []),
+			...(limits.apiAccess === "none" ? [] : [m.billing_features_api_access()]),
 			...(limits.sso ? [m.billing_features_sso()] : []),
 			...(limits.auditLogs ? [m.billing_features_audit_logs()] : []),
 		];

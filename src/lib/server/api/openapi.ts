@@ -1,0 +1,185 @@
+import { API_KEY_PREFIX, API_KEYS_PER_ORGANIZATION } from "#lib/constants/api.js";
+import { FREE_PLAN, UPPITY_PLAN } from "#lib/constants/plans.js";
+
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "./pagination";
+
+const free = FREE_PLAN.limits.apiRequestsPerMinute;
+const paid = UPPITY_PLAN.limits.apiRequestsPerMinute;
+
+// The limiter resets a key's count only after a full minute with no accepted request,
+// so the figure is a burst size, not a per-minute rate. See ADR 0006.
+const description = `Read-only access to an organization's monitors and incidents.
+
+Authenticate with an API key from Settings → API keys: \`Authorization: Bearer ${API_KEY_PREFIX}…\`. An organization can hold ${API_KEYS_PER_ORGANIZATION} keys.
+
+**Rate limits.** Each key can make ${free} requests on the Free plan, or ${paid} on paid plans, before it has to pause. The count resets once the key has gone a full minute without an accepted request, so a client that polls steadily reaches the limit even below ${free} requests a minute. A refused request returns \`429\` with \`Retry-After\` in seconds. Self-hosted operators set the figure with \`UPPITY_API_REQUESTS_PER_MINUTE\`.
+
+**Pagination.** List endpoints return \`{ data, nextCursor }\`, newest first. Pass \`nextCursor\` back as \`cursor\` for the next page; it is \`null\` on the last one.
+
+**Errors** share one shape: \`{ "error": { "code", "message" } }\`.`;
+
+const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+const nullable = (type: string, extra: object = {}) => ({ type: [type, "null"], ...extra });
+const dateTime = { type: "string", format: "date-time" };
+const json = (schema: object) => ({ content: { "application/json": { schema } } });
+
+const pageParams = [
+	{
+		name: "limit",
+		in: "query",
+		schema: { type: "integer", minimum: 1, maximum: MAX_PAGE_SIZE, default: DEFAULT_PAGE_SIZE },
+	},
+	{ name: "cursor", in: "query", schema: { type: "string" } },
+];
+const idParam = { name: "id", in: "path", required: true, schema: { type: "string" } };
+
+const page = (item: string) =>
+	json({
+		type: "object",
+		required: ["data", "nextCursor"],
+		properties: { data: { type: "array", items: ref(item) }, nextCursor: nullable("string") },
+	});
+
+const errors = (...statuses: number[]) =>
+	Object.fromEntries(
+		statuses.map((status) => [status, { $ref: `#/components/responses/${status}` }]),
+	);
+
+const get = (summary: string, ok: object, parameters: object[], ...errorStatuses: number[]) => ({
+	get: {
+		summary,
+		parameters,
+		responses: { 200: { description: "OK", ...ok }, ...errors(401, 403, 429, ...errorStatuses) },
+	},
+});
+
+const errorResponse = (summary: string) => ({
+	description: summary,
+	...json(ref("Error")),
+});
+
+export const openApiDocument = {
+	openapi: "3.1.0",
+	info: { title: "Uppity API", version: "1", description },
+	servers: [{ url: "/api/v1" }],
+	security: [{ apiKey: [] }],
+	paths: {
+		"/monitors": get("List monitors", page("Monitor"), pageParams, 400),
+		"/monitors/{id}": get("Get a monitor", json(ref("Monitor")), [idParam], 404),
+		"/monitors/{id}/checks": get(
+			"List a monitor's checks",
+			page("Check"),
+			[idParam, ...pageParams],
+			400,
+			404,
+		),
+		"/incidents": get("List incidents, resolved included", page("Incident"), pageParams, 400),
+		"/incidents/{id}": get("Get an incident", json(ref("IncidentDetail")), [idParam], 404),
+	},
+	components: {
+		securitySchemes: { apiKey: { type: "http", scheme: "bearer" } },
+		responses: {
+			400: errorResponse("Invalid limit or cursor"),
+			401: errorResponse("Missing, invalid, expired or revoked key"),
+			403: errorResponse("The plan does not allow this request"),
+			404: errorResponse("No such resource in this organization"),
+			429: {
+				...errorResponse("Rate limited"),
+				headers: { "Retry-After": { schema: { type: "integer" } } },
+			},
+		},
+		schemas: {
+			Error: {
+				type: "object",
+				properties: {
+					error: {
+						type: "object",
+						properties: { code: { type: "string" }, message: { type: "string" } },
+					},
+				},
+			},
+			Monitor: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					name: { type: "string" },
+					description: nullable("string"),
+					type: { enum: ["http", "tcp", "push"] },
+					active: { type: "boolean" },
+					pausedForCapacity: { type: "boolean" },
+					status: {
+						enum: ["up", "down", "degraded", "unknown", "not_checked"],
+						description:
+							"`not_checked` means Uppity's own checks of this monitor are failing or overdue, so the last recorded status is stale.",
+					},
+					url: nullable("string"),
+					method: nullable("string"),
+					hostname: nullable("string"),
+					port: nullable("integer"),
+					intervalSeconds: { type: "integer" },
+					timeoutSeconds: { type: "integer" },
+					lastCheckAt: nullable("string", { format: "date-time" }),
+					uptimePercent24h: nullable("number"),
+					avgResponseTimeMs24h: nullable("integer"),
+					createdAt: dateTime,
+					updatedAt: dateTime,
+				},
+			},
+			Check: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					status: { enum: ["up", "down", "degraded"] },
+					statusCode: nullable("integer"),
+					responseTimeMs: nullable("integer"),
+					errorMessage: nullable("string"),
+					sslExpiresAt: nullable("string", { format: "date-time" }),
+					checkedAt: dateTime,
+				},
+			},
+			Incident: {
+				type: "object",
+				properties: {
+					id: { type: "string" },
+					title: { type: "string" },
+					status: { enum: ["investigating", "identified", "monitoring", "resolved"] },
+					impact: { enum: ["none", "minor", "major", "critical"] },
+					autoCreated: { type: "boolean" },
+					startedAt: dateTime,
+					resolvedAt: nullable("string", { format: "date-time" }),
+					createdAt: dateTime,
+					updatedAt: dateTime,
+				},
+			},
+			IncidentDetail: {
+				allOf: [
+					ref("Incident"),
+					{
+						type: "object",
+						properties: {
+							updates: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										id: { type: "string" },
+										status: { type: "string" },
+										message: { type: "string" },
+										createdAt: dateTime,
+									},
+								},
+							},
+							affectedMonitors: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: { id: { type: "string" }, name: { type: "string" } },
+								},
+							},
+						},
+					},
+				],
+			},
+		},
+	},
+};

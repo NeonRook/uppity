@@ -11,6 +11,8 @@ import {
 } from "#lib/constants/api.js";
 import type { ApiAccessLevel, PlanLimits } from "#lib/types/plans.js";
 
+import { apiError as problem } from "./api/respond";
+
 export interface ApiCaller {
 	organizationId: string;
 	keyId: string;
@@ -50,15 +52,6 @@ export function isApiRoute(routeId: string | null): boolean {
 
 export function requestsPerMinute(limits: PlanLimits): number {
 	return limits.apiRequestsPerMinute === -1 ? API_REQUESTS_PER_MINUTE : limits.apiRequestsPerMinute;
-}
-
-function problem(
-	status: number,
-	code: string,
-	message: string,
-	headers?: Record<string, string>,
-): Response {
-	return Response.json({ error: { code, message } }, { status, headers });
 }
 
 /** The caller behind `request`, or the error response to send instead. */

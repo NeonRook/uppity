@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-	import { User, Building2, LoaderCircle, Plus, Check, CreditCard, Settings } from "@lucide/svelte";
+	import {
+		User,
+		Building2,
+		LoaderCircle,
+		Plus,
+		Check,
+		CreditCard,
+		KeyRound,
+		Settings,
+	} from "@lucide/svelte";
 
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
@@ -174,6 +183,25 @@
 					</div>
 					<Button variant="outline" size="sm" href="/settings/billing">
 						{m.settings_manage_billing()}
+					</Button>
+				</div>
+			</Card.Header>
+		</Card.Root>
+	{/if}
+
+	{#if data.currentOrganization}
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center justify-between">
+					<div>
+						<Card.Title class="flex items-center gap-2">
+							<KeyRound class="h-5 w-5" />
+							{m.settings_api_keys()}
+						</Card.Title>
+						<Card.Description>{m.settings_api_keys_desc()}</Card.Description>
+					</div>
+					<Button variant="outline" size="sm" href="/settings/api-keys">
+						{m.settings_manage_api_keys()}
 					</Button>
 				</div>
 			</Card.Header>
