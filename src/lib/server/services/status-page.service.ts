@@ -194,13 +194,11 @@ export interface FeaturedUptime {
 /**
  * The last `count` day keys as `YYYY-MM-DD`, oldest first.
  *
- * Uptime bands are UTC days. That is the boundary Postgres already applies:
- * `checked_at` is a timestamp without time zone holding a UTC wall clock, so
- * `DATE(checked_at)` yields the UTC calendar date whatever timezone the
- * database session or the Node process runs in. Building the keys with local
- * `getDate`/`setDate` and then formatting them with `toISOString` mixed the two
- * calendars and shifted the whole array by a day for anyone whose local date
- * differed from UTC's.
+ * Uptime bands are UTC days, matching `utcDay` on the database side whatever
+ * timezone the database session or the Node process runs in. Building the keys
+ * with local `getDate`/`setDate` and then formatting them with `toISOString`
+ * mixed the two calendars and shifted the whole array by a day for anyone whose
+ * local date differed from UTC's.
  *
  * A reader far from UTC therefore sees a day boundary offset from their own.
  * Making that configurable is a product decision, not a default to drift into.
@@ -223,11 +221,14 @@ const incidentUpdates = sql<PublicIncidentData["updates"]>`COALESCE(
 			'id', ${incidentUpdate.id},
 			'status', ${incidentUpdate.status},
 			'message', ${incidentUpdate.message},
-			'createdAt', ${incidentUpdate.createdAt} AT TIME ZONE 'UTC'
+			'createdAt', ${incidentUpdate.createdAt}
 		) ORDER BY ${incidentUpdate.createdAt} DESC
 	) FILTER (WHERE ${incidentUpdate.id} IS NOT NULL),
 	'[]'
 )`;
+
+/** The UTC calendar date of a check, independent of the session timezone. */
+const utcDay = sql<string>`DATE(${monitorCheck.checkedAt} AT TIME ZONE 'UTC')`;
 
 const countStatus = (status: "up" | "down" | "degraded") =>
 	sql<number>`SUM(CASE WHEN ${monitorCheck.status} = ${status} THEN 1 ELSE 0 END)::int`;
@@ -686,7 +687,7 @@ export class StatusPageService {
 				? await this.db
 						.select({
 							monitorId: monitorCheck.monitorId,
-							date: sql<string>`DATE(${monitorCheck.checkedAt})`,
+							date: utcDay,
 							total: sql<number>`COUNT(*)::int`,
 							up: countStatus("up"),
 							down: countStatus("down"),
@@ -707,8 +708,8 @@ export class StatusPageService {
 								)`,
 							),
 						)
-						.groupBy(monitorCheck.monitorId, sql`DATE(${monitorCheck.checkedAt})`)
-						.orderBy(sql`DATE(${monitorCheck.checkedAt})`)
+						.groupBy(monitorCheck.monitorId, utcDay)
+						.orderBy(utcDay)
 				: [];
 
 		const checksByMonitor = Map.groupBy(checksData, (c) => c.monitorId);
@@ -898,7 +899,7 @@ export class StatusPageService {
 
 		const rows = await this.db
 			.select({
-				date: sql<string>`DATE(${monitorCheck.checkedAt})`.as("date"),
+				date: utcDay.as("date"),
 				total: sql<number>`COUNT(*)::int`,
 				up: countStatus("up"),
 				down: countStatus("down"),
@@ -914,7 +915,7 @@ export class StatusPageService {
 				),
 			)
 			.where(and(eq(statusPageMonitor.statusPageId, page.id), gte(monitorCheck.checkedAt, since)))
-			.groupBy(sql`DATE(${monitorCheck.checkedAt})`);
+			.groupBy(utcDay);
 
 		const byDate = new Map(rows.map((r) => [r.date, r]));
 
