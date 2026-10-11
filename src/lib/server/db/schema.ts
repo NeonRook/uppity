@@ -63,8 +63,8 @@ export const monitor = pgTable(
 		alertAfterFailures: integer("alert_after_failures").notNull().default(1),
 
 		// Metadata
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 
 		// Scheduler columns (worker polling)
 		nextCheckAt: timestamp("next_check_at", { withTimezone: true }).default(sql`NOW()`),
@@ -98,11 +98,11 @@ export const monitorCheck = pgTable(
 		errorMessage: text("error_message"),
 
 		// SSL info
-		sslExpiresAt: timestamp("ssl_expires_at"),
+		sslExpiresAt: timestamp("ssl_expires_at", { withTimezone: true }),
 		sslIssuer: text("ssl_issuer"),
 
 		// Metadata
-		checkedAt: timestamp("checked_at").notNull().defaultNow(),
+		checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 		region: text("region").default("default"),
 	},
 	(table) => [
@@ -120,12 +120,12 @@ export const monitorStatus = pgTable(
 			.primaryKey()
 			.references(() => monitor.id, { onDelete: "cascade" }),
 		status: text("status").notNull().default("unknown"), // 'up' | 'down' | 'degraded' | 'unknown'
-		lastCheckAt: timestamp("last_check_at"),
-		lastStatusChange: timestamp("last_status_change"),
+		lastCheckAt: timestamp("last_check_at", { withTimezone: true }),
+		lastStatusChange: timestamp("last_status_change", { withTimezone: true }),
 		consecutiveFailures: integer("consecutive_failures").notNull().default(0),
 		uptimePercent24h: real("uptime_percent_24h"),
 		avgResponseTimeMs24h: integer("avg_response_time_ms_24h"),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [index("monitor_status_status_idx").on(table.status)],
 );
@@ -137,7 +137,7 @@ export const monitorDailyStats = pgTable(
 		monitorId: text("monitor_id")
 			.notNull()
 			.references(() => monitor.id, { onDelete: "cascade" }),
-		date: timestamp("date").notNull(),
+		date: timestamp("date", { withTimezone: true }).notNull(),
 		totalChecks: integer("total_checks").notNull().default(0),
 		successfulChecks: integer("successful_checks").notNull().default(0),
 		failedChecks: integer("failed_checks").notNull().default(0),
@@ -167,12 +167,12 @@ export const incident = pgTable(
 		title: text("title").notNull(),
 		status: text("status").notNull().default("investigating"), // 'investigating' | 'identified' | 'monitoring' | 'resolved'
 		impact: text("impact").notNull().default("minor"), // 'none' | 'minor' | 'major' | 'critical'
-		startedAt: timestamp("started_at").notNull().defaultNow(),
-		resolvedAt: timestamp("resolved_at"),
+		startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+		resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 		createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
 		isAutoCreated: boolean("is_auto_created").notNull().default(false),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("incident_org_idx").on(table.organizationId),
@@ -212,7 +212,7 @@ export const incidentUpdate = pgTable(
 		status: text("status").notNull(),
 		message: text("message").notNull(),
 		createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [index("incident_update_incident_idx").on(table.incidentId)],
 );
@@ -242,8 +242,8 @@ export const statusPage = pgTable(
 		// Custom domain
 		customDomain: text("custom_domain").unique(),
 
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [index("status_page_org_idx").on(table.organizationId)],
 );
@@ -313,8 +313,8 @@ export const notificationChannel = pgTable(
 			}>()
 			.notNull(),
 		enabled: boolean("enabled").notNull().default(true),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [index("notification_channel_org_idx").on(table.organizationId)],
 );
@@ -356,7 +356,7 @@ export const notificationLog = pgTable(
 		type: text("type").notNull(), // 'monitor_down' | 'monitor_up' | 'incident_created' | 'incident_updated' | 'ssl_expiry'
 		status: text("status").notNull(), // 'sent' | 'failed'
 		errorMessage: text("error_message"),
-		sentAt: timestamp("sent_at").notNull().defaultNow(),
+		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("notification_log_channel_idx").on(table.channelId),
@@ -380,10 +380,10 @@ export const notificationEvent = pgTable(
 		payload: jsonb("payload").notNull(),
 		status: text("status").notNull().default("pending"),
 		// 'pending' | 'processing' | 'processed' | 'suppressed' | 'failed' | 'sent'
-		claimedAt: timestamp("claimed_at"),
-		processedAt: timestamp("processed_at"),
+		claimedAt: timestamp("claimed_at", { withTimezone: true }),
+		processedAt: timestamp("processed_at", { withTimezone: true }),
 		errorMessage: text("error_message"),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("notification_event_status_created_idx").on(table.status, table.createdAt),
@@ -597,8 +597,8 @@ export const maintenanceWindow = pgTable(
 		startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
 		endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
 		createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("maint_window_org_idx").on(table.organizationId),
@@ -703,16 +703,16 @@ export const subscription = pgTable(
 
 		// Billing period
 		billingInterval: text("billing_interval").$type<BillingInterval>(),
-		currentPeriodStart: timestamp("current_period_start"),
-		currentPeriodEnd: timestamp("current_period_end"),
+		currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
+		currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
 
 		// Polar integration
 		polarCustomerId: text("polar_customer_id"),
 		polarSubscriptionId: text("polar_subscription_id"),
 
 		// Timestamps
-		createdAt: timestamp("created_at").notNull().defaultNow(),
-		updatedAt: timestamp("updated_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("subscription_org_idx").on(table.organizationId),
@@ -763,7 +763,7 @@ export const auditLog = pgTable(
 		metadata: jsonb("metadata").$type<Record<string, unknown>>(),
 		ipAddress: text("ip_address"),
 		userAgent: text("user_agent"),
-		createdAt: timestamp("created_at").notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index("audit_actor_idx").on(table.actorId),
