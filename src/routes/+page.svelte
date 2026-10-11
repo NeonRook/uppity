@@ -149,6 +149,7 @@
 		},
 		{ label: m.landing_plan_row_domains(), value: (l) => yesNo(l.customDomains) },
 		{ label: m.landing_plan_row_sso(), value: (l) => yesNo(l.sso && l.auditLogs) },
+		{ label: m.landing_plan_row_api(), value: (l) => yesNo(l.apiAccess !== "none") },
 	];
 </script>
 

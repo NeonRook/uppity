@@ -24,3 +24,7 @@ export const inviteMemberSchema = v.object({
 	email: v.pipe(v.string(), v.email("Valid email is required")),
 	role: v.optional(v.picklist(["member", "admin", "owner"]), "member"),
 });
+
+export const createApiKeySchema = v.object({
+	name: v.pipe(v.string(), v.trim(), v.minLength(1, "Name the key"), v.maxLength(32)),
+});
