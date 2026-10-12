@@ -181,5 +181,6 @@ describe("MonitorChannelService.options", () => {
 			"hooks.example.com",
 		]);
 		expect(JSON.stringify(options)).not.toContain("secret");
+		expect(options.map((o) => o.confirmed)).toEqual([false, true, true, true]);
 	});
 });

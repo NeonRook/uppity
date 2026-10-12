@@ -20,6 +20,7 @@ import {
 	type WideEventBuilder,
 } from "../../lib/server/logger";
 import { runCapacityGrace } from "../../lib/server/services/capacity.service";
+import { pruneChannelConfirmationSends } from "../../lib/server/services/email-channel.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
 import { deleteExpiredUnconfirmedSubscribers } from "../../lib/server/services/status-page-subscriber.service";
@@ -62,6 +63,13 @@ const JOBS: JobRegistry = {
 		cron: CRON_CLEANUP,
 		run: async (event) => {
 			event.set("records_deleted", await deleteExpiredUnconfirmedSubscribers(db));
+		},
+	},
+	"channel-confirmation-prune": {
+		name: "Channel Confirmation Prune",
+		cron: CRON_CLEANUP,
+		run: async (event) => {
+			event.set("records_deleted", await pruneChannelConfirmationSends(db));
 		},
 	},
 	"maintenance-window-transitions": {

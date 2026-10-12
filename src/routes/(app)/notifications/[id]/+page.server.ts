@@ -9,6 +9,7 @@ import { monitor } from "#lib/server/db/schema.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
+import { verifiedEmail } from "#lib/server/verified-email.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -68,7 +69,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	update: async ({ request, params, locals }) => {
-		if (!locals.session?.activeOrganizationId) {
+		if (!locals.user || !locals.session?.activeOrganizationId) {
 			return fail(401, { error: "Not authenticated" });
 		}
 
@@ -93,10 +94,12 @@ export const actions: Actions = {
 		});
 
 		try {
-			await notificationChannelService.update(params.id, locals.session.activeOrganizationId, {
-				name: data.name,
-				config,
-			});
+			await notificationChannelService.update(
+				params.id,
+				locals.session.activeOrganizationId,
+				{ name: data.name, config },
+				verifiedEmail(locals.user),
+			);
 		} catch (err) {
 			locals.event.setError(err);
 			return message(form, "Failed to update notification channel", { status: 500 });

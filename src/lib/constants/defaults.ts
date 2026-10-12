@@ -85,6 +85,13 @@ export const SUBSCRIBER_CONFIRMATION_CAP = {
 };
 
 /**
+ * Unconfirmed confirmation emails one organization may have sent to email channel addresses
+ * in the past week. A confirmation frees its slot, so a team whose recipients confirm never
+ * meets the cap, while mail to strangers who ignore it stalls here.
+ */
+export const CHANNEL_PENDING_CONFIRMATIONS = envInt("UPPITY_CHANNEL_PENDING_CONFIRMATIONS", 5);
+
+/**
  * Slug of a public status page to feature on the landing page, or empty to
  * omit that section.
  *

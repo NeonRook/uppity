@@ -6,6 +6,7 @@ import { notificationChannelSchema } from "#lib/schemas/notification-channel.js"
 import { FeatureNotAvailableError } from "#lib/server/errors.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
+import { verifiedEmail } from "#lib/server/verified-email.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		if (!locals.session?.activeOrganizationId) {
+		if (!locals.user || !locals.session?.activeOrganizationId) {
 			return fail(401, { error: "Not authenticated" });
 		}
 
@@ -46,6 +47,7 @@ export const actions: Actions = {
 		try {
 			const channel = await notificationChannelService.create({
 				organizationId: locals.session.activeOrganizationId,
+				requestedBy: verifiedEmail(locals.user),
 				name: data.name,
 				type: data.type,
 				config,

@@ -821,5 +821,22 @@
 	"public_unsubscribe_page_title": "Unsubscribe - {name} Status",
 	"public_unsubscribe_prompt": "Stop getting incident emails from {name}?",
 	"public_unsubscribe_submit": "Unsubscribe",
-	"public_unsubscribe_done": "You're unsubscribed. We won't email you about {name} again."
+	"public_unsubscribe_done": "You're unsubscribed. We won't email you about {name} again.",
+	"alerts_confirm_title": "Confirm alert emails",
+	"alerts_confirm_prompt": "{organization} wants to send monitoring alerts to {email}. Confirm to start receiving them.",
+	"alerts_confirm_submit": "Confirm alerts",
+	"alerts_confirm_done": "{email} now receives monitoring alerts from {organization}. Every alert has a link to stop them.",
+	"alerts_confirm_invalid": "This link has expired or is no longer valid. Ask the organization to send a new one.",
+	"alerts_unsubscribe_title": "Stop alert emails",
+	"alerts_unsubscribe_prompt": "Stop sending monitoring alerts from {organization} to {email}? They won't be able to ask you again.",
+	"alerts_unsubscribe_submit": "Stop alerts",
+	"alerts_unsubscribe_done": "You're unsubscribed. This address won't get these alerts anymore.",
+	"notifications_unconfirmed": "Unconfirmed",
+	"notifications_unsubscribed": "Unsubscribed",
+	"notifications_resend": "Resend confirmation",
+	"notifications_resend_sent": "Confirmation email sent",
+	"notifications_resend_confirmed": "This address is already confirmed",
+	"notifications_resend_unsubscribed": "The recipient unsubscribed from these alerts",
+	"notifications_resend_too_soon": "A confirmation went out less than an hour ago. Try again later.",
+	"notifications_resend_capped": "Too many addresses from the past week are still unconfirmed. More can be sent as recipients confirm."
 }

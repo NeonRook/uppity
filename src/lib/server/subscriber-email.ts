@@ -8,7 +8,11 @@ export interface SubscriptionConfirmation {
 	page: { name: string; slug: string };
 }
 
-/** Sends the double opt-in link for a status page subscription. Throws when it cannot. */
+/**
+ * Sends the double opt-in link for a status page subscription. Anyone can type any address
+ * into the form, so the email carries no text the page owner chose; the confirm page names
+ * the page. Throws when it cannot.
+ */
 export async function sendSubscriptionConfirmation({
 	email,
 	token,
@@ -18,14 +22,14 @@ export async function sendSubscriptionConfirmation({
 
 	const confirmUrl = `${appUrl}/status/${page.slug}/confirm/${token}`;
 	const paragraphs = [
-		`You asked to get an email whenever ${page.name} reports an incident. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
+		`Someone asked for this address to get an email whenever a status page on Uppity reports an incident. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
 		"If you didn't ask for this, ignore this email. You won't hear from us again.",
 	];
 
 	await subscriberTransport.sendMail({
 		from: subscriberFrom,
 		to: email,
-		subject: `Confirm your subscription to ${page.name} status updates`,
+		subject: "Confirm your status page subscription",
 		html: [
 			`<p>${escapeHtml(paragraphs[0])}</p>`,
 			`<p><a href="${confirmUrl}">Confirm subscription</a></p>`,

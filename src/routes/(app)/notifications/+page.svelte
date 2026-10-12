@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Bell, Pencil, Trash2 } from "@lucide/svelte";
+	import { Bell, Pencil, Send, Trash2 } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
 	import AddButton from "#lib/components/add-button.svelte";
@@ -16,8 +16,13 @@
 		getChannelType,
 	} from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
-	import { getChannels, toggleChannel, deleteChannel } from "#lib/remote/notifications.remote.js";
-	import type { NotificationChannel } from "#lib/server/db/schema.js";
+	import {
+		getChannels,
+		toggleChannel,
+		deleteChannel,
+		resendConfirmation,
+	} from "#lib/remote/notifications.remote.js";
+	import type { ChannelView } from "#lib/server/services/notification-channel.service.js";
 	import { errorMessage } from "#lib/utils/error-message.js";
 
 	let { data } = $props();
@@ -34,7 +39,9 @@
 	let deleteChannelId = $state<string | null>(null);
 	let togglingChannelId = $state<string | null>(null);
 
-	function getChannelDescription(channel: NotificationChannel): string {
+	let resendingChannelId = $state<string | null>(null);
+
+	function getChannelDescription(channel: ChannelView): string {
 		const config = channel.config as Record<string, unknown>;
 		switch (channel.type) {
 			case "email":
@@ -62,6 +69,28 @@
 			toast.error(errorMessage(e, "Failed to toggle channel"));
 		} finally {
 			togglingChannelId = null;
+		}
+	}
+
+	const resendMessages = {
+		sent: m.notifications_resend_sent,
+		confirmed: m.notifications_resend_confirmed,
+		unsubscribed: m.notifications_resend_unsubscribed,
+		too_soon: m.notifications_resend_too_soon,
+		capped: m.notifications_resend_capped,
+	};
+
+	async function handleResend(channelId: string) {
+		resendingChannelId = channelId;
+		try {
+			const { result } = await resendConfirmation({ channelId });
+			const message = resendMessages[result]();
+			if (result === "sent" || result === "confirmed") toast.success(message);
+			else toast.error(message);
+		} catch (e) {
+			toast.error(errorMessage(e, "Failed to send confirmation"));
+		} finally {
+			resendingChannelId = null;
 		}
 	}
 
@@ -127,6 +156,13 @@
 										{#if !channel.enabled}
 											<Badge variant="outline">{m.common_disabled()}</Badge>
 										{/if}
+										{#if channel.type === "email" && !channel.verifiedAt}
+											<Badge variant="outline">
+												{channel.unsubscribedAt
+													? m.notifications_unsubscribed()
+													: m.notifications_unconfirmed()}
+											</Badge>
+										{/if}
 									</div>
 									<p class="text-muted-foreground truncate text-sm">
 										{getChannelDescription(channel)}
@@ -135,6 +171,17 @@
 							</div>
 
 							<div class="flex items-center gap-2">
+								{#if channel.type === "email" && !channel.verifiedAt && !channel.unsubscribedAt}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={resendingChannelId === channel.id}
+										onclick={() => handleResend(channel.id)}
+									>
+										<Send class="h-4 w-4" />
+										{m.notifications_resend()}
+									</Button>
+								{/if}
 								<Switch
 									checked={channel.enabled}
 									disabled={togglingChannelId === channel.id}
