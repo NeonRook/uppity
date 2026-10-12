@@ -44,6 +44,8 @@ export class StatsService {
 				failedChecks: sql<number>`count(*) filter (where ${monitorCheck.status} = 'down')`.mapWith(
 					Number,
 				),
+				degradedChecks:
+					sql<number>`count(*) filter (where ${monitorCheck.status} = 'degraded')`.mapWith(Number),
 				avgResponseTimeMs: sql<
 					number | null
 				>`round(avg(${monitorCheck.responseTimeMs}) filter (where ${notDown}))`.mapWith(Number),
@@ -53,6 +55,11 @@ export class StatsService {
 				maxResponseTimeMs: sql<
 					number | null
 				>`max(${monitorCheck.responseTimeMs}) filter (where ${notDown})`.mapWith(Number),
+				p95ResponseTimeMs: sql<
+					number | null
+				>`round(percentile_cont(0.95) within group (order by ${monitorCheck.responseTimeMs}) filter (where ${notDown}))`.mapWith(
+					Number,
+				),
 			})
 			.from(monitorCheck)
 			.where(where);
@@ -73,9 +80,11 @@ export class StatsService {
 			totalChecks,
 			successfulChecks,
 			failedChecks,
+			degradedChecks,
 			avgResponseTimeMs,
 			minResponseTimeMs,
 			maxResponseTimeMs,
+			p95ResponseTimeMs,
 		} = await this.rollUpChecks(
 			and(
 				eq(monitorCheck.monitorId, monitorId),
@@ -107,9 +116,11 @@ export class StatsService {
 				totalChecks,
 				successfulChecks,
 				failedChecks,
+				degradedChecks,
 				avgResponseTimeMs,
 				minResponseTimeMs,
 				maxResponseTimeMs,
+				p95ResponseTimeMs,
 				uptimePercent,
 				incidentCount,
 			})
@@ -119,9 +130,11 @@ export class StatsService {
 					totalChecks,
 					successfulChecks,
 					failedChecks,
+					degradedChecks,
 					avgResponseTimeMs,
 					minResponseTimeMs,
 					maxResponseTimeMs,
+					p95ResponseTimeMs,
 					uptimePercent,
 					incidentCount,
 				},

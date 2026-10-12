@@ -208,9 +208,11 @@ describe("StatsService aggregation", () => {
 			totalChecks: 4,
 			successfulChecks: 3,
 			failedChecks: 1,
+			degradedChecks: 1,
 			avgResponseTimeMs: 151,
 			minResponseTimeMs: 100,
 			maxResponseTimeMs: 201,
+			p95ResponseTimeMs: 196,
 			uptimePercent: 75,
 		});
 	});

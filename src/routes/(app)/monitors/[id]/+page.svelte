@@ -21,6 +21,7 @@
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
+	import ResponseTimeChart from "#lib/components/response-time-chart.svelte";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -233,6 +234,16 @@
 			</Card.Root>
 		{/each}
 	</div>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>{m.monitor_response_title()}</Card.Title>
+			<Card.Description>{m.monitor_response_desc()}</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<ResponseTimeChart days={data.responseHistory} windows={data.historyWindows} />
+		</Card.Content>
+	</Card.Root>
 
 	<!-- Monitor Details -->
 	<Card.Root>
