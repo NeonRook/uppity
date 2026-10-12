@@ -15,8 +15,7 @@ year, then official development ends. ADR 0001 chose Deno for the runner only, o
 and the runner executes a pre-bundled artifact, so leaving it changes the runner stage and
 nothing in the dev loop.
 
-The workers are out of scope here: ADR 0007 rewrites them in Rust. Until then they run from the
-same image, now on Node.
+The workers run from the same image, now on Node, under the same permission model.
 
 ADR 0001 also leaned on Deno's per-process `--allow-*` sets, which gave the web tier a closed
 list of hosts it could reach. Whether Node can keep that was the open question.
@@ -66,8 +65,7 @@ Measured on 2026-10-12 with the same build output. Deno 2.9.7 against Node 26.11
 | Runtime binary         | 91MB  | 139MB |
 
 The Node image is about 57MB larger on disk and 8MB larger to pull. The difference is the binary.
-This is accepted: it is the cost of a runtime with a future, and it shrinks once ADR 0007 moves
-the workers to their own image.
+This is accepted: it is the cost of a runtime with a future.
 
 ## Consequences
 
