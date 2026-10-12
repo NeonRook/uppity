@@ -39,6 +39,19 @@ no grant.
 posts to whatever Discord, Slack or webhook endpoint a user configured. Unrestricted network access
 is what they are for, so the permission model restricts only their filesystem and process access.
 
+The application restricts where those connections go instead. Checks and notification deliveries
+resolve each host once and refuse it if any address is private, loopback, link-local, unique local,
+CGNAT, multicast, reserved or documentation space, including IPv6 forms that carry such an IPv4
+address. They then connect only to the addresses they checked, on every redirect hop.
+`UPPITY_ALLOW_PRIVATE_TARGETS=true` lifts the rule, for a self-hosted instance that monitors its own
+network.
+
+## Extra CA certificates
+
+Set `NODE_EXTRA_CA_CERTS` to a PEM file to trust a private CA in checks and deliveries. Node reads
+the file once at startup, before the permission model applies, so it needs no `--allow-fs-read`
+grant. `scripts/entrypoint.spec.ts` runs a TLS handshake under the workers' flags to hold this true.
+
 ## Changing it
 
 `pnpm dev` runs without the permission model, so a dependency that starts writing a file,
