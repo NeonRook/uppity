@@ -285,6 +285,14 @@
 						</dd>
 					</div>
 					{@render field(m.monitor_http_method(), data.monitor.method ?? "-")}
+					{@render field(
+						m.monitor_follow_redirects(),
+						data.monitor.followRedirects ? m.common_enabled() : m.common_disabled(),
+					)}
+					{@render field(
+						m.monitor_accept_self_signed(),
+						data.monitor.acceptSelfSigned ? m.common_enabled() : m.common_disabled(),
+					)}
 				{/if}
 
 				{#if data.monitor.type === "tcp"}
