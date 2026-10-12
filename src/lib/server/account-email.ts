@@ -114,3 +114,28 @@ export async function sendChannelUnsubscribedNotice(
 		text: [...paragraphs, "", `Open notification channels: ${channelsUrl}`].join("\n"),
 	});
 }
+
+/**
+ * Sends the link that verifies an account's email address. Anyone can sign up with any
+ * address, so the email carries no text the signup chose. Throws when it cannot.
+ */
+export async function sendAccountVerification(to: string, url: string): Promise<void> {
+	if (!smtpTransport) throw new Error("SMTP not configured");
+
+	const paragraphs = [
+		"Confirm this is your email address to finish setting up your Uppity account.",
+		"If you didn't sign up for Uppity, ignore this email.",
+	];
+
+	await smtpTransport.sendMail({
+		from: smtpFrom,
+		to,
+		subject: "Verify your email address for Uppity",
+		html: [
+			`<p>${escapeHtml(paragraphs[0])}</p>`,
+			`<p><a href="${url}">Verify email address</a></p>`,
+			`<p>${escapeHtml(paragraphs[1])}</p>`,
+		].join("\n"),
+		text: [paragraphs[0], "", `Verify email address: ${url}`, "", paragraphs[1]].join("\n"),
+	});
+}

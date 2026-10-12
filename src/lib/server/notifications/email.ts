@@ -10,8 +10,8 @@ const unsubscribeUrl = (token: string) => `${appUrl}/alerts/unsubscribe/${token}
 export interface ChannelConfirmation {
 	email: string;
 	token: string;
-	/** A verified account email, or null when the member's address is unverified. */
-	requestedBy: string | null;
+	/** The verified account email of the member who added the address. */
+	requestedBy: string;
 }
 
 /**
@@ -28,7 +28,7 @@ export async function sendChannelConfirmation({
 	if (!subscriberTransport) throw new Error("SMTP not configured");
 
 	const paragraphs = [
-		`${requestedBy ?? "Someone using Uppity"} wants this address to receive monitoring alerts from Uppity. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
+		`${requestedBy} wants this address to receive monitoring alerts from Uppity. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
 		"If you don't want these alerts, ignore this email or unsubscribe. After an unsubscribe, the sender can ask you only once more.",
 	];
 

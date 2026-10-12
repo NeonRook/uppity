@@ -22,6 +22,7 @@
 		deleteChannel,
 		resendConfirmation,
 	} from "#lib/remote/notifications.remote.js";
+	import type { ResendResult } from "#lib/server/services/email-channel.service.js";
 	import type { ChannelView } from "#lib/server/services/notification-channel.service.js";
 	import { errorMessage } from "#lib/utils/error-message.js";
 
@@ -72,11 +73,12 @@
 		}
 	}
 
-	const resendMessages = {
+	const resendMessages: Record<ResendResult, () => string> = {
 		sent: m.notifications_resend_sent,
 		confirmed: m.notifications_resend_confirmed,
 		unsubscribed: m.notifications_resend_unsubscribed,
 		reasked: m.notifications_resend_reasked,
+		unverified: m.notifications_resend_unverified,
 		too_soon: m.notifications_resend_too_soon,
 		capped: m.notifications_resend_capped,
 	};

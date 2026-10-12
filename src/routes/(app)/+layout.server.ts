@@ -6,6 +6,7 @@ import { auth } from "#lib/server/auth.js";
 import { member, organization } from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { getUsageLimitsData } from "#lib/server/services/usage-limits.js";
+import { smtpTransport } from "#lib/server/smtp.js";
 
 import type { LayoutServerLoad } from "./$types";
 
@@ -60,5 +61,7 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 		currentOrganization: userMemberships.find((org) => org.id === activeOrgId) ?? null,
 		usageLimits,
 		selfHosted: isSelfHosted(),
+		// Without mail there is no verification link, so asking for one would only nag.
+		canVerifyEmail: smtpTransport !== null,
 	};
 };

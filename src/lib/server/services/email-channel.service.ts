@@ -28,8 +28,15 @@ export type ResendResult =
 	| "confirmed"
 	| "unsubscribed"
 	| "reasked"
+	| "unverified"
 	| "too_soon"
 	| "capped";
+
+/** The member asking for a confirmation. */
+export interface Requester {
+	email: string;
+	emailVerified: boolean;
+}
 
 export interface RecipientLookup {
 	state: "pending" | "confirmed" | "expired" | "unsubscribed";
@@ -87,16 +94,16 @@ export class EmailChannelService {
 
 	/**
 	 * Confirms the channel outright when its address belongs to a verified member, and
-	 * otherwise emails a confirmation link naming `requestedBy`, the verified account email
-	 * of the member asking. An unverified one would let anyone put text of their choosing in
-	 * mail to strangers. An address that opted out gets one more request, under a new token
-	 * so the old links stop working, and nothing after it until it confirms. Null when no
-	 * such email channel exists.
+	 * otherwise emails a confirmation link naming the requester. A requester whose own
+	 * address is unverified sends nothing: anyone can sign up as anyone, so their name for
+	 * themselves is text of their choosing. An address that opted out gets one more request,
+	 * under a new token so the old links stop working, and nothing after it until it
+	 * confirms. Null when no such email channel exists.
 	 */
 	async requestConfirmation(
 		channelId: string,
 		organizationId: string,
-		requestedBy: string | null,
+		requester: Requester,
 	): Promise<ResendResult | null> {
 		const c = notificationChannel;
 		const log = channelConfirmationSend;
@@ -127,6 +134,7 @@ export class EmailChannelService {
 				await tx.update(c).set({ verifiedAt: now }).where(eq(c.id, channelId));
 				return "confirmed";
 			}
+			if (!requester.emailVerified) return "unverified";
 
 			// Per address, so recreating or readdressing a channel cannot skip the wait.
 			const [{ lastSent }] = await tx
@@ -166,7 +174,11 @@ export class EmailChannelService {
 		if (pending === null || typeof pending === "string") return pending;
 
 		try {
-			await this.sendConfirmation({ email: pending.email, token: pending.token, requestedBy });
+			await this.sendConfirmation({
+				email: pending.email,
+				token: pending.token,
+				requestedBy: requester.email,
+			});
 		} catch (error) {
 			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
 			await this.db.transaction(async (tx) => {
@@ -235,6 +247,44 @@ export class EmailChannelService {
 		}
 
 		return row !== undefined || (await this.lookup(token))?.state === "confirmed";
+	}
+
+	/**
+	 * Confirms pending channels addressed to `email` in every organization where it belongs
+	 * to a verified member. Called once the member verifies it.
+	 */
+	async confirmMemberAddress(email: string): Promise<void> {
+		const c = notificationChannel;
+		const address = email.toLowerCase();
+		const now = new Date();
+		const confirmed = await this.db
+			.update(c)
+			.set({ verifiedAt: now })
+			.where(
+				and(
+					eq(c.type, "email"),
+					isNull(c.verifiedAt),
+					isNull(c.unsubscribedAt),
+					sql`lower(${c.config}->>'email') = ${address}`,
+					sql`${c.organizationId} in (
+						select ${member.organizationId} from ${member}
+						inner join ${user} on ${user.id} = ${member.userId}
+						where ${user.emailVerified} and lower(${user.email}) = ${address}
+					)`,
+					// Verifying an account is not consent to alerts the address opted out of.
+					sql`not exists (
+						select 1 from ${emailOptOut}
+						where ${emailOptOut.organizationId} = ${c.organizationId}
+						and ${emailOptOut.email} = ${address}
+						and ${emailOptOut.unsubscribedAt} is not null
+					)`,
+				),
+			)
+			.returning({ organizationId: c.organizationId });
+
+		for (const organizationId of new Set(confirmed.map((row) => row.organizationId))) {
+			await markConfirmed(this.db, organizationId, address, now);
+		}
 	}
 
 	/**

@@ -25,6 +25,7 @@
 
 	import { signOut } from "#lib/auth-client.js";
 	import CapacityBanner from "#lib/components/billing/capacity-banner.svelte";
+	import EmailVerificationBanner from "#lib/components/email-verification-banner.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
@@ -253,6 +254,9 @@
 			</header>
 
 			<main class="bg-background overflow-y-auto p-4 sm:p-6">
+				{#if data.canVerifyEmail && !data.user.emailVerified && !data.impersonating}
+					<EmailVerificationBanner email={data.user.email} />
+				{/if}
 				{#if data.usageLimits && !data.selfHosted}
 					<CapacityBanner usage={data.usageLimits} />
 				{/if}

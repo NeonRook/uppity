@@ -5,7 +5,6 @@ import * as v from "valibot";
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
 import { emailChannelService } from "#lib/server/services/email-channel.instance.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
-import { verifiedEmail } from "#lib/server/verified-email.js";
 
 // Query: List notification channels for the current organization
 export const getChannels = query(async () => {
@@ -53,11 +52,7 @@ export const resendConfirmation = command(channelIdSchema, async ({ channelId })
 	const { user } = getRequestEvent().locals;
 	if (!user) error(401, "Not authenticated");
 
-	const result = await emailChannelService.requestConfirmation(
-		channelId,
-		organizationId,
-		verifiedEmail(user),
-	);
+	const result = await emailChannelService.requestConfirmation(channelId, organizationId, user);
 
 	if (!result) {
 		error(404, "Channel not found");

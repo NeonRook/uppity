@@ -6,11 +6,10 @@ import { valibot } from "sveltekit-superforms/adapters";
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor } from "#lib/server/db/schema.js";
-import { ConfirmationCapError } from "#lib/server/errors.js";
+import { ConfirmationCapError, EmailVerificationRequiredError } from "#lib/server/errors.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
-import { verifiedEmail } from "#lib/server/verified-email.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -99,10 +98,10 @@ export const actions: Actions = {
 				params.id,
 				locals.session.activeOrganizationId,
 				{ name: data.name, config },
-				verifiedEmail(locals.user),
+				locals.user,
 			);
 		} catch (err) {
-			if (err instanceof ConfirmationCapError) {
+			if (err instanceof ConfirmationCapError || err instanceof EmailVerificationRequiredError) {
 				return message(form, err.message, { status: 403 });
 			}
 			locals.event.setError(err);

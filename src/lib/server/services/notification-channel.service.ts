@@ -3,9 +3,14 @@ import { nanoid } from "nanoid";
 
 import { db } from "#lib/server/db/index.js";
 import { notificationChannel, type NotificationChannel } from "#lib/server/db/schema.js";
-import { ConfirmationCapError, FeatureNotAvailableError } from "#lib/server/errors.js";
+import {
+	ConfirmationCapError,
+	EmailVerificationRequiredError,
+	FeatureNotAvailableError,
+} from "#lib/server/errors.js";
 import { logger } from "#lib/server/logger/index.js";
 import { emailChannelService } from "#lib/server/services/email-channel.instance.js";
+import type { Requester } from "#lib/server/services/email-channel.service.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 /** A channel as members see it. The token would let them confirm an address on its owner's behalf. */
@@ -16,10 +21,19 @@ const { token: _token, ...viewColumns } = getTableColumns(notificationChannel);
 const sameAddress = (a: unknown, b: unknown) =>
 	typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 
+/** Until verified, a member can point an email channel at their own address only. */
+function assertMaySend(requester: Requester, address: unknown) {
+	if (!requester.emailVerified && !sameAddress(address, requester.email)) {
+		throw new EmailVerificationRequiredError(
+			"Verify your email address to send alerts to someone else's.",
+		);
+	}
+}
+
 export interface CreateChannelInput {
 	organizationId: string;
-	/** Verified account email of the member saving the channel, named in the confirmation email. */
-	requestedBy: string | null;
+	/** The member saving the channel. */
+	requester: Requester;
 	name: string;
 	type: "email" | "slack" | "discord" | "webhook";
 	config: Record<string, unknown>;
@@ -45,6 +59,8 @@ export class NotificationChannelService {
 			);
 		}
 
+		if (input.type === "email") assertMaySend(input.requester, input.config.email);
+
 		const recipient =
 			input.type === "email"
 				? await this.recipientFor(input.organizationId, input.config.email)
@@ -65,7 +81,7 @@ export class NotificationChannelService {
 			.returning(viewColumns);
 
 		if (input.type === "email" && !newChannel.unsubscribedAt) {
-			await this.requestConfirmation(id, input.organizationId, input.requestedBy);
+			await this.requestConfirmation(id, input.organizationId, input.requester);
 		}
 		return newChannel;
 	}
@@ -95,10 +111,10 @@ export class NotificationChannelService {
 	private async requestConfirmation(
 		id: string,
 		organizationId: string,
-		requestedBy: string | null,
+		requester: Requester,
 	): Promise<void> {
 		try {
-			await emailChannelService.requestConfirmation(id, organizationId, requestedBy);
+			await emailChannelService.requestConfirmation(id, organizationId, requester);
 		} catch (error) {
 			logger.error({ channel_id: id, error }, "Failed to send channel confirmation");
 		}
@@ -124,16 +140,17 @@ export class NotificationChannelService {
 			.orderBy(desc(notificationChannel.createdAt));
 	}
 
-	/** `requestedBy` is named in the confirmation email when the address changes. */
+	/** A new email address starts confirmation over, on behalf of `requester`. */
 	async update(
 		id: string,
 		organizationId: string,
 		input: UpdateChannelInput,
-		requestedBy?: string | null,
+		requester?: Requester,
 	): Promise<ChannelView | null> {
 		const existing = input.config ? await this.findByIdAndOrg(id, organizationId) : null;
 		const readdressed =
 			existing?.type === "email" && !sameAddress(existing.config.email, input.config?.email);
+		if (readdressed && requester) assertMaySend(requester, input.config?.email);
 		const recipient = readdressed
 			? await this.recipientFor(organizationId, input.config?.email)
 			: {};
@@ -150,8 +167,8 @@ export class NotificationChannelService {
 			)
 			.returning(viewColumns);
 
-		if (updated && readdressed && !updated.unsubscribedAt && requestedBy !== undefined) {
-			await this.requestConfirmation(id, organizationId, requestedBy);
+		if (updated && readdressed && !updated.unsubscribedAt && requester) {
+			await this.requestConfirmation(id, organizationId, requester);
 		}
 		return updated ?? null;
 	}

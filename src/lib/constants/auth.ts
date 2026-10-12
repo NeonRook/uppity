@@ -17,3 +17,6 @@ export const ORGANIZATION_LIMIT_PER_USER = envInt("UPPITY_ORGANIZATION_LIMIT_PER
 
 /** Role automatically assigned to the user who creates an organization. */
 export const ORGANIZATION_CREATOR_ROLE = "owner" as const;
+
+/** How long the link in an account verification email works. */
+export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 60 * 60 * 24;

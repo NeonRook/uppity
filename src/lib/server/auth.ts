@@ -20,10 +20,12 @@ import { API_KEY_PREFIX, API_RATE_LIMIT_WINDOW_MS } from "#lib/constants/api.js"
 import {
 	ORGANIZATION_CREATOR_ROLE,
 	ORGANIZATION_LIMIT_PER_USER,
+	EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
 import { DEFAULT_PLAN_ID, FREE_PLAN } from "#lib/constants/plans.js";
+import { sendAccountVerification } from "#lib/server/account-email.js";
 import { refuseApiKeyCreate } from "#lib/server/api-auth.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
 import { clientIpHeader } from "#lib/server/client-ip.js";
@@ -36,6 +38,7 @@ import {
 	type WideEventBuilder,
 } from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
+import { emailChannelService } from "#lib/server/services/email-channel.instance.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import type {
 	HeldPolarSubscription,
@@ -281,6 +284,26 @@ export const auth = betterAuth({
 				`,
 				text: `Reset your password by visiting: ${url}\n\nIf you didn't request this, you can safely ignore this email.`,
 			});
+		},
+	},
+	emailVerification: {
+		sendOnSignUp: true,
+		autoSignInAfterVerification: true,
+		expiresIn: EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
+		async sendVerificationEmail({ user, url }) {
+			if (!smtpTransport) {
+				console.warn("[auth] SMTP not configured — skipping verification email");
+				return;
+			}
+			await sendAccountVerification(user.email, url);
+		},
+		async afterEmailVerification(user) {
+			await emailChannelService.confirmMemberAddress(user.email);
+		},
+	},
+	rateLimit: {
+		customRules: {
+			"/send-verification-email": { window: 60, max: 2 },
 		},
 	},
 	session: {
