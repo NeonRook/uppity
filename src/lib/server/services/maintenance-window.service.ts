@@ -1,13 +1,38 @@
 import { eq, and, lte, gte, sql, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import type { Db } from "#lib/server/db/index.js";
+import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import {
 	maintenanceWindow,
 	maintenanceWindowMonitor,
 	type MaintenanceWindow,
 } from "#lib/server/db/schema.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
+
+/** The in-progress window covering `monitorId` at `at`, if any. */
+export async function findActiveWindow(
+	db: DbExecutor,
+	monitorId: string,
+	at: Date,
+): Promise<MaintenanceWindow | null> {
+	const [row] = await db
+		.select({ window: maintenanceWindow })
+		.from(maintenanceWindow)
+		.innerJoin(
+			maintenanceWindowMonitor,
+			eq(maintenanceWindowMonitor.windowId, maintenanceWindow.id),
+		)
+		.where(
+			and(
+				eq(maintenanceWindowMonitor.monitorId, monitorId),
+				eq(maintenanceWindow.status, "in_progress"),
+				lte(maintenanceWindow.startsAt, at),
+				gte(maintenanceWindow.endsAt, at),
+			),
+		)
+		.limit(1);
+	return row?.window ?? null;
+}
 
 export type MaintenanceWindowStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
 
@@ -259,27 +284,6 @@ export class MaintenanceWindowService {
 			.orderBy(desc(maintenanceWindow.startsAt));
 
 		return rows.map((r) => Object.assign(r.window, { monitorCount: r.monitorCount }));
-	}
-
-	async findActiveForMonitor(monitorId: string, at?: Date): Promise<MaintenanceWindow | null> {
-		const now = at ?? new Date();
-		const [row] = await this.db
-			.select({ window: maintenanceWindow })
-			.from(maintenanceWindow)
-			.innerJoin(
-				maintenanceWindowMonitor,
-				eq(maintenanceWindowMonitor.windowId, maintenanceWindow.id),
-			)
-			.where(
-				and(
-					eq(maintenanceWindowMonitor.monitorId, monitorId),
-					eq(maintenanceWindow.status, "in_progress"),
-					lte(maintenanceWindow.startsAt, now),
-					gte(maintenanceWindow.endsAt, now),
-				),
-			)
-			.limit(1);
-		return row?.window ?? null;
 	}
 
 	async runStatusTransitions(at?: Date): Promise<{ started: number; completed: number }> {

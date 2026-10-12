@@ -124,9 +124,14 @@ export const monitorCheck = pgTable(
 		// Metadata
 		checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 		region: text("region").default("default"),
+		// Set by the result processor once it has interpreted the row.
+		processedAt: timestamp("processed_at", { withTimezone: true }),
 	},
 	(table) => [
 		index("monitor_check_monitor_idx").on(table.monitorId),
+		index("monitor_check_unprocessed_idx")
+			.on(table.monitorId)
+			.where(sql`${table.processedAt} IS NULL`),
 		index("monitor_check_checked_at_idx").on(table.checkedAt),
 		// Retention cleanup filters on both columns together, one DELETE per plan window.
 		index("monitor_check_monitor_checked_idx").on(table.monitorId, table.checkedAt),

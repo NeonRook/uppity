@@ -6,7 +6,7 @@ import { maintenanceWindow, maintenanceWindowMonitor } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitor, seedOrg, seedUser } from "../test/seed";
-import { MaintenanceWindowService } from "./maintenance-window.service";
+import { findActiveWindow, MaintenanceWindowService } from "./maintenance-window.service";
 
 describe("MaintenanceWindowService.create", () => {
 	test("creates a window with associated monitors", async ({ db }) => {
@@ -496,20 +496,18 @@ describe("MaintenanceWindowService.delete", () => {
 	});
 });
 
-describe("MaintenanceWindowService.findActiveForMonitor", () => {
+describe("findActiveWindow", () => {
 	test("returns null when no active window covers monitor", async ({ db }) => {
 		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
 		const orgId = await seedOrg(drizzleDb);
 		const monitorId = await seedMonitor(drizzleDb, orgId);
 
-		const result = await service.findActiveForMonitor(monitorId);
+		const result = await findActiveWindow(drizzleDb, monitorId, new Date());
 		expect(result).toBeNull();
 	});
 
 	test("returns active in_progress window covering monitor at `at`", async ({ db }) => {
 		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
 		const orgId = await seedOrg(drizzleDb);
 		const monitorId = await seedMonitor(drizzleDb, orgId);
 
@@ -526,14 +524,13 @@ describe("MaintenanceWindowService.findActiveForMonitor", () => {
 		});
 		await drizzleDb.insert(maintenanceWindowMonitor).values({ windowId: id, monitorId });
 
-		const result = await service.findActiveForMonitor(monitorId, now);
+		const result = await findActiveWindow(drizzleDb, monitorId, now);
 		expect(result).not.toBeNull();
 		expect(result!.id).toBe(id);
 	});
 
 	test("ignores scheduled windows even when time covers now", async ({ db }) => {
 		const { db: drizzleDb } = db;
-		const service = new MaintenanceWindowService(drizzleDb);
 		const orgId = await seedOrg(drizzleDb);
 		const monitorId = await seedMonitor(drizzleDb, orgId);
 
@@ -549,7 +546,7 @@ describe("MaintenanceWindowService.findActiveForMonitor", () => {
 		});
 		await drizzleDb.insert(maintenanceWindowMonitor).values({ windowId: id, monitorId });
 
-		const result = await service.findActiveForMonitor(monitorId, now);
+		const result = await findActiveWindow(drizzleDb, monitorId, now);
 		expect(result).toBeNull();
 	});
 });

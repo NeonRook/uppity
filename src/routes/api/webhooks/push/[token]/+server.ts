@@ -1,13 +1,18 @@
 import { error } from "@sveltejs/kit";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { db } from "#lib/server/db/index.js";
-import { monitor, monitorCheck, monitorStatus } from "#lib/server/db/schema.js";
+import { monitor, monitorCheck } from "#lib/server/db/schema.js";
 
 import type { RequestHandler } from "./$types";
 
-// SvelteKit answers HEAD with the GET handler's headers and no body.
+/**
+ * Records a heartbeat as an up result. The monitor worker interprets it like any
+ * other check (ADR 0007).
+ *
+ * SvelteKit answers HEAD with the GET handler's headers and no body.
+ */
 export const GET: RequestHandler = async ({ params }) => {
 	const [mon] = await db.select().from(monitor).where(eq(monitor.pushToken, params.token)).limit(1);
 
@@ -32,17 +37,6 @@ export const GET: RequestHandler = async ({ params }) => {
 		responseTimeMs: 0,
 		checkedAt: now,
 	});
-
-	await db
-		.update(monitorStatus)
-		.set({
-			status: "up",
-			lastCheckAt: now,
-			lastStatusChange: sql`CASE WHEN ${monitorStatus.status} = 'down' THEN ${sql.param(now, monitorStatus.lastStatusChange)} ELSE ${monitorStatus.lastStatusChange} END`,
-			consecutiveFailures: 0,
-			updatedAt: now,
-		})
-		.where(eq(monitorStatus.monitorId, mon.id));
 
 	return Response.json({
 		ok: true,
