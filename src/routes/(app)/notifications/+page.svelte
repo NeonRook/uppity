@@ -76,6 +76,7 @@
 		sent: m.notifications_resend_sent,
 		confirmed: m.notifications_resend_confirmed,
 		unsubscribed: m.notifications_resend_unsubscribed,
+		reasked: m.notifications_resend_reasked,
 		too_soon: m.notifications_resend_too_soon,
 		capped: m.notifications_resend_capped,
 	};

@@ -356,7 +356,7 @@ export const emailOptOut = pgTable(
 			.references(() => organization.id, { onDelete: "cascade" }),
 		// Lowercased.
 		email: text("email").notNull(),
-		// Null once the organization asked again.
+		// Cleared when the address confirms; until then it holds, re-asked or not.
 		unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
 		reaskedAt: timestamp("reasked_at", { withTimezone: true }),
 	},
@@ -364,7 +364,7 @@ export const emailOptOut = pgTable(
 );
 
 // One row per confirmation email to an email channel address. Rows outlive the channel, so
-// deleting or readdressing it cannot free a slot under the pending-confirmation cap.
+// deleting or readdressing it cannot free a slot or skip the resend interval.
 export const channelConfirmationSend = pgTable(
 	"channel_confirmation_send",
 	{
@@ -372,15 +372,14 @@ export const channelConfirmationSend = pgTable(
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		// The channel token at send time. Readdressing rotates it, so confirming the new
-		// address leaves sends to the old one unconfirmed.
-		token: text("token").notNull(),
+		// Lowercased. Limits key on the address, so a new or readdressed channel shares them.
+		email: text("email").notNull(),
 		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 		confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 	},
 	(table) => [
 		index("channel_confirmation_send_org_sent_idx").on(table.organizationId, table.sentAt),
-		index("channel_confirmation_send_token_idx").on(table.token),
+		index("channel_confirmation_send_org_email_idx").on(table.organizationId, table.email),
 	],
 );
 
