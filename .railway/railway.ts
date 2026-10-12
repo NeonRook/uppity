@@ -46,25 +46,6 @@ export default defineRailway((ctx) => {
 	// Every service runs the same image, so each needs its start command spelled
 	// out. A service without one inherits the Dockerfile's CMD and comes up as a
 	// second web server instead of the process it is named for.
-	const workerNotifier = service("worker-notifier", {
-		source: uppity,
-		build,
-		replicas: { "europe-west4-drams3a": 1 },
-		// A stopped worker fails silently; a crash-looping one shows in the logs.
-		deploy: { restartPolicyType: "ALWAYS", startCommand: "./entrypoint.sh worker-notifier" },
-		env: {
-			BETTER_AUTH_SECRET: ctx.shared.BETTER_AUTH_SECRET,
-			DATABASE_URL: Postgres.env.DATABASE_URL,
-			NODE_ENV: ctx.shared.NODE_ENV,
-			SERVICE_NAME: staging("worker-notifier"),
-			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
-			SMTP_HOST: resend.host,
-			SMTP_PASSWORD: resend.password,
-			SMTP_PORT: resend.port,
-			SMTP_USER: resend.user,
-			SUBSCRIBER_SMTP_FROM: subscriberFrom,
-		},
-	});
 	const DrizzleGateway = service("Drizzle Gateway", {
 		source: image("ghcr.io/drizzle-team/gateway:latest"),
 		healthcheck: "/health",
@@ -123,6 +104,27 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_PORT: resend.port,
 			SUBSCRIBER_SMTP_USER: resend.user,
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
+		},
+	});
+	const workerNotifier = service("worker-notifier", {
+		source: uppity,
+		build,
+		replicas: { "europe-west4-drams3a": 1 },
+		// A stopped worker fails silently; a crash-looping one shows in the logs.
+		deploy: { restartPolicyType: "ALWAYS", startCommand: "./entrypoint.sh worker-notifier" },
+		env: {
+			BETTER_AUTH_SECRET: ctx.shared.BETTER_AUTH_SECRET,
+			// Alert and subscriber mail link back to the server.
+			BETTER_AUTH_URL: uppityServer.env.BETTER_AUTH_URL,
+			DATABASE_URL: Postgres.env.DATABASE_URL,
+			NODE_ENV: ctx.shared.NODE_ENV,
+			SERVICE_NAME: staging("worker-notifier"),
+			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
+			SMTP_HOST: resend.host,
+			SMTP_PASSWORD: resend.password,
+			SMTP_PORT: resend.port,
+			SMTP_USER: resend.user,
+			SUBSCRIBER_SMTP_FROM: subscriberFrom,
 		},
 	});
 	const workerMonitor = service("worker-monitor", {
