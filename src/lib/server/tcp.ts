@@ -196,7 +196,7 @@ export async function dial({
 			throw new ProbeError(
 				blocked.address === host
 					? `Blocked: ${host} is a private address`
-					: `Blocked: ${host} resolves to private address ${blocked.address}`,
+					: `Blocked: ${host} resolves to a private address`,
 			);
 		}
 	}
