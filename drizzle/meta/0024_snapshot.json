@@ -1,5 +1,5 @@
 {
-  "id": "15dc0b1f-d4ec-4cca-be9b-351792862199",
+  "id": "5c60a9e1-3361-45c3-aadb-af30588069da",
   "prevId": "a47ada09-f4fa-4217-b25f-8ee6faaa2126",
   "version": "7",
   "dialect": "postgresql",
@@ -1129,6 +1129,65 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.email_opt_out": {
+      "name": "email_opt_out",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unsubscribed_at": {
+          "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasked_at": {
+          "name": "reasked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "email_opt_out_organization_id_organization_id_fk": {
+          "name": "email_opt_out_organization_id_organization_id_fk",
+          "tableFrom": "email_opt_out",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "email_opt_out_organization_id_email_pk": {
+          "name": "email_opt_out_organization_id_email_pk",
+          "columns": [
+            "organization_id",
+            "email"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

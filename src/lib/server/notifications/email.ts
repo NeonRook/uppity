@@ -29,7 +29,7 @@ export async function sendChannelConfirmation({
 
 	const paragraphs = [
 		`${requestedBy ?? "Someone using Uppity"} wants this address to receive monitoring alerts from Uppity. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
-		"If you don't want these alerts, ignore this email, or unsubscribe so you aren't asked again.",
+		"If you don't want these alerts, ignore this email or unsubscribe. After an unsubscribe, the sender can ask you only once more.",
 	];
 
 	await subscriberTransport.sendMail({

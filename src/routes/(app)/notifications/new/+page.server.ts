@@ -3,7 +3,7 @@ import { superValidate, message } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
-import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { ConfirmationCapError, FeatureNotAvailableError } from "#lib/server/errors.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
 import { verifiedEmail } from "#lib/server/verified-email.js";
@@ -55,7 +55,7 @@ export const actions: Actions = {
 			});
 			locals.event.set("resource_id", channel.id);
 		} catch (error) {
-			if (error instanceof FeatureNotAvailableError) {
+			if (error instanceof FeatureNotAvailableError || error instanceof ConfirmationCapError) {
 				return message(form, error.message, { status: 403 });
 			}
 			locals.event.setError(error);
