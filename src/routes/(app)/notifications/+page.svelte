@@ -18,12 +18,11 @@
 	import { m } from "#lib/paraglide/messages.js";
 	import { getChannels, toggleChannel, deleteChannel } from "#lib/remote/notifications.remote.js";
 	import type { NotificationChannel } from "#lib/server/db/schema.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 
 	let { data } = $props();
-	const channelsQuery = getChannels();
 
-	// Prefer query data (after refresh/mutation), fallback to preloaded data
-	const channels = $derived(channelsQuery.current ?? data.channels);
+	const channels = $derived(await getChannels());
 
 	// Usage limits from parent layout (self-hosted has all features)
 	const usageLimits = $derived(data.usageLimits);
@@ -60,7 +59,7 @@
 				),
 			);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to toggle channel");
+			toast.error(errorMessage(e, "Failed to toggle channel"));
 		} finally {
 			togglingChannelId = null;
 		}
@@ -100,13 +99,7 @@
 		</div>
 	</div>
 
-	{#if channelsQuery.error}
-		<Card.Root>
-			<Card.Content class="p-6">
-				<p class="text-destructive">Failed to load channels: {channelsQuery.error.message}</p>
-			</Card.Content>
-		</Card.Root>
-	{:else if channels.length === 0}
+	{#if channels.length === 0}
 		<EmptyState
 			icon={Bell}
 			title={m.notifications_empty_title()}
@@ -152,7 +145,12 @@
 									<Pencil class="h-4 w-4" />
 								</Button>
 
-								<Button variant="ghost" size="icon" onclick={() => (deleteChannelId = channel.id)}>
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label={m.common_delete()}
+									onclick={() => (deleteChannelId = channel.id)}
+								>
 									<Trash2 class="h-4 w-4" />
 								</Button>
 							</div>

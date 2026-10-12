@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
@@ -22,8 +23,10 @@ export const toggleChannel = command(channelIdSchema, async ({ channelId }) => {
 	const updated = await notificationChannelService.toggleEnabled(channelId, organizationId);
 
 	if (!updated) {
-		throw new Error("Channel not found");
+		error(404, "Channel not found");
 	}
+
+	void getChannels().refresh();
 
 	return { success: true, enabled: updated.enabled };
 });
@@ -34,8 +37,10 @@ export const deleteChannel = command(channelIdSchema, async ({ channelId }) => {
 	const deleted = await notificationChannelService.delete(channelId, organizationId);
 
 	if (!deleted) {
-		throw new Error("Channel not found");
+		error(404, "Channel not found");
 	}
+
+	void getChannels().refresh();
 
 	return { success: true };
 });

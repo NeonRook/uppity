@@ -1,4 +1,5 @@
 import { command, query } from "$app/server";
+import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
@@ -22,8 +23,10 @@ export const deleteStatusPage = command(statusPageIdSchema, async ({ statusPageI
 	const deleted = await statusPageService.delete(statusPageId, organizationId);
 
 	if (!deleted) {
-		throw new Error("Status page not found");
+		error(404, "Status page not found");
 	}
+
+	void getStatusPages().refresh();
 
 	return { success: true };
 });

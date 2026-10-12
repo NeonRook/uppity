@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import {
@@ -30,6 +30,7 @@
 	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 	import { switchOrganization } from "#lib/org.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 
 	let { data, children } = $props();
 
@@ -255,7 +256,21 @@
 				{#if data.usageLimits && !data.selfHosted}
 					<CapacityBanner usage={data.usageLimits} />
 				{/if}
-				{@render children()}
+				<!-- Keyed so a failed page doesn't stay failed after navigating away. -->
+				{#key page.url.pathname}
+					<svelte:boundary>
+						{@render children()}
+
+						{#snippet failed(error, reset)}
+							<div class="space-y-3">
+								<p class="text-destructive">{errorMessage(error, m.common_load_failed())}</p>
+								<Button variant="outline" onclick={() => refreshAll().then(reset)}>
+									{m.common_retry()}
+								</Button>
+							</div>
+						{/snippet}
+					</svelte:boundary>
+				{/key}
 			</main>
 		</div>
 	</div>

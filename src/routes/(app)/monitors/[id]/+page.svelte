@@ -17,7 +17,6 @@
 		ShieldX,
 		Trash2,
 	} from "@lucide/svelte";
-	import { isHttpError } from "@sveltejs/kit";
 	import { toast } from "svelte-sonner";
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
@@ -37,6 +36,7 @@
 	import { getChannelType } from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 	import { getStatusBadgeWithIcon, getCheckIcon, uncheckedSummary } from "#lib/utils/status.js";
 
 	let { data } = $props();
@@ -63,7 +63,7 @@
 			await toggleMonitor({ monitorId: data.monitor.id });
 			await refreshAll();
 		} catch (e) {
-			toast.error(isHttpError(e) ? e.body.message : "Failed to toggle monitor");
+			toast.error(errorMessage(e, "Failed to toggle monitor"));
 		} finally {
 			toggling = false;
 		}

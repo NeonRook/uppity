@@ -1,6 +1,8 @@
 import { command, getRequestEvent } from "$app/server";
+import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
+import { relayAuthError } from "#lib/remote/auth-error.js";
 import { requireOrganizationId } from "#lib/remote/organization.js";
 import { auth } from "#lib/server/auth.js";
 
@@ -23,21 +25,21 @@ export const cancelInvitation = command(invitationIdSchema, async ({ invitationI
 				invitationId,
 			},
 		});
-		return { success: true };
-	} catch {
-		throw new Error("Failed to cancel invitation");
+	} catch (err) {
+		relayAuthError(err);
 	}
+	return { success: true };
 });
 
 export const removeMember = command(memberIdSchema, async ({ memberId }) => {
 	const { request, locals } = getRequestEvent();
 	if (!locals.user) {
-		throw new Error("Not authenticated");
+		error(401, "Not authenticated");
 	}
 
 	// Prevent removing yourself
 	if (memberId === locals.user.id) {
-		throw new Error("You cannot remove yourself from the organization");
+		error(400, "You cannot remove yourself from the organization");
 	}
 
 	try {
@@ -47,11 +49,10 @@ export const removeMember = command(memberIdSchema, async ({ memberId }) => {
 				memberIdOrEmail: memberId,
 			},
 		});
-		return { success: true };
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : "Failed to remove member";
-		throw new Error(errorMessage, { cause: error });
+	} catch (err) {
+		relayAuthError(err);
 	}
+	return { success: true };
 });
 
 const deleteOrganizationSchema = v.object({
@@ -61,7 +62,7 @@ const deleteOrganizationSchema = v.object({
 export const deleteOrganization = command(deleteOrganizationSchema, async ({ organizationId }) => {
 	const { request, locals } = getRequestEvent();
 	if (!locals.user) {
-		throw new Error("Not authenticated");
+		error(401, "Not authenticated");
 	}
 
 	try {
@@ -71,9 +72,8 @@ export const deleteOrganization = command(deleteOrganizationSchema, async ({ org
 				organizationId,
 			},
 		});
-		return { success: true };
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : "Failed to delete organization";
-		throw new Error(errorMessage, { cause: error });
+	} catch (err) {
+		relayAuthError(err);
 	}
+	return { success: true };
 });

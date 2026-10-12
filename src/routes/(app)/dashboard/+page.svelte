@@ -9,15 +9,16 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { formatUptime, formatResponseTime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { getMonitors } from "#lib/remote/monitors.remote.js";
 	import { getStatusBadge, getStatusColor, uncheckedSummary } from "#lib/utils/status.js";
 
-	let { data } = $props();
+	const monitors = $derived(await getMonitors());
 
 	const stats = $derived({
-		total: data.monitors.length,
-		operational: data.monitors.filter((mon) => mon.active && mon.status === "up").length,
-		degraded: data.monitors.filter((mon) => mon.active && mon.status === "degraded").length,
-		down: data.monitors.filter((mon) => mon.active && mon.status === "down").length,
+		total: monitors.length,
+		operational: monitors.filter((mon) => mon.active && mon.status === "up").length,
+		degraded: monitors.filter((mon) => mon.active && mon.status === "degraded").length,
+		down: monitors.filter((mon) => mon.active && mon.status === "down").length,
 	});
 </script>
 
@@ -75,7 +76,7 @@
 			<Card.Description>{m.dashboard_monitors_overview()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			{#if data.monitors.length === 0}
+			{#if monitors.length === 0}
 				<EmptyState
 					icon={Activity}
 					title={m.dashboard_no_monitors_title()}
@@ -86,7 +87,7 @@
 				/>
 			{:else}
 				<div class="space-y-3">
-					{#each data.monitors as mon (mon.id)}
+					{#each monitors as mon (mon.id)}
 						{@const statusInfo = getStatusBadge(mon.status, mon.active)}
 						<a
 							href={resolve(`monitors/${mon.id}`)}
