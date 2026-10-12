@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { describe, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
 import { organization } from "../../lib/server/db/auth-schema";
 import {
@@ -738,6 +738,9 @@ describe("saveCheckResult", () => {
 });
 
 describe("executeCheck over HTTP", () => {
+	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
+	afterEach(() => vi.unstubAllEnvs());
+
 	test("opens a fresh connection for every check and stores a whole-millisecond time", async ({
 		db,
 	}) => {

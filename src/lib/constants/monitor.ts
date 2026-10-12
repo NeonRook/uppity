@@ -25,3 +25,6 @@ export const MAX_RETRIES = 10;
 
 /** Longest "body contains" text a monitor may set. */
 export const BODY_MATCH_MAX_LENGTH = 1024;
+
+/** Bytes of a response a "body contains" check reads before giving up on a match. */
+export const BODY_READ_MAX_BYTES = 1024 * 1024;

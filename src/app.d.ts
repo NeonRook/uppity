@@ -73,6 +73,7 @@ declare global {
 			UPPITY_SSL_INFO_TIMEOUT_MS?: string;
 			UPPITY_SSL_WARNING_COOLDOWN_HOURS?: string;
 			UPPITY_RETRY_DELAY_MS?: string;
+			UPPITY_ALLOW_PRIVATE_TARGETS?: string;
 
 			// Status Page [Optional]
 			UPPITY_STATUS_PAGE_HISTORY_DAYS?: string;

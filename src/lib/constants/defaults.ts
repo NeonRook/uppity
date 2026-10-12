@@ -56,9 +56,6 @@ export const SSL_INFO_TIMEOUT_MS = envInt("UPPITY_SSL_INFO_TIMEOUT_MS", 5000);
 /** Wait time between retry attempts after a failed check. */
 export const RETRY_DELAY_MS = envInt("UPPITY_RETRY_DELAY_MS", 1000);
 
-/** Fallback port for HTTPS connections when not specified in the URL. */
-export const DEFAULT_HTTPS_PORT = 443;
-
 /** Port number that indicates SMTP should use TLS encryption. */
 export const DEFAULT_SMTP_SECURE_PORT = 465;
 
