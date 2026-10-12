@@ -46,13 +46,15 @@ export default defineRailway((ctx) => {
 			DATABASE_URL: Postgres.env.DATABASE_URL,
 			NODE_ENV: ctx.shared.NODE_ENV,
 			SERVICE_NAME: staging("worker-notifier"),
-			// Alerts send from their own domain. Recipients are typed in by customers,
-			// so their bounces cannot get the auth domain blocked.
+			// Alerts and subscriber mail go to addresses customers and visitors type
+			// in, so they send through Resend. Their bounces cannot get the Scaleway
+			// account that sends sign-in mail suspended.
 			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
-			SMTP_HOST: ctx.shared.SMTP_HOST,
+			SMTP_HOST: "smtp.resend.com",
 			SMTP_PASSWORD: preserve(),
-			SMTP_PORT: ctx.shared.SMTP_PORT,
-			SMTP_USER: preserve(),
+			SMTP_PORT: "465",
+			SMTP_USER: "resend",
+			SUBSCRIBER_SMTP_FROM: "Uppity Status <updates@status.uppity.cloud>",
 		},
 	});
 	const DrizzleGateway = service("Drizzle Gateway", {
@@ -107,6 +109,12 @@ export default defineRailway((ctx) => {
 			SMTP_PASSWORD: preserve(),
 			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: preserve(),
+			// Subscription confirmations send as the notifier's subscriber mail does.
+			SUBSCRIBER_SMTP_FROM: workerNotifier.env.SUBSCRIBER_SMTP_FROM,
+			SUBSCRIBER_SMTP_HOST: workerNotifier.env.SMTP_HOST,
+			SUBSCRIBER_SMTP_PASSWORD: workerNotifier.env.SMTP_PASSWORD,
+			SUBSCRIBER_SMTP_PORT: workerNotifier.env.SMTP_PORT,
+			SUBSCRIBER_SMTP_USER: workerNotifier.env.SMTP_USER,
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 		},
 	});
