@@ -11,10 +11,10 @@ the container.
 | ----------------- | -------------- | ---------------------- | ------------ |
 | `serve`           | yes            | `./build`              | unrestricted |
 | `migrate`         | yes            | `./drizzle`, `./build` | unrestricted |
-| `worker-monitor`  | no             | unrestricted           | unrestricted |
-| `worker-notifier` | no             | unrestricted           | unrestricted |
+| `worker-monitor`  | yes            | `./build`              | unrestricted |
+| `worker-notifier` | yes            | `./build`              | unrestricted |
 
-Under `--permission`, `serve` and `migrate` cannot write to the filesystem, spawn processes,
+Under `--permission`, no process can write to the filesystem, spawn processes,
 start worker threads, load native addons, or use WASI, FFI or the inspector.
 
 Run `UPPITY_PRINT_PERMISSIONS=1 ./scripts/entrypoint.sh serve` to print the exact command instead
@@ -33,12 +33,11 @@ per-host allowlist was given up.
 Environment variables and the host name are not covered by Node's permission model, so they need
 no grant.
 
-## Why the workers run without it
+## The workers' network
 
 `worker-monitor` probes whatever URL a user typed into the monitor form, and `worker-notifier`
-posts to whatever Discord, Slack or webhook endpoint a user configured. With no host list on
-offer, the permission model would restrict only their filesystem and process access. They are
-being rewritten in Rust (ADR 0007), so they run without it until then.
+posts to whatever Discord, Slack or webhook endpoint a user configured. Unrestricted network access
+is what they are for, so the permission model restricts only their filesystem and process access.
 
 ## Changing it
 
