@@ -107,7 +107,11 @@ export const actions: Actions = {
 			// endpoint does not accept a target userId.
 			const updateData: Partial<typeof user.$inferInsert> = {};
 			if (form.data.name) updateData.name = form.data.name;
-			if (form.data.email) updateData.email = form.data.email;
+			if (form.data.email && form.data.email !== existing.email) {
+				// The new address is unproven, and verified addresses skip channel confirmation.
+				updateData.email = form.data.email;
+				updateData.emailVerified = false;
+			}
 
 			if (Object.keys(updateData).length > 0) {
 				await db.update(user).set(updateData).where(eq(user.id, params.id));

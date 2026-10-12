@@ -18,7 +18,7 @@ import {
 } from "./email-channel.service";
 
 const HOUR_MS = 60 * 60_000;
-const ADMIN = "admin@example.com";
+const ADMIN = { email: "admin@example.com", emailVerified: true };
 
 async function setup(db: TestDb["db"], cap?: number) {
 	const orgId = await seedOrg(db);
@@ -75,7 +75,7 @@ describe("EmailChannelService.requestConfirmation", () => {
 
 		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
 		expect(sent).toEqual([
-			{ email: "stranger@example.com", token: channel.token, requestedBy: ADMIN },
+			{ email: "stranger@example.com", token: channel.token, requestedBy: ADMIN.email },
 		]);
 		expect((await service.lookup(channel.token))?.state).toBe("pending");
 	});
@@ -104,6 +104,16 @@ describe("EmailChannelService.requestConfirmation", () => {
 		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
 
 		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+	});
+
+	test("an unverified requester sends nothing", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+
+		expect(
+			await service.requestConfirmation(channel.id, orgId, { ...ADMIN, emailVerified: false }),
+		).toBe("unverified");
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("waits out the resend interval", async ({ db: { db } }) => {
@@ -392,5 +402,48 @@ describe("EmailChannelService.unsubscribe", () => {
 
 		await service.unsubscribe("nope");
 		expect(await service.lookup("nope")).toBeNull();
+	});
+});
+
+describe("EmailChannelService.confirmMemberAddress", () => {
+	test("confirms the member's address in their organizations only", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const address = `${userId}@example.com`;
+		const own = await seedEmailChannel(db, orgId, address.toUpperCase());
+		const elsewhere = await seedEmailChannel(db, await seedOrg(db), address);
+
+		await service.confirmMemberAddress(address);
+
+		expect((await service.lookup(own.token))?.state).toBe("confirmed");
+		expect((await service.lookup(elsewhere.token))?.state).not.toBe("confirmed");
+	});
+
+	test("leaves a re-asked address alone until it confirms", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+
+		await service.confirmMemberAddress(`${userId}@example.com`);
+
+		const [row] = await db
+			.select({ verifiedAt: notificationChannel.verifiedAt })
+			.from(notificationChannel)
+			.where(eq(notificationChannel.id, channel.id));
+		expect(row.verifiedAt).toBeNull();
+	});
+
+	test("leaves an unsubscribed address alone", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
+		await service.unsubscribe(channel.token);
+
+		await service.confirmMemberAddress(`${userId}@example.com`);
+
+		expect((await service.lookup(channel.token))?.state).toBe("unsubscribed");
 	});
 });

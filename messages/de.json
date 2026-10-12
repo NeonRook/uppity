@@ -842,5 +842,11 @@
 	"alerts_unsubscribe_reask": "{organization} kann dich noch einmal um Bestätigung bitten.",
 	"alerts_unsubscribe_final": "{organization} hat bereits einmal erneut gefragt und kann dich nicht noch einmal fragen.",
 	"notifications_reask": "Erneut fragen",
-	"notifications_resend_reasked": "Diese Adresse wurde bereits ein weiteres Mal gefragt. Jetzt liegt es am Empfänger."
+	"notifications_resend_reasked": "Diese Adresse wurde bereits ein weiteres Mal gefragt. Jetzt liegt es am Empfänger.",
+	"notifications_resend_unverified": "Bestätige zuerst deine eigene E-Mail-Adresse. Den Link findest du in deinem Posteingang.",
+	"verify_email_title": "Bestätige deine E-Mail-Adresse",
+	"verify_email_desc": "Wir haben einen Link an {email} gesendet. Bis du bestätigst, kannst du keine Alarme an fremde Adressen senden.",
+	"verify_email_resend": "Link erneut senden",
+	"verify_email_sent": "Bestätigungslink gesendet",
+	"verify_email_failed": "Der Bestätigungslink konnte nicht gesendet werden. Versuche es in einer Minute erneut."
 }

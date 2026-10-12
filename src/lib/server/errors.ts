@@ -13,6 +13,11 @@ export class ConfirmationCapError extends Error {
 	override name = "ConfirmationCapError";
 }
 
+/** Thrown when an unverified member tries to send mail to someone else's address. */
+export class EmailVerificationRequiredError extends Error {
+	override name = "EmailVerificationRequiredError";
+}
+
 /**
  * Error thrown when a referenced row does not exist in the caller's organization.
  */

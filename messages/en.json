@@ -842,5 +842,11 @@
 	"alerts_unsubscribe_reask": "{organization} can ask you to confirm once more.",
 	"alerts_unsubscribe_final": "{organization} already asked again once and won't be able to ask you again.",
 	"notifications_reask": "Ask again",
-	"notifications_resend_reasked": "This address was already asked once more. It's up to the recipient now."
+	"notifications_resend_reasked": "This address was already asked once more. It's up to the recipient now.",
+	"notifications_resend_unverified": "Verify your own email address first. Check your inbox for the link.",
+	"verify_email_title": "Verify your email address",
+	"verify_email_desc": "We sent a link to {email}. Until you verify, you can't send alerts to anyone else's address.",
+	"verify_email_resend": "Resend link",
+	"verify_email_sent": "Verification link sent",
+	"verify_email_failed": "Couldn't send the verification link. Try again in a minute."
 }
