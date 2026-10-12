@@ -43,11 +43,11 @@ async function tracksDeadLetter(db: DbExecutor): Promise<boolean> {
 }
 
 /**
- * Claims up to WORKER_POLL_BATCH_SIZE due monitors. SKIP LOCKED lets several
+ * Claims up to `limit` due monitors. SKIP LOCKED lets several
  * workers poll at once. The claim is a lease on check_backoff_until, so
  * next_check_at keeps the time the check was due.
  */
-export async function claimDueMonitors(db: Db): Promise<Monitor[]> {
+export async function claimDueMonitors(db: Db, limit = WORKER_POLL_BATCH_SIZE): Promise<Monitor[]> {
 	const columns = {
 		...getTableColumns(monitor),
 		deadLetteredAt: (await tracksDeadLetter(db)) ? monitor.deadLetteredAt : sql<Date | null>`NULL`,
@@ -60,7 +60,7 @@ export async function claimDueMonitors(db: Db): Promise<Monitor[]> {
 				AND next_check_at <= NOW()
 				AND (check_backoff_until IS NULL OR check_backoff_until <= NOW())
 			ORDER BY next_check_at ASC
-			LIMIT ${WORKER_POLL_BATCH_SIZE}
+			LIMIT ${limit}
 			FOR UPDATE SKIP LOCKED
 		`);
 		if (due.length === 0) return [];
