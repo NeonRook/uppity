@@ -127,7 +127,7 @@ describe("executeCheck over TCP", () => {
 
 		const [check] = await checksOf(drizzleDb, monitor.id);
 		expect(check.status).toBe("down");
-		expect(check.errorMessage).toMatch(/^Blocked: localhost resolves to private address /);
+		expect(check.errorMessage).toBe("Blocked: localhost resolves to a private address");
 	});
 });
 

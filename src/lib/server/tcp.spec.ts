@@ -123,14 +123,38 @@ describe("private addresses", () => {
 
 	test("refuses a host name when any address it resolves to is private", async () => {
 		vi.mocked(lookup).mockResolvedValueOnce([
-			{ address: "198.51.100.7", family: 4 },
+			{ address: "1.1.1.1", family: 4 },
 			{ address: "::ffff:10.0.0.1", family: 6 },
 		] as never);
 
 		await expect(probeTcp("mixed.example", 80, 2000)).resolves.toEqual({
 			ok: false,
-			error: "Blocked: mixed.example resolves to private address ::ffff:10.0.0.1",
+			error: "Blocked: mixed.example resolves to a private address",
 		});
+	});
+
+	test("never names the address a host name resolved to", async () => {
+		const ipv4 = /\d+\.\d+\.\d+\.\d+/;
+		const ipv6 = /[0-9a-f]*:[0-9a-f]*:/i;
+		const messages: string[] = [];
+		for (const address of ["10.20.30.40", "fd12:3456::1", "::ffff:192.168.7.7"]) {
+			vi.mocked(lookup).mockResolvedValueOnce([
+				{ address, family: address.includes(":") ? 6 : 4 },
+			] as never);
+			const result = await probeTcp("internal.example", 80, 2000);
+			if (!result.ok) messages.push(result.error);
+		}
+		vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true");
+		const port = await closedPort();
+		vi.mocked(lookup).mockResolvedValueOnce([{ address: "127.0.0.1", family: 4 }] as never);
+		const refused = await probeTcp("internal.example", port, 2000);
+		if (!refused.ok) messages.push(refused.error);
+
+		expect(messages).toHaveLength(4);
+		for (const message of messages) {
+			expect(message).not.toMatch(ipv4);
+			expect(message).not.toMatch(ipv6);
+		}
 	});
 
 	test("connects only to the addresses it checked, so a second answer is never used", async () => {
@@ -138,7 +162,7 @@ describe("private addresses", () => {
 		const port = await listen(net.createServer(() => connections++));
 		// A rebinding resolver: public on the first query, loopback on every later one.
 		vi.mocked(lookup)
-			.mockResolvedValueOnce([{ address: "198.51.100.7", family: 4 }] as never)
+			.mockResolvedValueOnce([{ address: "1.1.1.1", family: 4 }] as never)
 			.mockResolvedValue([{ address: "127.0.0.1", family: 4 }] as never);
 
 		const result = await probeTcp("rebind.example", port, 300);
