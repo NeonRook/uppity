@@ -42,6 +42,21 @@
 
 	let { data } = $props();
 
+	type Check = (typeof data.recentChecks)[number];
+
+	/** The HTTP phases a check recorded, in the order they ran. Empty for TCP and push checks. */
+	function phases(check: Check): string {
+		const timed: [string, number | null][] = [
+			[m.monitor_phase_dns(), check.dnsMs],
+			[m.monitor_phase_connect(), check.connectMs],
+			[m.monitor_phase_tls(), check.tlsMs],
+			[m.monitor_phase_first_byte(), check.firstByteMs],
+		];
+		const parts = timed.flatMap(([label, ms]) => (ms === null ? [] : [`${label} ${ms}ms`]));
+		if (check.redirectCount) parts.push(m.monitor_phase_redirects({ count: check.redirectCount }));
+		return parts.join(" · ");
+	}
+
 	let copied = $state(false);
 	let showDeleteDialog = $state(false);
 	let toggling = $state(false);
@@ -445,8 +460,11 @@
 								<div class="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
 									<span>{m.monitor_table_status_code()}: {check.statusCode ?? "-"}</span>
 								</div>
+								{#if phases(check)}
+									<p class="text-muted-foreground mt-1 font-mono text-xs">{phases(check)}</p>
+								{/if}
 								{#if check.errorMessage}
-									<p class="text-muted-foreground mt-1 truncate text-sm">
+									<p class="text-muted-foreground mt-1 text-sm break-words">
 										{check.errorMessage}
 									</p>
 								{/if}
@@ -463,6 +481,7 @@
 							<Table.Head>{m.monitor_table_time()}</Table.Head>
 							<Table.Head>{m.monitor_table_status_code()}</Table.Head>
 							<Table.Head class="text-right">{m.monitor_table_response_time()}</Table.Head>
+							<Table.Head>{m.monitor_table_phases()}</Table.Head>
 							<Table.Head>{m.monitor_table_error()}</Table.Head>
 						</Table.Row>
 					</Table.Header>
@@ -483,7 +502,13 @@
 								<Table.Cell class="text-right font-mono text-sm">
 									{formatResponseTime(check.responseTimeMs)}
 								</Table.Cell>
-								<Table.Cell class="text-muted-foreground max-w-xs truncate text-sm">
+								<Table.Cell class="text-muted-foreground font-mono text-xs">
+									{phases(check) || "-"}
+								</Table.Cell>
+								<Table.Cell
+									class="text-muted-foreground max-w-xs truncate text-sm"
+									title={check.errorMessage ?? undefined}
+								>
 									{check.errorMessage || "-"}
 								</Table.Cell>
 							</Table.Row>

@@ -42,6 +42,9 @@ export const monitor = pgTable(
 		body: text("body"),
 		expectedStatusCodes: jsonb("expected_status_codes").$type<number[]>().default([200]),
 		expectedBodyContains: text("expected_body_contains"),
+		// Off: the check reports the status the URL itself returns.
+		followRedirects: boolean("follow_redirects").notNull().default(true),
+		acceptSelfSigned: boolean("accept_self_signed").notNull().default(false),
 
 		// TCP specific
 		hostname: text("hostname"),
@@ -105,6 +108,14 @@ export const monitorCheck = pgTable(
 		statusCode: integer("status_code"),
 		responseTimeMs: integer("response_time_ms"),
 		errorMessage: text("error_message"),
+
+		// HTTP phases, each summed across redirect hops. Null when a phase did not run.
+		dnsMs: integer("dns_ms"),
+		connectMs: integer("connect_ms"),
+		tlsMs: integer("tls_ms"),
+		// From the request being sent to the first byte of the response.
+		firstByteMs: integer("first_byte_ms"),
+		redirectCount: integer("redirect_count"),
 
 		// SSL info
 		sslExpiresAt: timestamp("ssl_expires_at", { withTimezone: true }),

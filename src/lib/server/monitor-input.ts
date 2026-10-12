@@ -24,6 +24,10 @@ export function toMonitorInput(
 				url: data.url,
 				method: data.method ?? "GET",
 				sslCheckEnabled: data.sslCheckEnabled ?? false,
+				// An emptied field clears the match rather than leaving the old one.
+				expectedBodyContains: data.expectedBodyContains || null,
+				followRedirects: data.followRedirects ?? true,
+				acceptSelfSigned: data.acceptSelfSigned ?? false,
 			};
 		case "tcp":
 			return { ...base, hostname: data.hostname, port: data.port };

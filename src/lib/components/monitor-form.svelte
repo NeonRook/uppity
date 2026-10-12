@@ -192,6 +192,48 @@
 						value={String($form.sslCheckEnabled ?? false)}
 					/>
 				</Field.Field>
+
+				<Field.Field>
+					<Field.Label for="expectedBodyContains">{m.monitor_body_contains()}</Field.Label>
+					<Input
+						id="expectedBodyContains"
+						name="expectedBodyContains"
+						placeholder={m.monitor_body_contains_placeholder()}
+						bind:value={$form.expectedBodyContains}
+						disabled={$delayed}
+						aria-invalid={$errors.expectedBodyContains ? "true" : undefined}
+					/>
+					<Field.Description>{m.monitor_body_contains_desc()}</Field.Description>
+					<Field.Error errors={$errors.expectedBodyContains} />
+				</Field.Field>
+
+				<Field.Field orientation="horizontal">
+					<Field.Label>{m.monitor_follow_redirects()}</Field.Label>
+					<Field.Description>{m.monitor_follow_redirects_desc()}</Field.Description>
+					<Switch
+						checked={$form.followRedirects ?? true}
+						onCheckedChange={(checked) => ($form.followRedirects = checked)}
+					/>
+					<input
+						type="hidden"
+						name="followRedirects"
+						value={String($form.followRedirects ?? true)}
+					/>
+				</Field.Field>
+
+				<Field.Field orientation="horizontal">
+					<Field.Label>{m.monitor_accept_self_signed()}</Field.Label>
+					<Field.Description>{m.monitor_accept_self_signed_desc()}</Field.Description>
+					<Switch
+						checked={$form.acceptSelfSigned ?? false}
+						onCheckedChange={(checked) => ($form.acceptSelfSigned = checked)}
+					/>
+					<input
+						type="hidden"
+						name="acceptSelfSigned"
+						value={String($form.acceptSelfSigned ?? false)}
+					/>
+				</Field.Field>
 			</Card.Content>
 		</Card.Root>
 	{:else if $form.type === "tcp"}
