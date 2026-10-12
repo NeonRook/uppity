@@ -18,10 +18,8 @@ Svelte 5.
 
 ## Tech Stack
 
-- **Runtime**: [Node](https://nodejs.org) for development and the build,
-  [Deno](https://deno.com) inside the production image. See
-  [ADR 0001](docs/adr/0001-node-aube-build-deno-runtime.md) for why the two
-  differ; contributors only need Node.
+- **Runtime**: [Node](https://nodejs.org), for development, the build and the
+  production image. See [ADR 0008](docs/adr/0008-node-runs-the-web-tier.md).
 - **Package manager**: [pnpm](https://pnpm.io)
 - **Framework**: [SvelteKit 2](https://svelte.dev/docs/kit) with
   [Svelte 5](https://svelte.dev)
@@ -39,7 +37,7 @@ Svelte 5.
 
 - [mise](https://mise.jdx.dev) — `mise install` reads [`mise.toml`](mise.toml)
   and gives you Node and pnpm at the pinned versions. CI installs from the same
-  file. You do not need Deno: it only runs inside the production image.
+  file.
 - [PostgreSQL](https://www.postgresql.org) (v15+) or use Docker
 
 ### Quick Start
@@ -160,10 +158,9 @@ export BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 export BETTER_AUTH_URL=https://your-domain.com
 export BETTER_AUTH_TRUSTED_ORIGINS=https://your-domain.com
 
-# Only when a reverse proxy terminates TLS in front of Uppity. The server sees a
-# plain http:// request on its own port, so without this it builds links and form
-# actions against the container's internal address.
-export ORIGIN=https://your-domain.com
+# The server takes every request as https:// on the host in its Host header.
+# Only when your proxy rewrites Host: name the header that carries the original.
+export HOST_HEADER=x-forwarded-host
 
 # Start the full stack
 docker compose up -d
