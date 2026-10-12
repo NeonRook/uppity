@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
+import type { AddressInfo } from "node:net";
+import { createServer } from "node:tls";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
@@ -60,6 +63,35 @@ describe("permission model", () => {
 			expect(entry).toBe(`./build/${target}.js`);
 		},
 	);
+});
+
+describe("extra CA certificates", () => {
+	const fixtures = fileURLToPath(new URL("../src/lib/server/test/fixtures/", import.meta.url));
+
+	// Node reads NODE_EXTRA_CA_CERTS at startup, before the permission model applies,
+	// so the file needs no read grant.
+	it("are trusted under the workers' flags without a read grant", async () => {
+		const server = createServer({
+			key: readFileSync(`${fixtures}self-signed-key.pem`),
+			cert: readFileSync(`${fixtures}extra-ca-leaf-cert.pem`),
+		});
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+
+		try {
+			const { flags } = await commandFor("worker-monitor", { DATABASE_URL: DB });
+			const probe = `const s = require("node:tls").connect({ host: "127.0.0.1", port: ${port}, servername: "localhost", rejectUnauthorized: false }, () => { console.log(s.authorized ? "trusted" : s.authorizationError); s.destroy(); });`;
+			const verdict = async (env: Record<string, string>) =>
+				(await run(process.execPath, [...flags, "-e", probe], { env })).stdout.trim();
+
+			expect(await verdict({})).toBe("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
+			expect(await verdict({ NODE_EXTRA_CA_CERTS: `${fixtures}extra-ca-cert.pem` })).toBe(
+				"trusted",
+			);
+		} finally {
+			server.close();
+		}
+	});
 });
 
 describe("preconditions", () => {
