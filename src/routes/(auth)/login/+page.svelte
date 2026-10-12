@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 
 	import LoginForm from "#lib/components/login-form.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { m } from "#lib/paraglide/messages.js";
 
-	const afterSignIn = () => goto(resolve("dashboard"));
+	// Same-origin paths only, so the parameter cannot send a fresh session elsewhere.
+	const redirectTo = $derived.by(() => {
+		const target = page.url.searchParams.get("redirectTo");
+		return target?.startsWith("/") && !target.startsWith("//") ? target : null;
+	});
+
+	const afterSignIn = () => (redirectTo ? goto(redirectTo) : goto(resolve("dashboard")));
 </script>
 
 <svelte:head>

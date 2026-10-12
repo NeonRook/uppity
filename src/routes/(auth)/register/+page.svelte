@@ -34,7 +34,6 @@
 				email,
 				password,
 				name,
-				callbackURL: resolve("dashboard"),
 			});
 
 			if (result.error) {

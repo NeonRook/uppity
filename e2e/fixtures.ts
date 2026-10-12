@@ -16,7 +16,7 @@ export async function gotoHydrated(page: Page, path: string): Promise<void> {
 	await page.waitForLoadState("networkidle");
 }
 
-async function register(page: Page): Promise<string> {
+export async function register(page: Page): Promise<string> {
 	const email = `e2e-${randomUUID()}@example.com`;
 	await gotoHydrated(page, "/register");
 	await page.getByLabel("Name").fill("E2E User");

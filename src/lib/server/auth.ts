@@ -25,7 +25,7 @@ import {
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
 import { DEFAULT_PLAN_ID, FREE_PLAN } from "#lib/constants/plans.js";
-import { sendAccountVerification } from "#lib/server/account-email.js";
+import { appUrl, sendAccountVerification } from "#lib/server/account-email.js";
 import { refuseApiKeyCreate } from "#lib/server/api-auth.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
 import { clientIpHeader } from "#lib/server/client-ip.js";
@@ -265,6 +265,8 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: false,
+		// Locks out anyone who signed up with an address before its owner reset the password.
+		revokeSessionsOnPasswordReset: true,
 		async sendResetPassword({ user, url }) {
 			if (!smtpTransport) {
 				console.warn("[auth] SMTP not configured — skipping password reset email");
@@ -288,14 +290,21 @@ export const auth = betterAuth({
 	},
 	emailVerification: {
 		sendOnSignUp: true,
-		autoSignInAfterVerification: true,
 		expiresIn: EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
-		async sendVerificationEmail({ user, url }) {
+		async sendVerificationEmail({ user, token }) {
 			if (!smtpTransport) {
 				console.warn("[auth] SMTP not configured — skipping verification email");
 				return;
 			}
-			await sendAccountVerification(user.email, url);
+			await sendAccountVerification(user.email, `${appUrl}/verify-email?token=${token}`);
+		},
+		// A click proves only that the clicker reads the inbox. Someone who signs up with
+		// another person's address could otherwise have that person verify it for them, and
+		// verified addresses skip alert confirmation.
+		async beforeEmailVerification(user) {
+			if (getRequestEvent().locals.user?.id !== user.id) {
+				throw new APIError("FORBIDDEN", { message: "Sign in to verify your email address" });
+			}
 		},
 		async afterEmailVerification(user) {
 			await emailChannelService.confirmMemberAddress(user.email);
