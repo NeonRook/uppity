@@ -15,6 +15,7 @@
 	import {
 		HTTP_METHODS,
 		CHECK_INTERVALS,
+		BODY_MATCH_MAX_LENGTH,
 		MAX_RETRIES,
 		MAX_TIMEOUT_SECONDS,
 		getIntervalLabel,
@@ -200,10 +201,13 @@
 						name="expectedBodyContains"
 						placeholder={m.monitor_body_contains_placeholder()}
 						bind:value={$form.expectedBodyContains}
+						maxlength={BODY_MATCH_MAX_LENGTH}
 						disabled={$delayed}
 						aria-invalid={$errors.expectedBodyContains ? "true" : undefined}
 					/>
-					<Field.Description>{m.monitor_body_contains_desc()}</Field.Description>
+					<Field.Description>
+						{m.monitor_body_contains_desc({ max: BODY_MATCH_MAX_LENGTH })}
+					</Field.Description>
 					<Field.Error errors={$errors.expectedBodyContains} />
 				</Field.Field>
 

@@ -22,3 +22,6 @@ export function getIntervalLabel(value: string): string {
  */
 export const MAX_TIMEOUT_SECONDS = 60;
 export const MAX_RETRIES = 10;
+
+/** Longest "body contains" text a monitor may set. */
+export const BODY_MATCH_MAX_LENGTH = 1024;

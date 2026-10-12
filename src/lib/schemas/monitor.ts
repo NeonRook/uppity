@@ -8,7 +8,13 @@ import {
 	DEFAULT_HTTP_METHOD,
 	MONITOR_INTERVAL,
 } from "#lib/constants/defaults.js";
-import { HTTP_METHODS, MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/monitor.js";
+import {
+	BODY_MATCH_MAX_LENGTH,
+	HTTP_METHODS,
+	MAX_RETRIES,
+	MAX_TIMEOUT_SECONDS,
+} from "#lib/constants/monitor.js";
+import { m } from "#lib/paraglide/messages.js";
 
 const channelLinkSchema = v.object({
 	channelId: v.string(),
@@ -70,7 +76,14 @@ const httpMonitorSchema = v.object({
 	url: v.pipe(v.string(), v.url("Valid URL is required")),
 	method: v.optional(v.picklist(HTTP_METHODS), DEFAULT_HTTP_METHOD),
 	sslCheckEnabled: v.optional(v.boolean(), false),
-	expectedBodyContains: v.optional(v.string()),
+	expectedBodyContains: v.optional(
+		v.pipe(
+			v.string(),
+			v.maxLength(BODY_MATCH_MAX_LENGTH, () =>
+				m.monitor_body_contains_too_long({ max: BODY_MATCH_MAX_LENGTH }),
+			),
+		),
+	),
 	followRedirects: v.optional(v.boolean(), true),
 	acceptSelfSigned: v.optional(v.boolean(), false),
 });
