@@ -1,0 +1,28 @@
+name: Set up Playwright
+description: >-
+  Restores Chromium from a cache keyed on the installed Playwright version, downloading it only on
+  a miss, then installs its system packages, which live outside the cache. Assumes the toolchain is
+  already set up.
+
+runs:
+  using: composite
+  steps:
+    - id: version
+      run: echo "playwright=$(pnpm exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      shell: bash
+
+    - id: cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.playwright }}
+
+    # The "client" vitest project and the e2e suite need only chromium, so installing
+    # firefox and webkit is pure runner time.
+    - if: steps.cache.outputs.cache-hit != 'true'
+      run: pnpm exec playwright install --with-deps chromium
+      shell: bash
+
+    - if: steps.cache.outputs.cache-hit == 'true'
+      run: pnpm exec playwright install-deps chromium
+      shell: bash

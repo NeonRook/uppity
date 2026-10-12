@@ -39,11 +39,14 @@ jobs:
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
+        # Probe over TCP: during first-run setup the image starts a temporary server on the
+        # Unix socket only, and a socket probe would report it ready. Polling every second
+        # stops each test job idling up to ten seconds after the real server is up.
         options: >-
-          --health-cmd "pg_isready -U postgres -d postgres"
-          --health-interval 10s
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d postgres"
+          --health-interval 1s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 60
     env:
       DATABASE_URL: &database-url postgres://postgres:postgres@localhost:5432/postgres
     steps:
@@ -51,9 +54,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      # The "client" vitest project runs in a real browser but pins chromium alone,
-      # so installing firefox and webkit is pure runner time.
-      - run: pnpm exec playwright install --with-deps chromium
+      - uses: ./.github/actions/setup-playwright
       - run: pnpm test:unit run
 
   e2e:
@@ -70,7 +71,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
-      - run: pnpm exec playwright install --with-deps chromium
+      - uses: ./.github/actions/setup-playwright
       - run: pnpm db:migrate
       - run: pnpm test:e2e
 
