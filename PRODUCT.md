@@ -210,8 +210,10 @@ Two consequences worth remembering:
 
 **Technical constraints**
 
-- SvelteKit / Svelte 5, built on Node with pnpm and served by Deno in the production image (`docs/adr/0001`, `docs/adr/0003`); PostgreSQL via Drizzle; better-auth for identity; superforms + **valibot** for form validation; Paraglide for i18n; Tailwind 4.
+- SvelteKit / Svelte 5, built and served on Node with pnpm (`docs/adr/0003`, `docs/adr/0008`); PostgreSQL via Drizzle; better-auth for identity; superforms + **valibot** for form validation; Paraglide for i18n; Tailwind 4.
 - Two background workers (`monitor`, `notifier`) run as separate processes from the web app. Anything the UI shows about check freshness depends on them.
+- In the production image every process runs under Node's permission model: no filesystem writes, child processes or native addons at runtime (`docs/runtime-permissions.md`). A feature that needs to store a file stores it in the database or an external service.
+- Self-hosted instances served over plain HTTP set `ORIGIN` to the address users type; without it the server assumes `https://`.
 - Almost every operational threshold is environment-configurable (`UPPITY_*`); UI must not hardcode values that `.env` owns.
 
 **Explicitly undecided — do not invent**
