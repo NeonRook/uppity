@@ -1,749 +1,55 @@
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import net, { type AddressInfo } from "node:net";
 
-import { and, eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
-import { organization } from "../../lib/server/db/auth-schema";
 import {
-	incident,
-	incidentMonitor,
-	incidentUpdate,
-	maintenanceWindow,
-	maintenanceWindowMonitor,
 	monitor as monitorTable,
 	monitorCheck,
 	monitorStatus,
-	notificationEvent,
 	type Monitor,
 } from "../../lib/server/db/schema";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
-import { executeCheck, saveCheckResult } from "./check";
+import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
+import { executeCheck } from "./check";
 
-async function seedOrganization(drizzleDb: TestDb["db"]): Promise<string> {
-	const suffix = nanoid();
-	const orgId = `test-org-${suffix}`;
-	await drizzleDb.insert(organization).values({
-		id: orgId,
-		name: `Test Org ${suffix}`,
-		slug: `test-org-${suffix}`,
-		createdAt: new Date(),
-	});
-	return orgId;
-}
-
-async function seedMonitor(
+async function monitorWith(
 	drizzleDb: TestDb["db"],
-	orgId: string,
-	overrides: Partial<typeof monitorTable.$inferInsert> = {},
+	values: Partial<typeof monitorTable.$inferInsert>,
 ): Promise<Monitor> {
-	const monitorId = `test-mon-${nanoid()}`;
-	await drizzleDb.insert(monitorTable).values({
-		id: monitorId,
-		organizationId: orgId,
-		name: "Test Monitor",
-		type: "http",
-		url: "https://example.com",
-		intervalSeconds: 60,
-		timeoutSeconds: 30,
-		...overrides,
-	});
-	const [row] = await drizzleDb.select().from(monitorTable).where(eq(monitorTable.id, monitorId));
-	if (!row) throw new Error("failed to seed monitor");
+	const id = await seedMonitor(drizzleDb, await seedOrg(drizzleDb));
+	const [row] = await drizzleDb
+		.update(monitorTable)
+		.set(values)
+		.where(eq(monitorTable.id, id))
+		.returning();
+	await drizzleDb.insert(monitorStatus).values({ monitorId: id, status: "unknown" });
 	return row;
 }
 
-async function seedActiveMaintenanceWindow(
-	drizzleDb: TestDb["db"],
-	orgId: string,
-	monitorId: string,
-): Promise<string> {
-	const id = `mw-${nanoid()}`;
-	await drizzleDb.insert(maintenanceWindow).values({
-		id,
-		organizationId: orgId,
-		name: "Active window",
-		status: "in_progress",
-		startsAt: new Date(Date.now() - 60_000),
-		endsAt: new Date(Date.now() + 60_000),
-	});
-	await drizzleDb.insert(maintenanceWindowMonitor).values({ windowId: id, monitorId });
-	return id;
+function checksOf(drizzleDb: TestDb["db"], monitorId: string) {
+	return drizzleDb
+		.select()
+		.from(monitorCheck)
+		.where(eq(monitorCheck.monitorId, monitorId))
+		.orderBy(monitorCheck.checkedAt);
 }
 
-async function waitForNotify(received: string[], expectedId: string, timeoutMs = 2000) {
-	const deadline = Date.now() + timeoutMs;
-	while (!received.includes(expectedId) && Date.now() < deadline) {
-		await new Promise((r) => setTimeout(r, 10));
-	}
+async function statusOf(drizzleDb: TestDb["db"], monitorId: string): Promise<string> {
+	const [row] = await drizzleDb
+		.select({ status: monitorStatus.status })
+		.from(monitorStatus)
+		.where(eq(monitorStatus.monitorId, monitorId));
+	return row.status;
 }
-
-async function eventTypes(drizzleDb: TestDb["db"], monitorId: string): Promise<string[]> {
-	const rows = await drizzleDb
-		.select({ type: notificationEvent.type })
-		.from(notificationEvent)
-		.where(eq(notificationEvent.monitorId, monitorId));
-	return rows.map((row) => row.type);
-}
-
-describe("saveCheckResult", () => {
-	test("first check from unknown that is up stays silent", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "unknown" });
-
-		await saveCheckResult(monitor, { status: "up", responseTimeMs: 42 }, drizzleDb);
-
-		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
-	});
-
-	test("a monitor down from its first check alerts and opens an incident", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "unknown" });
-
-		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
-
-		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
-		expect(
-			await drizzleDb.select().from(incident).where(eq(incident.organizationId, orgId)),
-		).toHaveLength(1);
-	});
-
-	test("alerts once, on the failure that reaches the threshold", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, { alertAfterFailures: 2 });
-		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
-		const down = { status: "down", responseTimeMs: 42 } as const;
-
-		await saveCheckResult(monitor, down, drizzleDb);
-		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
-
-		await saveCheckResult(monitor, down, drizzleDb);
-		await saveCheckResult(monitor, down, drizzleDb);
-		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
-	});
-
-	test("recovery from a blip below the threshold stays silent", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, { alertAfterFailures: 2 });
-		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
-
-		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
-		await saveCheckResult(monitor, { status: "up", responseTimeMs: 42 }, drizzleDb);
-
-		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
-	});
-
-	test("a resolved incident does not stop the next outage opening one", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
-		const old = `inc-${nanoid()}`;
-		await drizzleDb.insert(incident).values({
-			id: old,
-			organizationId: orgId,
-			title: "Earlier outage",
-			status: "resolved",
-			impact: "major",
-			isAutoCreated: true,
-			startedAt: new Date(),
-		});
-		await drizzleDb.insert(incidentMonitor).values({ incidentId: old, monitorId: monitor.id });
-
-		await saveCheckResult(monitor, { status: "down", responseTimeMs: 42 }, drizzleDb);
-
-		const open = await drizzleDb
-			.select()
-			.from(incident)
-			.where(and(eq(incident.organizationId, orgId), eq(incident.status, "investigating")));
-		expect(open).toHaveLength(1);
-	});
-
-	test("up → down enqueues monitor_down, creates an auto-incident, and fires pg_notify", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		const received: string[] = [];
-		const unlisten = await db.listen("notification_event", (payload) => {
-			received.push(payload);
-		});
-
-		try {
-			await saveCheckResult(
-				monitor,
-				{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
-				drizzleDb,
-			);
-
-			const [event] = await drizzleDb
-				.select()
-				.from(notificationEvent)
-				.where(eq(notificationEvent.monitorId, monitor.id));
-			expect(event?.type).toBe("monitor_down");
-			expect(event?.status).toBe("pending");
-
-			const payload = event?.payload as {
-				previousStatus: string;
-				newStatus: string;
-				consecutiveFailures: number;
-				errorMessage?: string;
-				checkId: string;
-			};
-			expect(payload.previousStatus).toBe("up");
-			expect(payload.newStatus).toBe("down");
-			expect(payload.consecutiveFailures).toBe(1);
-			expect(payload.errorMessage).toBe("connection refused");
-			expect(payload.checkId).toEqual(expect.any(String));
-
-			await waitForNotify(received, event.id);
-			expect(received).toContain(event.id);
-
-			const [inc] = await drizzleDb
-				.select()
-				.from(incident)
-				.where(eq(incident.organizationId, orgId));
-			expect(inc?.isAutoCreated).toBe(true);
-			expect(inc?.title).toBe("Test Monitor is down");
-
-			const [link] = await drizzleDb
-				.select()
-				.from(incidentMonitor)
-				.where(eq(incidentMonitor.incidentId, inc.id));
-			expect(link?.monitorId).toBe(monitor.id);
-
-			const updates = await drizzleDb
-				.select()
-				.from(incidentUpdate)
-				.where(eq(incidentUpdate.incidentId, inc.id));
-			expect(updates).toHaveLength(1);
-		} finally {
-			await unlisten();
-		}
-	}, 15_000);
-
-	test("down → down increments consecutiveFailures without a new event or incident", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "down",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 1,
-		});
-
-		await saveCheckResult(
-			monitor,
-			{ status: "down", responseTimeMs: 500, errorMessage: "still down" },
-			drizzleDb,
-		);
-
-		const [status] = await drizzleDb
-			.select()
-			.from(monitorStatus)
-			.where(eq(monitorStatus.monitorId, monitor.id));
-		expect(status?.status).toBe("down");
-		expect(status?.consecutiveFailures).toBe(2);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events).toHaveLength(0);
-
-		const incidents = await drizzleDb
-			.select()
-			.from(incident)
-			.where(eq(incident.organizationId, orgId));
-		expect(incidents).toHaveLength(0);
-	});
-
-	test("down → up enqueues monitor_up and auto-resolves the open incident", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "down",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 3,
-		});
-
-		const incidentId = `inc-${nanoid()}`;
-		await drizzleDb.insert(incident).values({
-			id: incidentId,
-			organizationId: orgId,
-			title: "Test Monitor is down",
-			status: "investigating",
-			impact: "major",
-			isAutoCreated: true,
-			startedAt: new Date(),
-		});
-		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId: monitor.id });
-
-		await saveCheckResult(monitor, { status: "up", responseTimeMs: 120 }, drizzleDb);
-
-		const [event] = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(event?.type).toBe("monitor_up");
-		const payload = event?.payload as {
-			previousStatus: string;
-			newStatus: string;
-			consecutiveFailures: number;
-		};
-		expect(payload.previousStatus).toBe("down");
-		expect(payload.newStatus).toBe("up");
-		expect(payload.consecutiveFailures).toBe(0);
-
-		const [resolved] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
-		expect(resolved?.status).toBe("resolved");
-		expect(resolved?.resolvedAt).not.toBeNull();
-
-		const updates = await drizzleDb
-			.select()
-			.from(incidentUpdate)
-			.where(eq(incidentUpdate.incidentId, incidentId));
-		expect(updates).toHaveLength(1);
-		expect(updates[0]?.status).toBe("resolved");
-	});
-
-	test("down → up does not resolve a manual incident, only enqueues monitor_up", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "down",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 3,
-		});
-
-		const incidentId = `inc-${nanoid()}`;
-		await drizzleDb.insert(incident).values({
-			id: incidentId,
-			organizationId: orgId,
-			title: "Manually filed incident",
-			status: "investigating",
-			impact: "major",
-			isAutoCreated: false,
-			startedAt: new Date(),
-		});
-		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId: monitor.id });
-
-		await saveCheckResult(monitor, { status: "up", responseTimeMs: 120 }, drizzleDb);
-
-		const [event] = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(event?.type).toBe("monitor_up");
-
-		const [stillOpen] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
-		expect(stillOpen?.status).toBe("investigating");
-		expect(stillOpen?.resolvedAt).toBeNull();
-
-		const updates = await drizzleDb
-			.select()
-			.from(incidentUpdate)
-			.where(eq(incidentUpdate.incidentId, incidentId));
-		expect(updates).toHaveLength(0);
-	});
-
-	test("SSL expiry inside the threshold enqueues ssl_expiry_warning with daysRemaining", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, {
-			sslCheckEnabled: true,
-			sslExpiryThresholdDays: 14,
-		});
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		// Cert expires in ~7 days — inside the 14-day threshold, outside "already expired".
-		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
-
-		await saveCheckResult(
-			monitor,
-			{
-				status: "up",
-				responseTimeMs: 120,
-				sslExpiresAt: sevenDaysOut,
-				sslIssuer: "Let's Encrypt",
-			},
-			drizzleDb,
-		);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-
-		const sslEvent = events.find((e) => e.type === "ssl_expiry_warning");
-		expect(sslEvent).toBeDefined();
-
-		const payload = sslEvent!.payload as {
-			daysRemaining: number;
-			sslExpiresAt: string;
-			sslIssuer?: string;
-		};
-		expect(payload.daysRemaining).toBe(7);
-		expect(payload.sslIssuer).toBe("Let's Encrypt");
-		expect(new Date(payload.sslExpiresAt).getTime()).toBe(sevenDaysOut.getTime());
-	});
-
-	test("SSL warning is suppressed when a prior warning is inside the cooldown window", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, {
-			sslCheckEnabled: true,
-			sslExpiryThresholdDays: 14,
-		});
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		// Seed a recent ssl_expiry_warning event for this monitor (6h ago, well inside 24h cooldown).
-		const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-		await drizzleDb.insert(notificationEvent).values({
-			id: `notif-${nanoid()}`,
-			organizationId: orgId,
-			monitorId: monitor.id,
-			type: "ssl_expiry_warning",
-			payload: { daysRemaining: 8, sslExpiresAt: new Date().toISOString() },
-			status: "sent",
-			createdAt: sixHoursAgo,
-		});
-
-		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
-		await saveCheckResult(
-			monitor,
-			{ status: "up", responseTimeMs: 120, sslExpiresAt: sevenDaysOut },
-			drizzleDb,
-		);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		const sslEvents = events.filter((e) => e.type === "ssl_expiry_warning");
-		// Still just the one we seeded — the new check should have been suppressed by cooldown.
-		expect(sslEvents).toHaveLength(1);
-	});
-
-	test("SSL warning fires again after the cooldown window has elapsed", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, {
-			sslCheckEnabled: true,
-			sslExpiryThresholdDays: 14,
-		});
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		// Prior warning is older than the 24h cooldown — should not suppress.
-		const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-		await drizzleDb.insert(notificationEvent).values({
-			id: `notif-${nanoid()}`,
-			organizationId: orgId,
-			monitorId: monitor.id,
-			type: "ssl_expiry_warning",
-			payload: { daysRemaining: 9, sslExpiresAt: new Date().toISOString() },
-			status: "sent",
-			createdAt: twoDaysAgo,
-		});
-
-		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
-		await saveCheckResult(
-			monitor,
-			{ status: "up", responseTimeMs: 120, sslExpiresAt: sevenDaysOut },
-			drizzleDb,
-		);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		const sslEvents = events.filter((e) => e.type === "ssl_expiry_warning");
-		expect(sslEvents).toHaveLength(2);
-	});
-
-	test("monitor_down during active maintenance does NOT enqueue an event or create an incident", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
-
-		await saveCheckResult(
-			monitor,
-			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
-			drizzleDb,
-		);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events).toHaveLength(0);
-
-		const incidents = await drizzleDb
-			.select()
-			.from(incident)
-			.where(eq(incident.organizationId, orgId));
-		expect(incidents).toHaveLength(0);
-	});
-
-	test("monitor recovery during active maintenance does NOT enqueue monitor_up or auto-resolve", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "down",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 3,
-		});
-
-		const incidentId = `inc-${nanoid()}`;
-		await drizzleDb.insert(incident).values({
-			id: incidentId,
-			organizationId: orgId,
-			title: "Test Monitor is down",
-			status: "investigating",
-			impact: "major",
-			isAutoCreated: true,
-			startedAt: new Date(),
-		});
-		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId: monitor.id });
-
-		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
-
-		await saveCheckResult(monitor, { status: "up", responseTimeMs: 120 }, drizzleDb);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events).toHaveLength(0);
-
-		const [stillOpen] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
-		expect(stillOpen?.status).toBe("investigating");
-		expect(stillOpen?.resolvedAt).toBeNull();
-	});
-
-	test("monitor_check row is still recorded during active maintenance", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
-
-		await saveCheckResult(
-			monitor,
-			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
-			drizzleDb,
-		);
-
-		const checks = await drizzleDb
-			.select()
-			.from(monitorCheck)
-			.where(eq(monitorCheck.monitorId, monitor.id));
-		expect(checks).toHaveLength(1);
-		expect(checks[0]?.status).toBe("down");
-	});
-
-	test("monitor_status is NOT updated during active maintenance (frozen for post-window detection)", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
-
-		await saveCheckResult(
-			monitor,
-			{ status: "down", responseTimeMs: 500, errorMessage: "connection refused" },
-			drizzleDb,
-		);
-
-		const [status] = await drizzleDb
-			.select()
-			.from(monitorStatus)
-			.where(eq(monitorStatus.monitorId, monitor.id));
-		// monitor_status remains frozen at its pre-window state so the next
-		// post-window check can detect the transition.
-		expect(status?.status).toBe("up");
-		expect(status?.consecutiveFailures).toBe(0);
-	});
-
-	test("monitor down during maintenance and still down after creates an incident on first post-window check", async ({
-		db,
-	}) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId);
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-
-		// 1) seed an ALREADY-EXPIRED window — startsAt past, endsAt past
-		// The window represents "monitoring was paused for the last hour, just resumed."
-		const wId = `mw-${nanoid()}`;
-		await drizzleDb.insert(maintenanceWindow).values({
-			id: wId,
-			organizationId: orgId,
-			name: "Past window",
-			status: "completed",
-			startsAt: new Date(Date.now() - 3_600_000),
-			endsAt: new Date(Date.now() - 60_000),
-		});
-		await drizzleDb.insert(maintenanceWindowMonitor).values({
-			windowId: wId,
-			monitorId: monitor.id,
-		});
-
-		// 2) Now a check comes in showing the monitor went down.
-		// The gate should NOT fire (window status is 'completed', not 'in_progress').
-		// monitor_status moves up→down. statusChanged=true. Incident created.
-		await saveCheckResult(
-			monitor,
-			{ status: "down", responseTimeMs: 500, errorMessage: "timeout" },
-			drizzleDb,
-		);
-
-		const incidents = await drizzleDb
-			.select()
-			.from(incident)
-			.where(eq(incident.organizationId, orgId));
-		expect(incidents).toHaveLength(1);
-		expect(incidents[0].isAutoCreated).toBe(true);
-
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events.some((e) => e.type === "monitor_down")).toBe(true);
-	});
-
-	test("SSL expiry warnings still fire during active maintenance", async ({ db }) => {
-		const { db: drizzleDb } = db;
-		const orgId = await seedOrganization(drizzleDb);
-		const monitor = await seedMonitor(drizzleDb, orgId, {
-			sslCheckEnabled: true,
-			sslExpiryThresholdDays: 14,
-		});
-		await drizzleDb.insert(monitorStatus).values({
-			monitorId: monitor.id,
-			status: "up",
-			lastCheckAt: new Date(),
-			consecutiveFailures: 0,
-		});
-		await seedActiveMaintenanceWindow(drizzleDb, orgId, monitor.id);
-
-		const sevenDaysOut = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 1000);
-
-		await saveCheckResult(
-			monitor,
-			{
-				status: "up",
-				responseTimeMs: 120,
-				sslExpiresAt: sevenDaysOut,
-				sslIssuer: "Let's Encrypt",
-			},
-			drizzleDb,
-		);
-
-		const sslEvents = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(
-				and(
-					eq(notificationEvent.monitorId, monitor.id),
-					eq(notificationEvent.type, "ssl_expiry_warning"),
-				),
-			);
-		expect(sslEvents).toHaveLength(1);
-	});
-});
 
 describe("executeCheck over HTTP", () => {
 	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
 	afterEach(() => vi.unstubAllEnvs());
 
-	test("opens a fresh connection for every check and stores a whole-millisecond time", async ({
-		db,
-	}) => {
+	test("opens a fresh connection for every check and records it processed", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		let sockets = 0;
 		const server = createServer((_req, res) => res.end("ok"));
@@ -752,22 +58,127 @@ describe("executeCheck over HTTP", () => {
 		const { port } = server.address() as AddressInfo;
 
 		try {
-			const orgId = await seedOrganization(drizzleDb);
-			const monitor = await seedMonitor(drizzleDb, orgId, { url: `http://127.0.0.1:${port}/` });
+			const monitor = await monitorWith(drizzleDb, { url: `http://127.0.0.1:${port}/` });
 
 			await executeCheck(monitor, drizzleDb);
 			await executeCheck(monitor, drizzleDb);
 
-			const checks = await drizzleDb
-				.select()
-				.from(monitorCheck)
-				.where(eq(monitorCheck.monitorId, monitor.id));
+			const checks = await checksOf(drizzleDb, monitor.id);
 			expect(checks.map((c) => c.status)).toEqual(["up", "up"]);
 			expect(checks.every((c) => Number.isInteger(c.responseTimeMs))).toBe(true);
+			expect(checks.every((c) => c.processedAt !== null)).toBe(true);
 			expect(sockets).toBe(2);
+			expect(await statusOf(drizzleDb, monitor.id)).toBe("up");
 		} finally {
 			server.closeAllConnections();
 			server.close();
 		}
+	});
+
+	test("refuses a private address unless the operator allows it", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "");
+		const monitor = await monitorWith(drizzleDb, { url: "http://127.0.0.1:9/" });
+
+		await executeCheck(monitor, drizzleDb);
+
+		const [check] = await checksOf(drizzleDb, monitor.id);
+		expect(check).toMatchObject({
+			status: "down",
+			errorMessage: "Blocked: 127.0.0.1 is a private address",
+		});
+	});
+});
+
+describe("executeCheck over TCP", () => {
+	afterEach(() => vi.unstubAllEnvs());
+
+	test("records an open port as up", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true");
+		const server = net.createServer((socket) => socket.end());
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+
+		try {
+			const monitor = await monitorWith(drizzleDb, {
+				type: "tcp",
+				url: null,
+				hostname: "127.0.0.1",
+				port,
+			});
+			await executeCheck(monitor, drizzleDb);
+
+			expect((await checksOf(drizzleDb, monitor.id)).map((c) => c.status)).toEqual(["up"]);
+		} finally {
+			server.close();
+		}
+	});
+
+	test("refuses a host that resolves to a private address", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, {
+			type: "tcp",
+			url: null,
+			hostname: "localhost",
+			port: 5432,
+		});
+		await executeCheck(monitor, drizzleDb);
+
+		const [check] = await checksOf(drizzleDb, monitor.id);
+		expect(check.status).toBe("down");
+		expect(check.errorMessage).toMatch(/^Blocked: localhost resolves to private address /);
+	});
+});
+
+describe("executeCheck for a push monitor", () => {
+	const overdue = new Date(Date.now() - 3_600_000);
+
+	test("records a missed heartbeat as down", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, {
+			type: "push",
+			url: null,
+			intervalSeconds: 60,
+			pushGracePeriodSeconds: 60,
+			createdAt: overdue,
+		});
+
+		await executeCheck(monitor, drizzleDb);
+
+		const checks = await checksOf(drizzleDb, monitor.id);
+		expect(checks).toMatchObject([{ status: "down", errorMessage: "No heartbeat received" }]);
+		expect(await statusOf(drizzleDb, monitor.id)).toBe("down");
+	});
+
+	test("writes nothing while heartbeats arrive, and interprets them", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, {
+			type: "push",
+			url: null,
+			intervalSeconds: 60,
+			pushGracePeriodSeconds: 60,
+			createdAt: overdue,
+		});
+		await drizzleDb
+			.insert(monitorCheck)
+			.values({ id: `hb-${monitor.id}`, monitorId: monitor.id, status: "up", responseTimeMs: 0 });
+
+		await executeCheck(monitor, drizzleDb);
+
+		const checks = await checksOf(drizzleDb, monitor.id);
+		expect(checks).toHaveLength(1);
+		expect(checks[0].processedAt).not.toBeNull();
+		expect(await statusOf(drizzleDb, monitor.id)).toBe("up");
+	});
+
+	test("a young monitor with no heartbeat yet writes nothing", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, { type: "push", url: null });
+
+		await executeCheck(monitor, drizzleDb);
+
+		expect(await checksOf(drizzleDb, monitor.id)).toEqual([]);
+		expect(await statusOf(drizzleDb, monitor.id)).toBe("unknown");
 	});
 });

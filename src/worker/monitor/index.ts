@@ -1,10 +1,11 @@
 import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
-import { db } from "../shared/db";
+import { client, db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 import { SlotPool } from "./pool";
+import { pendingMonitorIds, processResults } from "./processor";
 import {
 	claimDueMonitors,
 	recordCheckFailure,
@@ -13,6 +14,10 @@ import {
 } from "./schedule";
 
 const schedulerLogger = childLogger("scheduler");
+const processorLogger = childLogger("processor");
+
+// Catches results whose notification was missed, such as while the LISTEN connection reconnected.
+const RESULT_SWEEP_INTERVAL_MS = 15_000;
 
 let running = true;
 let currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
@@ -122,6 +127,47 @@ async function pollLoop() {
 	await pool.drain();
 }
 
+const processing = new Set<Promise<void>>();
+
+/** Interprets a monitor's waiting results; overlapping calls for one monitor queue in the database. */
+function processMonitorResults(monitorId: string): Promise<void> {
+	const work = processResults(db, monitorId)
+		.then(() => undefined)
+		.catch((error: unknown) =>
+			processorLogger.error({ error, monitor_id: monitorId }, "Result processing failed"),
+		);
+	processing.add(work);
+	void work.finally(() => processing.delete(work));
+	return work;
+}
+
+async function sweepResults(): Promise<void> {
+	try {
+		for (const monitorId of await pendingMonitorIds(db)) await processMonitorResults(monitorId);
+	} catch (error) {
+		processorLogger.error({ error }, "Result sweep failed");
+	}
+}
+
+let stopProcessing: (() => Promise<void>) | null = null;
+
+/** Processes results as they are inserted, whoever inserts them, with a sweep behind. */
+async function startResultProcessor(): Promise<void> {
+	await sweepResults();
+	const subscription = await client.listen("monitor_check", (monitorId) => {
+		if (running) void processMonitorResults(monitorId);
+	});
+	const sweepTimer = setInterval(() => {
+		if (running) void sweepResults();
+	}, RESULT_SWEEP_INTERVAL_MS);
+	stopProcessing = async () => {
+		clearInterval(sweepTimer);
+		await subscription.unlisten();
+		await Promise.allSettled(processing);
+	};
+	processorLogger.info("Listening on channel monitor_check");
+}
+
 // Graceful shutdown
 function shutdown(signal: string): void {
 	schedulerLogger.info({ signal }, "Received shutdown signal");
@@ -143,8 +189,9 @@ async function start() {
 		"Starting monitor scheduler worker",
 	);
 
-	// Start the main polling loop
+	await startResultProcessor();
 	await pollLoop();
+	await stopProcessing?.();
 
 	schedulerLogger.info("Shutdown complete");
 	process.exit(0);

@@ -1,39 +1,23 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { and, desc, eq, gte, ne } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import {
 	DEFAULT_TIMEOUT_SECONDS,
 	DEFAULT_INTERVAL_SECONDS,
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
-	DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
-	SSL_WARNING_COOLDOWN_HOURS,
-	DEFAULT_INCIDENT_STATUS,
 	DEGRADED_RESPONSE_TIME_MS,
 	RETRY_DELAY_MS,
 	DEFAULT_RETRIES,
 } from "../../lib/constants/defaults";
 import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../lib/constants/monitor";
 import type { Db } from "../../lib/server/db/index";
-import {
-	monitorCheck,
-	monitorStatus,
-	incident,
-	incidentMonitor,
-	incidentUpdate,
-	notificationEvent,
-	type Monitor,
-} from "../../lib/server/db/schema";
+import { monitorCheck, type Monitor } from "../../lib/server/db/schema";
 import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
-import type {
-	MonitorStatusEventPayload,
-	SslExpiryEventPayload,
-} from "../../lib/server/notifications/events";
-import type { NotificationType } from "../../lib/server/notifications/types";
-import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { probeTcp } from "../../lib/server/tcp";
 import { performHttpCheck } from "./http";
+import { processResults } from "./processor";
 
 /** One check's outcome, as it is stored in monitor_check. */
 export interface CheckResult {
@@ -68,337 +52,98 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 	};
 }
 
-async function performPushCheck(m: Monitor, db: Db): Promise<CheckResult> {
+/**
+ * Heartbeats are a push monitor's up results, written by the webhook. The check
+ * only records their absence, as a down result once the last one is overdue.
+ */
+async function recordPushCheck(m: Monitor, db: Db): Promise<CheckResult | null> {
+	// Stamped before the lookup, so a heartbeat landing meanwhile is the newer result.
+	const checkedAt = new Date();
+	const result = await findMissedHeartbeat(m, db);
+	if (result) await insertResult(db, m.id, result, checkedAt);
+	return result;
+}
+
+async function findMissedHeartbeat(m: Monitor, db: Db): Promise<CheckResult | null> {
 	const gracePeriodSeconds = m.pushGracePeriodSeconds || DEFAULT_PUSH_GRACE_PERIOD_SECONDS;
 	const expectedInterval = m.intervalSeconds || DEFAULT_INTERVAL_SECONDS;
-	const totalAllowedSeconds = expectedInterval + gracePeriodSeconds;
+	const allowedMs = (expectedInterval + gracePeriodSeconds) * 1000;
 
-	const [lastCheck] = await db
-		.select()
+	const [lastHeartbeat] = await db
+		.select({ checkedAt: monitorCheck.checkedAt })
 		.from(monitorCheck)
-		.where(eq(monitorCheck.monitorId, m.id))
+		.where(and(eq(monitorCheck.monitorId, m.id), eq(monitorCheck.status, "up")))
 		.orderBy(desc(monitorCheck.checkedAt))
 		.limit(1);
 
-	if (!lastCheck) {
+	if (!lastHeartbeat) {
 		const monitorAge = Date.now() - new Date(m.createdAt).getTime();
-		if (monitorAge < totalAllowedSeconds * 1000) {
-			return { status: "up", responseTimeMs: 0 };
-		}
+		if (monitorAge < allowedMs) return null;
 		return { status: "down", responseTimeMs: 0, errorMessage: "No heartbeat received" };
 	}
 
-	const lastPingAge = Date.now() - new Date(lastCheck.checkedAt).getTime();
-	const isOverdue = lastPingAge > totalAllowedSeconds * 1000;
+	const lastPingAge = Date.now() - lastHeartbeat.checkedAt.getTime();
+	if (lastPingAge <= allowedMs) return null;
 
-	if (isOverdue) {
-		const overdueMinutes = Math.floor(lastPingAge / 60000);
-		return {
-			status: "down",
-			responseTimeMs: 0,
-			errorMessage: `No heartbeat for ${overdueMinutes} minutes`,
-		};
-	}
-
-	return { status: "up", responseTimeMs: 0 };
+	return {
+		status: "down",
+		responseTimeMs: 0,
+		errorMessage: `No heartbeat for ${Math.floor(lastPingAge / 60000)} minutes`,
+	};
 }
 
-async function performCheck(m: Monitor, db: Db): Promise<CheckResult> {
+async function performProbe(m: Monitor): Promise<CheckResult> {
 	switch (m.type) {
 		case "http":
 			return performHttpCheck(m);
 		case "tcp":
 			return performTcpCheck(m);
-		case "push":
-			return performPushCheck(m, db);
 		default:
 			return { status: "down", responseTimeMs: 0, errorMessage: "Unknown monitor type" };
 	}
 }
 
-async function performCheckWithRetries(m: Monitor, db: Db): Promise<CheckResult> {
+async function performProbeWithRetries(m: Monitor): Promise<CheckResult> {
 	const retries = Math.min(m.retries ?? DEFAULT_RETRIES, MAX_RETRIES);
-	let lastResult: CheckResult | null = null;
+	let result = await performProbe(m);
 
-	for (let attempt = 0; attempt <= retries; attempt++) {
-		lastResult = await performCheck(m, db);
-
-		if (lastResult.status !== "down") {
-			return lastResult;
-		}
-
-		if (attempt < retries) {
-			await sleep(RETRY_DELAY_MS);
-		}
+	for (let attempt = 0; attempt < retries && result.status === "down"; attempt++) {
+		await sleep(RETRY_DELAY_MS);
+		result = await performProbe(m);
 	}
 
-	return lastResult!;
+	return result;
 }
 
-export async function saveCheckResult(
-	m: Monitor,
-	result: CheckResult,
+/** Writes a result for the processor to interpret. */
+export async function insertResult(
 	db: Db,
-	event?: WideEventBuilder<CheckWideEvent>,
+	monitorId: string,
+	result: CheckResult,
+	checkedAt = new Date(),
 ): Promise<void> {
-	const checkId = nanoid();
-
-	// Save the check result
-	await db.insert(monitorCheck).values({
-		id: checkId,
-		monitorId: m.id,
-		...result,
-		checkedAt: new Date(),
-	});
-
-	// Read current monitor status to compute transition signal
-	const [currentStatus] = await db
-		.select()
-		.from(monitorStatus)
-		.where(eq(monitorStatus.monitorId, m.id))
-		.limit(1);
-
-	const previousStatus = currentStatus?.status;
-	const previousFailures = currentStatus?.consecutiveFailures ?? 0;
-	const consecutiveFailures = result.status === "down" ? previousFailures + 1 : 0;
-
-	const statusChanged = previousStatus !== result.status;
-	// An outage alerts once, on the check that reaches the threshold, and its
-	// recovery alerts only if the outage did.
-	const alertsDown =
-		result.status === "down" &&
-		consecutiveFailures >= m.alertAfterFailures &&
-		previousFailures < m.alertAfterFailures;
-	const alertsUp =
-		result.status === "up" && previousStatus === "down" && previousFailures >= m.alertAfterFailures;
-
-	const enqueue = async (
-		type: NotificationType,
-		payload: MonitorStatusEventPayload | SslExpiryEventPayload,
-	) => {
-		const id = nanoid();
-		await db.insert(notificationEvent).values({
-			id,
-			organizationId: m.organizationId,
-			monitorId: m.id,
-			type,
-			payload,
-			status: "pending",
-		});
-		event?.merge({
-			notification_event_enqueued: true,
-			notification_event_id: id,
-			notification_event_type: type,
-		});
-	};
-
-	// Enrich wide event with check result
-	event?.merge({
-		check_status: result.status,
-		response_time_ms: result.responseTimeMs,
-		status_code: result.statusCode,
-		check_error: result.errorMessage,
-		status_changed: statusChanged,
-		previous_status: previousStatus,
-		consecutive_failures: consecutiveFailures,
-	});
-
-	// Handle SSL expiry warnings — cert hygiene is independent of status-change
-	// alerting, so this block must NOT be gated by the maintenance suppression
-	// below. NEO-13 only suppresses status-change notifications and auto-incidents.
-	if (result.sslExpiresAt && m.sslCheckEnabled) {
-		const daysUntilExpiry = Math.floor(
-			(result.sslExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-		);
-		const threshold = m.sslExpiryThresholdDays || DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS;
-
-		event?.merge({
-			ssl_expires_at: result.sslExpiresAt,
-			ssl_days_remaining: daysUntilExpiry,
-		});
-
-		if (daysUntilExpiry <= threshold && daysUntilExpiry > 0) {
-			event?.set("ssl_expiry_warning", true);
-
-			// Skip enqueueing if a warning was already enqueued for this monitor inside the
-			// cooldown window. Hits the (monitorId, type, createdAt) index on notification_event.
-			const cooldownStart = new Date(Date.now() - SSL_WARNING_COOLDOWN_HOURS * 60 * 60 * 1000);
-			const [recentWarning] = await db
-				.select({ id: notificationEvent.id })
-				.from(notificationEvent)
-				.where(
-					and(
-						eq(notificationEvent.monitorId, m.id),
-						eq(notificationEvent.type, "ssl_expiry_warning"),
-						gte(notificationEvent.createdAt, cooldownStart),
-					),
-				)
-				.limit(1);
-
-			if (!recentWarning) {
-				await enqueue("ssl_expiry_warning", {
-					daysRemaining: daysUntilExpiry,
-					sslExpiresAt: result.sslExpiresAt.toISOString(),
-					sslIssuer: result.sslIssuer,
-				});
-			}
-		}
-	}
-
-	// Suppression gate: during an active maintenance window, skip BOTH the
-	// monitor_status update and the status-change block (notifications, auto-
-	// incidents). Freezing monitor_status preserves the pre-window state so the
-	// next post-window check correctly detects any transitions that happened
-	// during the window. monitor_check rows and SSL warnings still fire above
-	// this gate.
-	//
-	// Per-check service instantiation propagates the worker's db argument naturally;
-	// the singleton uses the production db, which would break tests that inject a
-	// fixture db through saveCheckResult.
-	const activeWindow = await new MaintenanceWindowService(db).findActiveForMonitor(m.id);
-	if (activeWindow) {
-		event?.merge({
-			maintenance_active: true,
-			maintenance_window_id: activeWindow.id,
-			maintenance_window_name: activeWindow.name,
-		});
-		return;
-	}
-
-	// Update monitor status — only happens when NOT in maintenance, so the
-	// previous status is preserved across the window for post-window detection.
-	await db
-		.update(monitorStatus)
-		.set({
-			status: result.status,
-			lastCheckAt: new Date(),
-			lastStatusChange: statusChanged ? new Date() : currentStatus?.lastStatusChange,
-			consecutiveFailures,
-			updatedAt: new Date(),
-		})
-		.where(eq(monitorStatus.monitorId, m.id));
-
-	// Enqueue notification events and manage incidents
-	if (alertsDown) {
-		await enqueue("monitor_down", {
-			previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
-			newStatus: "down",
-			consecutiveFailures,
-			errorMessage: result.errorMessage,
-			checkId,
-		});
-
-		const [existingIncident] = await db
-			.select({ id: incident.id })
-			.from(incident)
-			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-			.where(and(eq(incidentMonitor.monitorId, m.id), ne(incident.status, "resolved")))
-			.limit(1);
-
-		if (!existingIncident) {
-			// Create auto-incident
-			const incidentId = nanoid();
-			await db.insert(incident).values({
-				id: incidentId,
-				organizationId: m.organizationId,
-				title: `${m.name} is down`,
-				status: DEFAULT_INCIDENT_STATUS,
-				impact: "major",
-				isAutoCreated: true,
-				startedAt: new Date(),
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			});
-
-			await db.insert(incidentMonitor).values({
-				incidentId,
-				monitorId: m.id,
-			});
-
-			await db.insert(incidentUpdate).values({
-				id: nanoid(),
-				incidentId,
-				status: DEFAULT_INCIDENT_STATUS,
-				message: result.errorMessage || "Monitor is not responding.",
-				createdAt: new Date(),
-			});
-
-			// Enrich wide event with incident info
-			event?.merge({
-				incident_created: true,
-				incident_id: incidentId,
-			});
-		}
-	} else if (alertsUp) {
-		await enqueue("monitor_up", {
-			previousStatus: "down",
-			newStatus: "up",
-			consecutiveFailures,
-			checkId,
-		});
-
-		// Auto-resolve the active auto-incident for this monitor.
-		// Manual incidents (isAutoCreated=false) are only resolved by humans.
-		const [existingIncident] = await db
-			.select({ id: incident.id })
-			.from(incident)
-			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-			.where(
-				and(
-					eq(incidentMonitor.monitorId, m.id),
-					eq(incident.isAutoCreated, true),
-					ne(incident.status, "resolved"),
-				),
-			)
-			.limit(1);
-
-		if (existingIncident) {
-			await db
-				.update(incident)
-				.set({
-					status: "resolved",
-					resolvedAt: new Date(),
-					updatedAt: new Date(),
-				})
-				.where(eq(incident.id, existingIncident.id));
-
-			await db.insert(incidentUpdate).values({
-				id: nanoid(),
-				incidentId: existingIncident.id,
-				status: "resolved",
-				message: "Monitor has recovered automatically.",
-				createdAt: new Date(),
-			});
-
-			// Enrich wide event with resolution info
-			event?.merge({
-				incident_resolved: true,
-				incident_id: existingIncident.id,
-			});
-		}
-	} else if (statusChanged && previousStatus !== "unknown" && result.status === "degraded") {
-		await enqueue("monitor_degraded", {
-			previousStatus: previousStatus as "up" | "down" | "degraded" | "unknown",
-			newStatus: "degraded",
-			consecutiveFailures,
-			checkId,
-		});
-	}
+	await db.insert(monitorCheck).values({ id: nanoid(), monitorId, checkedAt, ...result });
 }
 
 /**
- * Executes a monitor check with retries and saves the result.
+ * Checks a monitor, records the result, and processes every result the monitor has
+ * waiting, including heartbeats the push webhook wrote since the last check.
  */
 export async function executeCheck(
 	m: Monitor,
 	db: Db,
 	event?: WideEventBuilder<CheckWideEvent>,
 ): Promise<void> {
-	const result = await performCheckWithRetries(m, db);
-	await saveCheckResult(m, result, db, event);
+	let result: CheckResult | null;
+	if (m.type === "push") {
+		result = await recordPushCheck(m, db);
+	} else {
+		result = await performProbeWithRetries(m);
+		await insertResult(db, m.id, result);
+	}
+	await processResults(db, m.id, event);
 
-	// Set success/error status on wide event
-	if (result.status === "down") {
+	if (result?.status === "down") {
 		event?.setError(new Error(result.errorMessage || "Check failed"));
 	} else {
 		event?.setSuccess();
