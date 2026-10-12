@@ -34,8 +34,8 @@ const RUNTIME_EXTERNALS: readonly string[] = [];
 const OPTIONAL_EXTERNALS: readonly string[] = ["@opentelemetry/api"];
 
 const SCAN_TARGETS: ReadonlyArray<readonly [string, string]> = [
-	[".deno-deploy/server", "**/*.js"],
 	["build", "*.js"],
+	["build/server", "**/*.js"],
 	["build/chunks", "*.js"],
 ];
 

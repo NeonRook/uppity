@@ -5,7 +5,6 @@ node_modules/
 # Output
 /.svelte-kit
 /build
-/.deno-deploy
 
 # Subagent-driven development scratch (ledger, briefs, review packages)
 .remember/
