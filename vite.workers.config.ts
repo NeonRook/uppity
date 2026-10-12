@@ -1,8 +1,24 @@
 import { fileURLToPath } from "node:url";
 
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+/**
+ * Leaves the SvelteKit build's handler to load at runtime rather than bundling
+ * it a second time. Rolldown rewrites a relative `external` entry against the
+ * project root, so the specifier is set here as it resolves from build/serve.js.
+ */
+function externalHandler(): Plugin {
+	return {
+		name: "external-handler",
+		enforce: "pre",
+		resolveId: (source) =>
+			source === "../build/handler.js" ? { id: "./handler.js", external: true } : null,
+	};
+}
 
 export default defineConfig({
+	plugins: [externalHandler()],
+
 	// $lib is declared in the generated .svelte-kit tsconfig, which only the app
 	// build reads. These entry points avoid the alias but reach modules under
 	// src/lib that use it.
@@ -23,6 +39,7 @@ export default defineConfig({
 		emptyOutDir: false,
 		rolldownOptions: {
 			input: {
+				serve: "scripts/serve.ts",
 				"worker-monitor": "src/worker/monitor/index.ts",
 				"worker-notifier": "src/worker/notifier/index.ts",
 				migrate: "scripts/migrate.ts",

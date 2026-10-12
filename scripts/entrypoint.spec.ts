@@ -43,7 +43,7 @@ describe("permission model", () => {
 	it("scopes the web tier's reads to the build", async () => {
 		const { read, entry } = await commandFor("serve", { DATABASE_URL: DB });
 		expect(read).toEqual(["./build"]);
-		expect(entry).toBe("./build/index.js");
+		expect(entry).toBe("./build/serve.js");
 	});
 
 	it("scopes migrate's reads to the migration SQL and the build", async () => {

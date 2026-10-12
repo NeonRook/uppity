@@ -41,7 +41,7 @@ fi
 
 case "$target" in
 serve)
-	run --permission --allow-net --allow-fs-read=./build ./build/index.js
+	run --permission --allow-net --allow-fs-read=./build ./build/serve.js
 	;;
 migrate)
 	run --permission --allow-net --allow-fs-read=./drizzle --allow-fs-read=./build ./build/migrate.js

@@ -158,9 +158,10 @@ export BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 export BETTER_AUTH_URL=https://your-domain.com
 export BETTER_AUTH_TRUSTED_ORIGINS=https://your-domain.com
 
-# The server takes every request as https:// on the host in its Host header.
-# Only when your proxy rewrites Host: name the header that carries the original.
-export HOST_HEADER=x-forwarded-host
+# The address users type, scheme included. Form submissions from any other
+# origin are rejected. Unset, the server assumes https:// and the request's Host
+# header; behind a proxy that rewrites Host you can set HOST_HEADER instead.
+export ORIGIN=https://your-domain.com
 
 # Start the full stack
 docker compose up -d
