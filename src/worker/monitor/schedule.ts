@@ -1,12 +1,8 @@
 import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import {
-	MAX_RETRIES,
-	MAX_TIMEOUT_SECONDS,
-	RETRY_DELAY_MS,
-	SSL_INFO_TIMEOUT_MS,
-} from "../../lib/constants/defaults";
+import { RETRY_DELAY_MS, SSL_INFO_TIMEOUT_MS } from "../../lib/constants/defaults";
+import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../lib/constants/monitor";
 import { CHECK_RETRY, WORKER_POLL_BATCH_SIZE } from "../../lib/constants/worker";
 import type { Db, DbExecutor } from "../../lib/server/db/index";
 import { monitor, notificationEvent, type Monitor } from "../../lib/server/db/schema";

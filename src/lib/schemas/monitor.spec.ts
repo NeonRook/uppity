@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/defaults.js";
+import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/monitor.js";
 
 import { createMonitorSchema } from "./monitor";
 
