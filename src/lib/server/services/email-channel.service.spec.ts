@@ -179,7 +179,9 @@ describe("EmailChannelService.requestConfirmation", () => {
 		await backdate(db, channel.id, RESEND_INTERVAL_MS + 1000);
 		const failing = new EmailChannelService(db, () => Promise.reject(new Error("smtp down")));
 
-		await expect(failing.requestConfirmation(channel.id, orgId, ADMIN)).rejects.toThrow();
+		await expect(failing.requestConfirmation(channel.id, orgId, ADMIN)).rejects.toThrow(
+			"smtp down",
+		);
 		expect((await service.lookup(channel.token))?.state).toBe("pending");
 	});
 
