@@ -50,9 +50,6 @@ export const DEFAULT_EXPECTED_STATUS_CODES = [200] as const;
 /** Response time above which a successful check is marked as degraded instead of up. */
 export const DEGRADED_RESPONSE_TIME_MS = envInt("UPPITY_DEGRADED_RESPONSE_TIME_MS", 5000);
 
-/** Timeout for fetching SSL certificate information from a server. */
-export const SSL_INFO_TIMEOUT_MS = envInt("UPPITY_SSL_INFO_TIMEOUT_MS", 5000);
-
 /** Wait time between retry attempts after a failed check. */
 export const RETRY_DELAY_MS = envInt("UPPITY_RETRY_DELAY_MS", 1000);
 
