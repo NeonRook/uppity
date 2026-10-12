@@ -112,6 +112,12 @@
 	},
 	"overrides": [
 		{
+			"files": ["e2e/**"],
+			"rules": {
+				"no-empty-pattern": ["error", { "allowObjectPatternsAsParameters": true }]
+			}
+		},
+		{
 			"files": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
 			"rules": {
 				"no-class-assign": "off",

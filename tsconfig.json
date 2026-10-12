@@ -5,5 +5,5 @@
 		"rewriteRelativeImportExtensions": true,
 		"sourceMap": true
 	},
-	"include": ["src", "vite.config.ts", "drizzle.config.ts", "playwright.config.ts"]
+	"include": ["src", "vite.config.ts", "drizzle.config.ts", "playwright.config.ts", "e2e"]
 }

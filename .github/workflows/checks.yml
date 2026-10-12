@@ -72,7 +72,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-toolchain
       - uses: ./.github/actions/setup-playwright
-      - run: pnpm db:migrate
       - run: pnpm test:e2e
 
   build:
