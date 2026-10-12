@@ -29,6 +29,17 @@ export default defineRailway((ctx) => {
 		sizeMB: 5000,
 	} as const;
 
+	// Alerts and subscriber mail go to addresses customers and visitors type in,
+	// so they send through Resend. Their bounces cannot get the Scaleway account
+	// that sends sign-in mail suspended.
+	const resend = {
+		host: "smtp.resend.com",
+		password: ctx.shared.RESEND_API_KEY,
+		port: "465",
+		user: "resend",
+	};
+	const subscriberFrom = "Uppity Status <updates@status.uppity.cloud>";
+
 	const Postgres = postgres("Postgres", { region: "europe-west4-drams3a" });
 	const drizzleGatewayVolume = volume("drizzle-gateway-volume", volumeOptions);
 	const postgresVolume = volume("pg-volume-prod", volumeOptions);
@@ -46,15 +57,12 @@ export default defineRailway((ctx) => {
 			DATABASE_URL: Postgres.env.DATABASE_URL,
 			NODE_ENV: ctx.shared.NODE_ENV,
 			SERVICE_NAME: staging("worker-notifier"),
-			// Alerts and subscriber mail go to addresses customers and visitors type
-			// in, so they send through Resend. Their bounces cannot get the Scaleway
-			// account that sends sign-in mail suspended.
 			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
-			SMTP_HOST: "smtp.resend.com",
-			SMTP_PASSWORD: preserve(),
-			SMTP_PORT: "465",
-			SMTP_USER: "resend",
-			SUBSCRIBER_SMTP_FROM: "Uppity Status <updates@status.uppity.cloud>",
+			SMTP_HOST: resend.host,
+			SMTP_PASSWORD: resend.password,
+			SMTP_PORT: resend.port,
+			SMTP_USER: resend.user,
+			SUBSCRIBER_SMTP_FROM: subscriberFrom,
 		},
 	});
 	const DrizzleGateway = service("Drizzle Gateway", {
@@ -109,12 +117,11 @@ export default defineRailway((ctx) => {
 			SMTP_PASSWORD: preserve(),
 			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: preserve(),
-			// Subscription confirmations send as the notifier's subscriber mail does.
-			SUBSCRIBER_SMTP_FROM: workerNotifier.env.SUBSCRIBER_SMTP_FROM,
-			SUBSCRIBER_SMTP_HOST: workerNotifier.env.SMTP_HOST,
-			SUBSCRIBER_SMTP_PASSWORD: workerNotifier.env.SMTP_PASSWORD,
-			SUBSCRIBER_SMTP_PORT: workerNotifier.env.SMTP_PORT,
-			SUBSCRIBER_SMTP_USER: workerNotifier.env.SMTP_USER,
+			SUBSCRIBER_SMTP_FROM: subscriberFrom,
+			SUBSCRIBER_SMTP_HOST: resend.host,
+			SUBSCRIBER_SMTP_PASSWORD: resend.password,
+			SUBSCRIBER_SMTP_PORT: resend.port,
+			SUBSCRIBER_SMTP_USER: resend.user,
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 		},
 	});
