@@ -145,6 +145,19 @@ describe("claimDueMonitors", () => {
 	});
 });
 
+describe("monitor_lease_seconds", () => {
+	test("covers every attempt timing out and the pause after it, plus the writes", async ({
+		db,
+	}) => {
+		const [row] = await db.db.execute<{ fastest: number; slowest: number }>(sql`
+			SELECT monitor_lease_seconds(30, 0, 1000) AS fastest,
+				monitor_lease_seconds(60, 10, 1500) AS slowest
+		`);
+
+		expect(row).toEqual({ fastest: 61, slowest: 712 });
+	});
+});
+
 describe("releaseOverlongSchedules", () => {
 	test("makes due a monitor parked past anything this scheduler sets", async ({ db }) => {
 		const { db: drizzleDb } = db;
