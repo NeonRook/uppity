@@ -4,6 +4,7 @@ import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/lo
 import { db } from "../shared/db";
 import { executeCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
+import { SlotPool } from "./pool";
 import {
 	claimDueMonitors,
 	recordCheckFailure,
@@ -70,6 +71,7 @@ async function pollLoop() {
 	// Seeded inside the guarded loop: during a migration the table can be briefly unwritable,
 	// and the worker must keep checking monitors until it is.
 	let jobsSeeded = false;
+	const pool = new SlotPool(WORKER_POLL_BATCH_SIZE);
 
 	// oxlint-disable-next-line no-unmodified-loop-condition -- modified by shutdown() signal handler
 	while (running) {
@@ -85,18 +87,23 @@ async function pollLoop() {
 				await releaseOverlongSchedules(db);
 			}
 
-			const monitors = await claimDueMonitors(db);
+			await pool.slotFree();
+			if (!running) break;
+
+			// Claims only what can start now, so no lease runs down while a monitor waits.
+			const monitors = await claimDueMonitors(db, pool.free);
 
 			if (monitors.length > 0) {
-				// Reset backoff on successful claim
 				currentBackoffMs = WORKER_BACKOFF.INITIAL_MS;
-
 				schedulerLogger.debug({ count: monitors.length }, "Claimed monitors for checking");
 
-				// Process batch concurrently
-				await Promise.all(monitors.map(processMonitor));
-
-				// Continue immediately - there may be more work
+				for (const m of monitors) {
+					pool.start(() =>
+						processMonitor(m).catch((error: unknown) =>
+							schedulerLogger.error({ error, monitor_id: m.id }, "Check failed to record"),
+						),
+					);
+				}
 				continue;
 			}
 
@@ -111,6 +118,8 @@ async function pollLoop() {
 			await sleep(WORKER_BACKOFF.MAX_MS);
 		}
 	}
+
+	await pool.drain();
 }
 
 // Graceful shutdown
@@ -127,7 +136,7 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 async function start() {
 	schedulerLogger.info(
 		{
-			batch_size: WORKER_POLL_BATCH_SIZE,
+			concurrent_checks: WORKER_POLL_BATCH_SIZE,
 			backoff_initial_ms: WORKER_BACKOFF.INITIAL_MS,
 			backoff_max_ms: WORKER_BACKOFF.MAX_MS,
 		},
