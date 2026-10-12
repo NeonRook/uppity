@@ -12,6 +12,7 @@
 	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
+	import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/defaults.js";
 	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from "#lib/constants/monitor.js";
 	import type { ChannelOption } from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
@@ -295,7 +296,7 @@
 						type="number"
 						bind:value={$form.timeoutSeconds}
 						min="1"
-						max="120"
+						max={MAX_TIMEOUT_SECONDS}
 						disabled={$delayed}
 						aria-invalid={$errors.timeoutSeconds ? "true" : undefined}
 					/>
@@ -313,7 +314,7 @@
 						type="number"
 						bind:value={$form.retries}
 						min="0"
-						max="5"
+						max={MAX_RETRIES}
 						disabled={$delayed}
 						aria-invalid={$errors.retries ? "true" : undefined}
 					/>

@@ -16,6 +16,14 @@ export const DEFAULT_INTERVAL_SECONDS = MONITOR_INTERVAL.DEFAULT_SECONDS;
 /** Number of retry attempts after a failed check before marking as down. */
 export const DEFAULT_RETRIES = envInt("UPPITY_DEFAULT_RETRIES", 0);
 
+/**
+ * Upper bounds on a monitor's timeout and retries. A check holds a worker slot for up to
+ * timeout × (retries + 1), so these bound how long one monitor can keep others waiting.
+ * The database enforces the same values, so they are not configurable.
+ */
+export const MAX_TIMEOUT_SECONDS = 60;
+export const MAX_RETRIES = 10;
+
 /** Consecutive failures required before sending an alert notification. */
 export const DEFAULT_ALERT_AFTER_FAILURES = envInt("UPPITY_DEFAULT_ALERT_AFTER_FAILURES", 1);
 
