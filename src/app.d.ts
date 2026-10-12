@@ -56,6 +56,11 @@ declare global {
 			SMTP_PASSWORD?: string;
 			SMTP_FROM?: string;
 			UPPITY_EMAIL_FROM?: string;
+			SUBSCRIBER_SMTP_HOST?: string;
+			SUBSCRIBER_SMTP_PORT?: string;
+			SUBSCRIBER_SMTP_USER?: string;
+			SUBSCRIBER_SMTP_PASSWORD?: string;
+			SUBSCRIBER_SMTP_FROM?: string;
 
 			// Monitor Defaults [Optional]
 			UPPITY_DEFAULT_TIMEOUT_SECONDS?: string;

@@ -1,6 +1,6 @@
 import { appUrl, escapeHtml } from "./account-email";
 import { CONFIRMATION_TTL_HOURS } from "./services/status-page-subscriber.service";
-import { smtpFrom, smtpTransport } from "./smtp";
+import { subscriberFrom, subscriberTransport } from "./smtp";
 
 export interface SubscriptionConfirmation {
 	email: string;
@@ -14,7 +14,7 @@ export async function sendSubscriptionConfirmation({
 	token,
 	page,
 }: SubscriptionConfirmation): Promise<void> {
-	if (!smtpTransport) throw new Error("SMTP not configured");
+	if (!subscriberTransport) throw new Error("SMTP not configured");
 
 	const confirmUrl = `${appUrl}/status/${page.slug}/confirm/${token}`;
 	const paragraphs = [
@@ -22,8 +22,8 @@ export async function sendSubscriptionConfirmation({
 		"If you didn't ask for this, ignore this email. You won't hear from us again.",
 	];
 
-	await smtpTransport.sendMail({
-		from: smtpFrom,
+	await subscriberTransport.sendMail({
+		from: subscriberFrom,
 		to: email,
 		subject: `Confirm your subscription to ${page.name} status updates`,
 		html: [
@@ -61,15 +61,15 @@ export async function sendSubscriberIncidentEmail({
 	kind,
 	message,
 }: SubscriberIncidentEmail): Promise<void> {
-	if (!smtpTransport) throw new Error("SMTP not configured");
+	if (!subscriberTransport) throw new Error("SMTP not configured");
 
 	const incidentUrl = `${appUrl}/status/${page.slug}/incidents/${incident.id}`;
 	const unsubscribeUrl = `${appUrl}/status/${page.slug}/unsubscribe/${token}`;
 	const status = `Status: ${capitalize(incident.status)}`;
 	const footer = `You get this email because you subscribed to ${page.name} status updates.`;
 
-	await smtpTransport.sendMail({
-		from: smtpFrom,
+	await subscriberTransport.sendMail({
+		from: subscriberFrom,
 		to: email,
 		subject: `[${page.name}] ${SUBJECT_PREFIX[kind]}${incident.title}`,
 		headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
