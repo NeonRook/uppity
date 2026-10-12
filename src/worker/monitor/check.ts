@@ -47,18 +47,23 @@ interface CheckResult {
 	sslIssuer?: string;
 }
 
+/** Milliseconds since `start`, from the monotonic clock, rounded once for storage. */
+const elapsedSince = (start: number) => Math.round(performance.now() - start);
+
 async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 	if (!m.url) {
 		return { status: "down", responseTimeMs: 0, errorMessage: "No URL configured" };
 	}
 
-	const startTime = Date.now();
+	const startTime = performance.now();
 	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
 
 	try {
 		const headers: Record<string, string> = {
 			"User-Agent": USER_AGENT,
 			...m.headers,
+			// A pooled socket skips DNS, connect and TLS, and would time a visit no new visitor makes.
+			Connection: "close",
 		};
 
 		const response = await fetch(m.url, {
@@ -68,7 +73,8 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 			signal: AbortSignal.timeout(timeoutSeconds * 1000),
 		});
 
-		const responseTimeMs = Date.now() - startTime;
+		// Response time ends at the headers; reading the body below does not count.
+		const responseTimeMs = elapsedSince(startTime);
 
 		const expectedCodes = m.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES];
 		const statusOk = expectedCodes.includes(response.status);
@@ -77,6 +83,9 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 		if (m.expectedBodyContains && statusOk) {
 			const body = await response.text();
 			bodyOk = body.includes(m.expectedBodyContains);
+		} else {
+			// An unread body holds its socket open until garbage collection.
+			await response.body?.cancel();
 		}
 
 		let sslInfo: { sslExpiresAt?: Date; sslIssuer?: string } = {};
@@ -100,7 +109,7 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 
 		return { status, statusCode: response.status, responseTimeMs, errorMessage, ...sslInfo };
 	} catch (error) {
-		const responseTimeMs = Date.now() - startTime;
+		const responseTimeMs = elapsedSince(startTime);
 
 		let errorMessage = "Unknown error";
 		if (error instanceof Error) {
@@ -121,9 +130,9 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 	}
 
 	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
-	const startTime = Date.now();
+	const startTime = performance.now();
 	const result = await probeTcp(m.hostname, m.port, timeoutSeconds * 1000);
-	const responseTimeMs = Date.now() - startTime;
+	const responseTimeMs = elapsedSince(startTime);
 
 	if (!result.ok) {
 		return {

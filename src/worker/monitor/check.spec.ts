@@ -1,3 +1,6 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
@@ -17,7 +20,7 @@ import {
 } from "../../lib/server/db/schema";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
-import { saveCheckResult } from "./check";
+import { executeCheck, saveCheckResult } from "./check";
 
 async function seedOrganization(drizzleDb: TestDb["db"]): Promise<string> {
 	const suffix = nanoid();
@@ -731,5 +734,37 @@ describe("saveCheckResult", () => {
 				),
 			);
 		expect(sslEvents).toHaveLength(1);
+	});
+});
+
+describe("executeCheck over HTTP", () => {
+	test("opens a fresh connection for every check and stores a whole-millisecond time", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		let sockets = 0;
+		const server = createServer((_req, res) => res.end("ok"));
+		server.on("connection", () => sockets++);
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+
+		try {
+			const orgId = await seedOrganization(drizzleDb);
+			const monitor = await seedMonitor(drizzleDb, orgId, { url: `http://127.0.0.1:${port}/` });
+
+			await executeCheck(monitor, drizzleDb);
+			await executeCheck(monitor, drizzleDb);
+
+			const checks = await drizzleDb
+				.select()
+				.from(monitorCheck)
+				.where(eq(monitorCheck.monitorId, monitor.id));
+			expect(checks.map((c) => c.status)).toEqual(["up", "up"]);
+			expect(checks.every((c) => Number.isInteger(c.responseTimeMs))).toBe(true);
+			expect(sockets).toBe(2);
+		} finally {
+			server.closeAllConnections();
+			server.close();
+		}
 	});
 });
