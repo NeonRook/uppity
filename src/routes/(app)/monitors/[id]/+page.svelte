@@ -42,10 +42,10 @@
 
 	let { data } = $props();
 
-	type Check = (typeof data.recentChecks)[number];
+	type RecentCheck = (typeof data.recentChecks)[number];
 
 	/** The HTTP phases a check recorded, in the order they ran. Empty for TCP and push checks. */
-	function phases(check: Check): string {
+	function phases(check: RecentCheck): string {
 		const timed: [string, number | null][] = [
 			[m.monitor_phase_dns(), check.dnsMs],
 			[m.monitor_phase_connect(), check.connectMs],
