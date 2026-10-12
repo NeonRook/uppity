@@ -1,6 +1,11 @@
+# The node binary alone, without the npm the official image bundles. Both
+# stages name the same Alpine release, since the binary is linked against its musl.
+FROM node:26-alpine3.24 AS node
+
 # Not distroless -- sh is needed for docker exec and for HEALTHCHECK's CMD-SHELL.
-FROM denoland/deno:alpine AS base
-RUN apk -U upgrade --no-cache
+FROM alpine:3.24 AS base
+RUN apk -U upgrade --no-cache && apk add --no-cache libstdc++ libatomic
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
 WORKDIR /usr/src/app
 
 # Build-time base, Debian. @inlang/paraglide-js 2.24 pulls @inlang/sdk 3, which
@@ -61,14 +66,13 @@ LABEL org.opencontainers.image.title="uppity" \
 RUN addgroup -S -g 1001 uppity && \
   adduser -S -u 1001 -G uppity uppity
 
-COPY --from=builder --chown=uppity:uppity /usr/src/app/.deno-deploy ./.deno-deploy
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
 
 # Migration SQL. scripts/migrate.ts hardcodes ./drizzle; drizzle.config.ts is
 # drizzle-kit's config and drizzle-kit is not in this image, so it is not copied.
 COPY --from=builder --chown=uppity:uppity /usr/src/app/drizzle ./drizzle
 
-# Derives each process's Deno permission set from the environment and execs it.
+# Starts each process, serve and migrate under Node's permission model.
 # Taken from the build context rather than the builder stage: it is shipped
 # as-is and never passes through the bundler.
 COPY --chown=uppity:uppity scripts/entrypoint.sh ./entrypoint.sh
@@ -79,11 +83,9 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-# busybox wget, not `deno eval`. eval runs with implicit access to every
-# permission and rejects the permission flags outright, so a probe written that
-# way would be the one process in the image still running unrestricted, every
-# thirty seconds. wget exits non-zero on a non-2xx status, which is the whole
-# job. Shell form, so PORT expands.
+# busybox wget rather than a node script, which would start a second runtime
+# outside the permission model every thirty seconds. wget exits non-zero on a
+# non-2xx status, which is the whole job. Shell form, so PORT expands.
 #
 # Workers run the same image but override CMD and don't serve HTTP, so this
 # probe will fail for them — disable the healthcheck on worker containers in

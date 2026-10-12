@@ -1,5 +1,5 @@
-import adapter from "@deno/svelte-adapter";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import adapter from "@sveltejs/adapter-node";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
@@ -25,10 +25,13 @@ export default defineConfig(({ command }) => ({
 	// so the image ships no node_modules at all, and scripts/check-externals.ts fails
 	// the build if build/server is left importing any package, Node built-ins aside.
 	//
+	// A pattern rather than `true`: adapter-node externalises every entry in
+	// `dependencies` unless a pattern in this list matches it.
+	//
 	// Build only. The dev server runs on Node, which loads CommonJS packages such
 	// as pino and nodemailer natively; inlined, they reach Vite's ESM module runner
 	// and fail on their first `require`.
-	ssr: { noExternal: command === "build" ? true : undefined },
+	ssr: { noExternal: command === "build" ? [/./] : undefined },
 
 	// Server sourcemaps were 9.2MB of a 15MB build/server and grow under bundling.
 	// Diagnosis relies on the structured pino logs instead. The client build already
