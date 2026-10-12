@@ -169,6 +169,13 @@
       "when": 1791751373624,
       "tag": "0023_subscriber_deliveries",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791792117172,
+      "tag": "0024_email_channel_confirmation",
+      "breakpoints": true
     }
   ]
 }

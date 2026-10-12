@@ -332,10 +332,37 @@ export const notificationChannel = pgTable(
 			}>()
 			.notNull(),
 		enabled: boolean("enabled").notNull().default(true),
+		// Email channels only. Confirms the address while unverified, and unsubscribes afterwards.
+		token: text("token").unique(),
+		confirmationSentAt: timestamp("confirmation_sent_at", { withTimezone: true }),
+		// Email channels receive alerts only while set.
+		verifiedAt: timestamp("verified_at", { withTimezone: true }),
+		unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [index("notification_channel_org_idx").on(table.organizationId)],
+);
+
+// One row per confirmation email to an email channel address. Rows outlive the channel, so
+// deleting or readdressing it cannot free a slot under the pending-confirmation cap.
+export const channelConfirmationSend = pgTable(
+	"channel_confirmation_send",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		// The channel token at send time. Readdressing rotates it, so confirming the new
+		// address leaves sends to the old one unconfirmed.
+		token: text("token").notNull(),
+		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+		confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+	},
+	(table) => [
+		index("channel_confirmation_send_org_sent_idx").on(table.organizationId, table.sentAt),
+		index("channel_confirmation_send_token_idx").on(table.token),
+	],
 );
 
 export const monitorNotificationChannel = pgTable(

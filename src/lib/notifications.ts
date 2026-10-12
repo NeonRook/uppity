@@ -37,6 +37,8 @@ export interface ChannelOption {
 	name: string;
 	type: string;
 	enabled: boolean;
+	/** False for an email channel whose recipient has not accepted alerts. */
+	confirmed: boolean;
 	/** Where alerts land, when that can be shown without exposing a secret. */
 	destination: string | null;
 }

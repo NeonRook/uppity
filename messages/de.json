@@ -821,5 +821,22 @@
 	"public_unsubscribe_page_title": "Abmelden - Status von {name}",
 	"public_unsubscribe_prompt": "Keine E-Mails mehr zu Vorfällen von {name} erhalten?",
 	"public_unsubscribe_submit": "Abmelden",
-	"public_unsubscribe_done": "Du bist abgemeldet. Wir schreiben dir nicht mehr zu {name}."
+	"public_unsubscribe_done": "Du bist abgemeldet. Wir schreiben dir nicht mehr zu {name}.",
+	"alerts_confirm_title": "Alarm-E-Mails bestätigen",
+	"alerts_confirm_prompt": "{organization} möchte Monitoring-Alarme an {email} senden. Bestätige, um sie zu erhalten.",
+	"alerts_confirm_submit": "Alarme bestätigen",
+	"alerts_confirm_done": "{email} erhält jetzt Monitoring-Alarme von {organization}. Jeder Alarm enthält einen Link zum Abbestellen.",
+	"alerts_confirm_invalid": "Dieser Link ist abgelaufen oder ungültig. Bitte die Organisation, einen neuen zu senden.",
+	"alerts_unsubscribe_title": "Alarm-E-Mails abbestellen",
+	"alerts_unsubscribe_prompt": "Keine Monitoring-Alarme von {organization} mehr an {email} senden? Die Organisation kann dich danach nicht erneut fragen.",
+	"alerts_unsubscribe_submit": "Alarme abbestellen",
+	"alerts_unsubscribe_done": "Du bist abgemeldet. Diese Adresse erhält keine dieser Alarme mehr.",
+	"notifications_unconfirmed": "Unbestätigt",
+	"notifications_unsubscribed": "Abgemeldet",
+	"notifications_resend": "Bestätigung erneut senden",
+	"notifications_resend_sent": "Bestätigungs-E-Mail gesendet",
+	"notifications_resend_confirmed": "Diese Adresse ist bereits bestätigt",
+	"notifications_resend_unsubscribed": "Der Empfänger hat diese Alarme abbestellt",
+	"notifications_resend_too_soon": "Vor weniger als einer Stunde ging eine Bestätigung raus. Versuche es später erneut.",
+	"notifications_resend_capped": "Zu viele Adressen aus der letzten Woche sind noch unbestätigt. Sobald Empfänger bestätigen, kannst du weitere senden."
 }

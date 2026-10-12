@@ -476,3 +476,42 @@ describe("NotificationService.dispatchEvent (checks stopped)", () => {
 		expect(bodies).toContainEqual({ text: "[]" });
 	});
 });
+
+describe("NotificationService.dispatchEvent (email confirmation)", () => {
+	test("skips email channels whose recipient has not confirmed", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId, status: "down" });
+		const channelId = `chan-${nanoid()}`;
+		await drizzleDb.insert(notificationChannel).values({
+			id: channelId,
+			organizationId: orgId,
+			name: "Stranger",
+			type: "email",
+			config: { email: "stranger@example.com" },
+			token: nanoid(),
+		});
+		await linkMonitorToChannel(drizzleDb, monitorId, channelId);
+		const eventId = `evt-${nanoid()}`;
+		await drizzleDb.insert(notificationEvent).values({
+			id: eventId,
+			organizationId: orgId,
+			monitorId,
+			type: "monitor_down",
+			payload: { previousStatus: "up", newStatus: "down", consecutiveFailures: 1, checkId: "c" },
+			status: "pending",
+		});
+
+		const result = await new NotificationService(drizzleDb).dispatchEvent(
+			await fetchEvent(drizzleDb, eventId),
+		);
+
+		expect(result.status).toBe("suppressed");
+		const logs = await drizzleDb
+			.select()
+			.from(notificationLog)
+			.where(eq(notificationLog.channelId, channelId));
+		expect(logs).toHaveLength(0);
+	});
+});

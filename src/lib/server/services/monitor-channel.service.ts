@@ -1,9 +1,10 @@
-import { and, asc, eq, inArray, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import type { ChannelOption } from "#lib/notifications.js";
 import { defaultChannelLink, type MonitorChannelLink } from "#lib/schemas/monitor.js";
 import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import { monitor, monitorNotificationChannel, notificationChannel } from "#lib/server/db/schema.js";
+import { channelConfirmed } from "#lib/server/notifications/confirmed.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 
 export type { MonitorChannelLink };
@@ -12,6 +13,7 @@ export interface MonitorChannelSummary extends MonitorChannelLink {
 	name: string;
 	type: string;
 	enabled: boolean;
+	confirmed: boolean;
 }
 
 /**
@@ -66,6 +68,7 @@ export class MonitorChannelService {
 				name: notificationChannel.name,
 				type: notificationChannel.type,
 				enabled: notificationChannel.enabled,
+				confirmed: sql<boolean>`${channelConfirmed}`,
 				config: notificationChannel.config,
 			})
 			.from(notificationChannel)
@@ -116,6 +119,7 @@ export class MonitorChannelService {
 				name: notificationChannel.name,
 				type: notificationChannel.type,
 				enabled: notificationChannel.enabled,
+				confirmed: sql<boolean>`${channelConfirmed}`,
 			})
 			.from(monitorNotificationChannel)
 			.innerJoin(

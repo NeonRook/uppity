@@ -33,7 +33,8 @@
 	const nobodyHearsDown = $derived(
 		!selected.some(
 			(link) =>
-				link.notifyOnDown && channels.find((c) => c.id === link.channelId)?.enabled === true,
+				link.notifyOnDown &&
+				channels.some((c) => c.id === link.channelId && c.enabled && c.confirmed),
 		),
 	);
 
@@ -84,6 +85,8 @@
 							<span class="sr-only">({type.label()})</span>
 							{#if !channel.enabled}
 								<Badge variant="secondary">{m.common_disabled()}</Badge>
+							{:else if !channel.confirmed}
+								<Badge variant="secondary">{m.notifications_unconfirmed()}</Badge>
 							{/if}
 						</span>
 						{#if channel.destination && channel.destination !== channel.name}

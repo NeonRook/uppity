@@ -18,6 +18,7 @@ import {
 } from "../db/schema";
 import { logger as defaultLogger } from "../logger";
 import { sendSubscriberIncidentEmail } from "../subscriber-email";
+import { channelConfirmed } from "./confirmed";
 import { sendDiscord } from "./discord";
 import { sendEmail } from "./email";
 import { parseEventPayload, type IncidentEventPayload } from "./events";
@@ -44,7 +45,9 @@ function send(
 	const { config } = channel;
 	switch (channel.type) {
 		case "email":
-			if (config.email) return sendEmail({ email: config.email }, payload);
+			if (config.email && channel.token) {
+				return sendEmail({ email: config.email, token: channel.token }, payload);
+			}
 			break;
 		case "slack":
 			if (config.webhookUrl) {
@@ -224,6 +227,7 @@ export class NotificationService {
 				and(
 					eq(monitorNotificationChannel.monitorId, row.monitorId),
 					eq(notificationChannel.enabled, true),
+					channelConfirmed,
 				),
 			);
 
@@ -298,6 +302,7 @@ export class NotificationService {
 					eq(notificationChannel.id, monitorNotificationChannel.channelId),
 					eq(notificationChannel.organizationId, incidentRow.organizationId),
 					eq(notificationChannel.enabled, true),
+					channelConfirmed,
 				),
 			)
 			.where(eq(incidentMonitor.incidentId, incidentRow.id));
@@ -329,6 +334,7 @@ export class NotificationService {
 					and(
 						eq(notificationChannel.organizationId, incidentRow.organizationId),
 						eq(notificationChannel.enabled, true),
+						channelConfirmed,
 					),
 				);
 		}

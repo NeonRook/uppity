@@ -90,7 +90,7 @@
 	}
 
 	const nobodyHearsDown = $derived(
-		!data.alerts.some((alert) => alert.enabled && alert.notifyOnDown),
+		!data.alerts.some((alert) => alert.enabled && alert.confirmed && alert.notifyOnDown),
 	);
 
 	const unchecked = $derived(
@@ -334,6 +334,8 @@
 							</a>
 							{#if !alert.enabled}
 								<Badge variant="secondary">{m.common_disabled()}</Badge>
+							{:else if !alert.confirmed}
+								<Badge variant="secondary">{m.notifications_unconfirmed()}</Badge>
 							{/if}
 							<span class="text-muted-foreground w-full text-xs sm:ml-auto sm:w-auto">
 								{alertEvents(alert)}
