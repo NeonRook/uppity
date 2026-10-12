@@ -21,6 +21,11 @@
 			email: recipient.email,
 		})}
 	</p>
+	<p class="text-muted-foreground mb-4 text-sm">
+		{recipient.reasked
+			? m.alerts_unsubscribe_final({ organization: recipient.organizationName })
+			: m.alerts_unsubscribe_reask({ organization: recipient.organizationName })}
+	</p>
 	<form method="POST" use:enhance>
 		<Button type="submit">{m.alerts_unsubscribe_submit()}</Button>
 	</form>

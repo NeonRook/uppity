@@ -338,6 +338,8 @@ export const notificationChannel = pgTable(
 		// Email channels receive alerts only while set.
 		verifiedAt: timestamp("verified_at", { withTimezone: true }),
 		unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+		// The organization asked again after an unsubscribe. A second unsubscribe is final.
+		reaskedAt: timestamp("reasked_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},

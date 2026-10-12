@@ -23,8 +23,19 @@ export type ResendResult = "sent" | "confirmed" | "unsubscribed" | "too_soon" | 
 
 export interface RecipientLookup {
 	state: "pending" | "confirmed" | "expired" | "unsubscribed";
+	/** The organization already asked again after an unsubscribe, so another one is final. */
+	reasked: boolean;
 	email: string;
 	organizationName: string;
+}
+
+export interface UnsubscribedChannel {
+	organizationId: string;
+	organizationName: string;
+	channelName: string;
+	email: string;
+	/** The organization cannot ask this address again. */
+	final: boolean;
 }
 
 /** The recipient fields of an email channel whose address was just set. */
@@ -34,6 +45,7 @@ export function freshRecipient() {
 		confirmationSentAt: null,
 		verifiedAt: null,
 		unsubscribedAt: null,
+		reaskedAt: null,
 	};
 }
 
@@ -67,7 +79,8 @@ export class EmailChannelService {
 	 * Confirms the channel outright when its address belongs to a verified member, and
 	 * otherwise emails a confirmation link naming `requestedBy`, the verified account email
 	 * of the member asking. An unverified one would let anyone put text of their choosing in
-	 * mail to strangers. Null when no such email channel exists.
+	 * mail to strangers. After an unsubscribe the organization may ask once more, under a
+	 * new token so the old links stop working. Null when no such email channel exists.
 	 */
 	async requestConfirmation(
 		channelId: string,
@@ -89,14 +102,15 @@ export class EmailChannelService {
 					confirmationSentAt: c.confirmationSentAt,
 					verifiedAt: c.verifiedAt,
 					unsubscribedAt: c.unsubscribedAt,
+					reaskedAt: c.reaskedAt,
 				})
 				.from(c)
 				.where(and(eq(c.id, channelId), eq(c.organizationId, organizationId), eq(c.type, "email")));
 			if (!row?.config.email || !row.token) return null;
 			if (row.verifiedAt) return "confirmed";
-			if (row.unsubscribedAt) return "unsubscribed";
+			if (row.unsubscribedAt && row.reaskedAt) return "unsubscribed";
 
-			if (await isVerifiedMember(tx, organizationId, row.config.email)) {
+			if (!row.unsubscribedAt && (await isVerifiedMember(tx, organizationId, row.config.email))) {
 				await tx.update(c).set({ verifiedAt: now }).where(eq(c.id, channelId));
 				return "confirmed";
 			}
@@ -121,9 +135,14 @@ export class EmailChannelService {
 			if (unconfirmed >= this.cap) return "capped";
 
 			const sendId = nanoid();
-			await tx.insert(log).values({ id: sendId, organizationId, token: row.token, sentAt: now });
-			await tx.update(c).set({ confirmationSentAt: now }).where(eq(c.id, channelId));
-			return { sendId, email: row.config.email, token: row.token };
+			const token = row.unsubscribedAt ? freshRecipient().token : row.token;
+			const reask = row.unsubscribedAt ? { token, unsubscribedAt: null, reaskedAt: now } : {};
+			await tx.insert(log).values({ id: sendId, organizationId, token, sentAt: now });
+			await tx
+				.update(c)
+				.set({ confirmationSentAt: now, ...reask })
+				.where(eq(c.id, channelId));
+			return { sendId, email: row.config.email, token, unsubscribedAt: row.unsubscribedAt };
 		});
 		if (pending === null || typeof pending === "string") return pending;
 
@@ -133,7 +152,15 @@ export class EmailChannelService {
 			// Nothing went out, so the organization may retry at once and keeps its slot.
 			await this.db.transaction(async (tx) => {
 				await tx.delete(log).where(eq(log.id, pending.sendId));
-				await tx.update(c).set({ confirmationSentAt: null }).where(eq(c.id, channelId));
+				await tx
+					.update(c)
+					.set({
+						confirmationSentAt: null,
+						...(pending.unsubscribedAt
+							? { unsubscribedAt: pending.unsubscribedAt, reaskedAt: null }
+							: {}),
+					})
+					.where(eq(c.id, channelId));
 			});
 			throw error;
 		}
@@ -149,6 +176,7 @@ export class EmailChannelService {
 				confirmationSentAt: c.confirmationSentAt,
 				verifiedAt: c.verifiedAt,
 				unsubscribedAt: c.unsubscribedAt,
+				reaskedAt: c.reaskedAt,
 				organizationName: organization.name,
 			})
 			.from(c)
@@ -161,7 +189,12 @@ export class EmailChannelService {
 		else if (row.unsubscribedAt) state = "unsubscribed";
 		else if (row.confirmationSentAt && row.confirmationSentAt > confirmationCutoff())
 			state = "pending";
-		return { state, email: row.config.email, organizationName: row.organizationName };
+		return {
+			state,
+			reasked: row.reaskedAt !== null,
+			email: row.config.email,
+			organizationName: row.organizationName,
+		};
 	}
 
 	/** Whether the address receives alerts afterwards. Confirming twice is not an error. */
@@ -195,13 +228,36 @@ export class EmailChannelService {
 		return row !== undefined || (await this.lookup(token))?.state === "confirmed";
 	}
 
-	/** Stops alerts and confirmation emails to the address for good. Changing the address starts over. */
-	async unsubscribe(token: string): Promise<void> {
+	/**
+	 * Stops alerts and confirmation emails to the address. The organization may ask once
+	 * more; after that, only a new address starts over. Returns what the organization's
+	 * admins need to hear about it, or null when nothing changed.
+	 */
+	async unsubscribe(token: string): Promise<UnsubscribedChannel | null> {
 		const c = notificationChannel;
-		await this.db
+		const [row] = await this.db
 			.update(c)
 			.set({ verifiedAt: null, unsubscribedAt: new Date() })
-			.where(and(eq(c.token, token), isNull(c.unsubscribedAt)));
+			.where(and(eq(c.token, token), isNull(c.unsubscribedAt)))
+			.returning({
+				organizationId: c.organizationId,
+				channelName: c.name,
+				config: c.config,
+				reaskedAt: c.reaskedAt,
+			});
+		if (!row?.config.email) return null;
+
+		const [org] = await this.db
+			.select({ name: organization.name })
+			.from(organization)
+			.where(eq(organization.id, row.organizationId));
+		return {
+			organizationId: row.organizationId,
+			organizationName: org?.name ?? "",
+			channelName: row.channelName,
+			email: row.config.email,
+			final: row.reaskedAt !== null,
+		};
 	}
 }
 

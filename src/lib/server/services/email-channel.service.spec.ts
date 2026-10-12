@@ -209,18 +209,50 @@ describe("EmailChannelService.confirm", () => {
 });
 
 describe("EmailChannelService.unsubscribe", () => {
-	test("stops alerts, further confirmations, and the outstanding link", async ({ db: { db } }) => {
-		const { orgId, send, service } = await setup(db);
+	test("stops alerts and the outstanding link, and reports it", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
 		const channel = await seedEmailChannel(db, orgId);
 		await service.requestConfirmation(channel.id, orgId, ADMIN);
 		await service.confirm(channel.token);
 
-		await service.unsubscribe(channel.token);
+		expect(await service.unsubscribe(channel.token)).toMatchObject({
+			organizationId: orgId,
+			email: "stranger@example.com",
+			final: false,
+		});
+		expect(await service.unsubscribe(channel.token)).toBeNull();
 
 		expect((await service.lookup(channel.token))?.state).toBe("unsubscribed");
 		expect(await service.confirm(channel.token)).toBe(false);
+	});
+
+	test("the organization may ask once more, under a new token", async ({ db: { db } }) => {
+		const { orgId, sent, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+		await backdate(db, channel.id, RESEND_INTERVAL_MS + 1000);
+
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+		const reasked = sent[1].token;
+		expect(reasked).not.toBe(channel.token);
+		expect(await service.lookup(channel.token)).toBeNull();
+		expect(await service.lookup(reasked)).toMatchObject({ state: "pending", reasked: true });
+
+		expect(await service.unsubscribe(reasked)).toMatchObject({ final: true });
 		await backdate(db, channel.id, RESEND_INTERVAL_MS + 1000);
 		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("unsubscribed");
+		expect(sent).toHaveLength(2);
+	});
+
+	test("a member's own unsubscribe is not overridden", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
 		expect(send).toHaveBeenCalledTimes(1);
 	});
 

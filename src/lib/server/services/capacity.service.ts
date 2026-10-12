@@ -150,7 +150,8 @@ export async function resumeAfterRaise(
 	});
 }
 
-async function noticeRecipients(db: Db, organizationId: string): Promise<string[]> {
+/** Account emails of the organization's owners and admins. */
+export async function noticeRecipients(db: Db, organizationId: string): Promise<string[]> {
 	const rows = await db
 		.select({ email: user.email })
 		.from(member)

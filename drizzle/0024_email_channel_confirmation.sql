@@ -10,6 +10,7 @@ ALTER TABLE "notification_channel" ADD COLUMN "token" text;--> statement-breakpo
 ALTER TABLE "notification_channel" ADD COLUMN "confirmation_sent_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "notification_channel" ADD COLUMN "verified_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "notification_channel" ADD COLUMN "unsubscribed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "notification_channel" ADD COLUMN "reasked_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "channel_confirmation_send" ADD CONSTRAINT "channel_confirmation_send_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "channel_confirmation_send_org_sent_idx" ON "channel_confirmation_send" USING btree ("organization_id","sent_at");--> statement-breakpoint
 CREATE INDEX "channel_confirmation_send_token_idx" ON "channel_confirmation_send" USING btree ("token");--> statement-breakpoint
