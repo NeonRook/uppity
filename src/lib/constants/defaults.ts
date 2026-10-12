@@ -68,6 +68,9 @@ export const USER_AGENT = "Uppity/1.0 (Uptime Monitor)";
 /** Brand color used on public status pages when none is configured. */
 export const DEFAULT_PRIMARY_COLOR = "#000000";
 
+/** Day windows the monitor response-time chart offers, each shown only if the plan retains that long. */
+export const RESPONSE_HISTORY_WINDOWS = [30, 60, 90];
+
 /** Number of days of uptime history displayed on public status pages. */
 export const STATUS_PAGE_HISTORY_DAYS = envInt("UPPITY_STATUS_PAGE_HISTORY_DAYS", 90);
 

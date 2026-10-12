@@ -203,7 +203,7 @@ export interface FeaturedUptime {
  * A reader far from UTC therefore sees a day boundary offset from their own.
  * Making that configurable is a product decision, not a default to drift into.
  */
-function recentUtcDayKeys(count: number): string[] {
+export function recentUtcDayKeys(count: number): string[] {
 	const today = new Date();
 	const keys: string[] = [];
 	for (let i = count - 1; i >= 0; i--) {
@@ -264,7 +264,7 @@ function overallStatusOf(statuses: ComponentStatus[]): PublicStatusPageData["ove
 	return "operational";
 }
 
-function dayStatus(counts: { up: number; down: number; degraded: number }) {
+export function dayStatus(counts: { up: number; down: number; degraded: number }) {
 	if (counts.down > 0) return counts.up === 0 ? "down" : "partial";
 	return counts.degraded > 0 ? "degraded" : "up";
 }
