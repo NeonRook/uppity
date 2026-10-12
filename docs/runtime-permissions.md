@@ -1,73 +1,52 @@
 # Runtime permissions
 
-The production image runs on Deno, so each process starts with no access to the network, the
-filesystem or the environment and is granted back only what it needs. `scripts/entrypoint.sh`
-holds the sets and is the only thing that launches application code in the container.
-
-Nothing runs with `-A`.
+The production image runs on Node. `serve` and `migrate` start under Node's permission model
+(`--permission`), which denies everything not granted on the command line.
+`scripts/entrypoint.sh` holds the flags and is the only thing that launches application code in
+the container.
 
 ## The four processes
 
-| Process           | `--allow-net`                                    | `--allow-read`              |
-| ----------------- | ------------------------------------------------ | --------------------------- |
-| `serve`           | listening socket, Postgres, SMTP host, Polar API | `./.deno-deploy`, `./build` |
-| `migrate`         | Postgres                                         | `./drizzle`, `./build`      |
-| `worker-monitor`  | unrestricted                                     | `./build`                   |
-| `worker-notifier` | unrestricted                                     | `./build`                   |
+| Process           | `--permission` | Reads                  | Network      |
+| ----------------- | -------------- | ---------------------- | ------------ |
+| `serve`           | yes            | `./build`              | unrestricted |
+| `migrate`         | yes            | `./drizzle`, `./build` | unrestricted |
+| `worker-monitor`  | no             | unrestricted           | unrestricted |
+| `worker-notifier` | no             | unrestricted           | unrestricted |
 
-All four also get `--allow-env` and `--allow-sys=hostname`. None gets `--allow-write`,
-`--allow-run`, `--allow-ffi` or `--allow-import`.
+Under `--permission`, `serve` and `migrate` cannot write to the filesystem, spawn processes,
+start worker threads, load native addons, or use WASI, FFI or the inspector.
 
-Run `UPPITY_PRINT_PERMISSIONS=1 ./scripts/entrypoint.sh serve` to print the exact command for a
-given environment instead of executing it.
+Run `UPPITY_PRINT_PERMISSIONS=1 ./scripts/entrypoint.sh serve` to print the exact command instead
+of executing it.
 
 ## Why each grant exists
 
-**The listening socket.** Binding a port is a network operation, so `HOST:PORT` needs its own
-entry or `Deno.serve` fails at startup.
-
-**Postgres, SMTP and Polar.** These hosts are not known when the image is built. They arrive as
-`DATABASE_URL`, `SMTP_HOST` and `POLAR_SERVER`, so the entrypoint reads them at container start
-and assembles the allowlist from them. An instance with no `POLAR_ACCESS_TOKEN` never calls
-Polar, so the Polar host is left off the list entirely rather than allowed and unused.
-
-**`--allow-read` on `./build` and `./.deno-deploy`.** The bundle and its chunks live in `build/`;
-the SSR chunks and the static assets named in `.deno-deploy/deploy.json` live alongside them.
+**Reads on `./build`.** The server bundle, its chunks and the static assets all live there.
 Migrations are read from `./drizzle`, which only `migrate` needs.
 
-**`--allow-sys=hostname`.** The logger reads the host name once, when it builds the base fields
-it stamps on every line. This is the only `sys` call anywhere in the four bundles.
+**The network, unrestricted.** Both processes need Postgres, and `serve` also binds its port and
+calls the SMTP hosts and the Polar API. Node's `--allow-net` is a single switch with no host list,
+and it is still marked experimental, so it prints one warning at startup. ADR 0008 records why the
+per-host allowlist was given up.
 
-**`--allow-env`, unrestricted.** The Deno adapter's generated handler passes SvelteKit its
-dynamic environment with `Deno.env.toObject()`, which reads the whole environment and fails
-under an allowlist of any length. The workers do not go through the adapter and could be
-narrowed, but development runs on Node, where Deno's permissions do not exist, so a missing
-entry would first appear in production. The environment holds only what these processes already
-need, which makes this the cheapest grant to give up.
+Environment variables and the host name are not covered by Node's permission model, so they need
+no grant.
 
-## Why the workers keep unrestricted network access
+## Why the workers run without it
 
-`worker-monitor` probes whatever URL a user typed into the monitor form. `worker-notifier` posts
-to whatever Discord, Slack or webhook endpoint a user configured. Both are the product working
-as designed, and no allowlist can describe "any address a customer might add later".
-
-This is deliberate, not an oversight. What the workers still give up is `write`, `run`, `ffi`
-and `import`.
-
-The tier worth locking down is the one that accepts public traffic, and that one has a closed
-list. Uppity's job is fetching addresses supplied by users, which is SSRF-shaped by
-construction, so a runtime allowlist on the web tier turns a request-forgery gadget in a route
-handler into a `NotCapable` error instead of an outbound connection.
+`worker-monitor` probes whatever URL a user typed into the monitor form, and `worker-notifier`
+posts to whatever Discord, Slack or webhook endpoint a user configured. With no host list on
+offer, the permission model would restrict only their filesystem and process access. They are
+being rewritten in Rust (ADR 0007), so they run without it until then.
 
 ## Changing it
 
-Adding an outbound call to the web tier means adding its host to `serve`'s allowlist in
-`scripts/entrypoint.sh`. Because `pnpm dev` runs on Node, a missing entry will not show up
-locally; it shows up as `NotCapable: Requires net access to "…"` in the container. The same goes
-for a dependency that starts reading a new file or making a new `sys` call.
+`pnpm dev` runs without the permission model, so a dependency that starts writing a file,
+spawning a process or loading a native addon works locally and fails in the container with
+`ERR_ACCESS_DENIED`. Grant the narrowest flag in `scripts/entrypoint.sh` and record it here.
 
 ## The healthcheck
 
-The container healthcheck uses busybox `wget`, not `deno eval`. `deno eval` runs with implicit
-access to every permission and rejects the permission flags outright, so writing the probe in
-Deno would leave one unrestricted process starting every thirty seconds for no benefit.
+The container healthcheck uses busybox `wget`. A probe written in Node would start a second
+process outside the permission model every thirty seconds.

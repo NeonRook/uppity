@@ -4,7 +4,8 @@
 
 > The chosen option shipped. Code samples here assume the Bun runtime this
 > project has since left, so read them as reasoning rather than as a template.
-> `docs/adr/0001-node-aube-build-deno-runtime.md` records the current toolchain.
+> `docs/adr/0003-pnpm-replaces-aube.md` and `docs/adr/0008-node-runs-the-web-tier.md`
+> record the current toolchain.
 
 ## Summary
 

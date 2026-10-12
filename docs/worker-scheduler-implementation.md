@@ -6,7 +6,8 @@
 > Historical. The workers described here shipped and now live under
 > `src/worker/`, but the runtime and build commands in this plan are the Bun
 > ones and no longer work. Read `CONTRIBUTING.md` for how to build and run, and
-> `docs/adr/0001-node-aube-build-deno-runtime.md` for the current toolchain.
+> `docs/adr/0003-pnpm-replaces-aube.md` and
+> `docs/adr/0008-node-runs-the-web-tier.md` for the current toolchain.
 > Kept for the design reasoning, not as instructions.
 
 ---

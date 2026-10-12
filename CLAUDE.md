@@ -43,7 +43,7 @@ pnpm build:all              # Production build, as the image runs it
 
 ### Tech Stack
 
-- **Runtime:** Node for everything you run; Deno only inside the production image
+- **Runtime:** Node, in development and in the production image
 - **Package manager:** pnpm
 - **Framework:** SvelteKit 2 with Svelte 5
 - **Database:** PostgreSQL via Drizzle ORM
@@ -52,19 +52,17 @@ pnpm build:all              # Production build, as the image runs it
 - **Forms:** sveltekit-superforms with valibot validation
 - **i18n:** Paraglide for internationalization (`src/lib/paraglide/`)
 
-### Two runtimes, one dev loop
+### One runtime, with a permission model in production
 
-The build toolchain and the production runtime are chosen against different
-criteria, and no single runtime currently wins both. Deno cannot build this
-project; Node ships a runner image 73MB larger. So the build is Node and the
-image is Deno. `docs/adr/0001-node-aube-build-deno-runtime.md` has the
-measurements and the rejected options.
+Node runs the dev loop, the build and the production image
+(`docs/adr/0008-node-runs-the-web-tier.md`). In the image, `serve` and `migrate`
+run under Node's `--permission`: reads are scoped to the build, and writes,
+child processes, worker threads and native addons are denied.
+`docs/runtime-permissions.md` lists the grants.
 
-What this means in practice: **write plain Node.** Every command above runs on
-Node, and Deno appears only in the Dockerfile's runner stage. Nothing you write
-should reach for a runtime-specific API — `node:net` and `node:tls` over any
-`Bun.*` or `Deno.*` equivalent. `scripts/deno-serve.ts` is the one deliberate
-exception, and it is the container's entry point rather than application code.
+What this means in practice: `pnpm dev` runs without those restrictions, so code
+that writes a file or spawns a process works locally and fails in the
+container with `ERR_ACCESS_DENIED`.
 
 The runner image ships no `node_modules`. `scripts/check-externals.ts` fails the
 build if a bare import survives bundling, so a new dependency that Vite cannot

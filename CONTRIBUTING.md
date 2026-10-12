@@ -27,11 +27,6 @@ CLA Assistant.
   [pnpm](https://pnpm.io) at the pinned versions
 - [PostgreSQL](https://www.postgresql.org) v15+ (or use Docker)
 
-The production image runs on Deno, but the dev loop does not: every command
-below runs on Node, and you never invoke Deno directly.
-[ADR 0001](docs/adr/0001-node-aube-build-deno-runtime.md) explains why the two
-differ.
-
 ### Development Setup
 
 1. Fork and clone the repository
