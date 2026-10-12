@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from "$app/paths";
 	import { MailCheck } from "@lucide/svelte";
 	import { toast } from "svelte-sonner";
 
@@ -14,7 +13,7 @@
 
 	async function resend() {
 		sending = true;
-		const { error } = await sendVerificationEmail({ email, callbackURL: resolve("dashboard") });
+		const { error } = await sendVerificationEmail({ email });
 		sending = false;
 		if (error) toast.error(m.verify_email_failed());
 		else toast.success(m.verify_email_sent());
