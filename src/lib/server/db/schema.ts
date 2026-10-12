@@ -346,6 +346,23 @@ export const notificationChannel = pgTable(
 	(table) => [index("notification_channel_org_idx").on(table.organizationId)],
 );
 
+// An address that unsubscribed from an organization's alerts. It outlives the channel, so
+// recreating or readdressing one inherits the opt-out instead of starting over.
+export const emailOptOut = pgTable(
+	"email_opt_out",
+	{
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		// Lowercased.
+		email: text("email").notNull(),
+		// Null once the organization asked again.
+		unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+		reaskedAt: timestamp("reasked_at", { withTimezone: true }),
+	},
+	(table) => [primaryKey({ columns: [table.organizationId, table.email] })],
+);
+
 // One row per confirmation email to an email channel address. Rows outlive the channel, so
 // deleting or readdressing it cannot free a slot under the pending-confirmation cap.
 export const channelConfirmationSend = pgTable(

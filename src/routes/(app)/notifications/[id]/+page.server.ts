@@ -6,6 +6,7 @@ import { valibot } from "sveltekit-superforms/adapters";
 import { notificationChannelSchema } from "#lib/schemas/notification-channel.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor } from "#lib/server/db/schema.js";
+import { ConfirmationCapError } from "#lib/server/errors.js";
 import { buildChannelConfig } from "#lib/server/notification-config.js";
 import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { notificationChannelService } from "#lib/server/services/notification-channel.service.js";
@@ -101,6 +102,9 @@ export const actions: Actions = {
 				verifiedEmail(locals.user),
 			);
 		} catch (err) {
+			if (err instanceof ConfirmationCapError) {
+				return message(form, err.message, { status: 403 });
+			}
 			locals.event.setError(err);
 			return message(form, "Failed to update notification channel", { status: 500 });
 		}

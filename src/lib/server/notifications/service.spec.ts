@@ -515,3 +515,26 @@ describe("NotificationService.dispatchEvent (email confirmation)", () => {
 		expect(logs).toHaveLength(0);
 	});
 });
+
+describe("NotificationService.dispatchEvent (incident, email confirmation)", () => {
+	test("the org-wide fallback skips unconfirmed email channels", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrg(drizzleDb);
+		await drizzleDb.insert(notificationChannel).values({
+			id: `chan-${nanoid()}`,
+			organizationId: orgId,
+			name: "Stranger",
+			type: "email",
+			config: { email: "stranger@example.com" },
+			token: nanoid(),
+		});
+		const incidentId = await seedIncident(drizzleDb, orgId);
+		const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_created");
+
+		const result = await new NotificationService(drizzleDb).dispatchEvent(
+			await fetchEvent(drizzleDb, eventId),
+		);
+
+		expect(result).toEqual({ status: "suppressed", errorMessage: "no channels configured" });
+	});
+});

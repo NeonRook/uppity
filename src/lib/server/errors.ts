@@ -8,6 +8,11 @@ export class FeatureNotAvailableError extends Error {
 	override name = "FeatureNotAvailableError";
 }
 
+/** Thrown when an email channel address would exceed the pending-confirmation cap. */
+export class ConfirmationCapError extends Error {
+	override name = "ConfirmationCapError";
+}
+
 /**
  * Error thrown when a referenced row does not exist in the caller's organization.
  */

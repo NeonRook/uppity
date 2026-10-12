@@ -1,12 +1,16 @@
 import { randomBytes } from "node:crypto";
 
-import { and, count, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, countDistinct, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { CHANNEL_PENDING_CONFIRMATIONS } from "#lib/constants/defaults.js";
 import { member, organization, user } from "#lib/server/db/auth-schema.js";
 import type { Db, DbExecutor } from "#lib/server/db/index.js";
-import { channelConfirmationSend, notificationChannel } from "#lib/server/db/schema.js";
+import {
+	channelConfirmationSend,
+	emailOptOut,
+	notificationChannel,
+} from "#lib/server/db/schema.js";
 import type { ChannelConfirmation } from "#lib/server/notifications/email.js";
 
 /** How long a confirmation link works. */
@@ -106,7 +110,7 @@ export class EmailChannelService {
 				})
 				.from(c)
 				.where(and(eq(c.id, channelId), eq(c.organizationId, organizationId), eq(c.type, "email")));
-			if (!row?.config.email || !row.token) return null;
+			if (!row?.config.email) return null;
 			if (row.verifiedAt) return "confirmed";
 			if (row.unsubscribedAt && row.reaskedAt) return "unsubscribed";
 
@@ -123,7 +127,7 @@ export class EmailChannelService {
 			}
 
 			const [{ unconfirmed }] = await tx
-				.select({ unconfirmed: count() })
+				.select({ unconfirmed: countDistinct(log.token) })
 				.from(log)
 				.where(
 					and(
@@ -135,32 +139,59 @@ export class EmailChannelService {
 			if (unconfirmed >= this.cap) return "capped";
 
 			const sendId = nanoid();
-			const token = row.unsubscribedAt ? freshRecipient().token : row.token;
-			const reask = row.unsubscribedAt ? { token, unsubscribedAt: null, reaskedAt: now } : {};
+			// A channel saved without a token, by code older than its column, gets one here.
+			const token = row.unsubscribedAt || !row.token ? freshRecipient().token : row.token;
+			const reask = row.unsubscribedAt ? { unsubscribedAt: null, reaskedAt: now } : {};
 			await tx.insert(log).values({ id: sendId, organizationId, token, sentAt: now });
 			await tx
 				.update(c)
-				.set({ confirmationSentAt: now, ...reask })
+				.set({ token, confirmationSentAt: now, ...reask })
 				.where(eq(c.id, channelId));
-			return { sendId, email: row.config.email, token, unsubscribedAt: row.unsubscribedAt };
+			if (row.unsubscribedAt) {
+				await tx
+					.update(emailOptOut)
+					.set(reask)
+					.where(
+						and(
+							eq(emailOptOut.organizationId, organizationId),
+							eq(emailOptOut.email, row.config.email.toLowerCase()),
+						),
+					);
+			}
+			return {
+				sendId,
+				email: row.config.email,
+				token,
+				previousSentAt: row.confirmationSentAt,
+				unsubscribedAt: row.unsubscribedAt,
+			};
 		});
 		if (pending === null || typeof pending === "string") return pending;
 
 		try {
 			await this.sendConfirmation({ email: pending.email, token: pending.token, requestedBy });
 		} catch (error) {
-			// Nothing went out, so the organization may retry at once and keeps its slot.
+			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
 			await this.db.transaction(async (tx) => {
 				await tx.delete(log).where(eq(log.id, pending.sendId));
+				const unask = pending.unsubscribedAt
+					? { unsubscribedAt: pending.unsubscribedAt, reaskedAt: null }
+					: {};
 				await tx
 					.update(c)
-					.set({
-						confirmationSentAt: null,
-						...(pending.unsubscribedAt
-							? { unsubscribedAt: pending.unsubscribedAt, reaskedAt: null }
-							: {}),
-					})
+					.set({ confirmationSentAt: pending.previousSentAt, ...unask })
 					.where(eq(c.id, channelId));
+				if (pending.unsubscribedAt) {
+					await tx
+						.update(emailOptOut)
+						.set(unask)
+						.where(
+							and(
+								eq(emailOptOut.organizationId, organizationId),
+								eq(emailOptOut.email, pending.email.toLowerCase()),
+							),
+						);
+				}
 			});
 			throw error;
 		}
@@ -235,29 +266,88 @@ export class EmailChannelService {
 	 */
 	async unsubscribe(token: string): Promise<UnsubscribedChannel | null> {
 		const c = notificationChannel;
-		const [row] = await this.db
-			.update(c)
-			.set({ verifiedAt: null, unsubscribedAt: new Date() })
-			.where(and(eq(c.token, token), isNull(c.unsubscribedAt)))
-			.returning({
-				organizationId: c.organizationId,
-				channelName: c.name,
-				config: c.config,
-				reaskedAt: c.reaskedAt,
-			});
-		if (!row?.config.email) return null;
+		return this.db.transaction(async (tx) => {
+			const [row] = await tx
+				.select({
+					organizationId: c.organizationId,
+					channelName: c.name,
+					config: c.config,
+					reaskedAt: c.reaskedAt,
+				})
+				.from(c)
+				.where(and(eq(c.token, token), isNull(c.unsubscribedAt)));
+			if (!row?.config.email) return null;
+			const email = row.config.email.toLowerCase();
+			const now = new Date();
 
-		const [org] = await this.db
-			.select({ name: organization.name })
-			.from(organization)
-			.where(eq(organization.id, row.organizationId));
-		return {
-			organizationId: row.organizationId,
-			organizationName: org?.name ?? "",
-			channelName: row.channelName,
-			email: row.config.email,
-			final: row.reaskedAt !== null,
-		};
+			const [optOut] = await tx
+				.insert(emailOptOut)
+				.values({ organizationId: row.organizationId, email, unsubscribedAt: now })
+				.onConflictDoUpdate({
+					target: [emailOptOut.organizationId, emailOptOut.email],
+					set: { unsubscribedAt: now },
+				})
+				.returning({ reaskedAt: emailOptOut.reaskedAt });
+			const reaskedAt = row.reaskedAt ?? optOut.reaskedAt;
+
+			// The opt-out is the address's, so every channel the organization points at it stops.
+			await tx
+				.update(c)
+				.set({ verifiedAt: null, unsubscribedAt: now, reaskedAt })
+				.where(
+					and(
+						eq(c.organizationId, row.organizationId),
+						eq(c.type, "email"),
+						sql`lower(${c.config}->>'email') = ${email}`,
+					),
+				);
+
+			const [org] = await tx
+				.select({ name: organization.name })
+				.from(organization)
+				.where(eq(organization.id, row.organizationId));
+			return {
+				organizationId: row.organizationId,
+				organizationName: org?.name ?? "",
+				channelName: row.channelName,
+				email: row.config.email,
+				final: reaskedAt !== null,
+			};
+		});
+	}
+
+	/**
+	 * Recipient fields for a channel whose address was just set: fresh, unless the address
+	 * opted out of this organization's alerts, which the channel then inherits.
+	 */
+	async recipientFor(organizationId: string, email: string) {
+		const [optOut] = await this.db
+			.select({ unsubscribedAt: emailOptOut.unsubscribedAt, reaskedAt: emailOptOut.reaskedAt })
+			.from(emailOptOut)
+			.where(
+				and(
+					eq(emailOptOut.organizationId, organizationId),
+					eq(emailOptOut.email, email.toLowerCase()),
+				),
+			);
+		return { ...freshRecipient(), ...optOut };
+	}
+
+	/** Whether a confirmation to `email` would exceed the organization's pending cap. */
+	async wouldCap(organizationId: string, email: string): Promise<boolean> {
+		if (await isVerifiedMember(this.db, organizationId, email)) return false;
+		const log = channelConfirmationSend;
+		const [{ unconfirmed }] = await this.db
+			.select({ unconfirmed: countDistinct(log.token) })
+			.from(log)
+			.where(
+				and(
+					eq(log.organizationId, organizationId),
+					gt(log.sentAt, new Date(Date.now() - PENDING_WINDOW_MS)),
+					isNull(log.confirmedAt),
+				),
+			);
+		return unconfirmed >= this.cap;
 	}
 }
 

@@ -3,10 +3,9 @@ import { nanoid } from "nanoid";
 
 import { db } from "#lib/server/db/index.js";
 import { notificationChannel, type NotificationChannel } from "#lib/server/db/schema.js";
-import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { ConfirmationCapError, FeatureNotAvailableError } from "#lib/server/errors.js";
 import { logger } from "#lib/server/logger/index.js";
 import { emailChannelService } from "#lib/server/services/email-channel.instance.js";
-import { freshRecipient } from "#lib/server/services/email-channel.service.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 /** A channel as members see it. The token would let them confirm an address on its owner's behalf. */
@@ -46,6 +45,10 @@ export class NotificationChannelService {
 			);
 		}
 
+		const recipient =
+			input.type === "email"
+				? await this.recipientFor(input.organizationId, input.config.email)
+				: {};
 		const id = nanoid();
 
 		const [newChannel] = await db
@@ -57,14 +60,32 @@ export class NotificationChannelService {
 				type: input.type,
 				config: input.config,
 				enabled: input.enabled ?? true,
-				...(input.type === "email" ? freshRecipient() : {}),
+				...recipient,
 			})
 			.returning(viewColumns);
 
-		if (input.type === "email") {
+		if (input.type === "email" && !newChannel.unsubscribedAt) {
 			await this.requestConfirmation(id, input.organizationId, input.requestedBy);
 		}
 		return newChannel;
+	}
+
+	/**
+	 * Recipient fields for a newly set address. Refuses, before anything is saved, an
+	 * address that would need a confirmation the organization has no room to send.
+	 */
+	private async recipientFor(organizationId: string, email: unknown) {
+		const address = typeof email === "string" ? email : "";
+		const recipient = await emailChannelService.recipientFor(organizationId, address);
+		if (
+			!recipient.unsubscribedAt &&
+			(await emailChannelService.wouldCap(organizationId, address))
+		) {
+			throw new ConfirmationCapError(
+				"Too many addresses from the past week are still unconfirmed. More can be added as recipients confirm.",
+			);
+		}
+		return recipient;
 	}
 
 	/**
@@ -113,12 +134,15 @@ export class NotificationChannelService {
 		const existing = input.config ? await this.findByIdAndOrg(id, organizationId) : null;
 		const readdressed =
 			existing?.type === "email" && !sameAddress(existing.config.email, input.config?.email);
+		const recipient = readdressed
+			? await this.recipientFor(organizationId, input.config?.email)
+			: {};
 
 		const [updated] = await db
 			.update(notificationChannel)
 			.set({
 				...input,
-				...(readdressed ? freshRecipient() : {}),
+				...recipient,
 				updatedAt: new Date(),
 			})
 			.where(
@@ -126,7 +150,7 @@ export class NotificationChannelService {
 			)
 			.returning(viewColumns);
 
-		if (updated && readdressed && requestedBy !== undefined) {
+		if (updated && readdressed && !updated.unsubscribedAt && requestedBy !== undefined) {
 			await this.requestConfirmation(id, organizationId, requestedBy);
 		}
 		return updated ?? null;
