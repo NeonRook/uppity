@@ -71,10 +71,13 @@ the workers to their own image.
 
 ## Consequences
 
-- adapter-node takes the request's scheme as `https` and its host from the `Host` header. The
-  `ORIGIN` variable the Deno entry read is gone; a proxy that rewrites `Host` is handled with
-  adapter-node's `HOST_HEADER` instead. A deployment that serves plain HTTP with no proxy in
-  front fails the origin check on every form submission.
+- adapter-node fixes its origin at build time and otherwise assumes `https` and the `Host`
+  header, which would break plain-HTTP deployments and drop `ORIGIN`. `serve` is therefore a
+  small server of our own around adapter-node's request handler. When `ORIGIN` is set, every
+  request is handled as that origin, through header names the server sets and overwrites so
+  clients cannot spoof them. Unset, adapter-node's `PROTOCOL_HEADER` and `HOST_HEADER` apply.
+  The server mirrors adapter-node's `HOST`, `PORT`, timeouts and graceful shutdown; it does not
+  support `SOCKET_PATH`, systemd socket activation or `IDLE_TIMEOUT`.
 - adapter-node externalises every package in `dependencies`. The SSR build passes a pattern to
   `ssr.noExternal` so it does not, and `scripts/check-externals.ts` still fails the build on any
   bare import that survives.
