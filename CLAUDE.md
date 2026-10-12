@@ -55,8 +55,8 @@ pnpm build:all              # Production build, as the image runs it
 ### One runtime, with a permission model in production
 
 Node runs the dev loop, the build and the production image
-(`docs/adr/0008-node-runs-the-web-tier.md`). In the image, `serve` and `migrate`
-run under Node's `--permission`: reads are scoped to the build, and writes,
+(`docs/adr/0008-node-runs-the-web-tier.md`). In the image, every process runs
+under Node's `--permission`: reads are scoped to the build, and writes,
 child processes, worker threads and native addons are denied.
 `docs/runtime-permissions.md` lists the grants.
 

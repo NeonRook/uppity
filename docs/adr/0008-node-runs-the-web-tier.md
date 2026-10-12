@@ -46,8 +46,9 @@ line can express "Postgres, the SMTP host and Polar, and nothing else".
   threads, native addons, WASI, FFI and the inspector are denied. A compromised dependency can
   still make outbound connections, but cannot write, persist, or execute anything outside the
   bundle.
-- **The workers run without `--permission`.** Their network access was unrestricted already, and
-  they are being replaced.
+- **The workers run under the same flags.** They need unrestricted network access to reach the
+  URLs and endpoints users configure, so the model restricts only their filesystem and process
+  access, as Deno's sets did.
 - **The runner is `alpine` with the `node` binary copied from the official Alpine image.** The
   official image bundles npm, which the runner never uses, and deleting it in a later layer
   saves nothing. Both stages name the same Alpine release, since the binary links against its

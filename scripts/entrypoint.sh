@@ -1,13 +1,14 @@
 #!/bin/sh
 # Runs one Uppity process on Node.
 #
-# serve and migrate run under Node's permission model. Reads are scoped to the
+# Every process runs under Node's permission model. Reads are scoped to the
 # trees each one loads, and filesystem writes, child processes, worker threads,
 # native addons, WASI and FFI are denied: those are what turn a compromised
-# dependency into code execution or persistence, and neither process needs them.
+# dependency into code execution or persistence, and no process needs them.
 #
 # Network access is all or nothing. Node's --allow-net takes no host list, so
-# both processes can reach any address. docs/adr/0008 records why that was
+# every process can reach any address. The workers need that anyway: they dial
+# whatever URLs and endpoints users configure. docs/adr/0008 records why that was
 # accepted.
 #
 # Set UPPITY_PRINT_PERMISSIONS=1 to print the node command instead of running
@@ -46,6 +47,6 @@ migrate)
 	run --permission --allow-net --allow-fs-read=./drizzle --allow-fs-read=./build ./build/migrate.js
 	;;
 worker-monitor | worker-notifier)
-	run "./build/$target.js"
+	run --permission --allow-net --allow-fs-read=./build "./build/$target.js"
 	;;
 esac

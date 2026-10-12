@@ -27,21 +27,18 @@ async function commandFor(
 const DB = "postgres://uppity:secret@db.internal:5432/uppity";
 
 describe("permission model", () => {
-	it.each(["serve", "migrate"])("%s runs under --permission", async (target) => {
+	const targets = ["serve", "migrate", "worker-monitor", "worker-notifier"];
+
+	it.each(targets)("%s runs under --permission", async (target) => {
 		const { flags } = await commandFor(target, { DATABASE_URL: DB });
 		expect(flags).toContain("--permission");
 	});
 
-	it.each(["serve", "migrate"])(
-		"%s is granted nothing beyond reads and the network",
-		async (target) => {
-			const { flags } = await commandFor(target, { DATABASE_URL: DB });
-			const grants = flags.filter((f) => f.startsWith("--allow-"));
-			expect(grants.every((f) => f === "--allow-net" || f.startsWith("--allow-fs-read="))).toBe(
-				true,
-			);
-		},
-	);
+	it.each(targets)("%s is granted nothing beyond reads and the network", async (target) => {
+		const { flags } = await commandFor(target, { DATABASE_URL: DB });
+		const grants = flags.filter((f) => f.startsWith("--allow-"));
+		expect(grants.every((f) => f === "--allow-net" || f.startsWith("--allow-fs-read="))).toBe(true);
+	});
 
 	it("scopes the web tier's reads to the build", async () => {
 		const { read, entry } = await commandFor("serve", { DATABASE_URL: DB });
@@ -55,10 +52,14 @@ describe("permission model", () => {
 		expect(entry).toBe("./build/migrate.js");
 	});
 
-	it.each(["worker-monitor", "worker-notifier"])("%s runs its bundle", async (target) => {
-		const { entry } = await commandFor(target, { DATABASE_URL: DB });
-		expect(entry).toBe(`./build/${target}.js`);
-	});
+	it.each(["worker-monitor", "worker-notifier"])(
+		"scopes %s's reads to the build",
+		async (target) => {
+			const { read, entry } = await commandFor(target, { DATABASE_URL: DB });
+			expect(read).toEqual(["./build"]);
+			expect(entry).toBe(`./build/${target}.js`);
+		},
+	);
 });
 
 describe("preconditions", () => {
