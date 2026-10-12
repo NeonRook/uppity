@@ -28,7 +28,9 @@ export interface CreateMonitorInput {
 	headers?: Record<string, string>;
 	body?: string;
 	expectedStatusCodes?: number[];
-	expectedBodyContains?: string;
+	expectedBodyContains?: string | null;
+	followRedirects?: boolean;
+	acceptSelfSigned?: boolean;
 	hostname?: string;
 	port?: number;
 	intervalSeconds?: number;
@@ -73,6 +75,8 @@ export class MonitorService {
 					body: input.body,
 					expectedStatusCodes: input.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES],
 					expectedBodyContains: input.expectedBodyContains,
+					followRedirects: input.followRedirects,
+					acceptSelfSigned: input.acceptSelfSigned,
 					hostname: input.hostname,
 					port: input.port,
 					intervalSeconds: input.intervalSeconds || DEFAULT_INTERVAL_SECONDS,

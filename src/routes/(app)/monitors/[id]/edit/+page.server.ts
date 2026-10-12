@@ -43,6 +43,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				url: monitor.url ?? "",
 				method: (monitor.method ?? "GET") as "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD",
 				sslCheckEnabled: monitor.sslCheckEnabled ?? false,
+				expectedBodyContains: monitor.expectedBodyContains ?? undefined,
+				followRedirects: monitor.followRedirects,
+				acceptSelfSigned: monitor.acceptSelfSigned,
 			};
 			break;
 		case "tcp":

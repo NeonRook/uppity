@@ -70,6 +70,9 @@ const httpMonitorSchema = v.object({
 	url: v.pipe(v.string(), v.url("Valid URL is required")),
 	method: v.optional(v.picklist(HTTP_METHODS), DEFAULT_HTTP_METHOD),
 	sslCheckEnabled: v.optional(v.boolean(), false),
+	expectedBodyContains: v.optional(v.string()),
+	followRedirects: v.optional(v.boolean(), true),
+	acceptSelfSigned: v.optional(v.boolean(), false),
 });
 
 const tcpMonitorSchema = v.object({
