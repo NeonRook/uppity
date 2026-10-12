@@ -1,10 +1,19 @@
 <script lang="ts">
+	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
+	import { signOut } from "#lib/auth-client.js";
+	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { m } from "#lib/paraglide/messages.js";
 
 	let { data } = $props();
+
+	// Signed out, the same link sends the visitor through login as the right account.
+	async function switchAccount() {
+		await signOut();
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -21,8 +30,12 @@
 				? m.verify_email_other_account({ email: data.email })
 				: m.verify_email_invalid()}
 		</p>
-		<a href={resolve("dashboard")} class="text-primary underline-offset-4 hover:underline">
-			{m.verify_email_continue()}
-		</a>
+		{#if data.outcome === "other_account"}
+			<Button onclick={switchAccount}>{m.verify_email_switch_account()}</Button>
+		{:else}
+			<a href={resolve("dashboard")} class="text-primary underline-offset-4 hover:underline">
+				{m.verify_email_continue()}
+			</a>
+		{/if}
 	</Card.Content>
 </Card.Root>

@@ -33,6 +33,7 @@ import * as authSchema from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
 import { subscription } from "#lib/server/db/schema.js";
 import {
+	logger,
 	wideEvent,
 	type WebhookWideEvent,
 	type WideEventBuilder,
@@ -307,7 +308,13 @@ export const auth = betterAuth({
 			}
 		},
 		async afterEmailVerification(user) {
-			await emailChannelService.confirmMemberAddress(user.email);
+			// The address is verified already; a failure here must not report the link as bad.
+			// The verify page runs this again on its already-verified path.
+			try {
+				await emailChannelService.confirmMemberAddress(user.email);
+			} catch (error) {
+				logger.error({ user_id: user.id, error }, "Failed to confirm channels after verification");
+			}
 		},
 	},
 	rateLimit: {
@@ -321,6 +328,11 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			// Signed out, the endpoint mails any unverified account, which a rotating IP could
+			// turn on one inbox. The banner, its only caller, always has a session.
+			if (ctx.path === "/send-verification-email" && !(await getSessionFromCtx(ctx))) {
+				throw new APIError("UNAUTHORIZED", { message: "Sign in to resend the link" });
+			}
 			if (ctx.path === "/api-key/create") {
 				const refusal = await refuseApiKeyCreate(ctx.body, countApiKeys);
 				if (refusal) throw new APIError("FORBIDDEN", { message: refusal });

@@ -843,13 +843,14 @@
 	"alerts_unsubscribe_final": "{organization} já pediu de novo uma vez e não poderá pedir outra vez.",
 	"notifications_reask": "Pedir de novo",
 	"notifications_resend_reasked": "Este endereço já recebeu um novo pedido. Agora depende do destinatário.",
-	"notifications_resend_unverified": "Verifique seu próprio e-mail primeiro. O link está na sua caixa de entrada.",
+	"notifications_resend_unverified": "Verifique seu próprio e-mail primeiro. O aviso no topo do app envia o link para você.",
 	"verify_email_title": "Verifique seu endereço de e-mail",
 	"verify_email_desc": "Enviamos um link para {email}. Até verificar, você não pode enviar alertas para o endereço de outra pessoa.",
 	"verify_email_resend": "Reenviar link",
 	"verify_email_sent": "Link de verificação enviado",
 	"verify_email_failed": "Não foi possível enviar o link de verificação. Tente novamente em um minuto.",
-	"verify_email_other_account": "Este link verifica uma conta diferente daquela em que você está conectado ({email}). Saia, entre nessa conta e abra o link novamente.",
+	"verify_email_other_account": "Este link verifica uma conta diferente daquela em que você está conectado ({email}). Troque de conta para continuar.",
 	"verify_email_invalid": "Este link expirou ou não é mais válido. Envie um novo pelo aviso no app.",
-	"verify_email_continue": "Continuar para o Uppity"
+	"verify_email_continue": "Continuar para o Uppity",
+	"verify_email_switch_account": "Sair e trocar de conta"
 }

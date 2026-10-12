@@ -6,12 +6,12 @@
 	import LoginForm from "#lib/components/login-form.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { sameOriginPath } from "#lib/utils/same-origin-path.js";
 
-	// Same-origin paths only, so the parameter cannot send a fresh session elsewhere.
-	const redirectTo = $derived.by(() => {
-		const target = page.url.searchParams.get("redirectTo");
-		return target?.startsWith("/") && !target.startsWith("//") ? target : null;
-	});
+	// Same-origin only, so the parameter cannot send a fresh session elsewhere.
+	const redirectTo = $derived(
+		sameOriginPath(page.url.searchParams.get("redirectTo"), page.url.origin),
+	);
 
 	const afterSignIn = () => (redirectTo ? goto(redirectTo) : goto(resolve("dashboard")));
 </script>

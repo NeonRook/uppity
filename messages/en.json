@@ -843,13 +843,14 @@
 	"alerts_unsubscribe_final": "{organization} already asked again once and won't be able to ask you again.",
 	"notifications_reask": "Ask again",
 	"notifications_resend_reasked": "This address was already asked once more. It's up to the recipient now.",
-	"notifications_resend_unverified": "Verify your own email address first. Check your inbox for the link.",
+	"notifications_resend_unverified": "Verify your own email address first. The banner at the top of the app sends you the link.",
 	"verify_email_title": "Verify your email address",
 	"verify_email_desc": "We sent a link to {email}. Until you verify, you can't send alerts to anyone else's address.",
 	"verify_email_resend": "Resend link",
 	"verify_email_sent": "Verification link sent",
 	"verify_email_failed": "Couldn't send the verification link. Try again in a minute.",
-	"verify_email_other_account": "This link verifies a different account than the one you're signed in to ({email}). Sign out and sign in to that account, then open the link again.",
+	"verify_email_other_account": "This link verifies a different account than the one you're signed in to ({email}). Switch accounts to continue.",
 	"verify_email_invalid": "This link has expired or is no longer valid. Send a new one from the banner in the app.",
-	"verify_email_continue": "Continue to Uppity"
+	"verify_email_continue": "Continue to Uppity",
+	"verify_email_switch_account": "Sign out and switch account"
 }
