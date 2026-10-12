@@ -107,9 +107,11 @@ export const actions: Actions = {
 			// endpoint does not accept a target userId.
 			const updateData: Partial<typeof user.$inferInsert> = {};
 			if (form.data.name) updateData.name = form.data.name;
-			if (form.data.email && form.data.email !== existing.email) {
+			// better-auth looks addresses up lowercased, so a mixed-case one could never verify.
+			const email = form.data.email?.trim().toLowerCase();
+			if (email && email !== existing.email.toLowerCase()) {
 				// The new address is unproven, and verified addresses skip channel confirmation.
-				updateData.email = form.data.email;
+				updateData.email = email;
 				updateData.emailVerified = false;
 			}
 
