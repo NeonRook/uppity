@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { and, countDistinct, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, countDistinct, eq, gt, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { CHANNEL_PENDING_CONFIRMATIONS } from "#lib/constants/defaults.js";
@@ -23,7 +23,13 @@ export const RESEND_INTERVAL_MS = 60 * 60_000;
 /** How long an unconfirmed send holds a slot under the pending cap. */
 export const PENDING_WINDOW_MS = 7 * 24 * 60 * 60_000;
 
-export type ResendResult = "sent" | "confirmed" | "unsubscribed" | "too_soon" | "capped";
+export type ResendResult =
+	| "sent"
+	| "confirmed"
+	| "unsubscribed"
+	| "reasked"
+	| "too_soon"
+	| "capped";
 
 export interface RecipientLookup {
 	state: "pending" | "confirmed" | "expired" | "unsubscribed";
@@ -83,8 +89,9 @@ export class EmailChannelService {
 	 * Confirms the channel outright when its address belongs to a verified member, and
 	 * otherwise emails a confirmation link naming `requestedBy`, the verified account email
 	 * of the member asking. An unverified one would let anyone put text of their choosing in
-	 * mail to strangers. After an unsubscribe the organization may ask once more, under a
-	 * new token so the old links stop working. Null when no such email channel exists.
+	 * mail to strangers. An address that opted out gets one more request, under a new token
+	 * so the old links stop working, and nothing after it until it confirms. Null when no
+	 * such email channel exists.
 	 */
 	async requestConfirmation(
 		channelId: string,
@@ -106,64 +113,54 @@ export class EmailChannelService {
 					confirmationSentAt: c.confirmationSentAt,
 					verifiedAt: c.verifiedAt,
 					unsubscribedAt: c.unsubscribedAt,
-					reaskedAt: c.reaskedAt,
 				})
 				.from(c)
 				.where(and(eq(c.id, channelId), eq(c.organizationId, organizationId), eq(c.type, "email")));
 			if (!row?.config.email) return null;
 			if (row.verifiedAt) return "confirmed";
-			if (row.unsubscribedAt && row.reaskedAt) return "unsubscribed";
+			const email = row.config.email.toLowerCase();
 
-			if (!row.unsubscribedAt && (await isVerifiedMember(tx, organizationId, row.config.email))) {
+			const optOut = await optOutOf(tx, organizationId, email);
+			if (optOut?.reaskedAt) return row.unsubscribedAt ? "unsubscribed" : "reasked";
+
+			if (!optOut && (await isVerifiedMember(tx, organizationId, email))) {
 				await tx.update(c).set({ verifiedAt: now }).where(eq(c.id, channelId));
 				return "confirmed";
 			}
 
-			if (
-				row.confirmationSentAt &&
-				now.getTime() - row.confirmationSentAt.getTime() < RESEND_INTERVAL_MS
-			) {
+			// Per address, so recreating or readdressing a channel cannot skip the wait.
+			const [{ lastSent }] = await tx
+				.select({ lastSent: max(log.sentAt) })
+				.from(log)
+				.where(and(eq(log.organizationId, organizationId), eq(log.email, email)));
+			if (lastSent && now.getTime() - lastSent.getTime() < RESEND_INTERVAL_MS) {
 				return "too_soon";
 			}
 
-			const [{ unconfirmed }] = await tx
-				.select({ unconfirmed: countDistinct(log.token) })
-				.from(log)
-				.where(
-					and(
-						eq(log.organizationId, organizationId),
-						gt(log.sentAt, new Date(now.getTime() - PENDING_WINDOW_MS)),
-						isNull(log.confirmedAt),
-					),
-				);
-			if (unconfirmed >= this.cap) return "capped";
+			if ((await unconfirmedAddresses(tx, organizationId, now)) >= this.cap) return "capped";
 
 			const sendId = nanoid();
 			// A channel saved without a token, by code older than its column, gets one here.
-			const token = row.unsubscribedAt || !row.token ? freshRecipient().token : row.token;
-			const reask = row.unsubscribedAt ? { unsubscribedAt: null, reaskedAt: now } : {};
-			await tx.insert(log).values({ id: sendId, organizationId, token, sentAt: now });
+			const token = optOut || !row.token ? freshRecipient().token : row.token;
+			await tx.insert(log).values({ id: sendId, organizationId, email, sentAt: now });
 			await tx
 				.update(c)
-				.set({ token, confirmationSentAt: now, ...reask })
+				.set({
+					token,
+					confirmationSentAt: now,
+					...(optOut ? { unsubscribedAt: null, reaskedAt: now } : {}),
+				})
 				.where(eq(c.id, channelId));
-			if (row.unsubscribedAt) {
-				await tx
-					.update(emailOptOut)
-					.set(reask)
-					.where(
-						and(
-							eq(emailOptOut.organizationId, organizationId),
-							eq(emailOptOut.email, row.config.email.toLowerCase()),
-						),
-					);
-			}
+			if (optOut) await setReasked(tx, organizationId, email, now);
 			return {
 				sendId,
 				email: row.config.email,
 				token,
-				previousSentAt: row.confirmationSentAt,
-				unsubscribedAt: row.unsubscribedAt,
+				previous: {
+					confirmationSentAt: row.confirmationSentAt,
+					unsubscribedAt: row.unsubscribedAt,
+				},
+				reasked: optOut !== undefined,
 			};
 		});
 		if (pending === null || typeof pending === "string") return pending;
@@ -174,23 +171,12 @@ export class EmailChannelService {
 			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
 			await this.db.transaction(async (tx) => {
 				await tx.delete(log).where(eq(log.id, pending.sendId));
-				const unask = pending.unsubscribedAt
-					? { unsubscribedAt: pending.unsubscribedAt, reaskedAt: null }
-					: {};
 				await tx
 					.update(c)
-					.set({ confirmationSentAt: pending.previousSentAt, ...unask })
+					.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
 					.where(eq(c.id, channelId));
-				if (pending.unsubscribedAt) {
-					await tx
-						.update(emailOptOut)
-						.set(unask)
-						.where(
-							and(
-								eq(emailOptOut.organizationId, organizationId),
-								eq(emailOptOut.email, pending.email.toLowerCase()),
-							),
-						);
+				if (pending.reasked) {
+					await setReasked(tx, organizationId, pending.email.toLowerCase(), null);
 				}
 			});
 			throw error;
@@ -243,17 +229,9 @@ export class EmailChannelService {
 					gt(c.confirmationSentAt, confirmationCutoff()),
 				),
 			)
-			.returning({ id: c.id });
-		if (row) {
-			await this.db
-				.update(channelConfirmationSend)
-				.set({ confirmedAt: now })
-				.where(
-					and(
-						eq(channelConfirmationSend.token, token),
-						isNull(channelConfirmationSend.confirmedAt),
-					),
-				);
+			.returning({ organizationId: c.organizationId, config: c.config });
+		if (row?.config.email) {
+			await markConfirmed(this.db, row.organizationId, row.config.email.toLowerCase(), now);
 		}
 
 		return row !== undefined || (await this.lookup(token))?.state === "confirmed";
@@ -336,19 +314,60 @@ export class EmailChannelService {
 	/** Whether a confirmation to `email` would exceed the organization's pending cap. */
 	async wouldCap(organizationId: string, email: string): Promise<boolean> {
 		if (await isVerifiedMember(this.db, organizationId, email)) return false;
-		const log = channelConfirmationSend;
-		const [{ unconfirmed }] = await this.db
-			.select({ unconfirmed: countDistinct(log.token) })
-			.from(log)
-			.where(
-				and(
-					eq(log.organizationId, organizationId),
-					gt(log.sentAt, new Date(Date.now() - PENDING_WINDOW_MS)),
-					isNull(log.confirmedAt),
-				),
-			);
-		return unconfirmed >= this.cap;
+		return (await unconfirmedAddresses(this.db, organizationId, new Date())) >= this.cap;
 	}
+}
+
+async function optOutOf(tx: DbExecutor, organizationId: string, email: string) {
+	const [row] = await tx
+		.select({ reaskedAt: emailOptOut.reaskedAt })
+		.from(emailOptOut)
+		.where(
+			and(
+				eq(emailOptOut.organizationId, organizationId),
+				eq(emailOptOut.email, email),
+				isNotNull(emailOptOut.unsubscribedAt),
+			),
+		);
+	return row;
+}
+
+function setReasked(tx: DbExecutor, organizationId: string, email: string, at: Date | null) {
+	return tx
+		.update(emailOptOut)
+		.set({ reaskedAt: at })
+		.where(and(eq(emailOptOut.organizationId, organizationId), eq(emailOptOut.email, email)));
+}
+
+/** Distinct addresses with an unconfirmed send in the pending window. */
+async function unconfirmedAddresses(tx: DbExecutor, organizationId: string, now: Date) {
+	const log = channelConfirmationSend;
+	const [{ unconfirmed }] = await tx
+		.select({ unconfirmed: countDistinct(log.email) })
+		.from(log)
+		.where(
+			and(
+				eq(log.organizationId, organizationId),
+				gt(log.sentAt, new Date(now.getTime() - PENDING_WINDOW_MS)),
+				isNull(log.confirmedAt),
+			),
+		);
+	return unconfirmed;
+}
+
+/** Frees the address's slot and lifts its opt-out, keeping the used re-ask. */
+async function markConfirmed(tx: DbExecutor, organizationId: string, email: string, now: Date) {
+	const log = channelConfirmationSend;
+	await tx
+		.update(log)
+		.set({ confirmedAt: now })
+		.where(
+			and(eq(log.organizationId, organizationId), eq(log.email, email), isNull(log.confirmedAt)),
+		);
+	await tx
+		.update(emailOptOut)
+		.set({ unsubscribedAt: null })
+		.where(and(eq(emailOptOut.organizationId, organizationId), eq(emailOptOut.email, email)));
 }
 
 /** Deletes sends that no longer count toward the pending cap. Returns how many. */

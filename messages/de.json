@@ -841,5 +841,6 @@
 	"notifications_resend_capped": "Zu viele Adressen aus der letzten Woche sind noch unbestätigt. Sobald Empfänger bestätigen, kannst du weitere senden.",
 	"alerts_unsubscribe_reask": "{organization} kann dich noch einmal um Bestätigung bitten.",
 	"alerts_unsubscribe_final": "{organization} hat bereits einmal erneut gefragt und kann dich nicht noch einmal fragen.",
-	"notifications_reask": "Erneut fragen"
+	"notifications_reask": "Erneut fragen",
+	"notifications_resend_reasked": "Diese Adresse wurde bereits ein weiteres Mal gefragt. Jetzt liegt es am Empfänger."
 }

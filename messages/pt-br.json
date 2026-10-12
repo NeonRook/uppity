@@ -841,5 +841,6 @@
 	"notifications_resend_capped": "Muitos endereços da última semana ainda não foram confirmados. Será possível enviar mais quando os destinatários confirmarem.",
 	"alerts_unsubscribe_reask": "{organization} pode pedir sua confirmação mais uma vez.",
 	"alerts_unsubscribe_final": "{organization} já pediu de novo uma vez e não poderá pedir outra vez.",
-	"notifications_reask": "Pedir de novo"
+	"notifications_reask": "Pedir de novo",
+	"notifications_resend_reasked": "Este endereço já recebeu um novo pedido. Agora depende do destinatário."
 }

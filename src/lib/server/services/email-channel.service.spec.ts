@@ -43,11 +43,30 @@ async function seedEmailChannel(db: TestDb["db"], orgId: string, email = "strang
 	return { id, token: recipient.token };
 }
 
-const backdate = (db: TestDb["db"], id: string, ms: number) =>
-	db
+/** Moves the organization's sends, and the channel links, past the resend interval. */
+async function backdateSends(db: TestDb["db"], orgId: string) {
+	const past = new Date(Date.now() - RESEND_INTERVAL_MS - 1000);
+	await db
+		.update(channelConfirmationSend)
+		.set({ sentAt: past })
+		.where(eq(channelConfirmationSend.organizationId, orgId));
+}
+
+/** Moves the channel's link and its organization's sends `ms` into the past. */
+async function backdate(db: TestDb["db"], id: string, ms: number) {
+	const at = new Date(Date.now() - ms);
+	const [channel] = await db
 		.update(notificationChannel)
-		.set({ confirmationSentAt: new Date(Date.now() - ms) })
-		.where(eq(notificationChannel.id, id));
+		.set({ confirmationSentAt: at })
+		.where(eq(notificationChannel.id, id))
+		.returning({ organizationId: notificationChannel.organizationId });
+	if (channel) {
+		await db
+			.update(channelConfirmationSend)
+			.set({ sentAt: at })
+			.where(eq(channelConfirmationSend.organizationId, channel.organizationId));
+	}
+}
 
 describe("EmailChannelService.requestConfirmation", () => {
 	test("emails a link to an address outside the organization", async ({ db: { db } }) => {
@@ -123,7 +142,7 @@ describe("EmailChannelService.requestConfirmation", () => {
 		await service.requestConfirmation(first.id, orgId, ADMIN);
 		await db.delete(notificationChannel).where(eq(notificationChannel.id, first.id));
 
-		const second = await seedEmailChannel(db, orgId);
+		const second = await seedEmailChannel(db, orgId, "other@example.com");
 		expect(await service.requestConfirmation(second.id, orgId, ADMIN)).toBe("capped");
 	});
 
@@ -140,9 +159,9 @@ describe("EmailChannelService.requestConfirmation", () => {
 		await service.requestConfirmation(channel.id, orgId, ADMIN);
 		await service.confirm(readdressed.token);
 
-		const next = await seedEmailChannel(db, orgId);
+		const next = await seedEmailChannel(db, orgId, "next@example.com");
 		expect(await service.requestConfirmation(next.id, orgId, ADMIN)).toBe("sent");
-		const another = await seedEmailChannel(db, orgId);
+		const another = await seedEmailChannel(db, orgId, "another@example.com");
 		expect(await service.requestConfirmation(another.id, orgId, ADMIN)).toBe("capped");
 	});
 
@@ -310,6 +329,49 @@ describe("EmailChannelService.unsubscribe", () => {
 			null,
 		);
 		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	test("a re-ask goes out once, and a recreated channel cannot repeat it", async ({
+		db: { db },
+	}) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+		await backdateSends(db, orgId);
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+
+		await backdateSends(db, orgId);
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("reasked");
+
+		await db.delete(notificationChannel).where(eq(notificationChannel.id, channel.id));
+		const recreated = await seedEmailChannel(db, orgId);
+		await db
+			.update(notificationChannel)
+			.set(await service.recipientFor(orgId, "stranger@example.com"))
+			.where(eq(notificationChannel.id, recreated.id));
+		expect(await service.requestConfirmation(recreated.id, orgId, ADMIN)).toBe("unsubscribed");
+		expect(send).toHaveBeenCalledTimes(2);
+	});
+
+	test("an opted-out member's address is never confirmed for them", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+		expect((await service.lookup(channel.token))?.state).not.toBe("confirmed");
+	});
+
+	test("a second channel to the same address waits out the interval", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const first = await seedEmailChannel(db, orgId);
+		const second = await seedEmailChannel(db, orgId);
+		await service.requestConfirmation(first.id, orgId, ADMIN);
+
+		expect(await service.requestConfirmation(second.id, orgId, ADMIN)).toBe("too_soon");
 	});
 
 	test("a recreated channel keeps a used re-ask", async ({ db: { db } }) => {

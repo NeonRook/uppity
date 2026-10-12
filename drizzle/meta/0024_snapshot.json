@@ -1,5 +1,5 @@
 {
-  "id": "5c60a9e1-3361-45c3-aadb-af30588069da",
+  "id": "d91cb209-ba9b-4906-b906-ef1bbfd5a1f8",
   "prevId": "a47ada09-f4fa-4217-b25f-8ee6faaa2126",
   "version": "7",
   "dialect": "postgresql",
@@ -1055,8 +1055,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "token": {
-          "name": "token",
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1097,11 +1097,17 @@
           "method": "btree",
           "with": {}
         },
-        "channel_confirmation_send_token_idx": {
-          "name": "channel_confirmation_send_token_idx",
+        "channel_confirmation_send_org_email_idx": {
+          "name": "channel_confirmation_send_org_email_idx",
           "columns": [
             {
-              "expression": "token",
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
