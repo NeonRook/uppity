@@ -99,7 +99,7 @@ jobs:
 
   merge:
     name: Merge and attest
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     needs: build
     permissions:
       contents: read
