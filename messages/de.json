@@ -828,7 +828,7 @@
 	"alerts_confirm_done": "{email} erhält jetzt Monitoring-Alarme von {organization}. Jeder Alarm enthält einen Link zum Abbestellen.",
 	"alerts_confirm_invalid": "Dieser Link ist abgelaufen oder ungültig. Bitte die Organisation, einen neuen zu senden.",
 	"alerts_unsubscribe_title": "Alarm-E-Mails abbestellen",
-	"alerts_unsubscribe_prompt": "Keine Monitoring-Alarme von {organization} mehr an {email} senden? Die Organisation kann dich danach nicht erneut fragen.",
+	"alerts_unsubscribe_prompt": "Keine Monitoring-Alarme von {organization} mehr an {email} senden? Wenn andere diese Adresse lesen, enden auch ihre Alarme, und {organization} wird informiert.",
 	"alerts_unsubscribe_submit": "Alarme abbestellen",
 	"alerts_unsubscribe_done": "Du bist abgemeldet. Diese Adresse erhält keine dieser Alarme mehr.",
 	"notifications_unconfirmed": "Unbestätigt",
@@ -836,7 +836,10 @@
 	"notifications_resend": "Bestätigung erneut senden",
 	"notifications_resend_sent": "Bestätigungs-E-Mail gesendet",
 	"notifications_resend_confirmed": "Diese Adresse ist bereits bestätigt",
-	"notifications_resend_unsubscribed": "Der Empfänger hat diese Alarme abbestellt",
+	"notifications_resend_unsubscribed": "Diese Adresse hat sich nach erneuter Anfrage wieder abgemeldet und kann nicht mehr gefragt werden. Verwende eine andere Adresse für den Kanal.",
 	"notifications_resend_too_soon": "Vor weniger als einer Stunde ging eine Bestätigung raus. Versuche es später erneut.",
-	"notifications_resend_capped": "Zu viele Adressen aus der letzten Woche sind noch unbestätigt. Sobald Empfänger bestätigen, kannst du weitere senden."
+	"notifications_resend_capped": "Zu viele Adressen aus der letzten Woche sind noch unbestätigt. Sobald Empfänger bestätigen, kannst du weitere senden.",
+	"alerts_unsubscribe_reask": "{organization} kann dich noch einmal um Bestätigung bitten.",
+	"alerts_unsubscribe_final": "{organization} hat bereits einmal erneut gefragt und kann dich nicht noch einmal fragen.",
+	"notifications_reask": "Erneut fragen"
 }

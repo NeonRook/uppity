@@ -1,5 +1,5 @@
 {
-  "id": "4e4ef38e-72d5-4555-a23f-58ac7a25531c",
+  "id": "15dc0b1f-d4ec-4cca-be9b-351792862199",
   "prevId": "a47ada09-f4fa-4217-b25f-8ee6faaa2126",
   "version": "7",
   "dialect": "postgresql",
@@ -2526,6 +2526,12 @@
         },
         "unsubscribed_at": {
           "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasked_at": {
+          "name": "reasked_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false

@@ -79,3 +79,38 @@ export async function sendCapacityNotice(to: string[], notice: CapacityNotice): 
 		].join("\n"),
 	});
 }
+
+export interface ChannelUnsubscribedNotice {
+	organizationName: string;
+	channelName: string;
+	email: string;
+	final: boolean;
+}
+
+/** Tells an organization's owners and admins that an address stopped its alerts. Throws when it cannot. */
+export async function sendChannelUnsubscribedNotice(
+	to: string[],
+	{ organizationName, channelName, email, final }: ChannelUnsubscribedNotice,
+): Promise<void> {
+	if (!smtpTransport) throw new Error("SMTP not configured");
+	if (to.length === 0) throw new Error("No owner or admin to notify");
+
+	const channelsUrl = `${appUrl}/notifications`;
+	const paragraphs = [
+		`${email} unsubscribed from the alerts that the "${channelName}" channel in ${organizationName} sends. Monitors using that channel no longer alert it.`,
+		final
+			? "You already asked this address again once, so it can't be asked again. To keep alerts flowing, point the channel at another address."
+			: "If this was a mistake, for example on a shared team address, you can ask the address to confirm once more from your notification channels.",
+	];
+
+	await smtpTransport.sendMail({
+		from: smtpFrom,
+		to,
+		subject: `Alerts to ${email} stopped in ${organizationName}`,
+		html: [
+			...paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`),
+			`<p><a href="${channelsUrl}">Open notification channels</a></p>`,
+		].join("\n"),
+		text: [...paragraphs, "", `Open notification channels: ${channelsUrl}`].join("\n"),
+	});
+}

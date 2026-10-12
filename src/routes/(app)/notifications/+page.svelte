@@ -171,7 +171,7 @@
 							</div>
 
 							<div class="flex items-center gap-2">
-								{#if channel.type === "email" && !channel.verifiedAt && !channel.unsubscribedAt}
+								{#if channel.type === "email" && !channel.verifiedAt && !(channel.unsubscribedAt && channel.reaskedAt)}
 									<Button
 										variant="outline"
 										size="sm"
@@ -179,7 +179,7 @@
 										onclick={() => handleResend(channel.id)}
 									>
 										<Send class="h-4 w-4" />
-										{m.notifications_resend()}
+										{channel.unsubscribedAt ? m.notifications_reask() : m.notifications_resend()}
 									</Button>
 								{/if}
 								<Switch
