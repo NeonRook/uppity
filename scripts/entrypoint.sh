@@ -73,6 +73,8 @@ if [ "$target" = serve ]; then
 	allow_host "${HOST:-0.0.0.0}:${PORT:-3000}"
 	# Password reset mail. auth.ts sends nothing unless both are set.
 	allow_host "${SMTP_HOST:-}${SMTP_PORT:+:$SMTP_PORT}"
+	# Subscription confirmations.
+	allow_host "${SUBSCRIBER_SMTP_HOST:-}${SUBSCRIBER_SMTP_PORT:+:$SUBSCRIBER_SMTP_PORT}"
 	# Billing. Self-hosted instances leave the token unset and never call Polar,
 	# so the host stays off the list entirely rather than being allowed unused.
 	if [ -n "${POLAR_ACCESS_TOKEN:-}" ]; then

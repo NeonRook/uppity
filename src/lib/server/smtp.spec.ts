@@ -2,10 +2,14 @@ import { type AddressInfo, createServer } from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-async function loadTransport(env: Record<string, string>) {
+async function load(env: Record<string, string>) {
 	vi.resetModules();
 	for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
-	const { smtpTransport } = await import("./smtp");
+	return import("./smtp");
+}
+
+async function loadTransport(env: Record<string, string>) {
+	const { smtpTransport } = await load(env);
 	return smtpTransport?.options;
 }
 
@@ -60,5 +64,45 @@ describe("smtpTransport", () => {
 
 		await expect(smtpTransport?.verify()).resolves.toBe(true);
 		server.close();
+	});
+});
+
+describe("subscriberTransport", () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	it("shares the main server and sender when unset", async () => {
+		const smtp = await load({
+			SMTP_HOST: "smtp.example.com",
+			SMTP_PORT: "587",
+			SMTP_FROM: "alerts@example.com",
+			SUBSCRIBER_SMTP_HOST: "",
+			SUBSCRIBER_SMTP_PORT: "",
+			SUBSCRIBER_SMTP_FROM: "",
+		});
+		expect(smtp.subscriberTransport).toBe(smtp.smtpTransport);
+		expect(smtp.subscriberFrom).toBe("alerts@example.com");
+	});
+
+	it("uses its own server and sender when set", async () => {
+		const smtp = await load({
+			SMTP_HOST: "smtp.example.com",
+			SMTP_PORT: "587",
+			SMTP_FROM: "alerts@example.com",
+			SUBSCRIBER_SMTP_HOST: "subscribers.example.com",
+			SUBSCRIBER_SMTP_PORT: "465",
+			SUBSCRIBER_SMTP_USER: "subscribers",
+			SUBSCRIBER_SMTP_PASSWORD: "secret",
+			SUBSCRIBER_SMTP_FROM: "status@status.example.com",
+		});
+		expect(smtp.subscriberTransport?.options).toMatchObject({
+			host: "subscribers.example.com",
+			port: 465,
+			secure: true,
+			auth: { user: "subscribers", pass: "secret" },
+		});
+		expect(smtp.smtpTransport?.options).toMatchObject({ host: "smtp.example.com" });
+		expect(smtp.subscriberFrom).toBe("status@status.example.com");
 	});
 });
