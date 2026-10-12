@@ -6,6 +6,8 @@ import {
 	DEFAULT_ALERT_AFTER_FAILURES,
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 	DEFAULT_HTTP_METHOD,
+	MAX_RETRIES,
+	MAX_TIMEOUT_SECONDS,
 	MONITOR_INTERVAL,
 } from "#lib/constants/defaults.js";
 import { HTTP_METHODS } from "#lib/constants/monitor.js";
@@ -48,8 +50,18 @@ const baseMonitorSchema = {
 		),
 		MONITOR_INTERVAL.DEFAULT_SECONDS,
 	),
-	timeoutSeconds: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_TIMEOUT_SECONDS),
-	retries: v.optional(v.pipe(v.number(), v.minValue(0)), DEFAULT_RETRIES),
+	timeoutSeconds: v.optional(
+		v.pipe(
+			v.number(),
+			v.minValue(1),
+			v.maxValue(MAX_TIMEOUT_SECONDS, `Maximum timeout is ${MAX_TIMEOUT_SECONDS} seconds`),
+		),
+		DEFAULT_TIMEOUT_SECONDS,
+	),
+	retries: v.optional(
+		v.pipe(v.number(), v.minValue(0), v.maxValue(MAX_RETRIES, `Maximum retries is ${MAX_RETRIES}`)),
+		DEFAULT_RETRIES,
+	),
 	alertAfterFailures: v.optional(v.pipe(v.number(), v.minValue(1)), DEFAULT_ALERT_AFTER_FAILURES),
 	channels: v.optional(v.array(channelLinkSchema), []),
 };

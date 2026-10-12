@@ -18,6 +18,8 @@ import {
 	RETRY_DELAY_MS,
 	USER_AGENT,
 	DEFAULT_RETRIES,
+	MAX_RETRIES,
+	MAX_TIMEOUT_SECONDS,
 } from "../../lib/constants/defaults";
 import type { Db } from "../../lib/server/db/index";
 import {
@@ -56,7 +58,7 @@ async function performHttpCheck(m: Monitor): Promise<CheckResult> {
 	}
 
 	const startTime = performance.now();
-	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
+	const timeoutSeconds = Math.min(m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
 
 	try {
 		const headers: Record<string, string> = {
@@ -129,7 +131,7 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 		return { status: "down", responseTimeMs: 0, errorMessage: "No hostname or port configured" };
 	}
 
-	const timeoutSeconds = m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS;
+	const timeoutSeconds = Math.min(m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
 	const startTime = performance.now();
 	const result = await probeTcp(m.hostname, m.port, timeoutSeconds * 1000);
 	const responseTimeMs = elapsedSince(startTime);
@@ -225,7 +227,7 @@ async function performCheck(m: Monitor, db: Db): Promise<CheckResult> {
 }
 
 async function performCheckWithRetries(m: Monitor, db: Db): Promise<CheckResult> {
-	const retries = m.retries ?? DEFAULT_RETRIES;
+	const retries = Math.min(m.retries ?? DEFAULT_RETRIES, MAX_RETRIES);
 	let lastResult: CheckResult | null = null;
 
 	for (let attempt = 0; attempt <= retries; attempt++) {

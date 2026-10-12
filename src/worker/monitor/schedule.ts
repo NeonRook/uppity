@@ -1,7 +1,12 @@
 import { and, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import { RETRY_DELAY_MS, SSL_INFO_TIMEOUT_MS } from "../../lib/constants/defaults";
+import {
+	MAX_RETRIES,
+	MAX_TIMEOUT_SECONDS,
+	RETRY_DELAY_MS,
+	SSL_INFO_TIMEOUT_MS,
+} from "../../lib/constants/defaults";
 import { CHECK_RETRY, WORKER_POLL_BATCH_SIZE } from "../../lib/constants/worker";
 import type { Db, DbExecutor } from "../../lib/server/db/index";
 import { monitor, notificationEvent, type Monitor } from "../../lib/server/db/schema";
@@ -20,7 +25,7 @@ function seconds(ms: number) {
  * SSL probe and the pause before the next, plus room for the writes. A check that
  * never records a result is retried when this runs out.
  */
-const LEASE_SECONDS = sql`(${monitor.timeoutSeconds} + ${seconds(SSL_INFO_TIMEOUT_MS + RETRY_DELAY_MS)}) * (${monitor.retries} + 1) + 30`;
+const LEASE_SECONDS = sql`(LEAST(${monitor.timeoutSeconds}, ${MAX_TIMEOUT_SECONDS}) + ${seconds(SSL_INFO_TIMEOUT_MS + RETRY_DELAY_MS)}) * (LEAST(${monitor.retries}, ${MAX_RETRIES}) + 1) + 30`;
 
 let deadLetterColumn = false;
 

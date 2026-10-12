@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Import auth tables for foreign key references
+import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../constants/defaults";
 import type { BillingInterval, CapacityNoticeKind } from "../../types/plans";
 import { user, organization, member, invitation } from "./auth-schema";
 
@@ -78,6 +79,14 @@ export const monitor = pgTable(
 	},
 	(table) => [
 		index("monitor_org_idx").on(table.organizationId),
+		check(
+			"monitor_timeout_bounds",
+			sql`${table.timeoutSeconds} BETWEEN 1 AND ${sql.raw(String(MAX_TIMEOUT_SECONDS))}`,
+		),
+		check(
+			"monitor_retries_bounds",
+			sql`${table.retries} BETWEEN 0 AND ${sql.raw(String(MAX_RETRIES))}`,
+		),
 		// Partial index for worker polling queries (only active monitors)
 		index("idx_monitor_due_checks")
 			.on(table.nextCheckAt)
