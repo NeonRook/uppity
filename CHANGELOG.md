@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.6.0
+
+### Minor Changes
+
+- [#141](https://github.com/NeonRook/uppity/pull/141) [`c81210f`](https://github.com/NeonRook/uppity/commit/c81210f0629f3ea1463408dd22f377be6ac11ddc) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Organizations above their monitor limit now get 14 days before anything changes. Owners and admins are emailed when the organization goes over, with 7 days left, and with 1 day left, and the app shows a banner with the date. If the organization is still over its limit after that, Uppity pauses its newest monitors until it is back within the limit. Nothing is deleted. Paused monitors resume when you add capacity, or you can resume them yourself once there is room.
+
+  Self-hosted instances have no monitor limit and are unaffected.
+
+- [#141](https://github.com/NeonRook/uppity/pull/141) [`70b3ff2`](https://github.com/NeonRook/uppity/commit/70b3ff2b18a57b0fe3c2af33ed4536ab44897cf1) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Paused monitors no longer count toward your monitor limit. Pause monitors you don't need running to make room, without adding capacity. Resuming a monitor needs a free slot, the same as creating one.
+
+- [#146](https://github.com/NeonRook/uppity/pull/146) [`995593e`](https://github.com/NeonRook/uppity/commit/995593e25b29ed86ed1dcea439871b3ad7c69930) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Read your monitors, their check history, and your incidents over a REST API. Create keys under Settings → API keys; owners and admins manage them, and every plan can read. Each key can make 60 requests on Free or 600 on paid plans before it has to pause, and the count resets once the key has gone a full minute without an accepted request. The reference is at `/api/openapi.json`.
+
+  Self-hosted operators set the per-key figure with `UPPITY_API_REQUESTS_PER_MINUTE` (default 600). Upgrading adds one database table for API keys.
+
+- [#149](https://github.com/NeonRook/uppity/pull/149) [`058a5c8`](https://github.com/NeonRook/uppity/commit/058a5c8e1b3a91a643f8efa4083ad4611bce7d63) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Read your status pages over the API, including private ones, with each component's current status. Every public status page also has a summary endpoint that needs no key and can be called from any website, so you can show your status inside your own app or build a custom status page. A private page's summary returns not found.
+
+- [`cd5d228`](https://github.com/NeonRook/uppity/commit/cd5d22810ae1a3cdcaa76b28f463d276c84777c0) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Visitors can subscribe to a public status page by email, and get an email whenever an incident shown on it starts, changes, or is resolved. They confirm through a link that works for 48 hours, and every email they receive lets them unsubscribe. Addresses that are never confirmed are deleted.
+
+  Each status page sends a limited number of confirmation emails a day, so nobody can use the form to flood strangers' inboxes. The limit is 50, or a quarter of the page's confirmed subscribers when that is more, up to 300. Self-hosted operators can change these with `UPPITY_SUBSCRIBER_CONFIRMATIONS_BASE`, `UPPITY_SUBSCRIBER_CONFIRMATIONS_PERCENT` and `UPPITY_SUBSCRIBER_CONFIRMATIONS_MAX`.
+
+### Patch Changes
+
+- [#140](https://github.com/NeonRook/uppity/pull/140) [`91b4846`](https://github.com/NeonRook/uppity/commit/91b48462f519e6b1d2638087809568d303c22b31) Thanks [@lucasvienna](https://github.com/lucasvienna)! - When Uppity stops running checks altogether, monitors now show "Not checked" in the app and on public status pages within five minutes, instead of their last status. Before, a stopped checker left every status page showing the last result as current.
+
+  Self-hosted operators: the notification worker logs `monitor_checks_overdue` every five minutes while any monitor goes unchecked. Point a log alert at it.
+
+- [#137](https://github.com/NeonRook/uppity/pull/137) [`62a2aa3`](https://github.com/NeonRook/uppity/commit/62a2aa3481f006c68739fe197e4dd7372ce72345) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Sign-in, sign-up and password reset rate limits now apply per client behind a reverse proxy. Before, every visitor shared one limit, so a single person could lock everyone out. The audit log now records the visitor's address instead of the proxy's.
+
+  Self-hosted behind a proxy? Set `CLIENT_IP_HEADER` to the header your proxy overwrites with the client address, such as `x-real-ip`. Only set it if the proxy replaces the header on every request; otherwise visitors can choose their own address.
+
+- [#148](https://github.com/NeonRook/uppity/pull/148) [`3994920`](https://github.com/NeonRook/uppity/commit/3994920d6c46617b1c95d0005f0f4dea1da74d00) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The homepage no longer lists paid plans or hosted prices. It offers the free hosted plan and self-hosting.
+
+- [#156](https://github.com/NeonRook/uppity/pull/156) [`40bb8d2`](https://github.com/NeonRook/uppity/commit/40bb8d223bc6ac970da6ade84c10e1a1f16edd5c) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Deleting a monitor, incident, notification channel or status page from its list removes it right away. So does pausing or resuming a monitor or channel from the list. These actions had stopped updating the list: most pages showed a loading error until reload, and the incidents list kept showing the deleted incident.
+
+  When one of these actions, or removing a team member, cancelling an invitation or deleting an organization, is refused, the message now says why instead of a generic error. If a page fails to load, it offers a retry and the rest of the app stays usable.
+
+- [#139](https://github.com/NeonRook/uppity/pull/139) [`25cc3d7`](https://github.com/NeonRook/uppity/commit/25cc3d7faa90a127b9ab1333d94be139a32e7c26) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A background task that fails now retries within 15 minutes instead of on every pass, and a failed usage report to billing is logged as a failure rather than a success.
+
+- [#150](https://github.com/NeonRook/uppity/pull/150) [`35be24c`](https://github.com/NeonRook/uppity/commit/35be24c1ffb29fd2ad2f44b737e14d25a6ddb415) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The monitoring worker no longer shuts down for good when it starts while an upgrade's database migration is still running. It keeps checking monitors and finishes its startup once the migration lands, so an upgrade no longer needs a manual restart of the worker to resume monitoring.
+
+- [#147](https://github.com/NeonRook/uppity/pull/147) [`d31e831`](https://github.com/NeonRook/uppity/commit/d31e83195b932a19ced1256c58d3ee93a5829ad3) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Upgrading to a paid plan is paused on the hosted service. Every organization stays on the free plan, and the billing page says paid plans are coming. Existing subscribers can still manage their subscription and capacity.
+
+- [`84c8332`](https://github.com/NeonRook/uppity/commit/84c83329879795e7b0192e17b52cf2dffbe8f347) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Self-hosted operators can send status page subscriber mail through a separate SMTP account with `SUBSCRIBER_SMTP_HOST`, `SUBSCRIBER_SMTP_PORT`, `SUBSCRIBER_SMTP_USER`, `SUBSCRIBER_SMTP_PASSWORD` and `SUBSCRIBER_SMTP_FROM`. Anyone can enter a subscriber address, so bounces from those addresses can get a sending account suspended. A separate account keeps that from stopping your alerts. Leave these unset and subscriber mail goes through your existing SMTP settings, so you don't need to change anything when you upgrade.
+
+- [#151](https://github.com/NeonRook/uppity/pull/151) [`1fcffd5`](https://github.com/NeonRook/uppity/commit/1fcffd5456f3110379505290e8a4c3bbf76e5d94) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Self-hosted instances whose PostgreSQL server runs in a timezone other than UTC recorded some times shifted by that offset. Incident update times and audit log entries showed the wrong time, checks during maintenance could count against uptime, and a new push monitor could report a missing heartbeat hours early or late. Separately, when the app itself ran outside UTC, the oldest day of a status page's uptime history could count only part of that day. Neither timezone matters any more. Times recorded before the upgrade keep their offset.
+
+  The upgrade migration locks the check history while it rebuilds its indexes, about one second per million stored checks. Checks wait for it to finish.
+
 ## 0.5.0
 
 ### Minor Changes
