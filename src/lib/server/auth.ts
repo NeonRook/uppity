@@ -505,6 +505,9 @@ export const auth = betterAuth({
 			allowUserToCreateOrganization: true,
 			organizationLimit: ORGANIZATION_LIMIT_PER_USER,
 			creatorRole: ORGANIZATION_CREATOR_ROLE,
+			// Anyone can sign up with an invitee's address, so only a verified one may answer
+			// the invitation. better-auth skips this check when invitation ids are random.
+			requireEmailVerificationOnInvitation: true,
 			ac,
 			roles: organizationRoles,
 			// better-auth checks this during acceptInvitation against the accepted
