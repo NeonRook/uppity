@@ -1,16 +1,22 @@
+import { lookup } from "node:dns/promises";
 import { readFileSync } from "node:fs";
 import net from "node:net";
 import { dirname, join } from "node:path";
 import tls from "node:tls";
 import { fileURLToPath } from "node:url";
 
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { probeTcp, probeTls } from "./tcp";
+import { dial, failureMessage, probeTcp, type Phase } from "./tcp";
+
+vi.mock("node:dns/promises", async (importOriginal) => {
+	const real = await importOriginal<typeof import("node:dns/promises")>();
+	return { ...real, lookup: vi.fn(real.lookup) };
+});
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "test/fixtures");
-const key = readFileSync(join(fixtures, "self-signed-key.pem"));
-const cert = readFileSync(join(fixtures, "self-signed-cert.pem"));
+const fixture = (name: string) => readFileSync(join(fixtures, name));
+const key = fixture("self-signed-key.pem");
 
 const servers: Array<net.Server | tls.Server> = [];
 const accepted: net.Socket[] = [];
@@ -38,7 +44,31 @@ function closedPort(): Promise<number> {
 	});
 }
 
+/** Dials TLS to a local server presenting `certFile`, returning the failure message if any. */
+async function dialTls(certFile: string, acceptSelfSigned: boolean) {
+	const port = await listen(tls.createServer({ key, cert: fixture(certFile) }));
+	const signal = AbortSignal.timeout(2000);
+	let phase: Phase = "dns";
+	try {
+		const dialed = await dial({
+			host: "localhost",
+			port,
+			tls: { acceptSelfSigned },
+			signal,
+			onPhase: (p) => (phase = p),
+		});
+		dialed.socket.destroy();
+		return { dialed };
+	} catch (error) {
+		return { error: failureMessage(error, signal, phase, 2) };
+	}
+}
+
+beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
+
 afterEach(async () => {
+	vi.unstubAllEnvs();
+	vi.mocked(lookup).mockClear();
 	// close() alone waits for accepted sockets to end, so drop them first.
 	for (const socket of accepted.splice(0)) socket.destroy();
 	await Promise.all(
@@ -58,57 +88,119 @@ describe("probeTcp", () => {
 		await expect(probeTcp("127.0.0.1", port, 2000)).resolves.toEqual({ ok: true });
 	});
 
-	test("reports the connection error against a closed port", async () => {
-		const result = await probeTcp("127.0.0.1", await closedPort(), 2000);
+	test("names a refused connection", async () => {
+		const port = await closedPort();
 
-		expect(result).toMatchObject({ ok: false, timedOut: false });
-		expect(result).toHaveProperty("error", expect.stringContaining("ECONNREFUSED"));
+		await expect(probeTcp("127.0.0.1", port, 2000)).resolves.toEqual({
+			ok: false,
+			error: `Connection refused by 127.0.0.1:${port}`,
+		});
+	});
+
+	test("names a host that does not exist", async () => {
+		const result = await probeTcp("does-not-exist.invalid", 80, 2000);
+
+		expect(result).toEqual({
+			ok: false,
+			error: "DNS lookup failed: does-not-exist.invalid does not exist",
+		});
 	});
 });
 
-describe("probeTls", () => {
-	test("returns the peer certificate", async () => {
-		const port = await listen(tls.createServer({ key, cert }));
+describe("private addresses", () => {
+	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", ""));
 
-		const result = await probeTls("localhost", port, 2000);
+	test("refuses a private IP before connecting", async () => {
+		let connections = 0;
+		const port = await listen(net.createServer(() => connections++));
 
-		expect(result).toMatchObject({ ok: true });
-		if (!result.ok) throw new Error("unreachable");
-		expect(result.cert?.issuer?.O).toBe("Uppity Test CA");
-		expect(Date.parse(result.cert!.valid_to)).toBeGreaterThan(Date.now());
-	});
-
-	test("accepts a self-signed certificate rather than refusing to look at it", async () => {
-		const port = await listen(tls.createServer({ key, cert }));
-
-		// A validating client refuses this chain, which is the behaviour that would
-		// make expiry reporting impossible.
-		const validating = await new Promise<string>((resolve) => {
-			const socket = tls.connect({ host: "localhost", port, servername: "localhost" });
-			socket.once("error", (err: Error) => {
-				socket.destroy();
-				resolve(err.message);
-			});
-			socket.once("secureConnect", () => {
-				socket.destroy();
-				resolve("connected");
-			});
+		await expect(probeTcp("127.0.0.1", port, 2000)).resolves.toEqual({
+			ok: false,
+			error: "Blocked: 127.0.0.1 is a private address",
 		});
-
-		expect(validating).not.toBe("connected");
-		await expect(probeTls("localhost", port, 2000)).resolves.toMatchObject({ ok: true });
+		expect(connections).toBe(0);
 	});
 
-	// Covers the shared deadline in runProbe. A plain TCP server completes the
-	// connection and then never negotiates TLS, so secureConnect cannot fire and
-	// only the timer can settle the probe.
-	test("times out when the handshake never completes", async () => {
+	test("refuses a host name when any address it resolves to is private", async () => {
+		vi.mocked(lookup).mockResolvedValueOnce([
+			{ address: "198.51.100.7", family: 4 },
+			{ address: "::ffff:10.0.0.1", family: 6 },
+		] as never);
+
+		await expect(probeTcp("mixed.example", 80, 2000)).resolves.toEqual({
+			ok: false,
+			error: "Blocked: mixed.example resolves to private address ::ffff:10.0.0.1",
+		});
+	});
+
+	test("connects only to the addresses it checked, so a second answer is never used", async () => {
+		let connections = 0;
+		const port = await listen(net.createServer(() => connections++));
+		// A rebinding resolver: public on the first query, loopback on every later one.
+		vi.mocked(lookup)
+			.mockResolvedValueOnce([{ address: "198.51.100.7", family: 4 }] as never)
+			.mockResolvedValue([{ address: "127.0.0.1", family: 4 }] as never);
+
+		const result = await probeTcp("rebind.example", port, 300);
+
+		expect(result.ok).toBe(false);
+		expect(lookup).toHaveBeenCalledTimes(1);
+		expect(connections).toBe(0);
+	});
+});
+
+describe("dial over TLS", () => {
+	test("reads the certificate and times each phase", async () => {
+		const { dialed } = await dialTls("self-signed-cert.pem", true);
+
+		expect(dialed?.cert?.issuer).toBe("Uppity Test CA");
+		expect(dialed?.cert?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+		expect(dialed?.dnsMs).toBeGreaterThanOrEqual(0);
+		expect(dialed?.connectMs).toBeGreaterThanOrEqual(0);
+		expect(dialed?.tlsMs).toBeGreaterThan(0);
+	});
+
+	test("refuses a self-signed certificate unless the monitor accepts one", async () => {
+		await expect(dialTls("self-signed-cert.pem", false)).resolves.toEqual({
+			error: "TLS certificate is self-signed and not trusted",
+		});
+	});
+
+	test("still refuses an accepted self-signed certificate that has expired", async () => {
+		await expect(dialTls("expired-cert.pem", true)).resolves.toEqual({
+			error: "TLS certificate has expired",
+		});
+	});
+
+	test("still refuses an accepted self-signed certificate for another host", async () => {
+		await expect(dialTls("other-host-cert.pem", true)).resolves.toEqual({
+			error: "TLS certificate is not valid for localhost",
+		});
+	});
+
+	test("does not take a certificate from an unknown issuer as self-signed", async () => {
+		await expect(dialTls("untrusted-ca-cert.pem", true)).resolves.toEqual({
+			error: "TLS certificate is not trusted: its issuer is unknown",
+		});
+	});
+
+	// A plain TCP server completes the connection and then never negotiates TLS,
+	// so only the deadline can settle the dial.
+	test("names the handshake as the phase a timeout cut short", async () => {
 		const port = await listen(net.createServer());
+		const signal = AbortSignal.timeout(150);
+		let phase: Phase = "dns";
 
-		const started = Date.now();
-		const result = await probeTls("localhost", port, 150);
+		const error = await dial({
+			host: "127.0.0.1",
+			port,
+			tls: { acceptSelfSigned: false },
+			signal,
+			onPhase: (p) => (phase = p),
+		}).catch((e: unknown) => e);
 
-		expect(result).toEqual({ ok: false, error: "Connection timed out", timedOut: true });
-		expect(Date.now() - started).toBeLessThan(2000);
+		expect(failureMessage(error, signal, phase, 0.15)).toBe(
+			"Timed out after 0.15s in the TLS handshake",
+		);
 	});
 });

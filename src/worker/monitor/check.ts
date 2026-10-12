@@ -9,14 +9,9 @@ import {
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 	DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS,
 	SSL_WARNING_COOLDOWN_HOURS,
-	DEFAULT_HTTP_METHOD,
-	DEFAULT_EXPECTED_STATUS_CODES,
-	DEFAULT_HTTPS_PORT,
 	DEFAULT_INCIDENT_STATUS,
 	DEGRADED_RESPONSE_TIME_MS,
-	SSL_INFO_TIMEOUT_MS,
 	RETRY_DELAY_MS,
-	USER_AGENT,
 	DEFAULT_RETRIES,
 } from "../../lib/constants/defaults";
 import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../lib/constants/monitor";
@@ -37,92 +32,22 @@ import type {
 } from "../../lib/server/notifications/events";
 import type { NotificationType } from "../../lib/server/notifications/types";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
-import { probeTcp, probeTls } from "../../lib/server/tcp";
+import { probeTcp } from "../../lib/server/tcp";
+import { performHttpCheck } from "./http";
 
-interface CheckResult {
+/** One check's outcome, as it is stored in monitor_check. */
+export interface CheckResult {
 	status: "up" | "down" | "degraded";
 	statusCode?: number;
 	responseTimeMs: number;
 	errorMessage?: string;
+	dnsMs?: number;
+	connectMs?: number;
+	tlsMs?: number;
+	firstByteMs?: number;
+	redirectCount?: number;
 	sslExpiresAt?: Date;
 	sslIssuer?: string;
-}
-
-/** Milliseconds since `start`, from the monotonic clock, rounded once for storage. */
-const elapsedSince = (start: number) => Math.round(performance.now() - start);
-
-async function performHttpCheck(m: Monitor): Promise<CheckResult> {
-	if (!m.url) {
-		return { status: "down", responseTimeMs: 0, errorMessage: "No URL configured" };
-	}
-
-	const startTime = performance.now();
-	const timeoutSeconds = Math.min(m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
-
-	try {
-		const headers: Record<string, string> = {
-			"User-Agent": USER_AGENT,
-			...m.headers,
-			// A pooled socket skips DNS, connect and TLS, and would time a visit no new visitor makes.
-			Connection: "close",
-		};
-
-		const response = await fetch(m.url, {
-			method: m.method || DEFAULT_HTTP_METHOD,
-			headers,
-			body: m.method !== "GET" && m.method !== "HEAD" ? m.body : undefined,
-			signal: AbortSignal.timeout(timeoutSeconds * 1000),
-		});
-
-		// Response time ends at the headers; reading the body below does not count.
-		const responseTimeMs = elapsedSince(startTime);
-
-		const expectedCodes = m.expectedStatusCodes || [...DEFAULT_EXPECTED_STATUS_CODES];
-		const statusOk = expectedCodes.includes(response.status);
-
-		let bodyOk = true;
-		if (m.expectedBodyContains && statusOk) {
-			const body = await response.text();
-			bodyOk = body.includes(m.expectedBodyContains);
-		} else {
-			// An unread body holds its socket open until garbage collection.
-			await response.body?.cancel();
-		}
-
-		let sslInfo: { sslExpiresAt?: Date; sslIssuer?: string } = {};
-		if (m.sslCheckEnabled && m.url.startsWith("https://")) {
-			sslInfo = await getSslInfo(m.url);
-		}
-
-		let status: "up" | "down" | "degraded" = "down";
-		if (statusOk && bodyOk) {
-			status = responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up";
-		}
-
-		let errorMessage: string | undefined;
-		if (statusOk) {
-			if (!bodyOk) {
-				errorMessage = "Expected body content not found";
-			}
-		} else {
-			errorMessage = `Unexpected status code: ${response.status}`;
-		}
-
-		return { status, statusCode: response.status, responseTimeMs, errorMessage, ...sslInfo };
-	} catch (error) {
-		const responseTimeMs = elapsedSince(startTime);
-
-		let errorMessage = "Unknown error";
-		if (error instanceof Error) {
-			if (error.name === "TimeoutError") {
-				errorMessage = `Request timeout after ${timeoutSeconds}s`;
-			} else {
-				errorMessage = error.message;
-			}
-		}
-
-		return { status: "down", responseTimeMs, errorMessage };
-	}
 }
 
 async function performTcpCheck(m: Monitor): Promise<CheckResult> {
@@ -133,48 +58,14 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 	const timeoutSeconds = Math.min(m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
 	const startTime = performance.now();
 	const result = await probeTcp(m.hostname, m.port, timeoutSeconds * 1000);
-	const responseTimeMs = elapsedSince(startTime);
+	const responseTimeMs = Math.round(performance.now() - startTime);
 
-	if (!result.ok) {
-		return {
-			status: "down",
-			responseTimeMs,
-			errorMessage: result.timedOut ? `Connection timeout after ${timeoutSeconds}s` : result.error,
-		};
-	}
+	if (!result.ok) return { status: "down", responseTimeMs, errorMessage: result.error };
 
 	return {
 		status: responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up",
 		responseTimeMs,
 	};
-}
-
-async function getSslInfo(url: string): Promise<{ sslExpiresAt?: Date; sslIssuer?: string }> {
-	let target: { hostname: string; port: number };
-	try {
-		const parsed = new URL(url);
-		target = {
-			hostname: parsed.hostname,
-			port: parsed.port ? parseInt(parsed.port, 10) : DEFAULT_HTTPS_PORT,
-		};
-	} catch {
-		return {};
-	}
-
-	const result = await probeTls(target.hostname, target.port, SSL_INFO_TIMEOUT_MS);
-	if (!result.ok || !result.cert?.valid_to) {
-		return {};
-	}
-
-	return {
-		sslExpiresAt: new Date(result.cert.valid_to),
-		sslIssuer: firstValue(result.cert.issuer?.O) || firstValue(result.cert.issuer?.CN),
-	};
-}
-
-/** A distinguished-name field repeated in the certificate arrives as an array. */
-function firstValue(field: string | string[] | undefined): string | undefined {
-	return Array.isArray(field) ? field[0] : field;
 }
 
 async function performPushCheck(m: Monitor, db: Db): Promise<CheckResult> {
@@ -256,12 +147,7 @@ export async function saveCheckResult(
 	await db.insert(monitorCheck).values({
 		id: checkId,
 		monitorId: m.id,
-		status: result.status,
-		statusCode: result.statusCode,
-		responseTimeMs: result.responseTimeMs,
-		errorMessage: result.errorMessage,
-		sslExpiresAt: result.sslExpiresAt,
-		sslIssuer: result.sslIssuer,
+		...result,
 		checkedAt: new Date(),
 	});
 
