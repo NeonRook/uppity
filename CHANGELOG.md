@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.0
+
+### Minor Changes
+
+- [`8498189`](https://github.com/NeonRook/uppity/commit/84981897f89656f92be005ed54cff3a51c618e16) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Email alert channels now ask the recipient before sending alerts. An address that isn't a verified member of your organization gets a confirmation link and receives no alerts until it is confirmed. The channel list shows which addresses are still unconfirmed and can resend the link. Every alert email now has an unsubscribe link. When an address unsubscribes, your organization's owners and admins get an email, and you can ask that address to confirm once more.
+
+  Confirmation emails, including those for status page subscriptions, no longer contain the organization or status page name. The confirmation page shows it instead.
+
+  Existing email channels keep receiving alerts with no action needed. Self-hosted: confirmation emails go through the subscriber mail server when one is configured, and `UPPITY_CHANNEL_PENDING_CONFIRMATIONS` (default 5) sets how many addresses one organization may leave unconfirmed within a week.
+
+- [#162](https://github.com/NeonRook/uppity/pull/162) [`0033fb0`](https://github.com/NeonRook/uppity/commit/0033fb0b020d3b92b7836ff6a2867173337d29b6) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Monitor pages now chart daily response time, average and 95th percentile, over the last 30, 60 or 90 days. Days with degraded or failed checks are shaded. The longer ranges appear only on plans that keep check history that long.
+
+  HTTP checks now open a new connection every time, as a first-time visitor would, so response times can read somewhat higher than before the upgrade.
+
+  Self-hosted: the upgrade migration fills in the 95th percentile and degraded counts for past days from the check history you still keep, which reads that history once. Days older than that show no 95th percentile and no degraded shading.
+
+- [`99ca3cd`](https://github.com/NeonRook/uppity/commit/99ca3cd051e2d4ae16e8aae5369bdb81c17e8980) Thanks [@lucasvienna](https://github.com/lucasvienna)! - New accounts get a link to verify their email address, and a banner reminds you until it's verified. Once verified, adding your own address as an email channel works straight away, with no confirmation email. Until then, email channels can only send to your own address.
+
+  Accepting a team invitation now needs a verified email address, and resetting your password signs out every other session.
+
+  Existing accounts see the banner on their next visit and keep everything they have. Self-hosted instances without SMTP show no banner, and their accounts can't accept invitations until an admin configures SMTP.
+
+### Patch Changes
+
+- [#162](https://github.com/NeonRook/uppity/pull/162) [`0262e97`](https://github.com/NeonRook/uppity/commit/0262e97460298c90967240ed2a4fbc2df1602f08) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A slow or unreachable endpoint no longer delays checks on other monitors. Each check now frees its slot the moment it finishes, so a check that waits out its full timeout holds back only itself, not the rest of the batch.
+
+  Self-hosted: `UPPITY_WORKER_BATCH_SIZE` now sets how many checks one monitor worker runs at once. The default stays at 10.
+
+- [#161](https://github.com/NeonRook/uppity/pull/161) [`cda8037`](https://github.com/NeonRook/uppity/commit/cda80379652e1116e45529462036b4e397c86cfb) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Links in alert emails and status page subscriber emails work again on uppity.cloud. They pointed at localhost, so their unsubscribe and incident links went nowhere.
+
 ## 0.6.0
 
 ### Minor Changes
