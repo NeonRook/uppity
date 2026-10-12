@@ -18,9 +18,8 @@ import {
 	RETRY_DELAY_MS,
 	USER_AGENT,
 	DEFAULT_RETRIES,
-	MAX_RETRIES,
-	MAX_TIMEOUT_SECONDS,
 } from "../../lib/constants/defaults";
+import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../lib/constants/monitor";
 import type { Db } from "../../lib/server/db/index";
 import {
 	monitorCheck,

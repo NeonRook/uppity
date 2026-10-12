@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Import auth tables for foreign key references
-import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../constants/defaults";
+import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "../../constants/monitor";
 import type { BillingInterval, CapacityNoticeKind } from "../../types/plans";
 import { user, organization, member, invitation } from "./auth-schema";
 

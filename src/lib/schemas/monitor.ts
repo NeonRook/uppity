@@ -6,11 +6,9 @@ import {
 	DEFAULT_ALERT_AFTER_FAILURES,
 	DEFAULT_PUSH_GRACE_PERIOD_SECONDS,
 	DEFAULT_HTTP_METHOD,
-	MAX_RETRIES,
-	MAX_TIMEOUT_SECONDS,
 	MONITOR_INTERVAL,
 } from "#lib/constants/defaults.js";
-import { HTTP_METHODS } from "#lib/constants/monitor.js";
+import { HTTP_METHODS, MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/monitor.js";
 
 const channelLinkSchema = v.object({
 	channelId: v.string(),

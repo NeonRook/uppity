@@ -12,8 +12,13 @@
 	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { Textarea } from "#lib/components/ui/textarea/index.js";
-	import { MAX_RETRIES, MAX_TIMEOUT_SECONDS } from "#lib/constants/defaults.js";
-	import { HTTP_METHODS, CHECK_INTERVALS, getIntervalLabel } from "#lib/constants/monitor.js";
+	import {
+		HTTP_METHODS,
+		CHECK_INTERVALS,
+		MAX_RETRIES,
+		MAX_TIMEOUT_SECONDS,
+		getIntervalLabel,
+	} from "#lib/constants/monitor.js";
 	import type { ChannelOption } from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import type { createMonitorSchema } from "#lib/schemas/monitor.js";
