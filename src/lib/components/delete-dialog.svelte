@@ -4,6 +4,7 @@
 	import * as AlertDialog from "#lib/components/ui/alert-dialog/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 
 	interface Props {
 		/** Explicit open state (use this for detail pages) */
@@ -66,7 +67,7 @@
 			await onDelete(id);
 			onOpenChange(false);
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Delete failed");
+			toast.error(errorMessage(e, "Delete failed"));
 		} finally {
 			deleting = false;
 		}

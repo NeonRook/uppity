@@ -18,6 +18,8 @@
 	"common_search": "Search",
 	"common_loading": "Loading...",
 	"common_error": "Error",
+	"common_load_failed": "Couldn't load this page.",
+	"common_retry": "Try again",
 	"common_success": "Success",
 	"common_you": "(You)",
 	"common_disabled": "Disabled",

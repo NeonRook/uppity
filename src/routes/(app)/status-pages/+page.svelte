@@ -12,10 +12,8 @@
 	import { getStatusPageUrl } from "#lib/status-page.js";
 
 	let { data } = $props();
-	const statusPagesQuery = getStatusPages();
 
-	// Prefer query data (after refresh/mutation), fallback to preloaded data
-	const statusPages = $derived(statusPagesQuery.current ?? data.statusPages);
+	const statusPages = $derived(await getStatusPages());
 
 	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
@@ -60,15 +58,7 @@
 		</div>
 	</div>
 
-	{#if statusPagesQuery.error}
-		<Card.Root>
-			<Card.Content class="p-6">
-				<p class="text-destructive">
-					Failed to load status pages: {statusPagesQuery.error.message}
-				</p>
-			</Card.Content>
-		</Card.Root>
-	{:else if statusPages.length === 0}
+	{#if statusPages.length === 0}
 		<EmptyState
 			icon={Globe}
 			title={m.status_pages_empty_title()}
@@ -129,7 +119,12 @@
 									<Pencil class="h-4 w-4" />
 								</Button>
 
-								<Button variant="ghost" size="icon" onclick={() => (deletePageId = page.id)}>
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label={m.common_delete()}
+									onclick={() => (deletePageId = page.id)}
+								>
 									<Trash2 class="h-4 w-4" />
 								</Button>
 							</div>

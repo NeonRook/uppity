@@ -35,6 +35,7 @@
 		deleteOrganization,
 	} from "#lib/remote/settings.remote.js";
 	import { getRoleBadge } from "#lib/roles.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 
 	let { data, form } = $props();
 
@@ -56,7 +57,7 @@
 			await cancelInvitation({ invitationId });
 			await refreshAll();
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to cancel invitation");
+			toast.error(errorMessage(e, "Failed to cancel invitation"));
 		} finally {
 			cancellingInvitationId = null;
 		}
@@ -76,7 +77,7 @@
 			toast.success("Organization deleted successfully");
 			goto(resolve("settings"));
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : "Failed to delete organization");
+			toast.error(errorMessage(e, "Failed to delete organization"));
 		} finally {
 			deletingOrg = false;
 		}

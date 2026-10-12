@@ -1,4 +1,5 @@
-import { command, query } from "$app/server";
+import { command, query, requested } from "$app/server";
+import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
 import { getActiveOrganizationId, requireOrganizationId } from "#lib/remote/organization.js";
@@ -25,8 +26,10 @@ export const deleteIncident = command(incidentIdSchema, async ({ incidentId }) =
 	const deleted = await incidentService.delete(incidentId, organizationId);
 
 	if (!deleted) {
-		throw new Error("Incident not found");
+		error(404, "Incident not found");
 	}
+
+	await requested(getIncidents, 1).refreshAll();
 
 	return { success: true };
 });

@@ -18,6 +18,8 @@
 	"common_search": "Buscar",
 	"common_loading": "Carregando...",
 	"common_error": "Erro",
+	"common_load_failed": "Não foi possível carregar esta página.",
+	"common_retry": "Tentar novamente",
 	"common_success": "Sucesso",
 	"common_you": "(Você)",
 	"common_disabled": "Desativado",

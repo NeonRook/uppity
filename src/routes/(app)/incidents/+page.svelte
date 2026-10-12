@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from "$app/state";
 	import { Plus, Trash2, TriangleAlert } from "@lucide/svelte";
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
@@ -11,15 +12,15 @@
 	import { m } from "#lib/paraglide/messages.js";
 	import { deleteIncident, getIncidents } from "#lib/remote/incidents.remote.js";
 
-	let { data } = $props();
+	const includeResolved = $derived(page.url.searchParams.get("resolved") === "true");
+	const incidentsQuery = $derived(getIncidents({ includeResolved }));
+	const incidents = $derived(await incidentsQuery);
 
 	let deleteIncidentId = $state<string | null>(null);
 
 	async function handleDelete(incidentId: string) {
 		await deleteIncident({ incidentId }).updates(
-			getIncidents({ includeResolved: data.includeResolved }).withOverride((incidents) =>
-				incidents.filter((inc) => inc.id !== incidentId),
-			),
+			incidentsQuery.withOverride((prev) => prev.filter((inc) => inc.id !== incidentId)),
 		);
 	}
 </script>
@@ -35,11 +36,8 @@
 			<p class="text-muted-foreground">{m.incidents_subtitle()}</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<Button
-				variant="outline"
-				href={data.includeResolved ? "/incidents" : "/incidents?resolved=true"}
-			>
-				{data.includeResolved ? m.incidents_hide_resolved() : m.incidents_show_resolved()}
+			<Button variant="outline" href={includeResolved ? "/incidents" : "/incidents?resolved=true"}>
+				{includeResolved ? m.incidents_hide_resolved() : m.incidents_show_resolved()}
 			</Button>
 			<Button href="/incidents/new">
 				<Plus class="mr-2 h-4 w-4" />
@@ -48,17 +46,17 @@
 		</div>
 	</div>
 
-	{#if data.incidents.length === 0}
+	{#if incidents.length === 0}
 		<EmptyState
 			icon={TriangleAlert}
 			title={m.incidents_empty_title()}
-			description={data.includeResolved
+			description={includeResolved
 				? m.incidents_empty_no_reports()
 				: m.incidents_empty_all_operational()}
 		/>
 	{:else}
 		<div class="space-y-4">
-			{#each data.incidents as inc (inc.id)}
+			{#each incidents as inc (inc.id)}
 				{@const statusInfo = getStatusInfo(inc.status)}
 				{@const impactInfo = getImpactInfo(inc.impact)}
 				{@const StatusIcon = statusInfo.icon}
@@ -97,7 +95,12 @@
 								<Button variant="outline" size="sm" href="/incidents/{inc.id}"
 									>{m.incidents_view_details()}</Button
 								>
-								<Button variant="ghost" size="icon" onclick={() => (deleteIncidentId = inc.id)}>
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label={m.common_delete()}
+									onclick={() => (deleteIncidentId = inc.id)}
+								>
 									<Trash2 class="h-4 w-4" />
 								</Button>
 							</div>

@@ -42,38 +42,13 @@
 	let cancelDialogOpen = $state(false);
 	let deleteDialogOpen = $state(false);
 
-	/**
-	 * DeleteDialog toasts `e.message`, but only when the rejection is an `Error`
-	 * instance — otherwise it falls back to a hardcoded English "Delete failed".
-	 * Remote-function rejections are not guaranteed to arrive as `Error`, so the
-	 * translated message is re-wrapped here rather than left to that check.
-	 */
-	function toError(err: unknown): Error {
-		if (err instanceof Error) return err;
-		// Not `message`: that name is the superforms store in the enclosing scope, and
-		// shadowing it here would read as the form's message while holding a string.
-		const text =
-			typeof err === "object" && err !== null && "message" in err
-				? String((err as { message: unknown }).message)
-				: m.maintenance_error_unexpected();
-		return new Error(text);
-	}
-
 	async function handleCancel(id: string) {
-		try {
-			await cancelMaintenanceWindow({ windowId: id });
-		} catch (err) {
-			throw toError(err);
-		}
+		await cancelMaintenanceWindow({ windowId: id });
 		await goto(resolve("maintenance"));
 	}
 
 	async function handleDelete(id: string) {
-		try {
-			await deleteMaintenanceWindow({ windowId: id });
-		} catch (err) {
-			throw toError(err);
-		}
+		await deleteMaintenanceWindow({ windowId: id });
 		await goto(resolve("maintenance"));
 	}
 

@@ -62,8 +62,10 @@ export const toggleMonitor = command(monitorIdSchema, async ({ monitorId }) => {
 	}
 
 	if (!updated) {
-		throw new Error("Monitor not found");
+		error(404, "Monitor not found");
 	}
+
+	void getMonitors().refresh();
 
 	return { success: true, active: updated.active };
 });
@@ -74,8 +76,10 @@ export const deleteMonitor = command(monitorIdSchema, async ({ monitorId }) => {
 	const deleted = await monitorService.delete(monitorId, organizationId);
 
 	if (!deleted) {
-		throw new Error("Monitor not found");
+		error(404, "Monitor not found");
 	}
+
+	void getMonitors().refresh();
 
 	return { success: true };
 });

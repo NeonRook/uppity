@@ -10,7 +10,6 @@
 		RefreshCw,
 		Trash2,
 	} from "@lucide/svelte";
-	import { isHttpError } from "@sveltejs/kit";
 	import { toast } from "svelte-sonner";
 
 	import AddButton from "#lib/components/add-button.svelte";
@@ -24,12 +23,12 @@
 	import { formatResponseTime, formatUptime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getMonitors, toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
+	import { errorMessage } from "#lib/utils/error-message.js";
 	import { getStatusBadge, getStatusColor, uncheckedSummary } from "#lib/utils/status.js";
 
 	type MonitorWithStatus = Awaited<ReturnType<typeof getMonitors>>[number];
 
 	let { data } = $props();
-	const monitorsQuery = getMonitors();
 
 	// Usage limits from parent layout (self-hosted has no limits)
 	const usageLimits = $derived(data.usageLimits);
@@ -40,8 +39,7 @@
 			: null,
 	);
 
-	// Prefer query data (after refresh/mutation), fallback to preloaded data
-	const monitors = $derived(monitorsQuery.current ?? data.monitors);
+	const monitors = $derived(await getMonitors());
 
 	let deleteMonitorId = $state<string | null>(null);
 	let togglingMonitorId = $state<string | null>(null);
@@ -70,7 +68,7 @@
 				),
 			);
 		} catch (e) {
-			toast.error(isHttpError(e) ? e.body.message : "Failed to toggle monitor");
+			toast.error(errorMessage(e, "Failed to toggle monitor"));
 		} finally {
 			togglingMonitorId = null;
 		}
@@ -85,7 +83,10 @@
 
 {#snippet rowActions(mon: MonitorWithStatus)}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger class="hover:bg-muted shrink-0 rounded p-1">
+		<DropdownMenu.Trigger
+			class="hover:bg-muted shrink-0 rounded p-1"
+			aria-label={m.common_actions()}
+		>
 			<Ellipsis class="h-4 w-4" />
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">
@@ -135,10 +136,10 @@
 			<Button
 				variant="outline"
 				size="icon"
-				onclick={() => monitorsQuery.refresh()}
-				disabled={monitorsQuery.loading}
+				onclick={() => getMonitors().refresh()}
+				disabled={getMonitors().loading}
 			>
-				<RefreshCw class={`h-4 w-4 ${monitorsQuery.loading ? "animate-spin" : ""}`} />
+				<RefreshCw class={`h-4 w-4 ${getMonitors().loading ? "animate-spin" : ""}`} />
 			</Button>
 			{#if monitorUsageText}
 				<Badge variant="outline" class="hidden text-xs font-normal sm:inline-flex">
@@ -154,13 +155,7 @@
 		</div>
 	</div>
 
-	{#if monitorsQuery.error}
-		<Card.Root>
-			<Card.Content class="p-6">
-				<p class="text-destructive">Failed to load monitors: {monitorsQuery.error.message}</p>
-			</Card.Content>
-		</Card.Root>
-	{:else if monitors.length === 0}
+	{#if monitors.length === 0}
 		<EmptyState
 			icon={Activity}
 			title={m.monitors_empty_title()}
