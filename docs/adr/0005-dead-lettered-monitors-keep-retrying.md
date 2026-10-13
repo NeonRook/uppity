@@ -39,9 +39,10 @@ monitor is tried. Retries follow the existing exponential backoff, capped at
 removed.
 
 **A claim is a short lease.** Claiming a monitor sets `check_backoff_until` to the
-check's worst case: every attempt timing out, each followed by the SSL probe and the
-pause before the next, plus 30 seconds for the writes. That is 66 seconds for a monitor
-with the default 30-second timeout and no retries. `next_check_at` keeps the time the
+check's worst case: every attempt timing out, each followed by the pause before the
+next, plus 30 seconds for the writes. That is 61 seconds for a monitor with the default
+30-second timeout and no retries. The `monitor_lease_seconds` SQL function is the one
+definition (`docs/adr/0007-one-result-processor.md`). `next_check_at` keeps the time the
 check was due. A worker that dies mid-check, or fails to record the result, leaves the
 lease to run out, and the monitor is claimed again. Before this, a claim pushed
 `next_check_at` out by an hour.
