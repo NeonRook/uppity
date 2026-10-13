@@ -1,3 +1,4 @@
+import http from "node:http";
 import net from "node:net";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -53,6 +54,32 @@ describe("sendWebhook delivery", () => {
 			success: false,
 			errorMessage: `Connection refused by 127.0.0.1:${port}`,
 		});
+	});
+
+	it("keeps only the start of an error response", async () => {
+		vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true");
+
+		const server = http.createServer((_req, res) => {
+			res.writeHead(500);
+			res.end("x".repeat(1024 * 1024));
+		});
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as net.AddressInfo;
+
+		try {
+			const result = await sendWebhook(
+				{ url: `http://127.0.0.1:${port}/hook` },
+				{ type: "monitor_down", timestamp: new Date(0) },
+			);
+
+			expect(result).toEqual({
+				success: false,
+				errorMessage: `Webhook error: 500 - ${"x".repeat(512)}`,
+			});
+		} finally {
+			server.closeAllConnections();
+			server.close();
+		}
 	});
 });
 
