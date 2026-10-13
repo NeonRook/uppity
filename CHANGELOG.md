@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.8.0
+
+### Minor Changes
+
+- [#166](https://github.com/NeonRook/uppity/pull/166) [`d7cb9ee`](https://github.com/NeonRook/uppity/commit/d7cb9ee7d48c68fb603bcd782b902b75e23d2cdf) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Monitors report more, and push monitors recover properly.
+
+  - A push monitor that comes back after an outage now sends its "up" notification and resolves the incident that was opened for it. Heartbeats received during a maintenance window no longer change the monitor's status.
+  - Each HTTP check now shows how long DNS, connecting, TLS and the first byte took, and how many redirects it followed.
+  - HTTP monitors have two new settings: "Follow redirects" (on by default; off reports the redirect itself, such as a 301) and "Accept self-signed certificate" (off by default; on still checks the host name and expiry).
+  - Failed checks say what failed, such as the DNS lookup, a refused connection, an expired or untrusted certificate, or a timeout and the step it happened in, instead of "fetch failed". Failed Slack, Discord and webhook notifications say the same.
+  - "Response body contains" accepts up to 1024 characters and matches within the first 1 MiB of the response.
+
+- [`d6435eb`](https://github.com/NeonRook/uppity/commit/d6435eb216e6003809560eeea4db43025c6717a2) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Self-hosted: the image now runs on Node instead of Deno. The image keeps its name and its commands, and needs no new environment variables.
+
+  - `ORIGIN` works as before, including plain `http://` addresses. The server no longer falls back to the origin of `BETTER_AUTH_URL` when `ORIGIN` is unset: it assumes https and the request's `Host` header. If you serve plain HTTP and never set `ORIGIN`, set it now. Behind a proxy that rewrites `Host`, you can set `HOST_HEADER=x-forwarded-host` instead of `ORIGIN`.
+  - The web server and migrations still cannot write files, start other programs or load native code. They can now connect to any network address, where before only the database, mail servers and billing API were allowed.
+  - The image is about 57MB larger on disk and 8MB larger to download.
+  - One "ExperimentalWarning" line about `--allow-net` appears in the web server's log at startup. It is expected.
+
+- [#166](https://github.com/NeonRook/uppity/pull/166) [`d7cb9ee`](https://github.com/NeonRook/uppity/commit/d7cb9ee7d48c68fb603bcd782b902b75e23d2cdf) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Self-hosted: checks and notifications no longer reach private addresses by default.
+
+  - HTTP and TCP checks, and Slack, Discord and webhook notifications, now refuse hosts on private, loopback, link-local and similar internal addresses, including your cloud provider's metadata service. A monitor pointed at one fails with "Blocked: … private address". If your instance monitors services on its own network, set `UPPITY_ALLOW_PRIVATE_TARGETS=true` on the monitor and notifier workers. Leave it unset where people you do not trust can create monitors.
+  - To trust a private certificate authority in checks, set `NODE_EXTRA_CA_CERTS` to the path of its PEM file inside the container.
+  - `UPPITY_SSL_INFO_TIMEOUT_MS` is gone. Certificates are now read during the check itself, within the monitor's timeout.
+  - The upgrade's migration reads the check history once to build an index. Saving new check results waits until it finishes.
+
+### Patch Changes
+
+- [#168](https://github.com/NeonRook/uppity/pull/168) [`aa366a7`](https://github.com/NeonRook/uppity/commit/aa366a780eb2548b652e6367a907547e1a288c6f) Thanks [@lucasvienna](https://github.com/lucasvienna)! - When a webhook, Slack or Discord endpoint rejects an alert, the recorded error keeps the status code and the first 512 bytes of the response instead of the whole response.
+
+- [#163](https://github.com/NeonRook/uppity/pull/163) [`f330e59`](https://github.com/NeonRook/uppity/commit/f330e599a5f53d9258d2b2a25fbee48806f4ae4e) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A monitor's timeout is now at most 60 seconds and its retries at most 10. Settings above that are lowered to the limit on upgrade.
+
 ## 0.7.0
 
 ### Minor Changes
