@@ -4,6 +4,7 @@ import { dial, ProbeError, type Dialed } from "../tcp";
 import type { NotificationResult } from "./types";
 
 const CONNECT_TIMEOUT_MS = 10_000;
+const ERROR_BODY_MAX_BYTES = 512;
 
 /**
  * Delivers to the URLs users configure. Every connection, including each redirect
@@ -42,6 +43,19 @@ function describe(error: unknown, label: string): string {
 	return cause instanceof Error ? cause.message : `Failed to send ${label} notification`;
 }
 
+/** Decodes up to `limit` bytes of `body`; leaving the loop cancels the rest. */
+async function readPrefix(body: ReadableStream<Uint8Array> | null, limit: number): Promise<string> {
+	if (!body) return "";
+	const chunks: Uint8Array[] = [];
+	let read = 0;
+	for await (const chunk of body) {
+		chunks.push(chunk);
+		read += chunk.byteLength;
+		if (read >= limit) break;
+	}
+	return Buffer.concat(chunks).subarray(0, limit).toString("utf8");
+}
+
 /** POSTs `body` as JSON. Never throws; failures come back as a result. */
 export async function postJson(
 	url: string,
@@ -60,7 +74,7 @@ export async function postJson(
 		const response = await fetch(url, request);
 
 		if (!response.ok) {
-			const text = await response.text();
+			const text = await readPrefix(response.body, ERROR_BODY_MAX_BYTES);
 			return { success: false, errorMessage: `${label} error: ${response.status} - ${text}` };
 		}
 
