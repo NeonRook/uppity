@@ -80,8 +80,12 @@ const utcDateTime = new Intl.DateTimeFormat("en-GB", {
 	timeZone: "UTC",
 });
 
-/** Format a moment in UTC, naming the zone (e.g., "10 Oct 2026, 18:34 UTC") */
-export const formatUtcDateTime = (date: Date): string => `${utcDateTime.format(date)} UTC`;
+/**
+ * Format a moment in UTC, naming the zone (e.g., "10 Oct 2026, 18:34 UTC").
+ * Returns "-" for a missing or invalid date, because alert paths call this.
+ */
+export const formatUtcDateTime = (date: Date | null): string =>
+	date && !Number.isNaN(date.getTime()) ? `${utcDateTime.format(date)} UTC` : "-";
 
 /**
  * Format response time in milliseconds

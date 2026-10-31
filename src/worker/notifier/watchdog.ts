@@ -1,3 +1,4 @@
+import { formatUtcDateTime } from "../../lib/format";
 import { appUrl } from "../../lib/server/account-email";
 import { deadLetteredMonitors, overdueChecks } from "../../lib/server/check-state";
 import type { DbExecutor } from "../../lib/server/db/index";
@@ -40,7 +41,7 @@ export async function reportOverdueChecks(db: DbExecutor, timeoutMs?: number): P
 		await raiseOpsAlert(db, {
 			...CHECKS_OVERDUE,
 			title: "Monitors are not being checked",
-			body: `${overdue} active monitors are past due, the oldest since ${oldestDueAt?.toISOString()}. Check that the monitor worker is running and can reach the database.`,
+			body: `${overdue} active monitors are past due, the oldest since ${formatUtcDateTime(oldestDueAt)}. Check that the monitor worker is running and can reach the database.`,
 		});
 	} catch (err) {
 		log.error({ error: err }, "Overdue check query failed");
@@ -69,7 +70,7 @@ export async function reportDeadLetters(db: DbExecutor, timeoutMs?: number): Pro
 
 		const lines = monitors.map(
 			(m) =>
-				`- ${m.id}, organization ${m.organizationId}, since ${m.deadLetteredAt?.toISOString()}`,
+				`- ${m.id}, organization ${m.organizationId}, since ${formatUtcDateTime(m.deadLetteredAt)}`,
 		);
 		if (newest.total > monitors.length) {
 			lines.push(`- and ${newest.total - monitors.length} more`);
