@@ -4,7 +4,6 @@ import {
 	gte,
 	inArray,
 	lt,
-	ne,
 	notInArray,
 	or,
 	sql,
@@ -102,7 +101,8 @@ export class StatsService {
 
 		const uptimePercent = (successfulChecks / totalChecks) * 100;
 
-		// A status other than resolved means ongoing, since reopening keeps the old resolvedAt.
+		// Only resolved and postmortem mean ended: reopening keeps the old resolvedAt. An incident
+		// created as resolved has no resolvedAt, so it touches only the day it started.
 		const [{ incidentCount }] = await this.database
 			.select({ incidentCount: count() })
 			.from(incidentMonitor)
@@ -111,7 +111,11 @@ export class StatsService {
 				and(
 					eq(incidentMonitor.monitorId, monitorId),
 					lt(incident.startedAt, endOfDay),
-					or(ne(incident.status, "resolved"), gte(incident.resolvedAt, startOfDay)),
+					or(
+						notInArray(incident.status, ["resolved", "postmortem"]),
+						gte(incident.startedAt, startOfDay),
+						gte(incident.resolvedAt, startOfDay),
+					),
 				),
 			);
 

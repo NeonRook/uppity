@@ -248,11 +248,6 @@ describe("StatsService aggregation", () => {
 	}) => {
 		const { db: drizzleDb } = db;
 		const service = new StatsService(drizzleDb);
-		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
-		const [{ organizationId }] = await drizzleDb
-			.select({ organizationId: monitor.organizationId })
-			.from(monitor)
-			.where(eq(monitor.id, monitorId));
 
 		const hour = 60 * 60 * 1000;
 		const dayStart = new Date();
@@ -271,40 +266,54 @@ describe("StatsService aggregation", () => {
 			{ startedAt: at(-5), status: "investigating", counted: true },
 			// Reopened, so its resolvedAt no longer ends the span.
 			{ startedAt: at(-5), resolvedAt: at(-4), status: "monitoring", counted: true },
+			// Created as resolved, so it has no resolvedAt.
+			{ startedAt: at(1), status: "resolved", counted: true },
+			// Ended inside the day, then written up.
+			{ startedAt: at(-5), resolvedAt: at(1), status: "postmortem", counted: true },
 			// Ended before the day.
 			{ startedAt: at(-5), resolvedAt: at(-1), status: "resolved", counted: false },
+			// Ended before the day, then written up.
+			{ startedAt: at(-5), resolvedAt: at(-1), status: "postmortem", counted: false },
+			// Created as resolved before the day.
+			{ startedAt: at(-5), status: "resolved", counted: false },
 			// Started at the first instant of the next day.
 			{ startedAt: at(24), resolvedAt: at(25), status: "resolved", counted: false },
 		];
-		for (const { startedAt, resolvedAt, status } of spans) {
+
+		const seedIncident = async (
+			monitorId: string,
+			values: { startedAt: Date; resolvedAt?: Date; status?: string },
+		) => {
+			const [{ organizationId }] = await drizzleDb
+				.select({ organizationId: monitor.organizationId })
+				.from(monitor)
+				.where(eq(monitor.id, monitorId));
 			const id = nanoid();
-			await drizzleDb
-				.insert(incident)
-				.values({ id, organizationId, title: id, startedAt, resolvedAt, status });
+			await drizzleDb.insert(incident).values({ ...values, id, organizationId, title: id });
 			await drizzleDb.insert(incidentMonitor).values({ incidentId: id, monitorId });
+		};
+
+		// One monitor per span: a shared total lets a wrong inclusion cancel a wrong exclusion.
+		for (const { counted, ...span } of spans) {
+			const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+			await seedIncident(monitorId, span);
+			const otherMonitorId = await seedOrgWithMonitor(drizzleDb, "free");
+			await seedIncident(otherMonitorId, { startedAt: at(1) });
+			await drizzleDb
+				.insert(monitorCheck)
+				.values({ id: nanoid(), monitorId, status: "up", checkedAt: at(12) });
+
+			await service.aggregateDailyStats(monitorId, at(12));
+
+			const [stats] = await drizzleDb
+				.select()
+				.from(monitorDailyStats)
+				.where(eq(monitorDailyStats.monitorId, monitorId));
+			expect({ ...span, incidentCount: stats.incidentCount }).toEqual({
+				...span,
+				incidentCount: counted ? 1 : 0,
+			});
 		}
-		const otherMonitorId = await seedOrgWithMonitor(drizzleDb, "free");
-		const otherIncidentId = nanoid();
-		await drizzleDb.insert(incident).values({
-			id: otherIncidentId,
-			organizationId,
-			title: otherIncidentId,
-			startedAt: at(1),
-		});
-		await drizzleDb
-			.insert(incidentMonitor)
-			.values({ incidentId: otherIncidentId, monitorId: otherMonitorId });
-		await drizzleDb
-			.insert(monitorCheck)
-			.values({ id: nanoid(), monitorId, status: "up", checkedAt: at(12) });
-
-		await service.aggregateDailyStats(monitorId, at(12));
-
-		const [stats] = await drizzleDb
-			.select()
-			.from(monitorDailyStats)
-			.where(eq(monitorDailyStats.monitorId, monitorId));
-		expect(stats.incidentCount).toBe(spans.filter(({ counted }) => counted).length);
 	});
 
 	test("aggregateDailyStats writes nothing for a day without checks", async ({ db }) => {
