@@ -84,6 +84,12 @@ export const SUBSCRIBER_CONFIRMATION_CAP = {
 	max: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_MAX", 300),
 };
 
+/** Days a suppressed address's subscriptions are kept before deletion. The suppression itself stays. */
+export const SUPPRESSED_SUBSCRIBER_RETENTION_DAYS = envInt(
+	"UPPITY_SUPPRESSED_SUBSCRIBER_RETENTION_DAYS",
+	90,
+);
+
 /**
  * Unanswered emails one organization may have sent in the past week: confirmations to email
  * channel addresses and team invitations together. A confirmation or an accepted invitation

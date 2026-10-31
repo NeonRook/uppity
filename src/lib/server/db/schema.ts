@@ -329,6 +329,22 @@ export const statusPageSubscriber = pgTable(
 	],
 );
 
+// One row per address that hard-bounced or complained, across every organization. Rows
+// stay after the subscribers they silenced are deleted, so the address is never mailed again.
+export const emailSuppression = pgTable("email_suppression", {
+	// Lowercased.
+	email: text("email").primaryKey(),
+	reason: text("reason", { enum: ["bounce", "complaint"] }).notNull(),
+	suppressedAt: timestamp("suppressed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per webhook message from the mail provider, so a retry changes nothing.
+export const mailEvent = pgTable("mail_event", {
+	id: text("id").primaryKey(),
+	kind: text("kind", { enum: ["bounce", "complaint"] }).notNull(),
+	receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ============================================================================
 // NOTIFICATION TABLES
 // ============================================================================

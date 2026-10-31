@@ -1,11 +1,14 @@
 import { randomBytes } from "node:crypto";
 
-import { and, eq, gt, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-import { SUBSCRIBER_CONFIRMATION_CAP } from "#lib/constants/defaults.js";
+import {
+	SUBSCRIBER_CONFIRMATION_CAP,
+	SUPPRESSED_SUBSCRIBER_RETENTION_DAYS,
+} from "#lib/constants/defaults.js";
 import type { Db } from "#lib/server/db/index.js";
-import { statusPageSubscriber } from "#lib/server/db/schema.js";
+import { emailSuppression, statusPageSubscriber } from "#lib/server/db/schema.js";
 import type { SubscriptionConfirmation } from "#lib/server/subscriber-email.js";
 
 /** How long a confirmation link works, and how long an unconfirmed address is kept. */
@@ -31,9 +34,9 @@ export class StatusPageSubscriberService {
 
 	/**
 	 * Records a pending subscription and emails its confirmation link. An address that is
-	 * already confirmed, or was sent a link within the resend interval, gets nothing, so
-	 * the response cannot reveal who subscribes. False when the page has used up its
-	 * daily confirmations.
+	 * already confirmed, bounced or complained, or was sent a link within the resend interval,
+	 * gets nothing, so the response cannot reveal who subscribes. False when the page has used
+	 * up its daily confirmations.
 	 */
 	async subscribe(
 		page: { id: string; name: string; slug: string },
@@ -42,6 +45,12 @@ export class StatusPageSubscriberService {
 		const t = statusPageSubscriber;
 		const address = email.trim().toLowerCase();
 		const now = new Date();
+
+		const [suppressed] = await this.db
+			.select({ email: emailSuppression.email })
+			.from(emailSuppression)
+			.where(eq(emailSuppression.email, address));
+		if (suppressed) return true;
 
 		const windowStart = new Date(now.getTime() - RESEND_INTERVAL_MS);
 
@@ -149,6 +158,25 @@ export async function deleteExpiredUnconfirmedSubscribers(db: Db): Promise<numbe
 			and(
 				isNull(t.verifiedAt),
 				or(isNull(t.confirmationSentAt), lt(t.confirmationSentAt, confirmationCutoff())),
+			),
+		)
+		.returning({ id: t.id });
+	return deleted.length;
+}
+
+/** Deletes subscribers whose address has been suppressed past the retention period. Returns how many. */
+export async function deleteSuppressedSubscribers(db: Db): Promise<number> {
+	const cutoff = new Date(Date.now() - SUPPRESSED_SUBSCRIBER_RETENTION_DAYS * 24 * 60 * 60_000);
+	const t = statusPageSubscriber;
+	const deleted = await db
+		.delete(t)
+		.where(
+			inArray(
+				t.email,
+				db
+					.select({ email: emailSuppression.email })
+					.from(emailSuppression)
+					.where(lt(emailSuppression.suppressedAt, cutoff)),
 			),
 		)
 		.returning({ id: t.id });
