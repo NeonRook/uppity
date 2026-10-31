@@ -1,10 +1,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { overdueChecks } from "../../lib/server/check-state";
 import { childLogger, wideEvent, type NotifierWideEvent } from "../../lib/server/logger";
 import { NotificationService } from "../../lib/server/notifications/service";
 import { client, db } from "../shared/db";
 import { processBacklog, processOne } from "./processor";
+import { reportDeadLetters, reportOverdueChecks } from "./watchdog";
 
 const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // Within the platform's stop timeout, so sends in flight finish rather than
@@ -52,24 +52,6 @@ async function sweep(trigger: "startup" | "sweep"): Promise<void> {
 	}
 }
 
-/**
- * Watches the monitor worker from outside it: a worker that is down cannot log
- * that it stopped checking.
- */
-async function reportOverdueChecks(): Promise<void> {
-	try {
-		const { overdue, oldestDueAt } = await overdueChecks(db);
-		if (overdue === 0) return;
-		// Log alerts match on this event_type.
-		consumerLogger.error(
-			{ event_type: "monitor_checks_overdue", overdue, oldest_due_at: oldestDueAt },
-			"Monitors are not being checked",
-		);
-	} catch (err) {
-		consumerLogger.error({ error: err }, "Overdue check query failed");
-	}
-}
-
 function shutdown(signal: string): void {
 	consumerLogger.info({ signal }, "Received shutdown signal");
 	running = false;
@@ -101,7 +83,8 @@ async function start(): Promise<void> {
 	sweepTimer = setInterval(() => {
 		if (!running) return;
 		track(sweep("sweep"));
-		track(reportOverdueChecks());
+		track(reportOverdueChecks(db));
+		track(reportDeadLetters(db));
 	}, BACKLOG_SWEEP_INTERVAL_MS);
 
 	await stopped.promise;

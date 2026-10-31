@@ -685,6 +685,12 @@ export const maintenanceJob = pgTable("maintenance_job", {
 	enabled: boolean("enabled").default(true),
 });
 
+/** When each operator alert last went out, so a restart does not reset its cooldown. */
+export const opsAlertCooldown = pgTable("ops_alert_cooldown", {
+	key: text("key").primaryKey(),
+	sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ============================================================================
 // MAINTENANCE WINDOWS (scheduled maintenance, NEO-10)
 // ============================================================================

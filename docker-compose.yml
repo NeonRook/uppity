@@ -53,6 +53,11 @@ services:
 
   worker-notifier:
     <<: *worker
+    environment:
+      <<: *worker-env
+      UPPITY_OPS_ALERT_EMAIL: "${UPPITY_OPS_ALERT_EMAIL:-}"
+      UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: "${UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL:-}"
+      UPPITY_OPS_ALERT_COOLDOWN_HOURS: "${UPPITY_OPS_ALERT_COOLDOWN_HOURS:-6}"
     command: ["./entrypoint.sh", "worker-notifier"]
     deploy:
       replicas: 1 # Scale up once NEO-29 lands and LISTEN-path race is fixed

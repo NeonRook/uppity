@@ -41,6 +41,9 @@ export const DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS = envInt(
  */
 export const SSL_WARNING_COOLDOWN_HOURS = envInt("UPPITY_SSL_WARNING_COOLDOWN_HOURS", 24);
 
+/** Cooldown between repeats of one operator alert while its cause lasts. */
+export const OPS_ALERT_COOLDOWN_HOURS = envInt("UPPITY_OPS_ALERT_COOLDOWN_HOURS", 6);
+
 /** HTTP method used when creating a new HTTP monitor. */
 export const DEFAULT_HTTP_METHOD = "GET" as const;
 
