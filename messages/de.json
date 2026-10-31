@@ -878,7 +878,7 @@
 	"invitation_refused_no_mail": "Auf dieser Instanz ist kein Mailserver eingerichtet, daher können keine Einladungen zugestellt werden. Lege SMTP_HOST und SMTP_PORT fest und lade dann erneut ein.",
 	"invitation_refused_unverified": "Bestätige deine E-Mail-Adresse, bevor du jemanden einlädst.",
 	"invitation_refused_opted_out": "Diese Adresse hat E-Mails deiner Organisation abbestellt und kann daher nicht eingeladen werden.",
-	"invitation_refused_too_soon": "Wir haben diese Adresse zu oft ohne Antwort angeschrieben. Versuche es später erneut.",
+	"invitation_refused_too_soon": "Wir haben dieser Adresse kürzlich geschrieben. Versuche es später erneut.",
 	"invitation_refused_capped": "Zu viele Adressen aus der letzten Woche haben noch nicht geantwortet. Du kannst weitere einladen, sobald Personen annehmen.",
 	"invitation_refused_member_limit": "Diese Organisation kann bis zu {limit} Teammitglieder haben, ausstehende Einladungen mitgezählt.",
 	"invitation_refused_failed": "Die Einladungs-E-Mail konnte nicht gesendet werden, daher wurde keine Einladung erstellt. Versuche es in einer Minute erneut.",

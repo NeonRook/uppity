@@ -377,7 +377,9 @@ export class EmailChannelService {
 		return this.db.transaction(async (tx) => {
 			await lockSends(tx, organizationId);
 			if (await optOutOf(tx, organizationId, address)) return { refused: "opted_out" as const };
-			if ((await unansweredSends(tx, organizationId, address, now)) >= INVITATION_SENDS_PER_ADDRESS) {
+			if (
+				(await unansweredSends(tx, organizationId, address, now)) >= INVITATION_SENDS_PER_ADDRESS
+			) {
 				return { refused: "too_soon" as const };
 			}
 			return claimSlot(tx, organizationId, address, this.cap, now);

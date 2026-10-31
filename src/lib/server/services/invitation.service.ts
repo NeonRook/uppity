@@ -113,28 +113,30 @@ export class InvitationService {
 	}
 
 	private pending(match: SQL) {
-		return this.db
-			.select({
-				id: invitation.id,
-				email: invitation.email,
-				organizationId: invitation.organizationId,
-				organizationName: organization.name,
-				inviterEmail: inviter.email,
-				inviterVerified: inviter.emailVerified,
-			})
-			.from(invitation)
-			.innerJoin(organization, eq(organization.id, invitation.organizationId))
-			.innerJoin(inviter, eq(inviter.id, invitation.inviterId))
-			// An invitation dies with its sender's membership, so a removed admin cannot let
-			// themselves back in through one sent beforehand.
-			.innerJoin(
-				member,
-				and(
-					eq(member.userId, invitation.inviterId),
-					eq(member.organizationId, invitation.organizationId),
-				),
-			)
-			.where(and(match, eq(invitation.status, "pending"), gt(invitation.expiresAt, new Date())));
+		return (
+			this.db
+				.select({
+					id: invitation.id,
+					email: invitation.email,
+					organizationId: invitation.organizationId,
+					organizationName: organization.name,
+					inviterEmail: inviter.email,
+					inviterVerified: inviter.emailVerified,
+				})
+				.from(invitation)
+				.innerJoin(organization, eq(organization.id, invitation.organizationId))
+				.innerJoin(inviter, eq(inviter.id, invitation.inviterId))
+				// An invitation dies with its sender's membership, so a removed admin cannot let
+				// themselves back in through one sent beforehand.
+				.innerJoin(
+					member,
+					and(
+						eq(member.userId, invitation.inviterId),
+						eq(member.organizationId, invitation.organizationId),
+					),
+				)
+				.where(and(match, eq(invitation.status, "pending"), gt(invitation.expiresAt, new Date())))
+		);
 	}
 }
 
