@@ -14,16 +14,19 @@ export const load: PageServerLoad = async ({ params, locals }) => ({
 	email: locals.user?.email ?? "",
 });
 
+function refusal(error: APIError) {
+	if (error.statusCode === 409) return m.invitation_busy();
+	if (error.body?.code === "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED") return m.invitation_org_full();
+	return m.invitation_invalid();
+}
+
 /** better-auth checks the recipient and their verified address on both answers. */
 async function answer(call: () => Promise<unknown>) {
 	try {
 		await call();
 	} catch (error) {
 		if (!(error instanceof APIError)) throw error;
-		const full = error.body?.code === "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED";
-		return fail(error.statusCode, {
-			error: full ? m.invitation_org_full() : m.invitation_invalid(),
-		});
+		return fail(error.statusCode, { error: refusal(error) });
 	}
 	return redirect(303, "/dashboard");
 }
@@ -31,10 +34,12 @@ async function answer(call: () => Promise<unknown>) {
 export const actions: Actions = {
 	accept: ({ params, request }) =>
 		answer(() =>
-			auth.api.acceptInvitation({
-				headers: request.headers,
-				body: { invitationId: params.id },
-			}),
+			invitationService.accept(params.id, () =>
+				auth.api.acceptInvitation({
+					headers: request.headers,
+					body: { invitationId: params.id },
+				}),
+			),
 		),
 	decline: ({ params, request }) =>
 		answer(() =>

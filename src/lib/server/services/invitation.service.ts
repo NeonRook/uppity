@@ -1,7 +1,8 @@
+import { APIError } from "better-auth/api";
 import { and, eq, gt, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import { invitation, organization, user } from "#lib/server/db/auth-schema.js";
+import { invitation, member, organization, user } from "#lib/server/db/auth-schema.js";
 import type { Db } from "#lib/server/db/index.js";
 import { logger } from "#lib/server/logger/index.js";
 import type { TeamInvitation } from "#lib/server/subscriber-email.js";
@@ -74,6 +75,25 @@ export class InvitationService {
 	}
 
 	/**
+	 * Runs `accept` on a live invitation, one at a time per organization: better-auth counts
+	 * members and adds one without a lock, so two accepts could both take the last seat. The
+	 * lock is held until `accept` has committed. A concurrent accept is refused rather than
+	 * queued, since a waiter would hold a pooled connection.
+	 */
+	async accept(id: string, accept: () => Promise<unknown>): Promise<void> {
+		const [row] = await this.pending(eq(invitation.id, id));
+		if (!row) throw new APIError("BAD_REQUEST", { message: "Invitation not found" });
+
+		await this.db.transaction(async (tx) => {
+			const [{ locked }] = await tx.execute<{ locked: boolean }>(
+				sql`SELECT pg_try_advisory_xact_lock(hashtext(${`seats:${row.organizationId}`})) AS locked`,
+			);
+			if (!locked) throw new APIError("CONFLICT", { message: "Another accept is in progress" });
+			await accept();
+		});
+	}
+
+	/**
 	 * What `reader` may see of an invitation. The id travels in an email, so holding it proves
 	 * nothing: only a verified account with the invited address learns the organization.
 	 */
@@ -97,6 +117,7 @@ export class InvitationService {
 			.select({
 				id: invitation.id,
 				email: invitation.email,
+				organizationId: invitation.organizationId,
 				organizationName: organization.name,
 				inviterEmail: inviter.email,
 				inviterVerified: inviter.emailVerified,
@@ -104,6 +125,15 @@ export class InvitationService {
 			.from(invitation)
 			.innerJoin(organization, eq(organization.id, invitation.organizationId))
 			.innerJoin(inviter, eq(inviter.id, invitation.inviterId))
+			// An invitation dies with its sender's membership, so a removed admin cannot let
+			// themselves back in through one sent beforehand.
+			.innerJoin(
+				member,
+				and(
+					eq(member.userId, invitation.inviterId),
+					eq(member.organizationId, invitation.organizationId),
+				),
+			)
 			.where(and(match, eq(invitation.status, "pending"), gt(invitation.expiresAt, new Date())));
 	}
 }

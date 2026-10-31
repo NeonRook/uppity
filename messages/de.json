@@ -893,6 +893,7 @@
 	"invitation_other_account": "Diese Einladung ging an eine andere Adresse als die, mit der du angemeldet bist ({email}). Wechsle das Konto, um fortzufahren.",
 	"invitation_verify_first": "Bestätige deine E-Mail-Adresse, um diese Einladung zu öffnen. Danach findest du sie auf deinem Dashboard.",
 	"invitation_org_full": "Diese Organisation hat keine freien Plätze. Bitte die Person, die dich eingeladen hat, Platz zu schaffen.",
+	"invitation_busy": "Gerade tritt eine andere Person dieser Organisation bei. Versuche es gleich noch einmal.",
 	"invitation_view": "Einladung ansehen",
 	"invitations_pending_title": "Team-Einladungen"
 }

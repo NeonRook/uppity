@@ -893,6 +893,7 @@
 	"invitation_other_account": "This invitation was sent to a different address than the one you're signed in with ({email}). Switch accounts to continue.",
 	"invitation_verify_first": "Verify your email address to open this invitation. After that, you'll find it on your dashboard.",
 	"invitation_org_full": "This organization has no free seats. Ask the person who invited you to make room.",
+	"invitation_busy": "Someone else is joining this organization right now. Try again in a moment.",
 	"invitation_view": "View invitation",
 	"invitations_pending_title": "Team invitations"
 }

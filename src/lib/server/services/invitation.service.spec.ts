@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect, vi } from "vitest";
 
-import { invitation, user } from "../db/auth-schema";
+import { invitation, member, user } from "../db/auth-schema";
 import { channelConfirmationSend, emailOptOut } from "../db/schema";
 import type { TeamInvitation } from "../subscriber-email";
 import { test } from "../test/fixture";
@@ -18,6 +18,8 @@ const INVITEE = { email: "invitee@example.com", emailVerified: true };
 async function setup(db: TestDb["db"], { cap = 2, mail = true } = {}) {
 	const organizationId = await seedOrg(db);
 	const inviterId = await seedUser(db);
+	const membership = { id: nanoid(), organizationId, userId: inviterId, createdAt: new Date() };
+	await db.insert(member).values(membership);
 	const send = vi.fn(async (_: TeamInvitation) => {});
 	const sends = new EmailChannelService(db, vi.fn(), cap);
 	const service = new InvitationService(db, sends, mail ? send : null);
@@ -44,7 +46,9 @@ async function setup(db: TestDb["db"], { cap = 2, mail = true } = {}) {
 			.from(channelConfirmationSend)
 			.where(eq(channelConfirmationSend.organizationId, organizationId));
 
-	return { organizationId, inviterId, send, sends, service, invite, exists, logged };
+	const removeInviter = () => db.delete(member).where(eq(member.id, membership.id));
+
+	return { organizationId, inviterId, send, sends, service, invite, exists, logged, removeInviter };
 }
 
 describe("deliver", () => {
@@ -203,6 +207,34 @@ describe("viewFor", () => {
 		for (const id of [expired.id, accepted.id, "unknown"]) {
 			await expect(service.viewFor(id, INVITEE)).resolves.toEqual({ state: "invalid" });
 		}
+	});
+});
+
+describe("accept", () => {
+	test("refuses a second accept in the organization while one runs", async ({ db: { db } }) => {
+		const { service, invite } = await setup(db);
+		const [first, second] = [await invite("one@example.com"), await invite("two@example.com")];
+		const inner = vi.fn(async () => {});
+
+		await service.accept(first.id, async () => {
+			await expect(service.accept(second.id, inner)).rejects.toMatchObject({ statusCode: 409 });
+		});
+
+		expect(inner).not.toHaveBeenCalled();
+		await service.accept(second.id, inner);
+		expect(inner).toHaveBeenCalledOnce();
+	});
+
+	test("refuses an invitation whose sender left the organization", async ({ db: { db } }) => {
+		const { service, invite, removeInviter } = await setup(db);
+		const { id } = await invite();
+		await removeInviter();
+		const accept = vi.fn(async () => {});
+
+		await expect(service.accept(id, accept)).rejects.toMatchObject({ statusCode: 400 });
+
+		expect(accept).not.toHaveBeenCalled();
+		await expect(service.viewFor(id, INVITEE)).resolves.toEqual({ state: "invalid" });
 	});
 });
 
