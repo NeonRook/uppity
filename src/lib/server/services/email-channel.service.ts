@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 
-import { and, countDistinct, eq, gt, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
+import { and, count, countDistinct, eq, gt, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { CHANNEL_PENDING_CONFIRMATIONS } from "#lib/constants/defaults.js";
-import { member, organization, user } from "#lib/server/db/auth-schema.js";
+import { invitation, member, organization, user } from "#lib/server/db/auth-schema.js";
 import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import {
 	channelConfirmationSend,
@@ -22,6 +22,12 @@ export const RESEND_INTERVAL_MS = 60 * 60_000;
 
 /** How long an unconfirmed send holds a slot under the pending cap. */
 export const PENDING_WINDOW_MS = 7 * 24 * 60 * 60_000;
+
+/**
+ * Unanswered emails to one address before an organization may not invite it. The cap counts
+ * addresses, so without this, cancelling and re-inviting would mail one person every hour.
+ */
+export const INVITATION_SENDS_PER_ADDRESS = 3;
 
 export type ResendResult =
 	| "sent"
@@ -294,40 +300,50 @@ export class EmailChannelService {
 				.from(c)
 				.where(and(eq(c.token, token), isNull(c.unsubscribedAt)));
 			if (!row?.config.email) return null;
-			const email = row.config.email.toLowerCase();
-			const now = new Date();
-
-			const [optOut] = await tx
-				.insert(emailOptOut)
-				.values({ organizationId: row.organizationId, email, unsubscribedAt: now })
-				.onConflictDoUpdate({
-					target: [emailOptOut.organizationId, emailOptOut.email],
-					set: { unsubscribedAt: now },
-				})
-				.returning({ reaskedAt: emailOptOut.reaskedAt });
-			const reaskedAt = row.reaskedAt ?? optOut.reaskedAt;
-
-			// The opt-out is the address's, so every channel the organization points at it stops.
-			await tx
-				.update(c)
-				.set({ verifiedAt: null, unsubscribedAt: now, reaskedAt })
-				.where(
-					and(
-						eq(c.organizationId, row.organizationId),
-						eq(c.type, "email"),
-						sql`lower(${c.config}->>'email') = ${email}`,
-					),
-				);
-
-			const [org] = await tx
-				.select({ name: organization.name })
-				.from(organization)
-				.where(eq(organization.id, row.organizationId));
+			const { reaskedAt, organizationName } = await optOutAddress(
+				tx,
+				row.organizationId,
+				row.config.email.toLowerCase(),
+				row.reaskedAt,
+			);
 			return {
 				organizationId: row.organizationId,
-				organizationName: org?.name ?? "",
+				organizationName,
 				channelName: row.channelName,
 				email: row.config.email,
+				final: reaskedAt !== null,
+			};
+		});
+	}
+
+	/**
+	 * Stops the organization's email to the address an invitation went to. The invitation
+	 * itself stands, since declining takes a verified account and it expires on its own. Takes
+	 * the invitation id because the email has no other token, and reveals nothing about it.
+	 * Returns what the admins need to hear when that stopped an alert channel, otherwise null.
+	 */
+	async unsubscribeInvitation(invitationId: string): Promise<UnsubscribedChannel | null> {
+		return this.db.transaction(async (tx) => {
+			const [row] = await tx
+				.select({ organizationId: invitation.organizationId, email: invitation.email })
+				.from(invitation)
+				.where(eq(invitation.id, invitationId));
+			if (!row) return null;
+			const email = row.email.toLowerCase();
+			if (await optOutOf(tx, row.organizationId, email)) return null;
+
+			const { reaskedAt, organizationName, stopped } = await optOutAddress(
+				tx,
+				row.organizationId,
+				email,
+				null,
+			);
+			if (!stopped) return null;
+			return {
+				organizationId: row.organizationId,
+				organizationName,
+				channelName: stopped.name,
+				email,
 				final: reaskedAt !== null,
 			};
 		});
@@ -357,10 +373,14 @@ export class EmailChannelService {
 	 */
 	async claimInvitationSend(organizationId: string, email: string) {
 		const address = email.toLowerCase();
+		const now = new Date();
 		return this.db.transaction(async (tx) => {
 			await lockSends(tx, organizationId);
 			if (await optOutOf(tx, organizationId, address)) return { refused: "opted_out" as const };
-			return claimSlot(tx, organizationId, address, this.cap, new Date());
+			if ((await unansweredSends(tx, organizationId, address, now)) >= INVITATION_SENDS_PER_ADDRESS) {
+				return { refused: "too_soon" as const };
+			}
+			return claimSlot(tx, organizationId, address, this.cap, now);
 		});
 	}
 
@@ -429,6 +449,44 @@ async function optOutOf(tx: DbExecutor, organizationId: string, email: string) {
 	return row;
 }
 
+/** Records the address's opt-out and stops every channel the organization points at it. */
+async function optOutAddress(
+	tx: DbExecutor,
+	organizationId: string,
+	email: string,
+	channelReaskedAt: Date | null,
+) {
+	const c = notificationChannel;
+	const now = new Date();
+	const [optOut] = await tx
+		.insert(emailOptOut)
+		.values({ organizationId, email, unsubscribedAt: now })
+		.onConflictDoUpdate({
+			target: [emailOptOut.organizationId, emailOptOut.email],
+			set: { unsubscribedAt: now },
+		})
+		.returning({ reaskedAt: emailOptOut.reaskedAt });
+	const reaskedAt = channelReaskedAt ?? optOut.reaskedAt;
+
+	const [stopped] = await tx
+		.update(c)
+		.set({ verifiedAt: null, unsubscribedAt: now, reaskedAt })
+		.where(
+			and(
+				eq(c.organizationId, organizationId),
+				eq(c.type, "email"),
+				sql`lower(${c.config}->>'email') = ${email}`,
+			),
+		)
+		.returning({ name: c.name });
+
+	const [org] = await tx
+		.select({ name: organization.name })
+		.from(organization)
+		.where(eq(organization.id, organizationId));
+	return { reaskedAt, organizationName: org?.name ?? "", stopped };
+}
+
 function setReasked(tx: DbExecutor, organizationId: string, email: string, at: Date | null) {
 	return tx
 		.update(emailOptOut)
@@ -450,6 +508,23 @@ async function unconfirmedAddresses(tx: DbExecutor, organizationId: string, now:
 			),
 		);
 	return unconfirmed;
+}
+
+/** Unconfirmed sends to one address in the pending window. */
+async function unansweredSends(tx: DbExecutor, organizationId: string, email: string, now: Date) {
+	const log = channelConfirmationSend;
+	const [{ unanswered }] = await tx
+		.select({ unanswered: count() })
+		.from(log)
+		.where(
+			and(
+				eq(log.organizationId, organizationId),
+				eq(log.email, email),
+				gt(log.sentAt, new Date(now.getTime() - PENDING_WINDOW_MS)),
+				isNull(log.confirmedAt),
+			),
+		);
+	return unanswered;
 }
 
 function freeSlot(tx: DbExecutor, organizationId: string, email: string, now: Date) {

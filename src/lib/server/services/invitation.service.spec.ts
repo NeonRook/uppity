@@ -3,12 +3,16 @@ import { nanoid } from "nanoid";
 import { describe, expect, vi } from "vitest";
 
 import { invitation, member, user } from "../db/auth-schema";
-import { channelConfirmationSend, emailOptOut } from "../db/schema";
+import { channelConfirmationSend, emailOptOut, notificationChannel } from "../db/schema";
 import type { TeamInvitation } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedOrg, seedUser } from "../test/seed";
-import { EmailChannelService, RESEND_INTERVAL_MS } from "./email-channel.service";
+import {
+	EmailChannelService,
+	INVITATION_SENDS_PER_ADDRESS,
+	RESEND_INTERVAL_MS,
+} from "./email-channel.service";
 import { InvitationService } from "./invitation.service";
 
 const HOUR_MS = 60 * 60_000;
@@ -109,6 +113,22 @@ describe("deliver", () => {
 		await expect(service.deliver(await invite(), INVITER)).resolves.toBe("too_soon");
 
 		expect(send).toHaveBeenCalledOnce();
+	});
+
+	test("re-inviting one address stops at the per-address limit", async ({ db: { db } }) => {
+		const { service, invite, organizationId, send } = await setup(db, { cap: 5 });
+		await db.insert(channelConfirmationSend).values(
+			Array.from({ length: INVITATION_SENDS_PER_ADDRESS }, () => ({
+				id: nanoid(),
+				organizationId,
+				email: INVITEE.email,
+				sentAt: new Date(Date.now() - 2 * RESEND_INTERVAL_MS),
+			})),
+		);
+
+		await expect(service.deliver(await invite(), INVITER)).resolves.toBe("too_soon");
+
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("invitations and channel confirmations share the organization's cap", async ({
@@ -235,6 +255,52 @@ describe("accept", () => {
 
 		expect(accept).not.toHaveBeenCalled();
 		await expect(service.viewFor(id, INVITEE)).resolves.toEqual({ state: "invalid" });
+	});
+});
+
+describe("unsubscribeInvitation", () => {
+	test("opts the address out without answering the invitation", async ({ db: { db } }) => {
+		const { service, sends, invite, exists } = await setup(db);
+		const created = await invite("Opted@Example.com");
+
+		await expect(sends.unsubscribeInvitation(created.id)).resolves.toBeNull();
+
+		await expect(service.deliver(await invite("opted@example.com"), INVITER)).resolves.toBe(
+			"opted_out",
+		);
+		expect(await exists(created.id)).toBe(true);
+	});
+
+	test("reports an alert channel it stops", async ({ db: { db } }) => {
+		const { sends, invite, organizationId } = await setup(db);
+		const { id } = await invite();
+		await db.insert(notificationChannel).values({
+			id: nanoid(),
+			organizationId,
+			name: "Pager",
+			type: "email",
+			config: { email: INVITEE.email },
+			verifiedAt: new Date(),
+		});
+
+		await expect(sends.unsubscribeInvitation(id)).resolves.toMatchObject({
+			organizationId,
+			channelName: "Pager",
+			final: false,
+		});
+		const [channel] = await db
+			.select()
+			.from(notificationChannel)
+			.where(eq(notificationChannel.organizationId, organizationId));
+		expect(channel).toMatchObject({ verifiedAt: null, unsubscribedAt: expect.any(Date) });
+		await expect(sends.unsubscribeInvitation(id)).resolves.toBeNull();
+	});
+
+	test("does nothing for an unknown id", async ({ db: { db } }) => {
+		const { sends } = await setup(db);
+
+		await expect(sends.unsubscribeInvitation("unknown")).resolves.toBeNull();
+		expect(await db.select().from(emailOptOut).where(eq(emailOptOut.email, "unknown"))).toEqual([]);
 	});
 });
 

@@ -61,21 +61,30 @@ export async function sendTeamInvitation({
 	if (!subscriberTransport) throw new Error("SMTP not configured");
 
 	const url = `${appUrl}/invitations/${invitationId}`;
+	const unsubscribe = `${url}/unsubscribe`;
 	const paragraphs = [
 		`${invitedBy} invited this address to join a team on Uppity. Open the invitation to see the team and accept or decline. The link works for ${INVITATION_EXPIRES_IN_HOURS} hours.`,
-		"If you weren't expecting this, ignore this email. The invitation expires on its own.",
+		"If you weren't expecting this, ignore this email and the invitation expires on its own, or unsubscribe so this team can't invite you again.",
 	];
 
 	await subscriberTransport.sendMail({
 		from: subscriberFrom,
 		to: email,
 		subject: "You're invited to join a team on Uppity",
+		headers: { "List-Unsubscribe": `<${unsubscribe}>` },
 		html: [
 			`<p>${escapeHtml(paragraphs[0])}</p>`,
 			`<p><a href="${url}">View invitation</a></p>`,
-			`<p>${escapeHtml(paragraphs[1])}</p>`,
+			`<p><small>${escapeHtml(paragraphs[1])} <a href="${unsubscribe}">Unsubscribe</a></small></p>`,
 		].join("\n"),
-		text: [paragraphs[0], "", `View invitation: ${url}`, "", paragraphs[1]].join("\n"),
+		text: [
+			paragraphs[0],
+			"",
+			`View invitation: ${url}`,
+			"",
+			paragraphs[1],
+			`Unsubscribe: ${unsubscribe}`,
+		].join("\n"),
 	});
 }
 
