@@ -71,9 +71,6 @@ export function formatDuration(startedAt: Date, resolvedAt: Date | null): string
 	return `${minutes}m`;
 }
 
-/** Format a date showing only month and day (e.g., "Jan 15") */
-export const formatDateMonthDay = dateFormatter({ month: "short", day: "numeric" });
-
 /** Format a `YYYY-MM-DD` UTC day key as month and day, without shifting it into local time. */
 export const formatUtcDay = dateFormatter({ month: "short", day: "numeric", timeZone: "UTC" });
 
