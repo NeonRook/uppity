@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { beforeEach, describe, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
 import * as schema from "../../lib/server/db/schema";
 import { raiseOpsAlert } from "../../lib/server/ops-alert";
@@ -10,14 +10,32 @@ import type { TestDb } from "../../lib/server/test/harness";
 import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
 import { reportDeadLetters, reportOverdueChecks } from "./watchdog";
 
-vi.mock("../../lib/server/ops-alert", () => ({ raiseOpsAlert: vi.fn() }));
+vi.mock("../../lib/server/ops-alert", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../lib/server/ops-alert")>()),
+	raiseOpsAlert: vi.fn(),
+}));
 
 const { monitor } = schema;
 const raised = vi.mocked(raiseOpsAlert);
 
 beforeEach(() => {
 	raised.mockReset();
+	vi.stubEnv("UPPITY_OPS_ALERT_EMAIL", "ops@example.com");
 });
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
+/** A database whose reads never answer. */
+const hangingDb = {
+	select: () => ({
+		from: () => {
+			const hung = new Promise(() => {});
+			return { where: () => Object.assign(hung, { orderBy: () => ({ limit: () => hung }) }) };
+		},
+	}),
+} as never;
 
 /** Seeds active monitors dead-lettered one minute apart, the last one newest. */
 async function seedDeadLettered(drizzleDb: TestDb["db"], count: number): Promise<string[]> {
@@ -85,9 +103,36 @@ describe("reportOverdueChecks", () => {
 			}),
 		);
 	});
+
+	test("a database that hangs is the same alert, not a silent stall", async () => {
+		await reportOverdueChecks(hangingDb, 50);
+
+		expect(raised).toHaveBeenCalledExactlyOnceWith(
+			hangingDb,
+			expect.objectContaining({
+				subject: "database",
+				body: expect.stringContaining("Timed out after 50ms") as string,
+			}),
+		);
+	});
 });
 
 describe("reportDeadLetters", () => {
+	test("with no destination set, it does not read the table", async () => {
+		vi.unstubAllEnvs();
+		const select = vi.fn();
+
+		await reportDeadLetters({ select } as never);
+
+		expect(select).not.toHaveBeenCalled();
+	});
+
+	test("a query that hangs gives up without alerting", async () => {
+		await reportDeadLetters(hangingDb, 50);
+
+		expect(raised).not.toHaveBeenCalled();
+	});
+
 	test("stays quiet with no dead-lettered monitor", async ({ db }) => {
 		await db.db.update(monitor).set({ active: false });
 
@@ -114,11 +159,42 @@ describe("reportDeadLetters", () => {
 		const [[, alert]] = raised.mock.calls;
 		expect(alert).toMatchObject({
 			type: "monitor_dead_lettered",
-			subject: ids.at(-1),
+			subject: expect.stringContaining(ids.at(-1) as string) as string,
 			title: "Dead-lettered monitors: 12",
 		});
-		expect(alert.body).toContain("probe bug");
 		expect(alert.body).toContain("and 2 more");
-		expect(alert.body).toContain("/admin/dead-letters");
+		expect(alert.body.indexOf("/admin/dead-letters")).toBeLessThan(
+			alert.body.indexOf(ids.at(-1) as string),
+		);
+	});
+
+	test("keeps monitor names and check errors out of the message", async ({ db }) => {
+		const [id] = await seedDeadLettered(db.db, 1);
+		await db.db
+			.update(monitor)
+			.set({
+				name: "@everyone [click](https://evil.example)",
+				checkLastError: "connect https://user:hunter2@customer.example/?token=abc failed",
+			})
+			.where(eq(monitor.id, id));
+
+		await reportDeadLetters(db.db);
+
+		const [[, alert]] = raised.mock.calls;
+		expect(alert.body).toContain(id);
+		expect(`${alert.title}${alert.body}`).not.toMatch(/everyone|evil|hunter2|customer\.example/);
+	});
+
+	test("a monitor that re-enters dead letter gets a new subject", async ({ db }) => {
+		const [id] = await seedDeadLettered(db.db, 1);
+		await reportDeadLetters(db.db);
+		await db.db
+			.update(monitor)
+			.set({ deadLetteredAt: sql`NOW()` })
+			.where(eq(monitor.id, id));
+		await reportDeadLetters(db.db);
+
+		const [[, first], [, second]] = raised.mock.calls;
+		expect(second.subject).not.toBe(first.subject);
 	});
 });

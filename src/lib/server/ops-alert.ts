@@ -29,16 +29,25 @@ export interface OpsAlert {
 	type: OpsAlertType;
 	/** What the alert is about. One cooldown runs per type and subject. */
 	subject: string;
-	/** Goes in the email subject, so it must not carry customer text. */
+	/** Goes in the email subject. Like `body`, it must not carry customer text. */
 	title: string;
-	/** Plain text. */
+	/** Plain text. Goes to the mail provider and Discord, so IDs and counts only. */
 	body: string;
 }
 
 /** Last send per key in this process: the only cooldown left when the database is down. */
 const sentAt = new Map<string, number>();
 
-function withTimeout<T>(work: PromiseLike<T>, ms: number): Promise<T> {
+/**
+ * The message of a failure, for logs and alert text: the logger writes an Error
+ * object as `{}`. Drizzle wraps a failed query, and the cause says what went wrong.
+ */
+export function reason(err: unknown): string {
+	const cause = err instanceof Error && err.cause instanceof Error ? err.cause : err;
+	return cause instanceof Error ? cause.message : String(cause);
+}
+
+export function withTimeout<T>(work: PromiseLike<T>, ms = TIMEOUT_MS): Promise<T> {
 	const expired = sleep(ms, undefined, { ref: false }).then(() => {
 		throw new Error(`Timed out after ${ms}ms`);
 	});
@@ -46,7 +55,7 @@ function withTimeout<T>(work: PromiseLike<T>, ms: number): Promise<T> {
 }
 
 /** Takes the cooldown for `key`. False means the alert went out recently. */
-async function claim(db: DbExecutor, key: string, timeoutMs: number): Promise<boolean> {
+async function claim(db: DbExecutor, key: string, timeoutMs?: number): Promise<boolean> {
 	const last = sentAt.get(key);
 	if (last !== undefined && Date.now() - last < COOLDOWN_MS) return false;
 	sentAt.set(key, Date.now());
@@ -68,12 +77,12 @@ async function claim(db: DbExecutor, key: string, timeoutMs: number): Promise<bo
 		return claimed.length > 0;
 	} catch (error) {
 		// The database failing is what some alerts report, so it must not silence them.
-		log.warn({ key, error }, "Ops alert cooldown unavailable, using this process's");
+		log.warn({ key, error: reason(error) }, "Ops alert cooldown unavailable, using this process's");
 		return true;
 	}
 }
 
-async function release(db: DbExecutor, key: string, timeoutMs: number): Promise<void> {
+async function release(db: DbExecutor, key: string, timeoutMs?: number): Promise<void> {
 	sentAt.delete(key);
 	await withTimeout(db.delete(opsAlertCooldown).where(eq(opsAlertCooldown.key, key)), timeoutMs);
 }
@@ -95,10 +104,23 @@ async function sendDiscord(url: string, { title, body }: OpsAlert): Promise<void
 		color: RED,
 		timestamp: new Date().toISOString(),
 	};
-	const result = await postJson(url, { embeds: [embed] }, "Discord API");
+	const payload = { embeds: [embed], allowed_mentions: { parse: [] } };
+	const result = await postJson(url, payload, "Discord API");
 	// A fetch error can quote the URL, and the URL is the webhook's credential.
 	if (!result.success) throw new Error(result.errorMessage?.replaceAll(url, "<webhook url>"));
 }
+
+const destinations = () => ({
+	email: process.env.UPPITY_OPS_ALERT_EMAIL,
+	webhook: process.env.UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL,
+});
+
+export function opsAlertsEnabled(): boolean {
+	const { email, webhook } = destinations();
+	return Boolean(email || webhook);
+}
+
+const cooldownKey = ({ type, subject }: Pick<OpsAlert, "type" | "subject">) => `${type}:${subject}`;
 
 /**
  * Sends `alert` to the operator unless its cooldown is running. Never rejects and
@@ -109,13 +131,12 @@ async function sendDiscord(url: string, { title, body }: OpsAlert): Promise<void
 export async function raiseOpsAlert(
 	db: DbExecutor,
 	alert: OpsAlert,
-	timeoutMs = TIMEOUT_MS,
+	timeoutMs?: number,
 ): Promise<void> {
-	const { UPPITY_OPS_ALERT_EMAIL: email, UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: webhook } =
-		process.env;
-	if (!email && !webhook) return;
+	if (!opsAlertsEnabled()) return;
+	const { email, webhook } = destinations();
 
-	const key = `${alert.type}:${alert.subject}`;
+	const key = cooldownKey(alert);
 	try {
 		if (!(await claim(db, key, timeoutMs))) return;
 
@@ -125,9 +146,26 @@ export async function raiseOpsAlert(
 
 		const results = await Promise.allSettled(sends);
 		const failed = results.filter((result) => result.status === "rejected");
-		for (const { reason } of failed) log.error({ key, error: reason }, "Ops alert not delivered");
+		for (const failure of failed) {
+			log.error({ key, error: reason(failure.reason) }, "Ops alert not delivered");
+		}
 		if (failed.length === sends.length) await release(db, key, timeoutMs);
 	} catch (error) {
-		log.error({ key, error }, "Ops alert failed");
+		log.error({ key, error: reason(error) }, "Ops alert failed");
+	}
+}
+
+/** Ends a cooldown once its cause has gone, so the next outage alerts at once. Never rejects. */
+export async function clearOpsAlert(
+	db: DbExecutor,
+	alert: Pick<OpsAlert, "type" | "subject">,
+	timeoutMs?: number,
+): Promise<void> {
+	if (!opsAlertsEnabled()) return;
+	const key = cooldownKey(alert);
+	try {
+		await release(db, key, timeoutMs);
+	} catch (error) {
+		log.warn({ key, error: reason(error) }, "Ops alert cooldown not cleared");
 	}
 }
