@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
 import { organization } from "../../lib/server/db/auth-schema";
 import {
+	incident,
+	incidentMonitor,
 	monitor,
 	monitorCheck,
 	monitorDailyStats,
@@ -239,6 +241,70 @@ describe("StatsService aggregation", () => {
 			.from(monitorDailyStats)
 			.where(eq(monitorDailyStats.monitorId, monitorId));
 		expect(stats).toMatchObject({ date: day, totalChecks: 1, failedChecks: 0 });
+	});
+
+	test("aggregateDailyStats counts the incidents whose span overlaps the UTC day", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new StatsService(drizzleDb);
+		const monitorId = await seedOrgWithMonitor(drizzleDb, "free");
+		const [{ organizationId }] = await drizzleDb
+			.select({ organizationId: monitor.organizationId })
+			.from(monitor)
+			.where(eq(monitor.id, monitorId));
+
+		const hour = 60 * 60 * 1000;
+		const dayStart = new Date();
+		dayStart.setUTCDate(dayStart.getUTCDate() - 3);
+		dayStart.setUTCHours(0, 0, 0, 0);
+		const at = (hours: number) => new Date(dayStart.getTime() + hours * hour);
+
+		const spans: { startedAt: Date; resolvedAt?: Date; status?: string; counted: boolean }[] = [
+			// Inside the day.
+			{ startedAt: at(1), resolvedAt: at(2), status: "resolved", counted: true },
+			// Resolved at the first instant of the day.
+			{ startedAt: at(-5), resolvedAt: at(0), status: "resolved", counted: true },
+			// Spans the whole day.
+			{ startedAt: at(-5), resolvedAt: at(30), status: "resolved", counted: true },
+			// Still open.
+			{ startedAt: at(-5), status: "investigating", counted: true },
+			// Reopened, so its resolvedAt no longer ends the span.
+			{ startedAt: at(-5), resolvedAt: at(-4), status: "monitoring", counted: true },
+			// Ended before the day.
+			{ startedAt: at(-5), resolvedAt: at(-1), status: "resolved", counted: false },
+			// Started at the first instant of the next day.
+			{ startedAt: at(24), resolvedAt: at(25), status: "resolved", counted: false },
+		];
+		for (const { startedAt, resolvedAt, status } of spans) {
+			const id = nanoid();
+			await drizzleDb
+				.insert(incident)
+				.values({ id, organizationId, title: id, startedAt, resolvedAt, status });
+			await drizzleDb.insert(incidentMonitor).values({ incidentId: id, monitorId });
+		}
+		const otherMonitorId = await seedOrgWithMonitor(drizzleDb, "free");
+		const otherIncidentId = nanoid();
+		await drizzleDb.insert(incident).values({
+			id: otherIncidentId,
+			organizationId,
+			title: otherIncidentId,
+			startedAt: at(1),
+		});
+		await drizzleDb
+			.insert(incidentMonitor)
+			.values({ incidentId: otherIncidentId, monitorId: otherMonitorId });
+		await drizzleDb
+			.insert(monitorCheck)
+			.values({ id: nanoid(), monitorId, status: "up", checkedAt: at(12) });
+
+		await service.aggregateDailyStats(monitorId, at(12));
+
+		const [stats] = await drizzleDb
+			.select()
+			.from(monitorDailyStats)
+			.where(eq(monitorDailyStats.monitorId, monitorId));
+		expect(stats.incidentCount).toBe(spans.filter(({ counted }) => counted).length);
 	});
 
 	test("aggregateDailyStats writes nothing for a day without checks", async ({ db }) => {

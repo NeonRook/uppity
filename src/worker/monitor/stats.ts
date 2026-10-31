@@ -4,7 +4,9 @@ import {
 	gte,
 	inArray,
 	lt,
+	ne,
 	notInArray,
+	or,
 	sql,
 	count,
 	type SQL,
@@ -19,6 +21,7 @@ import {
 	monitorDailyStats,
 	monitorStatus,
 	monitor,
+	incident,
 	incidentMonitor,
 	subscription,
 } from "../../lib/server/db/schema";
@@ -99,12 +102,18 @@ export class StatsService {
 
 		const uptimePercent = (successfulChecks / totalChecks) * 100;
 
-		// Count incidents for this monitor
-		const [incidentCountResult] = await this.database
-			.select({ count: count() })
+		// A status other than resolved means ongoing, since reopening keeps the old resolvedAt.
+		const [{ incidentCount }] = await this.database
+			.select({ incidentCount: count() })
 			.from(incidentMonitor)
-			.where(eq(incidentMonitor.monitorId, monitorId));
-		const incidentCount = incidentCountResult?.count || 0;
+			.innerJoin(incident, eq(incident.id, incidentMonitor.incidentId))
+			.where(
+				and(
+					eq(incidentMonitor.monitorId, monitorId),
+					lt(incident.startedAt, endOfDay),
+					or(ne(incident.status, "resolved"), gte(incident.resolvedAt, startOfDay)),
+				),
+			);
 
 		// Upsert daily stats
 		await this.database
