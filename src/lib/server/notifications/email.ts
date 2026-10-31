@@ -1,3 +1,4 @@
+import { formatUtcDateTime } from "../../format";
 import { appUrl, escapeHtml } from "../account-email";
 import { CONFIRMATION_TTL_HOURS } from "../services/email-channel.service";
 import { smtpFrom, smtpTransport, subscriberFrom, subscriberTransport } from "../smtp";
@@ -62,7 +63,7 @@ export async function sendEmail(
 	}
 
 	const { title, fields, details } = describeNotification(payload);
-	const rows = [...fields, ["Time", payload.timestamp.toISOString()], ...details];
+	const rows = [...fields, ["Time", formatUtcDateTime(payload.timestamp)], ...details];
 	const unsubscribe = unsubscribeUrl(config.token);
 	const footer = "You get this email because this address is an alert channel in Uppity.";
 

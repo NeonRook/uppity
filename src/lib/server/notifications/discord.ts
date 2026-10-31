@@ -1,4 +1,4 @@
-import { truncate } from "../../format";
+import { formatUtcDateTime, truncate } from "../../format";
 import { postJson } from "./http";
 import { describeNotification } from "./message";
 import type { NotificationPayload, NotificationResult } from "./types";
@@ -15,17 +15,16 @@ export function sendDiscord(
 	payload: NotificationPayload,
 ): Promise<NotificationResult> {
 	const { title, color, fields, details } = describeNotification(payload);
-	const timestamp = payload.timestamp.toISOString();
 
 	const embed = {
 		title: truncate(title, 256),
 		color,
 		fields: [
 			...fields.map(([name, value]) => field(name, value, true)),
-			field("Time", timestamp, true),
+			field("Time", formatUtcDateTime(payload.timestamp), true),
 			...details.map(([name, value]) => field(name, value, false)),
 		],
-		timestamp,
+		timestamp: payload.timestamp.toISOString(),
 	};
 
 	return postJson(config.discordWebhookUrl, { embeds: [embed] }, "Discord API");

@@ -1,4 +1,4 @@
-import { truncate } from "../../format";
+import { formatUtcDateTime, truncate } from "../../format";
 import { postJson } from "./http";
 import { describeNotification } from "./message";
 import type { NotificationPayload, NotificationResult } from "./types";
@@ -12,7 +12,7 @@ export function sendSlack(
 ): Promise<NotificationResult> {
 	const { title, color, fields, details } = describeNotification(payload);
 	const seconds = Math.floor(payload.timestamp.getTime() / 1000);
-	const time = `<!date^${seconds}^{date_short_pretty} {time}|${payload.timestamp.toISOString()}>`;
+	const time = `<!date^${seconds}^{date_short_pretty} {time}|${formatUtcDateTime(payload.timestamp)}>`;
 
 	const blocks = [
 		{ type: "header", text: { type: "plain_text", text: truncate(title, 150), emoji: true } },

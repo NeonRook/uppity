@@ -77,6 +77,15 @@ export const formatDateMonthDay = dateFormatter({ month: "short", day: "numeric"
 /** Format a `YYYY-MM-DD` UTC day key as month and day, without shifting it into local time. */
 export const formatUtcDay = dateFormatter({ month: "short", day: "numeric", timeZone: "UTC" });
 
+const utcDateTime = new Intl.DateTimeFormat("en-GB", {
+	dateStyle: "medium",
+	timeStyle: "short",
+	timeZone: "UTC",
+});
+
+/** Format a moment in UTC, naming the zone (e.g., "10 Oct 2026, 18:34 UTC") */
+export const formatUtcDateTime = (date: Date): string => `${utcDateTime.format(date)} UTC`;
+
 /**
  * Format response time in milliseconds
  * Returns formatted string like "123ms" or "-" if null
