@@ -1,4 +1,7 @@
-import { announceUnsubscribe, emailChannelService } from "#lib/server/services/email-channel.instance.js";
+import {
+	announceUnsubscribe,
+	emailChannelService,
+} from "#lib/server/services/email-channel.instance.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 

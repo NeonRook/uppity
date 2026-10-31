@@ -878,7 +878,7 @@
 	"invitation_refused_no_mail": "Esta instância não tem servidor de e-mail configurado, então os convites não podem ser entregues. Defina SMTP_HOST e SMTP_PORT e convide novamente.",
 	"invitation_refused_unverified": "Verifique seu endereço de e-mail antes de convidar alguém.",
 	"invitation_refused_opted_out": "Este endereço cancelou a inscrição nos e-mails da sua organização, então não pode ser convidado.",
-	"invitation_refused_too_soon": "Já enviamos e-mails demais para este endereço sem resposta. Tente novamente mais tarde.",
+	"invitation_refused_too_soon": "Enviamos um e-mail para este endereço recentemente. Tente novamente mais tarde.",
 	"invitation_refused_capped": "Muitos endereços da última semana ainda não responderam. Você poderá convidar mais conforme as pessoas aceitarem.",
 	"invitation_refused_member_limit": "Esta organização pode ter até {limit} membros, contando os convites pendentes.",
 	"invitation_refused_failed": "Não foi possível enviar o e-mail de convite, então nenhum convite foi criado. Tente novamente em um minuto.",

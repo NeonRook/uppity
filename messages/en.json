@@ -878,7 +878,7 @@
 	"invitation_refused_no_mail": "This instance has no mail server configured, so invitations can't be delivered. Set SMTP_HOST and SMTP_PORT, then invite again.",
 	"invitation_refused_unverified": "Verify your email address before inviting anyone.",
 	"invitation_refused_opted_out": "This address unsubscribed from your organization's email, so it can't be invited.",
-	"invitation_refused_too_soon": "We've emailed this address too many times without an answer. Try again later.",
+	"invitation_refused_too_soon": "We emailed this address recently. Try again later.",
 	"invitation_refused_capped": "Too many addresses from the past week haven't answered yet. You can invite more as people accept.",
 	"invitation_refused_member_limit": "This organization can have up to {limit} team members, counting pending invitations.",
 	"invitation_refused_failed": "Couldn't send the invitation email, so no invitation was created. Try again in a minute.",
