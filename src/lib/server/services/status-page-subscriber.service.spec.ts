@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect, vi } from "vitest";
 
-import { statusPage, statusPageSubscriber } from "../db/schema";
+import { emailSuppression, statusPage, statusPageSubscriber } from "../db/schema";
 import type { SubscriptionConfirmation } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -10,6 +10,7 @@ import { seedOrg } from "../test/seed";
 import {
 	CONFIRMATION_TTL_HOURS,
 	deleteExpiredUnconfirmedSubscribers,
+	deleteSuppressedSubscribers,
 	RESEND_INTERVAL_MS,
 	StatusPageSubscriberService,
 } from "./status-page-subscriber.service";
@@ -82,6 +83,52 @@ describe("StatusPageSubscriberService", () => {
 		await service.subscribe(page, "visitor@example.com");
 
 		expect(sent).toHaveLength(1);
+	});
+
+	test("a suppressed address gets no confirmation and no row, and the answer is the same", async ({
+		db,
+	}) => {
+		const { page, sent, service } = await setup(db.db);
+		await db.db.insert(emailSuppression).values({ email: "gone@example.com", reason: "complaint" });
+
+		expect(await service.subscribe(page, "GONE@example.com")).toBe(true);
+
+		expect(sent).toHaveLength(0);
+		const rows = await db.db
+			.select()
+			.from(statusPageSubscriber)
+			.where(eq(statusPageSubscriber.email, "gone@example.com"));
+		expect(rows).toHaveLength(0);
+	});
+
+	test("a suppressed subscriber is deleted after retention, and stays suppressed", async ({
+		db,
+	}) => {
+		const { page, sent, service } = await setup(db.db);
+		const old = `old-${nanoid().toLowerCase()}@example.com`;
+		const recent = `recent-${nanoid().toLowerCase()}@example.com`;
+		await service.subscribe(page, old);
+		await service.subscribe(page, recent);
+		await service.confirm(page.id, sent[0].token);
+		await service.confirm(page.id, sent[1].token);
+		await db.db.insert(emailSuppression).values([
+			{
+				email: old,
+				reason: "bounce",
+				suppressedAt: new Date(Date.now() - 91 * 24 * HOUR_MS),
+			},
+			{ email: recent, reason: "bounce" },
+		]);
+
+		expect(await deleteSuppressedSubscribers(db.db)).toBe(1);
+
+		const left = await db.db
+			.select()
+			.from(statusPageSubscriber)
+			.where(eq(statusPageSubscriber.statusPageId, page.id));
+		expect(left.map((row) => row.email)).toEqual([recent]);
+		const kept = await db.db.select().from(emailSuppression).where(eq(emailSuppression.email, old));
+		expect(kept).toHaveLength(1);
 	});
 
 	test("a failed send can be retried at once", async ({ db }) => {

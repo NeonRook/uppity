@@ -220,6 +220,7 @@ See [`.env.example`](.env.example) for all available configuration options.
 
 - `SMTP_*` - Email notification settings
 - `UPPITY_OPS_ALERT_*` - Where to tell you when monitors stop being checked
+- `RESEND_WEBHOOK_SECRET` - Stops mail to addresses that bounce or complain, if you send through Resend
 - `UPPITY_DEFAULT_*` - Monitor default configurations
 - `UPPITY_CRON_*` - Background job schedules
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, vi } from "vitest";
 
 import { organization } from "../db/auth-schema";
 import {
+	emailSuppression,
 	incident,
 	incidentMonitor,
 	monitor,
@@ -393,6 +394,26 @@ describe("NotificationService.dispatchEvent (subscribers)", () => {
 		expect(result.status).toBe("sent");
 		expect(sent.map((e) => e.email)).toEqual(["confirmed@example.com"]);
 		expect(sent[0]).toMatchObject({ kind: "incident_created", message: "Looking into it" });
+	});
+
+	test("skips a subscriber whose address is suppressed", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const { sent, send } = recordingSender();
+		const service = new NotificationService(drizzleDb, undefined, send);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const page = await seedPage(drizzleDb, orgId, [monitorId]);
+		await seedSubscriber(drizzleDb, page, "ok@example.com");
+		await seedSubscriber(drizzleDb, page, "gone@example.com");
+		await drizzleDb
+			.insert(emailSuppression)
+			.values({ email: "gone@example.com", reason: "bounce" });
+		const incidentId = await seedIncident(drizzleDb, orgId, [monitorId]);
+		const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_resolved");
+
+		await service.dispatchEvent(await fetchEvent(drizzleDb, eventId));
+
+		expect(sent.map((e) => e.email)).toEqual(["ok@example.com"]);
 	});
 
 	test("a retried event emails nobody twice", async ({ db }) => {
