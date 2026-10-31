@@ -298,6 +298,11 @@ describe("formatUtcDateTime", () => {
 		expect(formatUtcDateTime(new Date("2026-10-10T18:34:09.838Z"))).toBe("10 Oct 2026, 18:34 UTC");
 		expect(formatUtcDateTime(new Date("2026-10-10T23:30:00-05:00"))).toBe("11 Oct 2026, 04:30 UTC");
 	});
+
+	it("returns a dash for a missing or invalid date", () => {
+		expect(formatUtcDateTime(null)).toBe("-");
+		expect(formatUtcDateTime(new Date(Number.NaN))).toBe("-");
+	});
 });
 
 describe("getTimeZoneLabel", () => {
