@@ -17,7 +17,7 @@ function buildPinoOptions(): pino.LoggerOptions {
 		level: process.env.LOG_LEVEL || "info",
 		base: {
 			service: process.env.SERVICE_NAME || "uppity",
-			version: process.env.npm_package_version || "0.0.1",
+			version: import.meta.env.APP_VERSION,
 			env: envString("NODE_ENV", "development"),
 		},
 		timestamp: pino.stdTimeFunctions.isoTime,
