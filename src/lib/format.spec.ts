@@ -12,6 +12,7 @@ import {
 	formatInterval,
 	formatUptime,
 	formatUsdCents,
+	formatUtcDateTime,
 	getTimeZoneLabel,
 	truncate,
 } from "./format";
@@ -289,6 +290,13 @@ describe("formatRelativeTime", () => {
 
 	it("returns a dash for an unparseable date", () => {
 		expect(formatRelativeTime("not a date", "en-US", now)).toBe("-");
+	});
+});
+
+describe("formatUtcDateTime", () => {
+	it("names the zone and stays in UTC", () => {
+		expect(formatUtcDateTime(new Date("2026-10-10T18:34:09.838Z"))).toBe("10 Oct 2026, 18:34 UTC");
+		expect(formatUtcDateTime(new Date("2026-10-10T23:30:00-05:00"))).toBe("11 Oct 2026, 04:30 UTC");
 	});
 });
 
