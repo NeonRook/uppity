@@ -1,3 +1,5 @@
+import { INVITATION_EXPIRES_IN_HOURS } from "#lib/constants/auth.js";
+
 import { appUrl, escapeHtml } from "./account-email";
 import { CONFIRMATION_TTL_HOURS } from "./services/status-page-subscriber.service";
 import { subscriberFrom, subscriberTransport } from "./smtp";
@@ -36,6 +38,44 @@ export async function sendSubscriptionConfirmation({
 			`<p>${escapeHtml(paragraphs[1])}</p>`,
 		].join("\n"),
 		text: [paragraphs[0], "", `Confirm subscription: ${confirmUrl}`, "", paragraphs[1]].join("\n"),
+	});
+}
+
+export interface TeamInvitation {
+	email: string;
+	invitationId: string;
+	/** The verified account email of the member who sent it. */
+	invitedBy: string;
+}
+
+/**
+ * Sends the link to a team invitation. An organization can type any address, so the email
+ * carries no text the organization chose; the invitation page names it. Throws when it
+ * cannot.
+ */
+export async function sendTeamInvitation({
+	email,
+	invitationId,
+	invitedBy,
+}: TeamInvitation): Promise<void> {
+	if (!subscriberTransport) throw new Error("SMTP not configured");
+
+	const url = `${appUrl}/invitations/${invitationId}`;
+	const paragraphs = [
+		`${invitedBy} invited this address to join a team on Uppity. Open the invitation to see the team and accept or decline. The link works for ${INVITATION_EXPIRES_IN_HOURS} hours.`,
+		"If you weren't expecting this, ignore this email. The invitation expires on its own.",
+	];
+
+	await subscriberTransport.sendMail({
+		from: subscriberFrom,
+		to: email,
+		subject: "You're invited to join a team on Uppity",
+		html: [
+			`<p>${escapeHtml(paragraphs[0])}</p>`,
+			`<p><a href="${url}">View invitation</a></p>`,
+			`<p>${escapeHtml(paragraphs[1])}</p>`,
+		].join("\n"),
+		text: [paragraphs[0], "", `View invitation: ${url}`, "", paragraphs[1]].join("\n"),
 	});
 }
 

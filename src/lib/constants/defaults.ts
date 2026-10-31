@@ -82,9 +82,10 @@ export const SUBSCRIBER_CONFIRMATION_CAP = {
 };
 
 /**
- * Unconfirmed confirmation emails one organization may have sent to email channel addresses
- * in the past week. A confirmation frees its slot, so a team whose recipients confirm never
- * meets the cap, while mail to strangers who ignore it stalls here.
+ * Unanswered emails one organization may have sent in the past week: confirmations to email
+ * channel addresses and team invitations together. A confirmation or an accepted invitation
+ * frees its slot, so a team whose recipients answer never meets the cap, while mail to
+ * strangers who ignore it stalls here.
  */
 export const CHANNEL_PENDING_CONFIRMATIONS = envInt("UPPITY_CHANNEL_PENDING_CONFIRMATIONS", 5);
 

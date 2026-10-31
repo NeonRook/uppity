@@ -10,9 +10,11 @@
 	import { formatUptime, formatResponseTime } from "#lib/format.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { getMonitors } from "#lib/remote/monitors.remote.js";
+	import { getMyInvitations } from "#lib/remote/settings.remote.js";
 	import { getStatusBadge, getStatusColor, uncheckedSummary } from "#lib/utils/status.js";
 
 	const monitors = $derived(await getMonitors());
+	const invitations = $derived(await getMyInvitations());
 
 	const stats = $derived({
 		total: monitors.length,
@@ -37,6 +39,35 @@
 			{m.dashboard_add_monitor()}
 		</Button>
 	</div>
+
+	{#if invitations.length > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>{m.invitations_pending_title()}</Card.Title>
+			</Card.Header>
+			<Card.Content class="space-y-2">
+				{#each invitations as invitation (invitation.id)}
+					<div class="flex items-center justify-between gap-4 rounded-md border p-3 text-sm">
+						<div>
+							<p>{m.invitation_prompt({ organization: invitation.organizationName })}</p>
+							{#if invitation.invitedBy}
+								<p class="text-muted-foreground">
+									{m.invitation_invited_by({ email: invitation.invitedBy })}
+								</p>
+							{/if}
+						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							href={resolve("/(auth)/invitations/[id]", { id: invitation.id })}
+						>
+							{m.invitation_view()}
+						</Button>
+					</div>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	<!-- Stats cards -->
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">

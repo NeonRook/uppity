@@ -40,8 +40,9 @@
 		<div class="text-muted-foreground text-sm">
 			{m.auth_login_no_account()}
 
-			<a href={resolve("register")} class="text-primary underline-offset-4 hover:underline"
-				>{m.auth_login_sign_up()}</a
+			<a
+				href={`${resolve("register")}${page.url.search}`}
+				class="text-primary underline-offset-4 hover:underline">{m.auth_login_sign_up()}</a
 			>
 		</div>
 	</Card.Footer>

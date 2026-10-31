@@ -110,8 +110,7 @@ export class EmailChannelService {
 		const now = new Date();
 
 		const pending = await this.db.transaction(async (tx) => {
-			// Serializes requests per organization, so concurrent ones cannot all pass the cap.
-			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${organizationId}))`);
+			await lockSends(tx, organizationId);
 
 			const [row] = await tx
 				.select({
@@ -136,21 +135,11 @@ export class EmailChannelService {
 			}
 			if (!requester.emailVerified) return "unverified";
 
-			// Per address, so recreating or readdressing a channel cannot skip the wait.
-			const [{ lastSent }] = await tx
-				.select({ lastSent: max(log.sentAt) })
-				.from(log)
-				.where(and(eq(log.organizationId, organizationId), eq(log.email, email)));
-			if (lastSent && now.getTime() - lastSent.getTime() < RESEND_INTERVAL_MS) {
-				return "too_soon";
-			}
+			const claim = await claimSlot(tx, organizationId, email, this.cap, now);
+			if (claim.refused) return claim.refused;
 
-			if ((await unconfirmedAddresses(tx, organizationId, now)) >= this.cap) return "capped";
-
-			const sendId = nanoid();
 			// A channel saved without a token, by code older than its column, gets one here.
 			const token = optOut || !row.token ? freshRecipient().token : row.token;
-			await tx.insert(log).values({ id: sendId, organizationId, email, sentAt: now });
 			await tx
 				.update(c)
 				.set({
@@ -161,7 +150,7 @@ export class EmailChannelService {
 				.where(eq(c.id, channelId));
 			if (optOut) await setReasked(tx, organizationId, email, now);
 			return {
-				sendId,
+				sendId: claim.sendId,
 				email: row.config.email,
 				token,
 				previous: {
@@ -361,11 +350,69 @@ export class EmailChannelService {
 		return { ...freshRecipient(), ...optOut };
 	}
 
+	/**
+	 * Takes a slot for an invitation email under the same interval and cap as confirmations,
+	 * since both go to addresses that never agreed to mail. An address that opted out of the
+	 * organization's email gets no invitation either.
+	 */
+	async claimInvitationSend(organizationId: string, email: string) {
+		const address = email.toLowerCase();
+		return this.db.transaction(async (tx) => {
+			await lockSends(tx, organizationId);
+			if (await optOutOf(tx, organizationId, address)) return { refused: "opted_out" as const };
+			return claimSlot(tx, organizationId, address, this.cap, new Date());
+		});
+	}
+
+	/** Gives back a slot whose email never went out. */
+	async releaseSend(sendId: string): Promise<void> {
+		await this.db.delete(channelConfirmationSend).where(eq(channelConfirmationSend.id, sendId));
+	}
+
+	/** Frees the address's slot once it accepts an invitation. */
+	async markInvitationAccepted(organizationId: string, email: string): Promise<void> {
+		await freeSlot(this.db, organizationId, email.toLowerCase(), new Date());
+	}
+
 	/** Whether a confirmation to `email` would exceed the organization's pending cap. */
 	async wouldCap(organizationId: string, email: string): Promise<boolean> {
 		if (await isVerifiedMember(this.db, organizationId, email)) return false;
 		return (await unconfirmedAddresses(this.db, organizationId, new Date())) >= this.cap;
 	}
+}
+
+/** Serializes sends per organization, so concurrent ones cannot all pass the cap. */
+async function lockSends(tx: DbExecutor, organizationId: string) {
+	await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${organizationId}))`);
+}
+
+type SlotClaim =
+	| { sendId: string; refused?: undefined }
+	| { sendId?: undefined; refused: "too_soon" | "capped" };
+
+/** Logs a send to the lowercased address, unless the interval or the cap forbids it. */
+async function claimSlot(
+	tx: DbExecutor,
+	organizationId: string,
+	email: string,
+	cap: number,
+	now: Date,
+): Promise<SlotClaim> {
+	const log = channelConfirmationSend;
+	// Per address, so recreating or readdressing a channel cannot skip the wait.
+	const [{ lastSent }] = await tx
+		.select({ lastSent: max(log.sentAt) })
+		.from(log)
+		.where(and(eq(log.organizationId, organizationId), eq(log.email, email)));
+	if (lastSent && now.getTime() - lastSent.getTime() < RESEND_INTERVAL_MS) {
+		return { refused: "too_soon" };
+	}
+
+	if ((await unconfirmedAddresses(tx, organizationId, now)) >= cap) return { refused: "capped" };
+
+	const sendId = nanoid();
+	await tx.insert(log).values({ id: sendId, organizationId, email, sentAt: now });
+	return { sendId };
 }
 
 async function optOutOf(tx: DbExecutor, organizationId: string, email: string) {
@@ -405,15 +452,19 @@ async function unconfirmedAddresses(tx: DbExecutor, organizationId: string, now:
 	return unconfirmed;
 }
 
-/** Frees the address's slot and lifts its opt-out, keeping the used re-ask. */
-async function markConfirmed(tx: DbExecutor, organizationId: string, email: string, now: Date) {
+function freeSlot(tx: DbExecutor, organizationId: string, email: string, now: Date) {
 	const log = channelConfirmationSend;
-	await tx
+	return tx
 		.update(log)
 		.set({ confirmedAt: now })
 		.where(
 			and(eq(log.organizationId, organizationId), eq(log.email, email), isNull(log.confirmedAt)),
 		);
+}
+
+/** Frees the address's slot and lifts its opt-out, keeping the used re-ask. */
+async function markConfirmed(tx: DbExecutor, organizationId: string, email: string, now: Date) {
+	await freeSlot(tx, organizationId, email, now);
 	await tx
 		.update(emailOptOut)
 		.set({ unsubscribedAt: null })

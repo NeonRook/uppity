@@ -16,15 +16,17 @@ export async function gotoHydrated(page: Page, path: string): Promise<void> {
 	await page.waitForLoadState("networkidle");
 }
 
-export async function register(page: Page): Promise<string> {
-	const email = `e2e-${randomUUID()}@example.com`;
-	await gotoHydrated(page, "/register");
+export async function register(
+	page: Page,
+	{ email = `e2e-${randomUUID()}@example.com`, from = "/register", to = "**/dashboard" } = {},
+): Promise<string> {
+	await gotoHydrated(page, from);
 	await page.getByLabel("Name").fill("E2E User");
 	await page.getByLabel("Email").fill(email);
 	await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
 	await page.getByLabel("Confirm Password").fill(PASSWORD);
 	await page.getByRole("button", { name: "Create account" }).click();
-	await page.waitForURL("**/dashboard");
+	await page.waitForURL(to);
 	return email;
 }
 

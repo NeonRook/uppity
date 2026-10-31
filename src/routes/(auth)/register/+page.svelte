@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 
 	import { signUp } from "#lib/auth-client.js";
@@ -10,6 +11,12 @@
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { sameOriginPath } from "#lib/utils/same-origin-path.js";
+
+	// Same-origin only, so the parameter cannot send a fresh session elsewhere.
+	const redirectTo = $derived(
+		sameOriginPath(page.url.searchParams.get("redirectTo"), page.url.origin),
+	);
 
 	let name = $state("");
 	let email = $state("");
@@ -42,7 +49,7 @@
 				return;
 			}
 
-			goto(resolve("dashboard"));
+			goto(redirectTo ?? resolve("dashboard"));
 		} catch {
 			error = m.auth_login_error_unexpected();
 			loading = false;
@@ -129,8 +136,9 @@
 		<div class="text-muted-foreground text-sm">
 			{m.auth_register_has_account()}
 
-			<a href={resolve("login")} class="text-primary underline-offset-4 hover:underline"
-				>{m.auth_login_sign_in()}</a
+			<a
+				href={`${resolve("login")}${page.url.search}`}
+				class="text-primary underline-offset-4 hover:underline">{m.auth_login_sign_in()}</a
 			>
 		</div>
 	</Card.Footer>
