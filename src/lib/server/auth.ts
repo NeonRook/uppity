@@ -351,6 +351,10 @@ export const auth = betterAuth({
 			if (ctx.path === "/organization/invite-member" && ctx.body?.resend) {
 				throw new APIError("BAD_REQUEST", { message: "Cancel the invitation and send a new one" });
 			}
+			// The invitation page takes the lock that keeps two accepts within the member limit.
+			if (ctx.path === "/organization/accept-invitation" && ctx.request) {
+				throw new APIError("FORBIDDEN", { message: "Accept from the invitation page" });
+			}
 			if (ctx.path === "/api-key/create") {
 				const refusal = await refuseApiKeyCreate(ctx.body, countApiKeys);
 				if (refusal) throw new APIError("FORBIDDEN", { message: refusal });

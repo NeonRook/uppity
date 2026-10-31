@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { BASE_URL } from "./env";
 import { expect, gotoHydrated, register, test } from "./fixtures";
 
 test("an instance without mail refuses to invite and keeps no invitation", async ({
@@ -15,6 +16,27 @@ test("an instance without mail refuses to invite and keeps no invitation", async
 	await expect(page.getByText("no mail server configured")).toBeVisible();
 	const rows = await sql`SELECT id FROM invitation WHERE organization_id = ${organizationId}`;
 	expect(rows).toHaveLength(0);
+});
+
+test("the invitation API takes one known role and no direct accepts", async ({
+	page,
+	organizationId,
+}) => {
+	const post = (path: string, data: object) =>
+		page.request.post(`/api/auth/organization/${path}`, {
+			data,
+			headers: { origin: BASE_URL },
+		});
+
+	const spaced = await post("invite-member", {
+		email: `e2e-${randomUUID()}@example.com`,
+		role: "admin, owner",
+		organizationId,
+	});
+	expect(await spaced.json()).toMatchObject({ message: "Choose one role" });
+
+	const accept = await post("accept-invitation", { invitationId: randomUUID() });
+	expect(await accept.json()).toMatchObject({ message: "Accept from the invitation page" });
 });
 
 test("only the invited address, once verified, can see and accept an invitation", async ({

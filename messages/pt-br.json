@@ -893,6 +893,7 @@
 	"invitation_other_account": "Este convite foi enviado para um endereço diferente daquele com que você entrou ({email}). Troque de conta para continuar.",
 	"invitation_verify_first": "Verifique seu endereço de e-mail para abrir este convite. Depois disso, ele estará no seu painel.",
 	"invitation_org_full": "Esta organização não tem vagas livres. Peça a quem convidou você para abrir espaço.",
+	"invitation_busy": "Outra pessoa está entrando nesta organização agora. Tente novamente em instantes.",
 	"invitation_view": "Ver convite",
 	"invitations_pending_title": "Convites para equipes"
 }
