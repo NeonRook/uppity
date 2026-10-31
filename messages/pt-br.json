@@ -878,7 +878,7 @@
 	"invitation_refused_no_mail": "Esta instância não tem servidor de e-mail configurado, então os convites não podem ser entregues. Defina SMTP_HOST e SMTP_PORT e convide novamente.",
 	"invitation_refused_unverified": "Verifique seu endereço de e-mail antes de convidar alguém.",
 	"invitation_refused_opted_out": "Este endereço cancelou a inscrição nos e-mails da sua organização, então não pode ser convidado.",
-	"invitation_refused_too_soon": "Enviamos um e-mail para este endereço há menos de uma hora. Tente novamente mais tarde.",
+	"invitation_refused_too_soon": "Já enviamos e-mails demais para este endereço sem resposta. Tente novamente mais tarde.",
 	"invitation_refused_capped": "Muitos endereços da última semana ainda não responderam. Você poderá convidar mais conforme as pessoas aceitarem.",
 	"invitation_refused_failed": "Não foi possível enviar o e-mail de convite, então nenhum convite foi criado. Tente novamente em um minuto.",
 	"invitation_title": "Convite para a equipe",
@@ -895,5 +895,9 @@
 	"invitation_org_full": "Esta organização não tem vagas livres. Peça a quem convidou você para abrir espaço.",
 	"invitation_busy": "Outra pessoa está entrando nesta organização agora. Tente novamente em instantes.",
 	"invitation_view": "Ver convite",
+	"invitation_unsubscribe_title": "Parar convites de equipe",
+	"invitation_unsubscribe_prompt": "Impedir que esta equipe convide o endereço que recebeu este e-mail? Se a equipe envia alertas para este endereço, eles também param, e os administradores serão avisados.",
+	"invitation_unsubscribe_submit": "Cancelar inscrição",
+	"invitation_unsubscribe_done": "Inscrição cancelada. Esta equipe não poderá mais convidar este endereço.",
 	"invitations_pending_title": "Convites para equipes"
 }

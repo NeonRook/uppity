@@ -39,6 +39,36 @@ test("the invitation API takes one known role and no direct accepts", async ({
 	expect(await accept.json()).toMatchObject({ message: "Accept from the invitation page" });
 });
 
+test("the unsubscribe link needs a click, names nobody and works signed out", async ({
+	browser,
+	sql,
+	organizationId,
+}) => {
+	const [{ inviterId }] = await sql<{ inviterId: string }[]>`
+		SELECT user_id AS "inviterId" FROM member WHERE organization_id = ${organizationId}
+	`;
+	const id = randomUUID();
+	const email = `e2e-${id}@example.com`;
+	const organizationName = `Org ${id}`;
+	await sql`UPDATE organization SET name = ${organizationName} WHERE id = ${organizationId}`;
+	await sql`
+		INSERT INTO invitation (id, organization_id, email, role, status, expires_at, created_at, inviter_id)
+		VALUES (${id}, ${organizationId}, ${email}, 'member', 'pending',
+			now() + interval '1 day', now(), ${inviterId})
+	`;
+	const optOuts = () =>
+		sql`SELECT 1 FROM email_opt_out WHERE organization_id = ${organizationId} AND email = ${email}`;
+
+	const visitor = await browser.newPage();
+	await gotoHydrated(visitor, `/invitations/${id}/unsubscribe`);
+	await expect(visitor.getByText(organizationName)).toBeHidden();
+	expect(await optOuts()).toHaveLength(0);
+
+	await visitor.getByRole("button", { name: "Unsubscribe" }).click();
+	await expect(visitor.getByText("You're unsubscribed")).toBeVisible();
+	expect(await optOuts()).toHaveLength(1);
+});
+
 test("only the invited address, once verified, can see and accept an invitation", async ({
 	browser,
 	sql,
