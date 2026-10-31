@@ -390,8 +390,9 @@ export const emailOptOut = pgTable(
 	(table) => [primaryKey({ columns: [table.organizationId, table.email] })],
 );
 
-// One row per confirmation email to an email channel address. Rows outlive the channel, so
-// deleting or readdressing it cannot free a slot or skip the resend interval.
+// One row per confirmation email to an email channel address, or invitation email to a
+// new team member. Rows outlive the channel and the invitation, so deleting or readdressing
+// the one or cancelling the other cannot free a slot or skip the resend interval.
 export const channelConfirmationSend = pgTable(
 	"channel_confirmation_send",
 	{

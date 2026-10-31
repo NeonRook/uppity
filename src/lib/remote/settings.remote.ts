@@ -1,10 +1,11 @@
-import { command, getRequestEvent } from "$app/server";
+import { command, getRequestEvent, query } from "$app/server";
 import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 
 import { relayAuthError } from "#lib/remote/auth-error.js";
 import { requireOrganizationId } from "#lib/remote/organization.js";
 import { auth } from "#lib/server/auth.js";
+import { invitationService } from "#lib/server/services/invitation.instance.js";
 
 const invitationIdSchema = v.object({
 	invitationId: v.pipe(v.string(), v.minLength(1)),
@@ -12,6 +13,12 @@ const invitationIdSchema = v.object({
 
 const memberIdSchema = v.object({
 	memberId: v.pipe(v.string(), v.minLength(1)),
+});
+
+// Query: Pending invitations to the signed-in user's own address
+export const getMyInvitations = query(async () => {
+	const { user } = getRequestEvent().locals;
+	return user ? invitationService.pendingFor(user) : [];
 });
 
 export const cancelInvitation = command(invitationIdSchema, async ({ invitationId }) => {

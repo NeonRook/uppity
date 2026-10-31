@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals, request }) => {
 	});
 
 	const pendingInvitations = (invitationsResult || [])
-		.filter((inv) => inv.status === "pending")
+		.filter((inv) => inv.status === "pending" && new Date(inv.expiresAt) > new Date())
 		.map((inv) => ({
 			id: inv.id,
 			email: inv.email,

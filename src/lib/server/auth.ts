@@ -21,10 +21,12 @@ import {
 	ORGANIZATION_CREATOR_ROLE,
 	ORGANIZATION_LIMIT_PER_USER,
 	EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
+	INVITATION_EXPIRES_IN_HOURS,
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
 import { DEFAULT_PLAN_ID, FREE_PLAN } from "#lib/constants/plans.js";
+import { m } from "#lib/paraglide/messages.js";
 import { appUrl, sendAccountVerification } from "#lib/server/account-email.js";
 import { refuseApiKeyCreate } from "#lib/server/api-auth.js";
 import { BILLING_PATHS, refuseBillingRequest } from "#lib/server/billing-authorization.js";
@@ -40,6 +42,7 @@ import {
 } from "#lib/server/logger/index.js";
 import { polarClient } from "#lib/server/polar.js";
 import { emailChannelService } from "#lib/server/services/email-channel.instance.js";
+import { invitationService } from "#lib/server/services/invitation.instance.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 import type {
 	HeldPolarSubscription,
@@ -160,6 +163,16 @@ async function countApiKeys(organizationId: string): Promise<number> {
 		.where(eq(authSchema.apikey.referenceId, organizationId));
 	return row?.count ?? 0;
 }
+
+/** What the inviter reads when an invitation email did not go out. */
+const INVITATION_REFUSALS = {
+	no_mail: m.invitation_refused_no_mail,
+	unverified: m.invitation_refused_unverified,
+	opted_out: m.invitation_refused_opted_out,
+	too_soon: m.invitation_refused_too_soon,
+	capped: m.invitation_refused_capped,
+	failed: m.invitation_refused_failed,
+};
 
 const NOT_BILLED_THROUGH = "for a subscription the org is not billed through";
 
@@ -332,6 +345,11 @@ export const auth = betterAuth({
 			// turn on one inbox. The banner, its only caller, always has a session.
 			if (ctx.path === "/send-verification-email" && !(await getSessionFromCtx(ctx))) {
 				throw new APIError("UNAUTHORIZED", { message: "Sign in to resend the link" });
+			}
+			// Moves the expiry of a pending invitation without emailing anyone. Nothing here
+			// offers it, and an invitation renewed this way would hold its seat indefinitely.
+			if (ctx.path === "/organization/invite-member" && ctx.body?.resend) {
+				throw new APIError("BAD_REQUEST", { message: "Cancel the invitation and send a new one" });
 			}
 			if (ctx.path === "/api-key/create") {
 				const refusal = await refuseApiKeyCreate(ctx.body, countApiKeys);
@@ -520,6 +538,7 @@ export const auth = betterAuth({
 			// Anyone can sign up with an invitee's address, so only a verified one may answer
 			// the invitation. better-auth skips this check when invitation ids are random.
 			requireEmailVerificationOnInvitation: true,
+			invitationExpiresIn: INVITATION_EXPIRES_IN_HOURS * 60 * 60,
 			ac,
 			roles: organizationRoles,
 			// better-auth checks this during acceptInvitation against the accepted
@@ -537,6 +556,25 @@ export const auth = betterAuth({
 						throw new APIError("FORBIDDEN", {
 							message: `Your plan allows ${capacity.limit} team members. Upgrade to invite more.`,
 						});
+					}
+				},
+				// Sends here rather than through the plugin's `sendInvitationEmail`, which logs
+				// what it throws and reports success. A refusal has to reach the inviter.
+				afterCreateInvitation: async ({ invitation, inviter }) => {
+					const outcome = await invitationService.deliver(invitation, inviter);
+					if (outcome !== "sent") {
+						throw new APIError("FORBIDDEN", { message: INVITATION_REFUSALS[outcome]() });
+					}
+				},
+				// The member exists by now; a failure here must not report the invitation as failed.
+				afterAcceptInvitation: async ({ invitation }) => {
+					try {
+						await emailChannelService.markInvitationAccepted(
+							invitation.organizationId,
+							invitation.email,
+						);
+					} catch (error) {
+						logger.error({ invitation_id: invitation.id, error }, "Failed to free invitation slot");
 					}
 				},
 			},
