@@ -550,7 +550,12 @@ export const auth = betterAuth({
 				// membershipLimit alone counts accepted members only, so an org could
 				// mass-invite past its cap. This applies the members-plus-invitations
 				// rule at invite time; throwing here aborts the invitation.
-				beforeCreateInvitation: async ({ organization: org }) => {
+				beforeCreateInvitation: async ({ invitation, organization: org }) => {
+					// better-auth trims role lists when validating them but not when guarding the
+					// owner role, so "admin, owner" gets past the guard and later counts as owner.
+					if (!Object.hasOwn(organizationRoles, invitation.role)) {
+						throw new APIError("BAD_REQUEST", { message: "Choose one role" });
+					}
 					const capacity = await subscriptionService.getMemberCapacity(org.id);
 					if (!capacity.canInvite) {
 						throw new APIError("FORBIDDEN", {

@@ -13,6 +13,9 @@ describe("sameOriginPath", () => {
 		"//evil.com",
 		"/\\evil.com",
 		"/\t/evil.com",
+		"/.//evil.com",
+		"/invitations/..//evil.com",
+		"/./\\evil.com",
 		"https://evil.com/",
 		["javascript", "alert(1)"].join(":"),
 	])("refuses %j", (target) => {
