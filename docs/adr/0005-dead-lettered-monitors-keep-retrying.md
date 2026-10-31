@@ -79,9 +79,11 @@ showing its last recorded status, whether or not it was dead-lettered when pause
 with `event_type: "monitor_dead_lettered"`. The notifier also reads the active
 dead-lettered monitors on each sweep and sends one operator alert listing them, so a
 dying monitor worker cannot lose the alert and a fault that breaks every check sends one
-message rather than one per monitor. The cooldown follows the newest monitor: a new
-failure alerts at the next sweep, and an unchanged set repeats after
-`UPPITY_OPS_ALERT_COOLDOWN_HOURS`.
+message rather than one per monitor. The cooldown follows the newest entry into dead
+letter: a new failure, or a monitor that recovered and failed again, alerts at the next
+sweep, and an unchanged set repeats after `UPPITY_OPS_ALERT_COOLDOWN_HOURS`. The alert
+carries IDs and a link to the admin page, since monitor names and check errors are
+customer text.
 
 **An admin reset means "retry now".** It makes the monitor due immediately and leaves
 `dead_lettered_at` set. A success then sends the recovery notification, and a failure

@@ -42,9 +42,7 @@ export function deadLetteredMonitors(db: DbExecutor, limit: number) {
 	return db
 		.select({
 			id: monitor.id,
-			name: monitor.name,
 			organizationId: monitor.organizationId,
-			lastError: monitor.checkLastError,
 			deadLetteredAt: monitor.deadLetteredAt,
 			total: sql<number>`count(*) OVER ()`.mapWith(Number),
 		})

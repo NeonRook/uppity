@@ -9,7 +9,7 @@ import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
 import * as schema from "./db/schema";
-import { raiseOpsAlert, type OpsAlert } from "./ops-alert";
+import { clearOpsAlert, raiseOpsAlert, type OpsAlert } from "./ops-alert";
 import { test } from "./test/fixture";
 
 const { opsAlertCooldown } = schema;
@@ -96,6 +96,7 @@ describe("raiseOpsAlert", () => {
 		);
 		expect(hook.bodies).toEqual([
 			{
+				allowed_mentions: { parse: [] },
 				embeds: [
 					expect.objectContaining({
 						title: "Monitors are not being checked",
@@ -117,6 +118,23 @@ describe("raiseOpsAlert", () => {
 		await raiseOpsAlert(db.db, alert());
 		await raiseOpsAlert(db.db, { ...repeated, type: "monitor_dead_lettered" });
 		expect(sendMail).toHaveBeenCalledTimes(3);
+	});
+
+	test("clearing the cooldown lets the next outage alert at once", async ({ db }) => {
+		vi.stubEnv("UPPITY_OPS_ALERT_EMAIL", "ops@example.com");
+		const repeated = alert();
+
+		await raiseOpsAlert(db.db, repeated);
+		await clearOpsAlert(db.db, repeated);
+		await raiseOpsAlert(db.db, repeated);
+
+		expect(sendMail).toHaveBeenCalledTimes(2);
+	});
+
+	test("with no destination set, clearing touches nothing", async () => {
+		const deleteRow = vi.fn();
+		await clearOpsAlert({ delete: deleteRow } as never, alert());
+		expect(deleteRow).not.toHaveBeenCalled();
 	});
 
 	test("the cooldown survives a restart and ends on time", async ({ db }) => {
@@ -176,7 +194,10 @@ describe("raiseOpsAlert", () => {
 		hook.close();
 
 		expect(logged).toHaveBeenCalledTimes(2);
-		expect(inspect(logged.mock.calls)).toContain("Timed out after 50ms");
+		expect(logged).toHaveBeenCalledWith(
+			expect.objectContaining({ error: "Timed out after 50ms" }),
+			"Ops alert not delivered",
+		);
 	});
 
 	test("a database that is down neither stops the alert nor lets it repeat", async () => {
