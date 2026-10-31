@@ -749,7 +749,7 @@ builder = "DOCKERFILE"
 
 [deploy]
 startCommand = "bun run ./build/worker.js"
-healthcheckPath = ""  # Worker has no HTTP endpoint
+healthcheckPath = "" # Worker has no HTTP endpoint
 restartPolicyType = "ON_FAILURE"
 ```
 
