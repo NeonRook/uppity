@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { nanoid } from "nanoid";
 import pino, { type Logger } from "pino";
 
+import { envString } from "#lib/utils.js";
+
 import { WideEventBuilder } from "./context";
 import type { WideEventBase } from "./types";
 
@@ -16,7 +18,7 @@ function buildPinoOptions(): pino.LoggerOptions {
 		base: {
 			service: process.env.SERVICE_NAME || "uppity",
 			version: process.env.npm_package_version || "0.0.1",
-			env: process.env.NODE_ENV || "development",
+			env: envString("NODE_ENV", "development"),
 		},
 		timestamp: pino.stdTimeFunctions.isoTime,
 	};
