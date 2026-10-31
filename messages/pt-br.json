@@ -880,6 +880,7 @@
 	"invitation_refused_opted_out": "Este endereço cancelou a inscrição nos e-mails da sua organização, então não pode ser convidado.",
 	"invitation_refused_too_soon": "Já enviamos e-mails demais para este endereço sem resposta. Tente novamente mais tarde.",
 	"invitation_refused_capped": "Muitos endereços da última semana ainda não responderam. Você poderá convidar mais conforme as pessoas aceitarem.",
+	"invitation_refused_member_limit": "Esta organização pode ter até {limit} membros, contando os convites pendentes.",
 	"invitation_refused_failed": "Não foi possível enviar o e-mail de convite, então nenhum convite foi criado. Tente novamente em um minuto.",
 	"invitation_title": "Convite para a equipe",
 	"invitation_signed_out": "Entre ou crie uma conta com o endereço que recebeu este convite. Depois você volta para cá.",
