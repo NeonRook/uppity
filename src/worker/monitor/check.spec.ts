@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import net, { type AddressInfo } from "node:net";
 
 import { eq } from "drizzle-orm";
+import type { Logger } from "pino";
 import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
 import {
@@ -10,6 +11,7 @@ import {
 	monitorStatus,
 	type Monitor,
 } from "../../lib/server/db/schema";
+import { WideEventBuilder, type CheckWideEvent } from "../../lib/server/logger";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
@@ -128,6 +130,70 @@ describe("executeCheck over TCP", () => {
 		const [check] = await checksOf(drizzleDb, monitor.id);
 		expect(check.status).toBe("down");
 		expect(check.errorMessage).toBe("Blocked: localhost resolves to a private address");
+	});
+});
+
+function eventFor(monitor: Monitor) {
+	const log = { info: vi.fn(), error: vi.fn() };
+	const event = new WideEventBuilder<CheckWideEvent>(
+		log as unknown as Logger,
+		"monitor_check",
+		monitor.id,
+	);
+	return { log, event };
+}
+
+function downMonitor(drizzleDb: TestDb["db"]) {
+	return monitorWith(drizzleDb, { type: "http", url: null, retries: 0 });
+}
+
+describe("executeCheck's wide event", () => {
+	test("logs a down target as a successful check, with no stack", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await downMonitor(drizzleDb);
+		const { log, event } = eventFor(monitor);
+
+		await executeCheck(monitor, drizzleDb, event);
+		event.emit("check");
+
+		expect(log.error).not.toHaveBeenCalled();
+		const [fields] = log.info.mock.calls[0] as [Record<string, unknown>];
+		expect(fields).toMatchObject({
+			status: "success",
+			check_status: "down",
+			check_error: "No URL configured",
+		});
+		expect(fields).not.toHaveProperty("error_stack");
+	});
+
+	test("keeps the outcome when the processor skips the row", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await downMonitor(drizzleDb);
+		await drizzleDb
+			.update(monitorStatus)
+			.set({ lastCheckAt: new Date(Date.now() + 60_000) })
+			.where(eq(monitorStatus.monitorId, monitor.id));
+		const { log, event } = eventFor(monitor);
+
+		await executeCheck(monitor, drizzleDb, event);
+		event.emit("check");
+
+		expect(log.info.mock.calls[0][0]).toMatchObject({
+			check_status: "down",
+			check_error: "No URL configured",
+		});
+	});
+
+	test("leaves a failed write to the caller, unmarked as success", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await downMonitor(drizzleDb);
+		await drizzleDb.delete(monitorTable).where(eq(monitorTable.id, monitor.id));
+		const { event } = eventFor(monitor);
+		const setSuccess = vi.spyOn(event, "setSuccess");
+
+		await expect(executeCheck(monitor, drizzleDb, event)).rejects.toThrow("Failed query");
+
+		expect(setSuccess).not.toHaveBeenCalled();
 	});
 });
 
