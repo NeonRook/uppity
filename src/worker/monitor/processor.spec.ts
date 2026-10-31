@@ -771,7 +771,7 @@ describe("processResults", () => {
 			processResults(drizzleDb, monitor.id),
 			processResults(drizzleDb, monitor.id),
 		]);
-		expect(counts.toSorted()).toEqual([0, 0, 1]);
+		expect(counts.toSorted((a, b) => a - b)).toEqual([0, 0, 1]);
 		expect(await processResults(drizzleDb, monitor.id)).toBe(0);
 
 		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
