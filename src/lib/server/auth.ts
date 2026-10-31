@@ -22,6 +22,7 @@ import {
 	ORGANIZATION_LIMIT_PER_USER,
 	EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
 	INVITATION_EXPIRES_IN_HOURS,
+	PASSWORD_RESET_EXPIRES_IN_HOURS,
 	SESSION_EXPIRES_IN_SECONDS,
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
@@ -281,11 +282,18 @@ export const auth = betterAuth({
 		requireEmailVerification: false,
 		// Locks out anyone who signed up with an address before its owner reset the password.
 		revokeSessionsOnPasswordReset: true,
+		resetPasswordTokenExpiresIn: PASSWORD_RESET_EXPIRES_IN_HOURS * 60 * 60,
 		async sendResetPassword({ user, url }) {
 			if (!smtpTransport) {
 				console.warn("[auth] SMTP not configured — skipping password reset email");
 				return;
 			}
+
+			const lifetime = new Intl.NumberFormat("en", {
+				style: "unit",
+				unit: "hour",
+				unitDisplay: "long",
+			}).format(PASSWORD_RESET_EXPIRES_IN_HOURS);
 
 			await smtpTransport.sendMail({
 				from: smtpFrom,
@@ -296,9 +304,9 @@ export const auth = betterAuth({
 					<p>We received a request to reset your password. Click the button below to choose a new one.</p>
 					<p><a href="${url}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:6px;">Reset Password</a></p>
 					<p>If you didn't request this, you can safely ignore this email.</p>
-					<p style="color:#666;font-size:12px;">This link will expire shortly.</p>
+					<p style="color:#666;font-size:12px;">This link expires in ${lifetime}.</p>
 				`,
-				text: `Reset your password by visiting: ${url}\n\nIf you didn't request this, you can safely ignore this email.`,
+				text: `Reset your password by visiting: ${url}\n\nThis link expires in ${lifetime}.\n\nIf you didn't request this, you can safely ignore this email.`,
 			});
 		},
 	},
