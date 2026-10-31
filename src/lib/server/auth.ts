@@ -563,7 +563,7 @@ export const auth = betterAuth({
 					const capacity = await subscriptionService.getMemberCapacity(org.id);
 					if (!capacity.canInvite) {
 						throw new APIError("FORBIDDEN", {
-							message: `Your plan allows ${capacity.limit} team members. Upgrade to invite more.`,
+							message: m.invitation_refused_member_limit({ limit: capacity.limit }),
 						});
 					}
 				},

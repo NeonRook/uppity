@@ -880,6 +880,7 @@
 	"invitation_refused_opted_out": "Diese Adresse hat E-Mails deiner Organisation abbestellt und kann daher nicht eingeladen werden.",
 	"invitation_refused_too_soon": "Wir haben diese Adresse zu oft ohne Antwort angeschrieben. Versuche es später erneut.",
 	"invitation_refused_capped": "Zu viele Adressen aus der letzten Woche haben noch nicht geantwortet. Du kannst weitere einladen, sobald Personen annehmen.",
+	"invitation_refused_member_limit": "Diese Organisation kann bis zu {limit} Teammitglieder haben, ausstehende Einladungen mitgezählt.",
 	"invitation_refused_failed": "Die Einladungs-E-Mail konnte nicht gesendet werden, daher wurde keine Einladung erstellt. Versuche es in einer Minute erneut.",
 	"invitation_title": "Team-Einladung",
 	"invitation_signed_out": "Melde dich mit der Adresse an, an die diese Einladung ging, oder erstelle damit ein Konto. Danach kommst du hierher zurück.",
