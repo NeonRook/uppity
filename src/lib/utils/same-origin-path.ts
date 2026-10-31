@@ -3,7 +3,9 @@ export function sameOriginPath(target: string | null, origin: string): string | 
 	if (!target) return null;
 	try {
 		const url = new URL(target, origin);
-		return url.origin === origin ? url.pathname + url.search + url.hash : null;
+		// "/.//evil.com" resolves here, but its path alone is protocol-relative.
+		if (url.origin !== origin || url.pathname.startsWith("//")) return null;
+		return url.pathname + url.search + url.hash;
 	} catch {
 		return null;
 	}
