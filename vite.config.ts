@@ -7,7 +7,12 @@ import { playwright } from "@vitest/browser-playwright";
 import devtoolsJson from "vite-plugin-devtools-json";
 import { defineConfig } from "vitest/config";
 
+import pkg from "./package.json" with { type: "json" };
+
 export default defineConfig(({ command }) => ({
+	// The runner image has no package.json to read the version from.
+	define: { "import.meta.env.APP_VERSION": JSON.stringify(pkg.version) },
+
 	plugins: [
 		tailwindcss(),
 		sveltekit({

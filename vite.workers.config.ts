@@ -2,6 +2,8 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, type Plugin } from "vite";
 
+import pkg from "./package.json" with { type: "json" };
+
 /**
  * Leaves the SvelteKit build's handler to load at runtime rather than bundling
  * it a second time. Rolldown rewrites a relative `external` entry against the
@@ -17,6 +19,9 @@ function externalHandler(): Plugin {
 }
 
 export default defineConfig({
+	// The runner image has no package.json to read the version from.
+	define: { "import.meta.env.APP_VERSION": JSON.stringify(pkg.version) },
+
 	plugins: [externalHandler()],
 
 	// $lib is declared in the generated .svelte-kit tsconfig, which only the app
