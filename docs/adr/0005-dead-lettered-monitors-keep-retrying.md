@@ -75,9 +75,13 @@ checked, so a dead-lettered monitor in a window still reads `unknown`. The
 A paused monitor is outside this. The app shows it as Paused, and the public page keeps
 showing its last recorded status, whether or not it was dead-lettered when paused.
 
-**The operator hears through the log.** Entry logs at error level with
-`event_type: "monitor_dead_lettered"`. A log alert on that field is the operator
-alert until NEO-67 provides a channel.
+**The operator hears through the log and the ops alert.** Entry logs at error level
+with `event_type: "monitor_dead_lettered"`. The notifier also reads the active
+dead-lettered monitors on each sweep and sends one operator alert listing them, so a
+dying monitor worker cannot lose the alert and a fault that breaks every check sends one
+message rather than one per monitor. The cooldown follows the newest monitor: a new
+failure alerts at the next sweep, and an unchanged set repeats after
+`UPPITY_OPS_ALERT_COOLDOWN_HOURS`.
 
 **An admin reset means "retry now".** It makes the monitor due immediately and leaves
 `dead_lettered_at` set. A success then sends the recovery notification, and a failure
@@ -87,7 +91,7 @@ stays in dead letter without a second entry notification.
 
 A fault that breaks every check, such as a bad probe release, dead-letters every monitor
 it reaches and sends one notification per monitor. Each one is true, but together they
-are noisy. The operator log alert is where the common cause shows.
+are noisy. The operator alert is where the common cause shows.
 
 A dead-lettered monitor now costs one attempt per backoff cap instead of none for a day.
 At the 5-minute default that is 288 attempts a day, the same as a monitor on a 5-minute
@@ -110,9 +114,6 @@ five minutes old, rather than being marked failed.
 
 Dead letter is itself a database write. If the monitor worker cannot write to the
 database, nothing records the failure: each monitor is retried once per lease, the app
-keeps showing its last status, and the worker's error log is the only signal.
-
-## Revisit when
-
-NEO-67 adds an operator alert channel. The `monitor_dead_lettered` event should go there
-rather than depend on a log match.
+keeps showing its last status, and the monitors go overdue. The notifier raises
+`monitor_checks_overdue`, or, when it cannot read the database either, the same alert
+with the query's error.

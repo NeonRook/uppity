@@ -67,6 +67,11 @@ declare global {
 			SUBSCRIBER_SMTP_PASSWORD?: string;
 			SUBSCRIBER_SMTP_FROM?: string;
 
+			// Operator Alerts [Optional]
+			UPPITY_OPS_ALERT_EMAIL?: string;
+			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL?: string;
+			UPPITY_OPS_ALERT_COOLDOWN_HOURS?: string;
+
 			// Monitor Defaults [Optional]
 			UPPITY_DEFAULT_TIMEOUT_SECONDS?: string;
 			UPPITY_DEFAULT_INTERVAL_SECONDS?: string;

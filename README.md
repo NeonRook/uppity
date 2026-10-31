@@ -219,6 +219,7 @@ See [`.env.example`](.env.example) for all available configuration options.
 **Optional:**
 
 - `SMTP_*` - Email notification settings
+- `UPPITY_OPS_ALERT_*` - Where to tell you when monitors stop being checked
 - `UPPITY_DEFAULT_*` - Monitor default configurations
 - `UPPITY_CRON_*` - Background job schedules
 

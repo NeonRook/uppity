@@ -125,6 +125,8 @@ export default defineRailway((ctx) => {
 			SMTP_PORT: resend.port,
 			SMTP_USER: resend.user,
 			SUBSCRIBER_SMTP_FROM: subscriberFrom,
+			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
+			UPPITY_OPS_ALERT_EMAIL: preserve(),
 		},
 	});
 	const workerMonitor = service("worker-monitor", {

@@ -1,4 +1,4 @@
-import { count, min, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, min, sql } from "drizzle-orm";
 
 import type { DbExecutor } from "./db/index";
 import { monitor } from "./db/schema";
@@ -32,4 +32,24 @@ export async function overdueChecks(
 		.from(monitor)
 		.where(checksOverdue);
 	return row;
+}
+
+/**
+ * Active dead-lettered monitors across every organization, newest first and at
+ * most `limit`, for the operator alert. `total` counts all of them.
+ */
+export function deadLetteredMonitors(db: DbExecutor, limit: number) {
+	return db
+		.select({
+			id: monitor.id,
+			name: monitor.name,
+			organizationId: monitor.organizationId,
+			lastError: monitor.checkLastError,
+			deadLetteredAt: monitor.deadLetteredAt,
+			total: sql<number>`count(*) OVER ()`.mapWith(Number),
+		})
+		.from(monitor)
+		.where(and(isNotNull(monitor.deadLetteredAt), eq(monitor.active, true)))
+		.orderBy(desc(monitor.deadLetteredAt), desc(monitor.id))
+		.limit(limit);
 }
