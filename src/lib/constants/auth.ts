@@ -21,5 +21,8 @@ export const ORGANIZATION_CREATOR_ROLE = "owner" as const;
 /** How long the link in an account verification email works. */
 export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 60 * 60 * 24;
 
+/** How long the link in a password reset email works. */
+export const PASSWORD_RESET_EXPIRES_IN_HOURS = 1;
+
 /** How long the link in a team invitation works. */
 export const INVITATION_EXPIRES_IN_HOURS = 48;
