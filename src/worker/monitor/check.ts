@@ -143,9 +143,8 @@ export async function executeCheck(
 	}
 	await processResults(db, m.id, event);
 
-	if (result?.status === "down") {
-		event?.setError(new Error(result.errorMessage || "Check failed"));
-	} else {
-		event?.setSuccess();
-	}
+	// A down target is a result, not a worker failure. The processor skips a row the
+	// sweep claimed or a newer result superseded, so the outcome is recorded here too.
+	if (result) event?.merge({ check_status: result.status, check_error: result.errorMessage });
+	event?.setSuccess();
 }
