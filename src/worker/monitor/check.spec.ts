@@ -15,7 +15,7 @@ import { WideEventBuilder, type CheckWideEvent } from "../../lib/server/logger";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
-import { executeCheck } from "./check";
+import { executeCheck, runCheck } from "./check";
 
 async function monitorWith(
 	drizzleDb: TestDb["db"],
@@ -88,6 +88,39 @@ describe("executeCheck over HTTP", () => {
 		expect(check).toMatchObject({
 			status: "down",
 			errorMessage: "Blocked: 127.0.0.1 is a private address",
+		});
+	});
+});
+
+describe("executeCheck when a target misbehaves", () => {
+	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
+	afterEach(() => vi.unstubAllEnvs());
+
+	test("logs a connection dropped mid-body as a result, not an error", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const server = createServer((_req, res) => {
+			res.writeHead(200, { "content-length": "100" });
+			res.write("partial", () => res.destroy());
+		});
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+		const monitor = await monitorWith(drizzleDb, {
+			type: "http",
+			url: `http://127.0.0.1:${port}/`,
+			expectedBodyContains: "absent",
+			retries: 0,
+		});
+		const { log, event } = eventFor(monitor);
+
+		await executeCheck(monitor, drizzleDb, event);
+		event.emit("check");
+		server.close();
+
+		expect(log.error).not.toHaveBeenCalled();
+		expect(log.info.mock.calls[0][0]).toMatchObject({
+			status: "success",
+			check_status: "down",
+			check_error: expect.stringMatching(/^Check failed \(.+\)$/),
 		});
 	});
 });
@@ -184,6 +217,20 @@ describe("executeCheck's wide event", () => {
 		});
 	});
 
+	test("keeps the outcome when processing fails", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await downMonitor(drizzleDb);
+		const { log, event } = eventFor(monitor);
+		const failing = Object.assign(Object.create(drizzleDb) as TestDb["db"], {
+			transaction: () => Promise.reject(new Error("deadlock")),
+		});
+
+		await expect(executeCheck(monitor, failing, event)).rejects.toThrow("deadlock");
+		event.emit("check");
+
+		expect(log.info.mock.calls[0][0]).toMatchObject({ check_status: "down" });
+	});
+
 	test("leaves a failed write to the caller, unmarked as success", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const monitor = await downMonitor(drizzleDb);
@@ -194,6 +241,53 @@ describe("executeCheck's wide event", () => {
 		await expect(executeCheck(monitor, drizzleDb, event)).rejects.toThrow("Failed query");
 
 		expect(setSuccess).not.toHaveBeenCalled();
+	});
+});
+
+describe("a checker failure", () => {
+	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
+	afterEach(() => vi.unstubAllEnvs());
+
+	test("from inside a probe logs an error and still records the result", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, {
+			type: "tcp",
+			hostname: "127.0.0.1",
+			port: 70_000,
+			retries: 0,
+		});
+		const { log, event } = eventFor(monitor);
+
+		await runCheck(monitor, drizzleDb, event);
+
+		expect(log.error.mock.calls[0][0]).toMatchObject({
+			status: "error",
+			error_type: "RangeError",
+			error_stack: expect.stringContaining("RangeError"),
+			check_status: "down",
+		});
+		const [check] = await checksOf(drizzleDb, monitor.id);
+		expect(check.status).toBe("down");
+	});
+
+	test("thrown out of the check logs an error and backs the monitor off", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, { type: "http", url: "not a url" });
+		const { log, event } = eventFor(monitor);
+
+		await runCheck(monitor, drizzleDb, event);
+
+		expect(log.info).not.toHaveBeenCalled();
+		expect(log.error.mock.calls[0][0]).toMatchObject({
+			status: "error",
+			error_type: "TypeError",
+			error_stack: expect.stringContaining("TypeError"),
+		});
+		const [row] = await drizzleDb
+			.select({ retries: monitorTable.checkRetryCount })
+			.from(monitorTable)
+			.where(eq(monitorTable.id, monitor.id));
+		expect(row.retries).toBe(1);
 	});
 });
 

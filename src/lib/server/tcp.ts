@@ -281,7 +281,18 @@ export function failureMessage(
 	return code ? `Check failed (${code})` : "Check failed";
 }
 
-export type ProbeResult = { ok: true } | { ok: false; error: string };
+/**
+ * The error, when it points at the checker rather than the target. Target failures
+ * are ProbeErrors, timeouts, or carry the network stack's code. What remains is
+ * uncoded, or a TypeError or RangeError from a Node argument check.
+ */
+export function checkerFault(error: unknown, signal: AbortSignal): unknown {
+	if (signal.aborted || error instanceof ProbeError) return undefined;
+	const coded = errorCode(error) !== undefined;
+	return coded && !(error instanceof TypeError || error instanceof RangeError) ? undefined : error;
+}
+
+export type ProbeResult = { ok: true } | { ok: false; error: string; fault?: unknown };
 
 /** Whether a TCP connection to `host`:`port` opens within `timeoutMs`. */
 export async function probeTcp(
@@ -296,6 +307,10 @@ export async function probeTcp(
 		socket.destroy();
 		return { ok: true };
 	} catch (error) {
-		return { ok: false, error: failureMessage(error, signal, phase, timeoutMs / 1000) };
+		return {
+			ok: false,
+			error: failureMessage(error, signal, phase, timeoutMs / 1000),
+			fault: checkerFault(error, signal),
+		};
 	}
 }

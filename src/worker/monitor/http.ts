@@ -10,6 +10,7 @@ import {
 import { BODY_READ_MAX_BYTES, MAX_TIMEOUT_SECONDS } from "../../lib/constants/monitor";
 import type { Monitor } from "../../lib/server/db/schema";
 import {
+	checkerFault,
 	dial,
 	failureMessage,
 	ProbeError,
@@ -236,6 +237,7 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 			status: "down",
 			responseTimeMs: Math.round(performance.now() - started),
 			errorMessage: failureMessage(error, signal, timings.phase, timeoutSeconds),
+			fault: checkerFault(error, signal),
 			...timings.columns(),
 			redirectCount: hop,
 		};

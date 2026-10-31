@@ -18,6 +18,7 @@ import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
 import { probeTcp } from "../../lib/server/tcp";
 import { performHttpCheck } from "./http";
 import { processResults } from "./processor";
+import { recordCheckFailure, recordCheckSuccess } from "./schedule";
 
 /** One check's outcome, as it is stored in monitor_check. */
 export interface CheckResult {
@@ -32,6 +33,8 @@ export interface CheckResult {
 	redirectCount?: number;
 	sslExpiresAt?: Date;
 	sslIssuer?: string;
+	/** What broke when the checker failed rather than the target. Logged, never stored. */
+	fault?: unknown;
 }
 
 async function performTcpCheck(m: Monitor): Promise<CheckResult> {
@@ -44,7 +47,9 @@ async function performTcpCheck(m: Monitor): Promise<CheckResult> {
 	const result = await probeTcp(m.hostname, m.port, timeoutSeconds * 1000);
 	const responseTimeMs = Math.round(performance.now() - startTime);
 
-	if (!result.ok) return { status: "down", responseTimeMs, errorMessage: result.error };
+	if (!result.ok) {
+		return { status: "down", responseTimeMs, errorMessage: result.error, fault: result.fault };
+	}
 
 	return {
 		status: responseTimeMs > DEGRADED_RESPONSE_TIME_MS ? "degraded" : "up",
@@ -122,7 +127,8 @@ export async function insertResult(
 	result: CheckResult,
 	checkedAt = new Date(),
 ): Promise<void> {
-	await db.insert(monitorCheck).values({ id: nanoid(), monitorId, checkedAt, ...result });
+	const { fault: _fault, ...row } = result;
+	await db.insert(monitorCheck).values({ id: nanoid(), monitorId, checkedAt, ...row });
 }
 
 /**
@@ -141,10 +147,32 @@ export async function executeCheck(
 		result = await performProbeWithRetries(m);
 		await insertResult(db, m.id, result);
 	}
+	// The processor overwrites these when it interprets the row, and skips a row that
+	// another processor claimed or a newer result superseded.
+	if (result) event?.merge({ check_status: result.status, check_error: result.errorMessage });
 	await processResults(db, m.id, event);
 
-	// A down target is a result, not a worker failure. The processor skips a row the
-	// sweep claimed or a newer result superseded, so the outcome is recorded here too.
-	if (result) event?.merge({ check_status: result.status, check_error: result.errorMessage });
-	event?.setSuccess();
+	// A down target is a result, not a worker failure.
+	if (result?.fault) event?.setError(result.fault);
+	else event?.setSuccess();
+}
+
+/**
+ * Runs a claimed monitor's check and schedules the next one. A throw means the
+ * worker failed, so it marks the event as an error and backs the monitor off.
+ */
+export async function runCheck(
+	m: Monitor,
+	db: Db,
+	event: WideEventBuilder<CheckWideEvent>,
+): Promise<void> {
+	try {
+		await executeCheck(m, db, event);
+		await recordCheckSuccess(db, m);
+	} catch (error) {
+		event.setError(error);
+		await recordCheckFailure(db, m, error);
+	} finally {
+		event.emit("check");
+	}
 }

@@ -2,16 +2,11 @@ import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF } from "../../lib/constants/work
 import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
 import { client, db } from "../shared/db";
-import { executeCheck } from "./check";
+import { runCheck } from "./check";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 import { SlotPool } from "./pool";
 import { pendingMonitorIds, processResults } from "./processor";
-import {
-	claimDueMonitors,
-	recordCheckFailure,
-	recordCheckSuccess,
-	releaseOverlongSchedules,
-} from "./schedule";
+import { claimDueMonitors, releaseOverlongSchedules } from "./schedule";
 
 const schedulerLogger = childLogger("scheduler");
 const processorLogger = childLogger("processor");
@@ -35,15 +30,7 @@ async function processMonitor(m: typeof monitor.$inferSelect) {
 		org_id: m.organizationId,
 	});
 
-	try {
-		await executeCheck(m, db, event);
-		await recordCheckSuccess(db, m);
-	} catch (error) {
-		event.setError(error);
-		await recordCheckFailure(db, m, error);
-	} finally {
-		event.emit("check");
-	}
+	await runCheck(m, db, event);
 }
 
 let sleepResolve: (() => void) | null = null;
