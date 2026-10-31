@@ -18,6 +18,11 @@ declare global {
 		// interface Platform {}
 	}
 
+	interface ImportMetaEnv {
+		/** package.json's version, set by the Vite configs at build time. */
+		readonly APP_VERSION: string;
+	}
+
 	namespace NodeJS {
 		interface ProcessEnv {
 			// Database
