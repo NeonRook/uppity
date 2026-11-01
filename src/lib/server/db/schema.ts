@@ -522,9 +522,11 @@ export const notificationEvent = pgTable(
 		// 'monitor_down' | 'monitor_up' | 'monitor_degraded' | 'ssl_expiry_warning'
 		// | 'monitor_checks_stopped' | 'monitor_checks_resumed'
 		// | 'incident_created' | 'incident_updated' | 'incident_resolved'
+		// | 'channel_confirmation'
 		payload: jsonb("payload").notNull(),
 		status: text("status").notNull().default("pending"),
 		// 'pending' | 'processing' | 'processed' | 'suppressed' | 'failed' | 'sent'
+		// | 'confirmation_queued' | 'confirmation_sending'
 		claimedAt: timestamp("claimed_at", { withTimezone: true }),
 		processedAt: timestamp("processed_at", { withTimezone: true }),
 		errorMessage: text("error_message"),

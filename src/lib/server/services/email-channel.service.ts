@@ -10,8 +10,14 @@ import {
 	channelConfirmationSend,
 	emailOptOut,
 	notificationChannel,
+	notificationEvent,
 } from "#lib/server/db/schema.js";
 import type { ChannelConfirmation } from "#lib/server/notifications/email.js";
+import {
+	CHANNEL_CONFIRMATION_EVENT,
+	CONFIRMATION_QUEUED,
+	type ChannelConfirmationPayload,
+} from "#lib/server/notifications/events.js";
 
 import { UnsolicitedMailGuard, type MailRefusal } from "./mail-reputation.service";
 
@@ -41,6 +47,11 @@ export type ResendResult =
 	| "capped"
 	| MailRefusal;
 
+/** Refusal of a re-ask inside the resend interval, which the admin did not start. */
+export interface ReaskWait {
+	askAgainAt: Date;
+}
+
 /** The member asking for a confirmation. */
 export interface Requester {
 	email: string;
@@ -62,6 +73,21 @@ export interface UnsubscribedChannel {
 	email: string;
 	/** The organization cannot ask this address again. */
 	final: boolean;
+}
+
+/** A claimed slot whose email has not gone out, and what undoing the claim restores. */
+interface PendingSend {
+	sendId: string;
+	email: string;
+	token: string;
+	requestedBy: string;
+	previous: { confirmationSentAt: Date | null; unsubscribedAt: Date | null };
+	reasked: boolean;
+}
+
+/** Why a confirmation did not go out, once its claim is undone. */
+export interface UnsentConfirmation {
+	failure: unknown;
 }
 
 /** The recipient fields of an email channel whose address was just set. */
@@ -93,6 +119,8 @@ async function isVerifiedMember(tx: DbExecutor, organizationId: string, email: s
 
 const confirmationCutoff = () => new Date(Date.now() - CONFIRMATION_TTL_MS);
 
+const toDate = (timestamp: string | null) => (timestamp === null ? null : new Date(timestamp));
+
 /** Consent for email channel addresses that don't belong to a verified member of the organization. */
 export class EmailChannelService {
 	constructor(
@@ -114,12 +142,87 @@ export class EmailChannelService {
 		channelId: string,
 		organizationId: string,
 		requester: Requester,
-	): Promise<ResendResult | null> {
+	): Promise<ResendResult | ReaskWait | null> {
+		const pending = await this.claim(channelId, organizationId, requester);
+		if (pending === null || typeof pending === "string" || "askAgainAt" in pending) return pending;
+
+		const unsent = await this.deliver(channelId, organizationId, pending);
+		if (unsent) throw unsent.failure;
+		return "sent";
+	}
+
+	/**
+	 * As `requestConfirmation`, with the email left to the notifier worker so a save does not
+	 * wait on the mail server. The address confirms or the slot is taken before this returns.
+	 */
+	async queueConfirmation(
+		channelId: string,
+		organizationId: string,
+		requester: Requester,
+	): Promise<void> {
+		await this.claim(channelId, organizationId, requester, true);
+	}
+
+	/**
+	 * Sends a queued confirmation. "skipped", with the slot given back, when the channel stopped
+	 * waiting for one at that address, the organization was blocked, or the address was
+	 * suppressed while it sat in the queue. A failed send undoes the claim and returns why.
+	 * Anything else that throws leaves the claim in place for the sweep to retry.
+	 */
+	async sendQueued(
+		organizationId: string,
+		{ channelId, previous, ...queued }: ChannelConfirmationPayload,
+	): Promise<"sent" | "skipped" | UnsentConfirmation> {
 		const c = notificationChannel;
-		const log = channelConfirmationSend;
+		const [row] = await this.db
+			.select({ token: c.token })
+			.from(c)
+			// A slot already given back means this is a retry of a send that failed.
+			.innerJoin(channelConfirmationSend, eq(channelConfirmationSend.id, queued.sendId))
+			.where(
+				and(
+					eq(c.id, channelId),
+					eq(c.organizationId, organizationId),
+					isNull(c.verifiedAt),
+					isNull(c.unsubscribedAt),
+					// Null after a readdress, when the channel holds a token this send never claimed.
+					isNotNull(c.confirmationSentAt),
+					sql`lower(${c.config}->>'email') = lower(${queued.email})`,
+				),
+			);
+		if (!row?.token) {
+			await this.releaseSend(queued.sendId);
+			return "skipped";
+		}
+
+		const pending = {
+			...queued,
+			token: row.token,
+			previous: {
+				confirmationSentAt: toDate(previous.confirmationSentAt),
+				unsubscribedAt: toDate(previous.unsubscribedAt),
+			},
+		};
+		if (await this.guard.stopped(this.db, organizationId, queued.email.toLowerCase())) {
+			await this.undoClaim(channelId, organizationId, pending);
+			return "skipped";
+		}
+
+		await this.guard.stamp(this.db, queued.sendId);
+		return (await this.deliver(channelId, organizationId, pending)) ?? "sent";
+	}
+
+	/** Decides the request and takes the slot, queueing the email when `queue` is set. */
+	private async claim(
+		channelId: string,
+		organizationId: string,
+		requester: Requester,
+		queue = false,
+	) {
+		const c = notificationChannel;
 		const now = new Date();
 
-		const pending = await this.db.transaction(async (tx) => {
+		return this.db.transaction(async (tx) => {
 			await lockSends(tx, organizationId);
 
 			const [row] = await tx
@@ -146,6 +249,7 @@ export class EmailChannelService {
 			if (!requester.emailVerified) return "unverified";
 
 			const claim = await claimSlot(tx, organizationId, email, this.cap, this.guard, now);
+			if (claim.refused === "too_soon" && optOut) return { askAgainAt: claim.retryAt };
 			if (claim.refused) return claim.refused;
 
 			// A channel saved without a token, by code older than its column, gets one here.
@@ -159,41 +263,79 @@ export class EmailChannelService {
 				})
 				.where(eq(c.id, channelId));
 			if (optOut) await setReasked(tx, organizationId, email, now);
-			return {
+
+			const pending: PendingSend = {
 				sendId: claim.sendId,
 				email: row.config.email,
 				token,
+				requestedBy: requester.email,
 				previous: {
 					confirmationSentAt: row.confirmationSentAt,
 					unsubscribedAt: row.unsubscribedAt,
 				},
 				reasked: optOut !== undefined,
 			};
+			if (queue) {
+				const payload: ChannelConfirmationPayload = {
+					channelId,
+					sendId: pending.sendId,
+					email: pending.email,
+					requestedBy: pending.requestedBy,
+					previous: {
+						confirmationSentAt: pending.previous.confirmationSentAt?.toISOString() ?? null,
+						unsubscribedAt: pending.previous.unsubscribedAt?.toISOString() ?? null,
+					},
+					reasked: pending.reasked,
+				};
+				await tx.insert(notificationEvent).values({
+					id: nanoid(),
+					organizationId,
+					type: CHANNEL_CONFIRMATION_EVENT,
+					payload,
+					status: CONFIRMATION_QUEUED,
+				});
+			}
+			return pending;
 		});
-		if (pending === null || typeof pending === "string") return pending;
+	}
 
+	/** Null when the email went out. */
+	private async deliver(
+		channelId: string,
+		organizationId: string,
+		pending: PendingSend,
+	): Promise<UnsentConfirmation | null> {
 		try {
 			await this.sendConfirmation({
 				email: pending.email,
 				token: pending.token,
-				requestedBy: requester.email,
+				requestedBy: pending.requestedBy,
 			});
-		} catch (error) {
-			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
-			await this.db.transaction(async (tx) => {
-				await tx.delete(log).where(eq(log.id, pending.sendId));
-				await this.guard.release(tx, pending.sendId);
-				await tx
-					.update(c)
-					.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
-					.where(eq(c.id, channelId));
-				if (pending.reasked) {
-					await setReasked(tx, organizationId, pending.email.toLowerCase(), null);
-				}
-			});
-			throw error;
+			return null;
+		} catch (failure) {
+			await this.undoClaim(channelId, organizationId, pending);
+			return { failure };
 		}
-		return "sent";
+	}
+
+	/** Nothing went out, so the organization keeps its slot and any earlier link stays valid. */
+	private async undoClaim(channelId: string, organizationId: string, pending: PendingSend) {
+		const c = notificationChannel;
+		await this.db.transaction(async (tx) => {
+			await tx
+				.delete(channelConfirmationSend)
+				.where(eq(channelConfirmationSend.id, pending.sendId));
+			await this.guard.release(tx, pending.sendId);
+			await tx
+				.update(c)
+				.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
+				.where(
+					and(eq(c.id, channelId), sql`lower(${c.config}->>'email') = lower(${pending.email})`),
+				);
+			if (pending.reasked) {
+				await setReasked(tx, organizationId, pending.email.toLowerCase(), null);
+			}
+		});
 	}
 
 	/** Null when the token is unknown. */
@@ -424,7 +566,8 @@ async function lockSends(tx: DbExecutor, organizationId: string) {
 
 type SlotClaim =
 	| { sendId: string; refused?: undefined }
-	| { sendId?: undefined; refused: "too_soon" | "capped" | MailRefusal };
+	| { sendId?: undefined; refused: "too_soon"; retryAt: Date }
+	| { sendId?: undefined; refused: "capped" | MailRefusal };
 
 /** Logs a send to the lowercased address, unless the interval or the cap forbids it. */
 async function claimSlot(
@@ -441,9 +584,8 @@ async function claimSlot(
 		.select({ lastSent: max(log.sentAt) })
 		.from(log)
 		.where(and(eq(log.organizationId, organizationId), eq(log.email, email)));
-	if (lastSent && now.getTime() - lastSent.getTime() < RESEND_INTERVAL_MS) {
-		return { refused: "too_soon" };
-	}
+	const retryAt = lastSent && new Date(lastSent.getTime() + RESEND_INTERVAL_MS);
+	if (retryAt && now < retryAt) return { refused: "too_soon", retryAt };
 
 	if ((await unconfirmedAddresses(tx, organizationId, now)) >= cap) return { refused: "capped" };
 

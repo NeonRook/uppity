@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type { Logger } from "pino";
+import * as v from "valibot";
 
 import { redactUrl } from "../api/redact";
 import type { Db } from "../db/index";
@@ -18,11 +19,17 @@ import {
 	type NotificationEvent,
 } from "../db/schema";
 import { logger as defaultLogger } from "../logger";
+import { EmailChannelService } from "../services/email-channel.service";
 import { sendSubscriberIncidentEmail } from "../subscriber-email";
 import { channelConfirmed } from "./confirmed";
 import { sendDiscord } from "./discord";
-import { sendEmail } from "./email";
-import { parseEventPayload, type IncidentEventPayload } from "./events";
+import { sendChannelConfirmation, sendEmail, type ChannelConfirmation } from "./email";
+import {
+	CHANNEL_CONFIRMATION_EVENT,
+	ChannelConfirmationPayload,
+	parseEventPayload,
+	type IncidentEventPayload,
+} from "./events";
 import { sendSlack } from "./slack";
 import { notifyIncidentSubscribers, type SendSubscriberIncidentEmail } from "./subscribers";
 import type {
@@ -97,14 +104,17 @@ function withSubscribers(
 export class NotificationService {
 	private db: Db;
 	private logger: Logger;
+	private confirmations: EmailChannelService;
 
 	constructor(
 		db: Db,
 		logger?: Logger,
 		private sendSubscriberEmail: SendSubscriberIncidentEmail = sendSubscriberIncidentEmail,
+		sendConfirmation: (c: ChannelConfirmation) => Promise<void> = sendChannelConfirmation,
 	) {
 		this.db = db;
 		this.logger = (logger ?? defaultLogger).child({ context: "notification" });
+		this.confirmations = new EmailChannelService(db, sendConfirmation);
 	}
 
 	private async sendToChannel(
@@ -167,7 +177,29 @@ export class NotificationService {
 		}
 	}
 
+	/**
+	 * A failed send is final rather than left for the sweep: the claim is already undone, and
+	 * the channel list offers a resend. The row keeps no SMTP error, which can quote the address.
+	 */
+	private async dispatchChannelConfirmation(row: NotificationEvent): Promise<DispatchResult> {
+		const payload = v.safeParse(ChannelConfirmationPayload, row.payload);
+		if (!payload.success) return { status: "failed", errorMessage: "invalid payload" };
+
+		const outcome = await this.confirmations.sendQueued(row.organizationId, payload.output);
+		if (outcome === "sent") return { status: "sent" };
+		if (outcome === "skipped") {
+			return { status: "suppressed", errorMessage: "confirmation no longer due" };
+		}
+		this.logger.error(
+			{ event_id: row.id, error: outcome.failure },
+			"Failed to send channel confirmation",
+		);
+		return { status: "failed", errorMessage: "confirmation email not sent" };
+	}
+
 	async dispatchEvent(row: NotificationEvent): Promise<DispatchResult> {
+		if (row.type === CHANNEL_CONFIRMATION_EVENT) return this.dispatchChannelConfirmation(row);
+
 		let parsed: ReturnType<typeof parseEventPayload>;
 		try {
 			parsed = parseEventPayload(row.type as NotificationType, row.payload);

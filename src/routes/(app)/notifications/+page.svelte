@@ -16,6 +16,7 @@
 		getChannelType,
 	} from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
 	import {
 		getChannels,
 		toggleChannel,
@@ -73,6 +74,11 @@
 		}
 	}
 
+	function recipientState(channel: ChannelView): string {
+		if (channel.unsubscribedAt) return m.notifications_unsubscribed();
+		return channel.confirmationSentAt ? m.notifications_unconfirmed() : m.notifications_not_sent();
+	}
+
 	const resendMessages: Record<ResendResult, () => string> = {
 		sent: m.notifications_resend_sent,
 		confirmed: m.notifications_resend_confirmed,
@@ -86,10 +92,22 @@
 		ceiling: m.mail_refused_ceiling,
 	};
 
+	/** Rounds up, so the time shown never falls before the interval ends. */
+	function minuteAfter(date: Date): string {
+		const minute = 60_000;
+		return new Date(Math.ceil(date.getTime() / minute) * minute).toLocaleTimeString(getLocale(), {
+			timeStyle: "short",
+		});
+	}
+
 	async function handleResend(channelId: string) {
 		resendingChannelId = channelId;
 		try {
 			const { result } = await resendConfirmation({ channelId });
+			if (typeof result === "object") {
+				toast.error(m.notifications_reask_too_soon({ time: minuteAfter(result.askAgainAt) }));
+				return;
+			}
 			const message = resendMessages[result]();
 			if (result === "sent" || result === "confirmed") toast.success(message);
 			else toast.error(message);
@@ -163,11 +181,7 @@
 											<Badge variant="outline">{m.common_disabled()}</Badge>
 										{/if}
 										{#if channel.type === "email" && !channel.verifiedAt}
-											<Badge variant="outline">
-												{channel.unsubscribedAt
-													? m.notifications_unsubscribed()
-													: m.notifications_unconfirmed()}
-											</Badge>
+											<Badge variant="outline">{recipientState(channel)}</Badge>
 										{/if}
 									</div>
 									<p class="text-muted-foreground truncate text-sm">

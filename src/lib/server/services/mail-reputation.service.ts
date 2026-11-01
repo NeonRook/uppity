@@ -42,19 +42,30 @@ export class UnsolicitedMailGuard {
 		email: string,
 		{ visitor = false } = {},
 	): Promise<MailRefusal | null> {
+		if (await this.isBlocked(tx, organizationId)) return "blocked";
+		if (await this.overCeiling(tx, visitor)) return "ceiling";
+		return (await this.isSuppressed(tx, email)) ? "suppressed" : null;
+	}
+
+	/** Whether a send that passed `refusal` earlier, and already counts, must now stay unsent. */
+	async stopped(tx: DbExecutor, organizationId: string, email: string): Promise<boolean> {
+		return (await this.isBlocked(tx, organizationId)) || (await this.isSuppressed(tx, email));
+	}
+
+	private async isBlocked(tx: DbExecutor, organizationId: string): Promise<boolean> {
 		const [block] = await tx
 			.select({ organizationId: organizationMailBlock.organizationId })
 			.from(organizationMailBlock)
 			.where(eq(organizationMailBlock.organizationId, organizationId));
-		if (block) return "blocked";
+		return block !== undefined;
+	}
 
-		if (await this.overCeiling(tx, visitor)) return "ceiling";
-
+	private async isSuppressed(tx: DbExecutor, email: string): Promise<boolean> {
 		const [suppressed] = await tx
 			.select({ email: emailSuppression.email })
 			.from(emailSuppression)
 			.where(eq(emailSuppression.email, email));
-		return suppressed ? "suppressed" : null;
+		return suppressed !== undefined;
 	}
 
 	private async overCeiling(tx: DbExecutor, visitor: boolean): Promise<boolean> {
@@ -83,6 +94,14 @@ export class UnsolicitedMailGuard {
 		send: { id: string; organizationId: string | null; email: string },
 	): Promise<void> {
 		await tx.insert(unsolicitedMailSend).values(send);
+	}
+
+	/** Moves a queued send to the moment it leaves, which a bounce is matched against. */
+	async stamp(tx: DbExecutor, id: string): Promise<void> {
+		await tx
+			.update(unsolicitedMailSend)
+			.set({ sentAt: new Date() })
+			.where(eq(unsolicitedMailSend.id, id));
 	}
 
 	/** Gives back a send that never went out, so it neither counts nor takes a bounce. */

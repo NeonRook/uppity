@@ -39,6 +39,8 @@ export interface ChannelOption {
 	enabled: boolean;
 	/** False for an email channel whose recipient has not accepted alerts. */
 	confirmed: boolean;
+	/** True for an email channel whose recipient opted out, which `confirmed` alone can't show. */
+	unsubscribed: boolean;
 	/** Where alerts land, when that can be shown without exposing a secret. */
 	destination: string | null;
 }

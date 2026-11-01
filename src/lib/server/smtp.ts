@@ -2,6 +2,13 @@ import { createTransport } from "nodemailer";
 
 import { DEFAULT_EMAIL_FROM, DEFAULT_SMTP_SECURE_PORT } from "#lib/constants/defaults.js";
 
+/**
+ * A hung server must fail a send well inside the notifier's stuck-row threshold, or a sweep
+ * sends the row again while the first attempt still runs.
+ */
+const CONNECTION_TIMEOUT_MS = 30_000;
+const SOCKET_TIMEOUT_MS = 60_000;
+
 /** Null when host or port is unset. */
 function transport(host?: string, port?: string, user?: string, pass?: string) {
 	if (!host || !port) return null;
@@ -14,6 +21,8 @@ function transport(host?: string, port?: string, user?: string, pass?: string) {
 		// would receive the credentials in the clear.
 		requireTLS: auth !== undefined,
 		auth,
+		connectionTimeout: CONNECTION_TIMEOUT_MS,
+		socketTimeout: SOCKET_TIMEOUT_MS,
 	});
 }
 
