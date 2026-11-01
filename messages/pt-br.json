@@ -857,6 +857,8 @@
 	"notifications_unconfirmed": "Não confirmado",
 	"notifications_not_sent": "E-mail não enviado",
 	"notifications_unsubscribed": "Inscrição cancelada",
+	"notifications_address_suppressed": "Alertas não entregues",
+	"notifications_address_suppressed_desc": "Este endereço devolveu e-mails ou os marcou como spam, então os alertas enviados a ele são descartados. Use outro endereço no canal.",
 	"notifications_resend": "Reenviar confirmação",
 	"notifications_resend_sent": "E-mail de confirmação enviado",
 	"notifications_resend_confirmed": "Este endereço já está confirmado",

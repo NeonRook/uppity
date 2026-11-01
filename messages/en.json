@@ -857,6 +857,8 @@
 	"notifications_unconfirmed": "Unconfirmed",
 	"notifications_not_sent": "Email not sent",
 	"notifications_unsubscribed": "Unsubscribed",
+	"notifications_address_suppressed": "Alerts not delivered",
+	"notifications_address_suppressed_desc": "This address bounced or marked email as spam, so alerts to it are dropped. Point the channel at another address.",
 	"notifications_resend": "Resend confirmation",
 	"notifications_resend_sent": "Confirmation email sent",
 	"notifications_resend_confirmed": "This address is already confirmed",
