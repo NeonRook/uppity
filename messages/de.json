@@ -900,5 +900,14 @@
 	"invitation_unsubscribe_prompt": "Soll dieses Team die Adresse, an die diese E-Mail ging, nicht mehr einladen können? Falls das Team Warnmeldungen an diese Adresse sendet, enden auch diese, und seine Admins werden informiert.",
 	"invitation_unsubscribe_submit": "Abbestellen",
 	"invitation_unsubscribe_done": "Du hast dich abgemeldet. Dieses Team kann diese Adresse nicht mehr einladen.",
-	"invitations_pending_title": "Team-Einladungen"
+	"invitations_pending_title": "Team-Einladungen",
+	"mail_refused_suppressed": "Diese Adresse hat E-Mails abgewiesen oder als Spam markiert, daher schreibt Uppity sie nicht an. Verwende eine andere Adresse.",
+	"mail_refused_blocked": "Deine Organisation kann keine neuen Adressen anschreiben, weil zu viele E-Mails abgewiesen oder als Spam markiert wurden. Wende dich an den Support, um das aufheben zu lassen.",
+	"mail_refused_ceiling": "Uppity hat das Tageslimit für E-Mails an neue Adressen erreicht. Versuche es morgen noch einmal.",
+	"public_subscribe_paused": "Diese Statusseite kann gerade keine Bestätigungs-E-Mails senden. Versuche es später noch einmal.",
+	"admin_org_mail_block": "Für E-Mails an neue Adressen gesperrt",
+	"admin_org_mail_block_bounce": "Zu viele endgültige Zustellfehler am {date}.",
+	"admin_org_mail_block_complaint": "Zu viele Spam-Beschwerden am {date}.",
+	"admin_org_mail_block_desc": "Bestätigungen und Einladungen bleiben abgelehnt, bis du die Sperre aufhebst. Alarme an bestätigte Adressen gehen weiter raus.",
+	"admin_org_mail_block_clear": "Sperre aufheben"
 }

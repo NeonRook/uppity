@@ -13,6 +13,8 @@ import {
 } from "#lib/server/db/schema.js";
 import type { ChannelConfirmation } from "#lib/server/notifications/email.js";
 
+import { UnsolicitedMailGuard, type MailRefusal } from "./mail-reputation.service";
+
 /** How long a confirmation link works. */
 export const CONFIRMATION_TTL_HOURS = 48;
 const CONFIRMATION_TTL_MS = CONFIRMATION_TTL_HOURS * 60 * 60_000;
@@ -36,7 +38,8 @@ export type ResendResult =
 	| "reasked"
 	| "unverified"
 	| "too_soon"
-	| "capped";
+	| "capped"
+	| MailRefusal;
 
 /** The member asking for a confirmation. */
 export interface Requester {
@@ -96,6 +99,7 @@ export class EmailChannelService {
 		private db: Db,
 		private sendConfirmation: (confirmation: ChannelConfirmation) => Promise<void>,
 		private cap = CHANNEL_PENDING_CONFIRMATIONS,
+		private guard = new UnsolicitedMailGuard(db),
 	) {}
 
 	/**
@@ -141,7 +145,7 @@ export class EmailChannelService {
 			}
 			if (!requester.emailVerified) return "unverified";
 
-			const claim = await claimSlot(tx, organizationId, email, this.cap, now);
+			const claim = await claimSlot(tx, organizationId, email, this.cap, this.guard, now);
 			if (claim.refused) return claim.refused;
 
 			// A channel saved without a token, by code older than its column, gets one here.
@@ -178,6 +182,7 @@ export class EmailChannelService {
 			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
 			await this.db.transaction(async (tx) => {
 				await tx.delete(log).where(eq(log.id, pending.sendId));
+				await this.guard.release(tx, pending.sendId);
 				await tx
 					.update(c)
 					.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
@@ -382,18 +387,27 @@ export class EmailChannelService {
 			) {
 				return { refused: "too_soon" as const };
 			}
-			return claimSlot(tx, organizationId, address, this.cap, now);
+			return claimSlot(tx, organizationId, address, this.cap, this.guard, now);
 		});
 	}
 
 	/** Gives back a slot whose email never went out. */
 	async releaseSend(sendId: string): Promise<void> {
-		await this.db.delete(channelConfirmationSend).where(eq(channelConfirmationSend.id, sendId));
+		await this.db.transaction(async (tx) => {
+			await tx.delete(channelConfirmationSend).where(eq(channelConfirmationSend.id, sendId));
+			await this.guard.release(tx, sendId);
+		});
 	}
 
 	/** Frees the address's slot once it accepts an invitation. */
 	async markInvitationAccepted(organizationId: string, email: string): Promise<void> {
 		await freeSlot(this.db, organizationId, email.toLowerCase(), new Date());
+	}
+
+	/** Why a confirmation to `email` could not go out, if it would need one. */
+	async mailRefusal(organizationId: string, email: string): Promise<MailRefusal | null> {
+		if (await isVerifiedMember(this.db, organizationId, email)) return null;
+		return this.guard.refusal(this.db, organizationId, email.toLowerCase());
 	}
 
 	/** Whether a confirmation to `email` would exceed the organization's pending cap. */
@@ -410,7 +424,7 @@ async function lockSends(tx: DbExecutor, organizationId: string) {
 
 type SlotClaim =
 	| { sendId: string; refused?: undefined }
-	| { sendId?: undefined; refused: "too_soon" | "capped" };
+	| { sendId?: undefined; refused: "too_soon" | "capped" | MailRefusal };
 
 /** Logs a send to the lowercased address, unless the interval or the cap forbids it. */
 async function claimSlot(
@@ -418,6 +432,7 @@ async function claimSlot(
 	organizationId: string,
 	email: string,
 	cap: number,
+	guard: UnsolicitedMailGuard,
 	now: Date,
 ): Promise<SlotClaim> {
 	const log = channelConfirmationSend;
@@ -432,8 +447,12 @@ async function claimSlot(
 
 	if ((await unconfirmedAddresses(tx, organizationId, now)) >= cap) return { refused: "capped" };
 
+	const refused = await guard.refusal(tx, organizationId, email);
+	if (refused) return { refused };
+
 	const sendId = nanoid();
 	await tx.insert(log).values({ id: sendId, organizationId, email, sentAt: now });
+	await guard.record(tx, { id: sendId, organizationId, email });
 	return { sendId };
 }
 

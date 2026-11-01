@@ -342,7 +342,42 @@ export const emailSuppression = pgTable("email_suppression", {
 export const mailEvent = pgTable("mail_event", {
 	id: text("id").primaryKey(),
 	kind: text("kind", { enum: ["bounce", "complaint"] }).notNull(),
+	// The organization whose send this answers. Null for mail nobody is accountable for, such
+	// as alerts, and for events an admin has cleared.
+	organizationId: text("organization_id").references(() => organization.id, {
+		onDelete: "set null",
+	}),
 	receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per email to an address that never agreed to mail: channel confirmations,
+// subscriber confirmations and invitations. Feeds the instance-wide ceiling, and tells a
+// bounce which organization's send it answers.
+export const unsolicitedMailSend = pgTable(
+	"unsolicited_mail_send",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		// Lowercased.
+		email: text("email").notNull(),
+		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		index("unsolicited_mail_send_sent_idx").on(table.sentAt),
+		index("unsolicited_mail_send_email_sent_idx").on(table.email, table.sentAt),
+		index("unsolicited_mail_send_org_sent_idx").on(table.organizationId, table.sentAt),
+	],
+);
+
+// An organization that may not email new addresses until an admin clears it.
+export const organizationMailBlock = pgTable("organization_mail_block", {
+	organizationId: text("organization_id")
+		.primaryKey()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	reason: text("reason", { enum: ["bounce", "complaint"] }).notNull(),
+	blockedAt: timestamp("blocked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ============================================================================

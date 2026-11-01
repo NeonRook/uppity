@@ -36,11 +36,12 @@ export const load: PageServerLoad = async ({ params }) => {
 	const availableUsers = await adminService.getUsersNotInOrg(params.id);
 
 	const selfHosted = isSelfHosted();
-	const [subscription, plan, usage, limits] = await Promise.all([
+	const [subscription, plan, usage, limits, mailBlock] = await Promise.all([
 		subscriptionService.getSubscription(params.id),
 		subscriptionService.getOrganizationPlan(params.id),
 		subscriptionService.getUsage(params.id),
 		subscriptionService.getEffectiveLimits(params.id),
+		adminService.getMailBlock(params.id),
 	]);
 
 	const { entries: history } = await auditService.list({
@@ -55,6 +56,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		addMemberForm,
 		availableUsers,
 		history,
+		mailBlock,
 		billing: { selfHosted, subscription, plan, usage, limits },
 	};
 };
@@ -126,6 +128,12 @@ export const actions: Actions = {
 		}
 
 		return redirect(302, `/admin/organizations/${params.id}`);
+	},
+
+	clearMailBlock: async (event) => {
+		const cleared = await adminService.clearMailBlock(await getActor(event), event.params.id);
+		if (!cleared) return fail(404, { message: "Organization is not blocked" });
+		return { cleared: true };
 	},
 
 	resyncSubscription: async (event) => {

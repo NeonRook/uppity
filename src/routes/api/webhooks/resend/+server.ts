@@ -2,7 +2,7 @@ import { error } from "@sveltejs/kit";
 
 import { db } from "#lib/server/db/index.js";
 import { parseEvent, verifySignature, type MailFailure } from "#lib/server/resend-webhook.js";
-import { recordMailFailure } from "#lib/server/services/mail-event.service.js";
+import { recordMailFailure } from "#lib/server/services/mail-reputation.service.js";
 
 import type { RequestHandler } from "./$types";
 

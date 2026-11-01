@@ -81,6 +81,9 @@
 		unverified: m.notifications_resend_unverified,
 		too_soon: m.notifications_resend_too_soon,
 		capped: m.notifications_resend_capped,
+		suppressed: m.mail_refused_suppressed,
+		blocked: m.mail_refused_blocked,
+		ceiling: m.mail_refused_ceiling,
 	};
 
 	async function handleResend(channelId: string) {

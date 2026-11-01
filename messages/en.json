@@ -900,5 +900,14 @@
 	"invitation_unsubscribe_prompt": "Stop this team from inviting the address this email went to? If the team sends alerts to this address, those stop too, and its admins will be told.",
 	"invitation_unsubscribe_submit": "Unsubscribe",
 	"invitation_unsubscribe_done": "You're unsubscribed. This team can't invite this address again.",
-	"invitations_pending_title": "Team invitations"
+	"invitations_pending_title": "Team invitations",
+	"mail_refused_suppressed": "This address bounced or marked our email as spam, so Uppity won't email it. Use another address.",
+	"mail_refused_blocked": "Your organization can't email new addresses because too many messages bounced or were marked as spam. Contact support to have this cleared.",
+	"mail_refused_ceiling": "Uppity has reached its daily limit on email to new addresses. Try again tomorrow.",
+	"public_subscribe_paused": "This status page can't send confirmation emails right now. Try again later.",
+	"admin_org_mail_block": "Blocked from emailing new addresses",
+	"admin_org_mail_block_bounce": "Too many hard bounces on {date}.",
+	"admin_org_mail_block_complaint": "Too many spam complaints on {date}.",
+	"admin_org_mail_block_desc": "Confirmations and invitations stay refused until you clear this. Alerts to confirmed addresses keep going.",
+	"admin_org_mail_block_clear": "Clear block"
 }

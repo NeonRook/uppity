@@ -23,7 +23,11 @@ const RED = 0xdc2626;
 
 const log = childLogger("ops-alert");
 
-export type OpsAlertType = "monitor_dead_lettered" | "monitor_checks_overdue";
+export type OpsAlertType =
+	| "monitor_dead_lettered"
+	| "monitor_checks_overdue"
+	| "unsolicited_mail_ceiling"
+	| "organization_mail_blocked";
 
 export interface OpsAlert {
 	type: OpsAlertType;

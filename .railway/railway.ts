@@ -105,6 +105,8 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_PORT: resend.port,
 			SUBSCRIBER_SMTP_USER: resend.user,
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
+			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
+			UPPITY_OPS_ALERT_EMAIL: preserve(),
 		},
 	});
 	const workerNotifier = service("worker-notifier", {

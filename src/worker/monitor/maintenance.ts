@@ -21,7 +21,7 @@ import {
 } from "../../lib/server/logger";
 import { runCapacityGrace } from "../../lib/server/services/capacity.service";
 import { pruneChannelConfirmationSends } from "../../lib/server/services/email-channel.service";
-import { pruneMailEvents } from "../../lib/server/services/mail-event.service";
+import { pruneMailRecords } from "../../lib/server/services/mail-reputation.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
 import {
@@ -76,11 +76,11 @@ const JOBS: JobRegistry = {
 			event.set("records_deleted", await deleteSuppressedSubscribers(db));
 		},
 	},
-	"mail-event-prune": {
-		name: "Mail Event Prune",
+	"mail-record-prune": {
+		name: "Mail Record Prune",
 		cron: CRON_CLEANUP,
 		run: async (event) => {
-			event.set("records_deleted", await pruneMailEvents(db));
+			event.set("records_deleted", await pruneMailRecords(db));
 		},
 	},
 	"channel-confirmation-prune": {
