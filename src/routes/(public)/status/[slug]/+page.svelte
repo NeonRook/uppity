@@ -233,7 +233,7 @@
 	{/each}
 
 	{#if data.subscribeForm}
-		<StatusPageSubscribe data={data.subscribeForm} />
+		<StatusPageSubscribe data={data.subscribeForm} turnstileSiteKey={data.turnstileSiteKey} />
 	{/if}
 
 	<!-- Incident History -->

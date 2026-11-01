@@ -2,12 +2,14 @@ import { error, fail } from "@sveltejs/kit";
 import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
+import { TURNSTILE_RESPONSE_FIELD } from "#lib/constants/turnstile.js";
 import { m } from "#lib/paraglide/messages.js";
 import { subscribeSchema } from "#lib/schemas/status-page-subscriber.js";
 import { clientAddress } from "#lib/server/client-ip.js";
 import { RateLimiter } from "#lib/server/rate-limit.js";
 import { statusPageSubscriberService } from "#lib/server/services/status-page-subscriber.instance.js";
 import { statusPageService } from "#lib/server/services/status-page.service.js";
+import { turnstileSiteKey, verifyTurnstile } from "#lib/server/turnstile.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -27,13 +29,14 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		statusData: data,
 		subscribeForm: accepting ? await superValidate(valibot(subscribeSchema)) : null,
+		turnstileSiteKey: turnstileSiteKey(),
 	};
 };
 
 export const actions: Actions = {
 	subscribe: async (event) => {
 		const { params, request, locals } = event;
-		const form = await superValidate(request, valibot(subscribeSchema));
+		const form = await superValidate(request.clone(), valibot(subscribeSchema));
 		if (!form.valid) return fail(400, { form });
 
 		const page = await statusPageService.findBySlug(params.slug);
@@ -48,6 +51,13 @@ export const actions: Actions = {
 		const rateLimited = () => message(form, m.public_subscribe_rate_limited(), { status: 429 });
 		if (!subscribeLimiter.attempt(`${clientAddress(event) ?? "unknown"}:${page.id}`)) {
 			return rateLimited();
+		}
+
+		// Ahead of the service, so the answer depends on the token alone and says nothing about
+		// the address.
+		const token = (await request.formData()).get(TURNSTILE_RESPONSE_FIELD);
+		if (!(await verifyTurnstile(token, "subscribe"))) {
+			return message(form, m.challenge_failed(), { status: 403 });
 		}
 
 		try {

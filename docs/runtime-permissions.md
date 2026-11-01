@@ -26,7 +26,7 @@ of executing it.
 Migrations are read from `./drizzle`, which only `migrate` needs.
 
 **The network, unrestricted.** Both processes need Postgres, and `serve` also binds its port and
-calls the SMTP hosts and the Polar API. Node's `--allow-net` is a single switch with no host list,
+calls the SMTP hosts, the Polar API and Cloudflare Turnstile. Node's `--allow-net` is a single switch with no host list,
 and it is still marked experimental, so it prints one warning at startup. ADR 0008 records why the
 per-host allowlist was given up.
 
