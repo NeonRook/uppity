@@ -23,7 +23,7 @@
 
 	/**
 	 * DESIGN.md's Measured-Value Rule decides mono per value, not per row: "50"
-	 * and "30 days" are readings, "Unlimited" and "Not published" are words, and
+	 * and "30 days" are readings, "Unlimited" is a word, and
 	 * they share a column. Carrying the distinction on the value is what stops a
 	 * row-level flag from setting an English sentence in Plex Mono.
 	 */
@@ -36,15 +36,15 @@
 		cents === null ? word("—") : reading(formatUsdCents(cents, getLocale()));
 
 	/**
-	 * The gate. Only these three capabilities have a published competitor price
-	 * behind them (see PRODUCT.md); anything further would be invented, so the
-	 * table stops here rather than padding itself out to look thorough.
+	 * The gate. Each figure is the monthly price of the first plan that includes
+	 * the capability (see PRODUCT.md). Only these three capabilities have a
+	 * published competitor price behind them, so the table stops here rather than
+	 * padding itself out to look thorough.
 	 */
-	const unpublished = () => word(m.landing_gate_unpublished());
 	const gatedCapabilities = [
-		{ label: m.landing_gate_row_sso(), instatus: usd(30_000), hyperping: usd(29_900) },
-		{ label: m.landing_gate_row_audit(), instatus: unpublished(), hyperping: usd(29_900) },
-		{ label: m.landing_gate_row_private(), instatus: usd(30_000), hyperping: unpublished() },
+		{ label: m.landing_gate_row_sso(), instatus: usd(30_000), hyperping: usd(8_900) },
+		{ label: m.landing_gate_row_audit(), instatus: usd(30_000), hyperping: usd(29_900) },
+		{ label: m.landing_gate_row_private(), instatus: usd(5_000), hyperping: usd(8_900) },
 	];
 
 	const competitors = [
@@ -185,7 +185,7 @@
 	OWN-WORLD: DESIGN.md's Quiet Ward — zero-chroma neutrals, signal colour only, no resting
 	shadows, Plex Sans with every measured value in Plex Mono. Extends the system with a
 	1280px marketing column, since 896px is a prose measure and this page is chart and table.
-	STORY: A visitor learns that SSO costs $299-$300 elsewhere and $12 here, sees the price
+	STORY: A visitor learns that SSO, audit logs and private status pages sit on paid tiers elsewhere, sees the price
 	of growth drawn rather than claimed, and leaves through one of two doors.
 	FIRST VIEWPORT: Display 300 headline on one line, one muted line of offer, two buttons —
 	hosted and self-hosted — side by side from sm, and the free tier named beneath them.
