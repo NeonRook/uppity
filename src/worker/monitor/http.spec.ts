@@ -142,6 +142,19 @@ describe("performHttpCheck", () => {
 		});
 	});
 
+	test("keeps an unsupported redirect target out of the error", async () => {
+		const { origin } = await serve((_req, res) => {
+			res.writeHead(302, { location: "app://callback?token=abc123" }).end();
+		});
+
+		const result = await performHttpCheck(target(origin));
+
+		expect(result).toMatchObject({
+			status: "down",
+			errorMessage: "Redirect to an unsupported location",
+		});
+	});
+
 	test("refuses a redirect to a private address", async () => {
 		let reached = false;
 		const hidden = await serve(

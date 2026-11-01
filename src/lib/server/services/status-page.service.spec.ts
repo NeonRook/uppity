@@ -787,6 +787,39 @@ describe("StatusPageService.getPublicStatusPage — dead-lettered monitors", () 
 	});
 });
 
+describe("StatusPageService public responses", () => {
+	test("carry no part of a monitor's URL", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const url = "https://admin:hunter2@private-origin.example/health?token=abc123";
+		await drizzleDb.update(monitor).set({ url }).where(eq(monitor.id, monitorId));
+		const { pageId, slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		const incidentId = `inc-${nanoid()}`;
+		await drizzleDb.insert(incident).values({
+			id: incidentId,
+			organizationId: orgId,
+			title: "Down",
+			status: "investigating",
+			impact: "major",
+			startedAt: new Date(),
+		});
+		await drizzleDb.insert(incidentMonitor).values({ incidentId, monitorId });
+
+		const responses = await Promise.all([
+			service.getPublicStatusPage(slug),
+			service.getPublicSummary(pageId),
+			service.getPublicIncident(slug, incidentId),
+		]);
+
+		expect(responses.every(Boolean)).toBe(true);
+		for (const secret of ["hunter2", "abc123", "private-origin"]) {
+			expect(JSON.stringify(responses)).not.toContain(secret);
+		}
+	});
+});
+
 describe("StatusPageService.getPublicSummary", () => {
 	test("returns what the public page shows, and nothing for a private page", async ({ db }) => {
 		const { db: drizzleDb } = db;

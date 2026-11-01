@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterEach, describe, expect, vi } from "vitest";
 
+import { UNREADABLE_URL } from "../api/redact";
 import { organization } from "../db/auth-schema";
 import {
 	incident,
@@ -21,6 +22,9 @@ import type { SubscriberIncidentEmail } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { NotificationService } from "./service";
+
+const sendMail = vi.hoisted(() => vi.fn());
+vi.mock("../smtp", () => ({ smtpFrom: "alerts@example.com", smtpTransport: { sendMail } }));
 
 async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
 	const suffix = nanoid();
@@ -474,6 +478,98 @@ describe("NotificationService.dispatchEvent (checks stopped)", () => {
 		const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body as string));
 		expect(bodies).toContainEqual(expect.objectContaining({ status: null }));
 		expect(bodies).toContainEqual({ text: "[]" });
+	});
+});
+
+/** Sends a monitor_down alert to one channel of each type; returns what each one received. */
+async function alertEveryChannel(drizzleDb: TestDb["db"], url: string) {
+	const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+	vi.stubGlobal("fetch", fetchMock);
+	const orgId = await seedOrg(drizzleDb);
+	const monitorId = await seedMonitor(drizzleDb, orgId);
+	await drizzleDb.update(monitor).set({ url }).where(eq(monitor.id, monitorId));
+	await drizzleDb.insert(monitorStatus).values({ monitorId, status: "down" });
+
+	const channels = [
+		{ type: "webhook", config: { url: "http://127.0.0.1:1/plain" } },
+		{
+			type: "webhook",
+			config: { url: "http://127.0.0.1:1/templated", bodyTemplate: '{"at":"{{monitor.url}}"}' },
+		},
+		{ type: "slack", config: { webhookUrl: "http://127.0.0.1:1/slack" } },
+		{ type: "discord", config: { discordWebhookUrl: "http://127.0.0.1:1/discord" } },
+		{ type: "email", config: { email: "oncall@example.com" }, token: nanoid() },
+	] as const;
+	for (const channel of channels) {
+		const id = `chan-${nanoid()}`;
+		await drizzleDb.insert(notificationChannel).values({
+			...channel,
+			id,
+			organizationId: orgId,
+			name: channel.type,
+			verifiedAt: new Date(),
+		});
+		await linkMonitorToChannel(drizzleDb, monitorId, id);
+	}
+
+	const eventId = `evt-${nanoid()}`;
+	await drizzleDb.insert(notificationEvent).values({
+		id: eventId,
+		organizationId: orgId,
+		monitorId,
+		type: "monitor_down",
+		payload: { previousStatus: "up", newStatus: "down", consecutiveFailures: 1, checkId: "c" },
+		status: "pending",
+	});
+
+	await new NotificationService(drizzleDb).dispatchEvent(await fetchEvent(drizzleDb, eventId));
+
+	const bodies = new Map(
+		fetchMock.mock.calls.map(([target, init]) => [
+			new URL(target as string).pathname.slice(1),
+			init.body as string,
+		]),
+	);
+	const [mail] = sendMail.mock.lastCall!;
+	return { bodies, mail, sent: [...bodies.values(), mail.text, mail.html].join("\n") };
+}
+
+describe("NotificationService.dispatchEvent (monitor URL)", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		sendMail.mockReset();
+	});
+
+	test("every channel gets the URL without its credentials, query values or fragment", async ({
+		db,
+	}) => {
+		const { bodies, mail, sent } = await alertEveryChannel(
+			db.db,
+			"https://admin:hunter2@example.com/health?token=abc123#session=def456",
+		);
+
+		for (const secret of ["admin", "hunter2", "abc123", "def456"]) {
+			expect(sent).not.toContain(secret);
+		}
+		const redacted = "https://example.com/health?token=***";
+		expect(JSON.parse(bodies.get("plain")!).monitor.url).toBe(redacted);
+		expect(JSON.parse(bodies.get("templated")!)).toEqual({ at: redacted });
+		expect(bodies.get("slack")).toContain(redacted);
+		expect(bodies.get("discord")).toContain(redacted);
+		expect(mail.text).toContain(redacted);
+	});
+
+	test("every channel gets a placeholder for a URL it cannot read", async ({ db }) => {
+		for (const url of ["admin:hunter2@example.com/health", "not a url hunter2"]) {
+			const { bodies, mail, sent } = await alertEveryChannel(db.db, url);
+
+			expect(sent).not.toContain("hunter2");
+			expect(JSON.parse(bodies.get("plain")!).monitor.url).toBe(UNREADABLE_URL);
+			expect(JSON.parse(bodies.get("templated")!)).toEqual({ at: UNREADABLE_URL });
+			expect(bodies.get("slack")).toContain(UNREADABLE_URL);
+			expect(bodies.get("discord")).toContain(UNREADABLE_URL);
+			expect(mail.text).toContain(UNREADABLE_URL);
+		}
 	});
 });
 

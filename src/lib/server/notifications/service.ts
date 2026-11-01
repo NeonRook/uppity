@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import type { Logger } from "pino";
 
+import { redactUrl, UNREADABLE_URL } from "../api/redact";
 import type { Db } from "../db/index";
 import {
 	incident,
@@ -386,7 +387,8 @@ export class NotificationService {
 		const type = row.type as NotificationType;
 		const base: NotificationPayload = {
 			type,
-			monitor,
+			// Channels are third-party services, so every one of them gets the URL without its secrets.
+			monitor: { ...monitor, url: monitor.url && (redactUrl(monitor.url) ?? UNREADABLE_URL) },
 			// Checks stopped, so the recorded status is stale and is not sent.
 			status: type === "monitor_checks_stopped" ? undefined : status,
 			timestamp: new Date(),
