@@ -4,7 +4,15 @@ import * as v from "valibot";
 import { describe, expect, vi } from "vitest";
 
 import { user } from "../db/auth-schema";
-import { channelConfirmationSend, notificationChannel, notificationEvent } from "../db/schema";
+import {
+	channelConfirmationSend,
+	emailSuppression,
+	mailEvent,
+	notificationChannel,
+	notificationEvent,
+	organizationMailBlock,
+	unsolicitedMailSend,
+} from "../db/schema";
 import type { ChannelConfirmation } from "../notifications/email";
 import { ChannelConfirmationPayload } from "../notifications/events";
 import { test } from "../test/fixture";
@@ -18,6 +26,7 @@ import {
 	pruneChannelConfirmationSends,
 	RESEND_INTERVAL_MS,
 } from "./email-channel.service";
+import { recordMailFailure } from "./mail-reputation.service";
 
 const HOUR_MS = 60 * 60_000;
 const ADMIN = { email: "admin@example.com", emailVerified: true };
@@ -273,7 +282,7 @@ describe("EmailChannelService.queueConfirmation", () => {
 		const payload = await queuedPayload(db, orgId);
 		expect(JSON.stringify(payload)).not.toContain(channel.token);
 
-		expect(await service.sendQueued(orgId, payload)).toBe(true);
+		expect(await service.sendQueued(orgId, payload)).toBe("sent");
 		expect(sent).toEqual([
 			{ email: "stranger@example.com", token: channel.token, requestedBy: ADMIN.email },
 		]);
@@ -296,13 +305,86 @@ describe("EmailChannelService.queueConfirmation", () => {
 		await service.queueConfirmation(channel.id, orgId, ADMIN);
 		send.mockRejectedValueOnce(new Error("SMTP down"));
 
-		await expect(service.sendQueued(orgId, await queuedPayload(db, orgId))).rejects.toThrow(
-			"SMTP down",
-		);
+		const payload = await queuedPayload(db, orgId);
+
+		expect(await service.sendQueued(orgId, payload)).toEqual({ failure: new Error("SMTP down") });
 
 		expect(await sendsOf(db, orgId)).toEqual([]);
 		expect((await service.lookup(channel.token))?.state).toBe("expired");
 		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+	});
+
+	test("a retried row whose slot went back sends nothing", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		const payload = await queuedPayload(db, orgId);
+		send.mockRejectedValueOnce(new Error("SMTP down"));
+		await service.sendQueued(orgId, payload);
+
+		expect(await service.sendQueued(orgId, payload)).toBe("skipped");
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	test("counts once against the ceiling, however late it leaves", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId, "late-bounce@example.com");
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await db
+			.update(unsolicitedMailSend)
+			.set({ sentAt: new Date(Date.now() - HOUR_MS) })
+			.where(eq(unsolicitedMailSend.organizationId, orgId));
+
+		await service.sendQueued(orgId, await queuedPayload(db, orgId));
+		await recordMailFailure(db, "evt-late", {
+			kind: "bounce",
+			recipients: ["late-bounce@example.com"],
+			sentAt: new Date(),
+		});
+
+		const sends = await db
+			.select()
+			.from(unsolicitedMailSend)
+			.where(eq(unsolicitedMailSend.organizationId, orgId));
+		expect(sends).toHaveLength(1);
+		const [event] = await db.select().from(mailEvent).where(eq(mailEvent.id, "evt-late"));
+		expect(event.organizationId).toBe(orgId);
+	});
+
+	test("does not mail an address suppressed while queued", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId, "bounced@example.com");
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await db.insert(emailSuppression).values({ email: "bounced@example.com", reason: "bounce" });
+
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe("skipped");
+
+		expect(send).not.toHaveBeenCalled();
+		expect(await sendsOf(db, orgId)).toEqual([]);
+		expect((await service.lookup(channel.token))?.state).toBe("expired");
+	});
+
+	test("does not mail for an organization blocked while queued", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await db.insert(organizationMailBlock).values({ organizationId: orgId, reason: "bounce" });
+
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe("skipped");
+		expect(send).not.toHaveBeenCalled();
+	});
+
+	test("skips an address readdressed away and back while queued", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await db
+			.update(notificationChannel)
+			.set(freshRecipient())
+			.where(eq(notificationChannel.id, channel.id));
+
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe("skipped");
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("skips an address that left the channel while queued", async ({ db: { db } }) => {
@@ -314,7 +396,7 @@ describe("EmailChannelService.queueConfirmation", () => {
 			.set({ config: { email: "other@example.com" }, ...freshRecipient() })
 			.where(eq(notificationChannel.id, channel.id));
 
-		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe(false);
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe("skipped");
 
 		expect(send).not.toHaveBeenCalled();
 		expect(await sendsOf(db, orgId)).toEqual([]);
@@ -326,7 +408,7 @@ describe("EmailChannelService.queueConfirmation", () => {
 		await service.queueConfirmation(channel.id, orgId, ADMIN);
 		await service.unsubscribe(channel.token);
 
-		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe(false);
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe("skipped");
 		expect(send).not.toHaveBeenCalled();
 	});
 });

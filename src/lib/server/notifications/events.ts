@@ -38,6 +38,10 @@ export type IncidentEventPayload = v.InferOutput<typeof IncidentEventPayload>;
 
 export const CHANNEL_CONFIRMATION_EVENT = "channel_confirmation";
 
+/** Not `pending` and `processing`, so that no alert sweep claims a confirmation email. */
+export const CONFIRMATION_QUEUED = "confirmation_queued";
+export const CONFIRMATION_SENDING = "confirmation_sending";
+
 const NullableTimestamp = v.nullable(v.pipe(v.string(), v.isoTimestamp()));
 
 /** A confirmation email whose slot is taken. The link token stays on the channel, out of the queue. */
