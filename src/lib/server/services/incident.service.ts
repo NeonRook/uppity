@@ -1,8 +1,13 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { DEFAULT_INCIDENT_STATUS, DEFAULT_INCIDENT_IMPACT } from "#lib/constants/defaults.js";
-import type { IncidentImpact, IncidentStatus } from "#lib/constants/status.js";
+import {
+	isEndedIncidentStatus,
+	type IncidentImpact,
+	type IncidentStatus,
+	type IncidentStatusValue,
+} from "#lib/constants/status.js";
 import { db, type Db } from "#lib/server/db/index.js";
 import {
 	incident,
@@ -14,13 +19,14 @@ import {
 	type IncidentUpdate,
 } from "#lib/server/db/schema.js";
 import { NotFoundError } from "#lib/server/errors.js";
+import { incidentActive, incidentEnded } from "#lib/server/incident-state.js";
 import type { IncidentEventPayload } from "#lib/server/notifications/events.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 
 export interface CreateIncidentInput {
 	organizationId: string;
 	title: string;
-	status?: IncidentStatus;
+	status?: IncidentStatusValue;
 	impact?: IncidentImpact;
 	message: string;
 	monitorIds?: string[];
@@ -30,7 +36,7 @@ export interface CreateIncidentInput {
 
 export interface UpdateIncidentInput {
 	title?: string;
-	status?: IncidentStatus;
+	status?: IncidentStatusValue;
 	impact?: IncidentImpact;
 }
 
@@ -139,7 +145,7 @@ export class IncidentService {
 		const conditions = [eq(incident.organizationId, organizationId)];
 
 		if (!options?.includeResolved) {
-			conditions.push(ne(incident.status, "resolved"));
+			conditions.push(incidentActive);
 		}
 
 		return this.db
@@ -188,7 +194,8 @@ export class IncidentService {
 			return null;
 		}
 
-		const isFlippingToResolved = input.status === "resolved" && existing.status !== "resolved";
+		const isFlippingToResolved =
+			input.status === "resolved" && !isEndedIncidentStatus(existing.status);
 
 		const [updated] = await this.db
 			.update(incident)
@@ -210,12 +217,12 @@ export class IncidentService {
 	/** Null when the incident is not in `input.organizationId`; nothing is written then. */
 	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate | null> {
 		// The prior status tells a real "resolved" transition from re-resolving an
-		// already-resolved incident, which must not enqueue a second incident_resolved.
+		// ended incident, which must not enqueue a second incident_resolved.
 		const previous = await this.findByIdAndOrg(input.incidentId, input.organizationId);
 		if (!previous) {
 			return null;
 		}
-		const wasAlreadyResolved = previous.status === "resolved";
+		const hadEnded = isEndedIncidentStatus(previous.status);
 
 		const id = nanoid();
 
@@ -238,14 +245,18 @@ export class IncidentService {
 				...(input.status === "resolved" && { resolvedAt: new Date() }),
 			})
 			.where(
-				and(eq(incident.id, input.incidentId), eq(incident.organizationId, input.organizationId)),
+				and(
+					eq(incident.id, input.incidentId),
+					eq(incident.organizationId, input.organizationId),
+					// A postmortem joins the timeline but never ends an incident still active.
+					input.status === "postmortem" ? incidentEnded : undefined,
+				),
 			)
 			.returning({ id: incident.id, organizationId: incident.organizationId });
 
 		// A postmortem is post-resolution writing, not paging-worthy, and re-resolving
-		// an already-resolved incident must not enqueue a duplicate event.
-		const notifiable =
-			input.status !== "postmortem" && !(input.status === "resolved" && wasAlreadyResolved);
+		// an ended incident must not enqueue a duplicate event.
+		const notifiable = input.status !== "postmortem" && !(input.status === "resolved" && hadEnded);
 		if (updatedIncident && notifiable) {
 			await this.enqueueIncidentEvent(
 				input.status === "resolved" ? "incident_resolved" : "incident_updated",

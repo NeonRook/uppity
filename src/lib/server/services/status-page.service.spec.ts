@@ -660,6 +660,26 @@ describe("StatusPageService organization scoping", () => {
 		await expect(service.getPublicIncident(attackerPage.slug, victimIncident)).resolves.toBeNull();
 	});
 
+	test("a postmortemed incident leaves the active list for the resolved history", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		const { slug } = await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId);
+		const incidentId = await seedIncident(drizzleDb, orgId, monitorId);
+		await drizzleDb
+			.update(incident)
+			.set({ status: "postmortem", resolvedAt: new Date() })
+			.where(eq(incident.id, incidentId));
+
+		const result = await service.getPublicStatusPage(slug);
+
+		expect(result!.activeIncidents).toEqual([]);
+		expect(result!.resolvedIncidents.map((i) => i.id)).toEqual([incidentId]);
+	});
+
 	test("the public payload carries only the fields the public pages render", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new StatusPageService(drizzleDb);

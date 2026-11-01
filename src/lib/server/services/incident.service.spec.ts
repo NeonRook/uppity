@@ -128,6 +128,62 @@ describe("IncidentService notification enqueue", () => {
 		expect(events[0].type).toBe("incident_created");
 	});
 
+	test("a postmortem on an active incident stays on the timeline and leaves it active", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const created = await service.create({
+			organizationId: orgId,
+			title: "X failed",
+			message: "initial",
+		});
+
+		const update = await service.addUpdate({
+			incidentId: created.id,
+			organizationId: orgId,
+			status: "postmortem",
+			message: "Written too early",
+		});
+
+		expect(update?.status).toBe("postmortem");
+		const active = await service.findByOrganization(orgId);
+		expect(active.map((row) => [row.id, row.status])).toEqual([[created.id, "investigating"]]);
+	});
+
+	test("a postmortem ends the active listing and blocks a second resolved event", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const created = await service.create({
+			organizationId: orgId,
+			title: "X failed",
+			message: "initial",
+		});
+		const addUpdate = (status: "resolved" | "postmortem") =>
+			service.addUpdate({
+				incidentId: created.id,
+				organizationId: orgId,
+				status,
+				message: status,
+			});
+		await addUpdate("resolved");
+		await addUpdate("postmortem");
+
+		expect(await service.findByOrganization(orgId)).toEqual([]);
+		const all = await service.findByOrganization(orgId, { includeResolved: true });
+		expect(all.map((row) => row.status)).toEqual(["postmortem"]);
+
+		await addUpdate("resolved");
+		await service.update(created.id, orgId, { status: "resolved" });
+
+		const events = await fetchEvents(drizzleDb, created.id);
+		expect(events.filter((e) => e.type === "incident_resolved")).toHaveLength(1);
+	});
+
 	test("addUpdate with status='resolved' on an already-resolved incident enqueues nothing", async ({
 		db,
 	}) => {

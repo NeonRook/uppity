@@ -2,7 +2,7 @@ import { fail, redirect, error } from "@sveltejs/kit";
 import { superValidate, message, type SuperValidated } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
-import type { IncidentImpact } from "#lib/constants/status.js";
+import { isEndedIncidentStatus, type IncidentImpact } from "#lib/constants/status.js";
 import {
 	updateIncidentSchema,
 	addIncidentUpdateSchema,
@@ -13,8 +13,8 @@ import { incidentService } from "#lib/server/services/incident.service.js";
 
 import type { Actions, PageServerLoad } from "./$types";
 
-/** Fails the action unless the incident exists in the organization and is resolved. */
-async function requireResolved<T extends Record<string, unknown>>(
+/** Fails the action unless the incident exists in the organization and has ended. */
+async function requireEnded<T extends Record<string, unknown>>(
 	id: string,
 	organizationId: string,
 	form: SuperValidated<T>,
@@ -26,7 +26,7 @@ async function requireResolved<T extends Record<string, unknown>>(
 		return fail(404, { error: "Incident not found" });
 	}
 
-	if (incident.status !== "resolved") {
+	if (!isEndedIncidentStatus(incident.status)) {
 		return message(form, notResolvedMessage, { status: 400 });
 	}
 
@@ -127,7 +127,7 @@ export const actions: Actions = {
 			return fail(400, { postmortemForm: form });
 		}
 
-		const unresolved = await requireResolved(
+		const unresolved = await requireEnded(
 			params.id,
 			locals.session.activeOrganizationId,
 			form,
@@ -165,7 +165,7 @@ export const actions: Actions = {
 			return fail(400, { editPostmortemForm: form });
 		}
 
-		const unresolved = await requireResolved(
+		const unresolved = await requireEnded(
 			params.id,
 			locals.session.activeOrganizationId,
 			form,

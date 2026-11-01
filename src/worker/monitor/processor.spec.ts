@@ -15,6 +15,7 @@ import {
 	notificationEvent,
 	type Monitor,
 } from "../../lib/server/db/schema";
+import { IncidentService } from "../../lib/server/services/incident.service";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { insertResult, type CheckResult } from "./check";
@@ -145,30 +146,71 @@ describe("processResults", () => {
 		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([]);
 	});
 
-	test("a resolved incident does not stop the next outage opening one", async ({ db }) => {
+	for (const status of ["resolved", "postmortem"]) {
+		test(`a ${status} incident does not stop the next outage opening one`, async ({ db }) => {
+			const { db: drizzleDb } = db;
+			const orgId = await seedOrganization(drizzleDb);
+			const monitor = await seedMonitor(drizzleDb, orgId);
+			await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
+			const old = `inc-${nanoid()}`;
+			await drizzleDb.insert(incident).values({
+				id: old,
+				organizationId: orgId,
+				title: "Earlier outage",
+				status,
+				impact: "major",
+				isAutoCreated: true,
+				startedAt: new Date(),
+			});
+			await drizzleDb.insert(incidentMonitor).values({ incidentId: old, monitorId: monitor.id });
+
+			await save(drizzleDb, monitor, { status: "down", responseTimeMs: 42 });
+
+			const open = await drizzleDb
+				.select()
+				.from(incident)
+				.where(and(eq(incident.organizationId, orgId), eq(incident.status, "investigating")));
+			expect(open).toHaveLength(1);
+		});
+	}
+
+	test("an outage after a postmortem runs its own incident and leaves the old one closed", async ({
+		db,
+	}) => {
 		const { db: drizzleDb } = db;
 		const orgId = await seedOrganization(drizzleDb);
 		const monitor = await seedMonitor(drizzleDb, orgId);
 		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
-		const old = `inc-${nanoid()}`;
-		await drizzleDb.insert(incident).values({
-			id: old,
-			organizationId: orgId,
-			title: "Earlier outage",
-			status: "resolved",
-			impact: "major",
-			isAutoCreated: true,
-			startedAt: new Date(),
-		});
-		await drizzleDb.insert(incidentMonitor).values({ incidentId: old, monitorId: monitor.id });
 
 		await save(drizzleDb, monitor, { status: "down", responseTimeMs: 42 });
-
-		const open = await drizzleDb
+		await save(drizzleDb, monitor, { status: "up", responseTimeMs: 42 });
+		const [first] = await drizzleDb
 			.select()
 			.from(incident)
-			.where(and(eq(incident.organizationId, orgId), eq(incident.status, "investigating")));
-		expect(open).toHaveLength(1);
+			.where(eq(incident.organizationId, orgId));
+		await new IncidentService(drizzleDb).addUpdate({
+			incidentId: first.id,
+			organizationId: orgId,
+			status: "postmortem",
+			message: "What we learned",
+		});
+
+		await save(drizzleDb, monitor, { status: "down", responseTimeMs: 42 });
+		await save(drizzleDb, monitor, { status: "up", responseTimeMs: 42 });
+
+		const rows = await drizzleDb.select().from(incident).where(eq(incident.organizationId, orgId));
+		const second = rows.find((row) => row.id !== first.id);
+		expect(second?.status).toBe("resolved");
+		expect(second?.resolvedAt).not.toBeNull();
+		const closed = rows.find((row) => row.id === first.id);
+		expect(closed?.status).toBe("postmortem");
+		expect(closed?.resolvedAt).toEqual(first.resolvedAt);
+		expect((await eventTypes(drizzleDb, monitor.id)).toSorted()).toEqual([
+			"monitor_down",
+			"monitor_down",
+			"monitor_up",
+			"monitor_up",
+		]);
 	});
 
 	test("up → down enqueues monitor_down, creates an auto-incident, and fires pg_notify", async ({
