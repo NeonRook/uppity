@@ -1,26 +1,34 @@
-/** Stands in for a monitor URL that `redactUrl` cannot make safe to show. */
-export const UNREADABLE_URL = "(hidden: not a valid web address)";
+import { parseWebUrl } from "../../utils/web-url";
+
+/** A name short and plain enough to show. A longer or stranger key may be a token. */
+const PARAM_NAME = /^[A-Za-z][\w.-]{0,23}$/;
 
 /**
- * A monitor URL with its credentials removed: no `user:pass@`, no fragment, and every
- * query value replaced, so `?token=abc` reads `?token=***`. Names of parameters with a
- * value stay, so monitors that differ only by query remain distinguishable; a name with
- * no value may be a bare token and is masked too. Null unless the URL parses as http or
- * https: a string with no scheme, like `admin:pass@host`, parses with `admin:` as its
- * scheme, and neither that nor an unparsed string can be checked for secrets.
+ * A monitor URL for readers who must not see its secrets. Removes `user:pass@` and the
+ * fragment, and masks every query value, matrix parameter, and query name that has no
+ * value or does not read as a name, so `?token=abc` reads `?token=***`. Plain names stay,
+ * so monitors that differ only by query remain distinguishable.
+ *
+ * The host and path stay, because an alert without them does not say what broke. A
+ * secret written there, like a webhook token in the path, is not removed.
+ *
+ * Null unless the URL parses as http or https: a string with no scheme, like
+ * `admin:pass@host`, parses with `admin:` as its scheme, and neither that nor an unparsed
+ * string can be checked for secrets.
  */
 export function redactUrl(raw: string | null): string | null {
-	if (raw === null) return null;
-	const url = URL.parse(raw);
-	if (url?.protocol !== "http:" && url?.protocol !== "https:") return null;
+	const url = raw === null ? null : parseWebUrl(raw);
+	if (!url) return null;
 
 	url.username = "";
 	url.password = "";
 	url.hash = "";
+	url.pathname = url.pathname.replace(/;[^/]*/g, ";***");
 	url.search = new URLSearchParams(
-		[...url.searchParams.entries()].map(([key, value]) =>
-			value === "" ? ["***", ""] : [key, "***"],
-		),
+		[...url.searchParams.entries()].map(([key, value]) => [
+			value !== "" && PARAM_NAME.test(key) ? key : "***",
+			value === "" ? "" : "***",
+		]),
 	).toString();
 	return url.toString();
 }

@@ -157,7 +157,7 @@ export const openApiDocument = {
 					},
 					url: nullable("string", {
 						description:
-							"Credentials, fragment and query values are removed: `?token=abc` reads `?token=***`. Null when the stored URL is not a valid http or https address.",
+							"Credentials, fragment, query values, matrix parameters and unusual query names are removed: `?token=abc` reads `?token=***`. Host and path are returned as stored. Null when the stored URL is not a valid http or https address.",
 					}),
 					method: nullable("string"),
 					hostname: nullable("string"),
