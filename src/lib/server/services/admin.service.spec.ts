@@ -3,7 +3,13 @@ import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
 import { member, organization } from "../db/auth-schema";
-import { auditLog, monitor } from "../db/schema";
+import {
+	auditLog,
+	emailSuppression,
+	mailEvent,
+	monitor,
+	organizationMailBlock,
+} from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitor, seedOrg, seedUser } from "../test/seed";
@@ -311,6 +317,55 @@ describe("AdminService dead letter", () => {
 		const id = await seedMonitor(drizzleDb, await seedOrg(drizzleDb));
 
 		expect(await service.resetDeadLetter(actor, id)).toBe(false);
+		expect(await auditRowsFor(drizzleDb, actor)).toHaveLength(0);
+	});
+});
+
+describe("liftSuppression", () => {
+	test("removes the address and audits, once", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		await drizzleDb.insert(emailSuppression).values({ email: "a@example.com", reason: "bounce" });
+
+		expect(await service.liftSuppression(actor, "a@example.com")).toBe(true);
+		expect(await service.liftSuppression(actor, "a@example.com")).toBe(false);
+
+		expect(await service.getSuppression("a@example.com")).toBeNull();
+		const audit = await auditRowsFor(drizzleDb, actor);
+		expect(audit.map((row) => row.action)).toEqual(["mail.suppression_lift"]);
+	});
+});
+
+describe("clearMailBlock", () => {
+	test("lifts the block, forgets the counted failures, and audits", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const eventId = nanoid();
+		await drizzleDb
+			.insert(organizationMailBlock)
+			.values({ organizationId: orgId, reason: "bounce" });
+		await drizzleDb
+			.insert(mailEvent)
+			.values({ id: eventId, kind: "bounce", organizationId: orgId });
+
+		expect(await service.clearMailBlock(actor, orgId)).toBe(true);
+
+		expect(await service.getMailBlock(orgId)).toBeNull();
+		const [event] = await drizzleDb.select().from(mailEvent).where(eq(mailEvent.id, eventId));
+		expect(event.organizationId).toBeNull();
+		const audit = await auditRowsFor(drizzleDb, actor);
+		expect(audit.map((row) => row.action)).toEqual(["org.mail_block_clear"]);
+	});
+
+	test("refuses an organization that is not blocked and audits nothing", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+
+		expect(await service.clearMailBlock(actor, await seedOrg(drizzleDb))).toBe(false);
 		expect(await auditRowsFor(drizzleDb, actor)).toHaveLength(0);
 	});
 });

@@ -218,6 +218,20 @@
       "when": 1793487099396,
       "tag": "0030_ops_alert_cooldown",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793488465728,
+      "tag": "0031_email_suppression",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793514638056,
+      "tag": "0032_unsolicited_mail",
+      "breakpoints": true
     }
   ]
 }

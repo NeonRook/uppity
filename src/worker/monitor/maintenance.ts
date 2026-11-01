@@ -21,9 +21,13 @@ import {
 } from "../../lib/server/logger";
 import { runCapacityGrace } from "../../lib/server/services/capacity.service";
 import { pruneChannelConfirmationSends } from "../../lib/server/services/email-channel.service";
+import { pruneMailRecords } from "../../lib/server/services/mail-reputation.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
-import { deleteExpiredUnconfirmedSubscribers } from "../../lib/server/services/status-page-subscriber.service";
+import {
+	deleteExpiredUnconfirmedSubscribers,
+	deleteSuppressedSubscribers,
+} from "../../lib/server/services/status-page-subscriber.service";
 import { SubscriptionService } from "../../lib/server/services/subscription.service";
 import { db } from "../shared/db";
 import { statsService } from "./stats";
@@ -63,6 +67,20 @@ const JOBS: JobRegistry = {
 		cron: CRON_CLEANUP,
 		run: async (event) => {
 			event.set("records_deleted", await deleteExpiredUnconfirmedSubscribers(db));
+		},
+	},
+	"suppressed-subscriber-cleanup": {
+		name: "Suppressed Subscriber Cleanup",
+		cron: CRON_CLEANUP,
+		run: async (event) => {
+			event.set("records_deleted", await deleteSuppressedSubscribers(db));
+		},
+	},
+	"mail-record-prune": {
+		name: "Mail Record Prune",
+		cron: CRON_CLEANUP,
+		run: async (event) => {
+			event.set("records_deleted", await pruneMailRecords(db));
 		},
 	},
 	"channel-confirmation-prune": {

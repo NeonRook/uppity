@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance as formEnhance } from "$app/forms";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { CircleAlert, LoaderCircle, Trash2, UserPlus, RefreshCw } from "@lucide/svelte";
@@ -32,6 +33,11 @@
 		},
 	);
 
+	const mailBlockReasons = {
+		bounce: m.admin_org_mail_block_bounce,
+		complaint: m.admin_org_mail_block_complaint,
+	};
+
 	let showDeleteDialog = $state(false);
 	let showAddMemberDialog = $state(false);
 	let memberToRemove = $state<{ id: string; name: string } | null>(null);
@@ -60,6 +66,29 @@
 		title={data.org.name}
 		description="/{data.org.slug}"
 	/>
+
+	{#if data.mailBlock}
+		<Card.Root class="border-destructive">
+			<Card.Header>
+				<div class="flex items-start justify-between gap-4">
+					<div>
+						<Card.Title>{m.admin_org_mail_block()}</Card.Title>
+						<Card.Description>
+							{mailBlockReasons[data.mailBlock.reason]({
+								date: formatDateShort(data.mailBlock.blockedAt),
+							})}
+							{m.admin_org_mail_block_desc()}
+						</Card.Description>
+					</div>
+					<form method="POST" action="?/clearMailBlock" use:formEnhance>
+						<Button type="submit" variant="outline" size="sm">
+							{m.admin_org_mail_block_clear()}
+						</Button>
+					</form>
+				</div>
+			</Card.Header>
+		</Card.Root>
+	{/if}
 
 	<!-- Organization Details -->
 	<Card.Root>

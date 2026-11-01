@@ -8,6 +8,7 @@ import { logger } from "#lib/server/logger/index.js";
 import type { TeamInvitation } from "#lib/server/subscriber-email.js";
 
 import type { EmailChannelService, Requester } from "./email-channel.service";
+import type { MailRefusal } from "./mail-reputation.service";
 
 export type DeliveryOutcome =
 	| "sent"
@@ -16,7 +17,8 @@ export type DeliveryOutcome =
 	| "opted_out"
 	| "too_soon"
 	| "capped"
-	| "failed";
+	| "failed"
+	| MailRefusal;
 
 export interface InvitationSummary {
 	id: string;

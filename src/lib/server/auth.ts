@@ -171,6 +171,9 @@ const INVITATION_REFUSALS = {
 	unverified: m.invitation_refused_unverified,
 	opted_out: m.invitation_refused_opted_out,
 	too_soon: m.invitation_refused_too_soon,
+	suppressed: m.mail_refused_suppressed,
+	blocked: m.mail_refused_blocked,
+	ceiling: m.mail_refused_ceiling,
 	capped: m.invitation_refused_capped,
 	failed: m.invitation_refused_failed,
 };

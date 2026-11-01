@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect, vi } from "vitest";
 
-import { statusPage, statusPageSubscriber } from "../db/schema";
+import { emailSuppression, statusPage, statusPageSubscriber } from "../db/schema";
 import type { SubscriptionConfirmation } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -10,6 +10,7 @@ import { seedOrg } from "../test/seed";
 import {
 	CONFIRMATION_TTL_HOURS,
 	deleteExpiredUnconfirmedSubscribers,
+	deleteSuppressedSubscribers,
 	RESEND_INTERVAL_MS,
 	StatusPageSubscriberService,
 } from "./status-page-subscriber.service";
@@ -22,8 +23,8 @@ async function setup(
 ) {
 	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
-	const page = { id: `sp-${suffix}`, name: "Acme", slug: `acme-${suffix}` };
-	await drizzleDb.insert(statusPage).values({ ...page, organizationId: orgId });
+	const page = { id: `sp-${suffix}`, organizationId: orgId };
+	await drizzleDb.insert(statusPage).values({ ...page, name: "Acme", slug: `acme-${suffix}` });
 
 	const sent: SubscriptionConfirmation[] = [];
 	const send = vi.fn(async (c: SubscriptionConfirmation) => {
@@ -84,6 +85,52 @@ describe("StatusPageSubscriberService", () => {
 		expect(sent).toHaveLength(1);
 	});
 
+	test("a suppressed address gets no confirmation and no row, and the answer is the same", async ({
+		db,
+	}) => {
+		const { page, sent, service } = await setup(db.db);
+		await db.db.insert(emailSuppression).values({ email: "gone@example.com", reason: "complaint" });
+
+		expect(await service.subscribe(page, "GONE@example.com")).toBe("sent");
+
+		expect(sent).toHaveLength(0);
+		const rows = await db.db
+			.select()
+			.from(statusPageSubscriber)
+			.where(eq(statusPageSubscriber.email, "gone@example.com"));
+		expect(rows).toHaveLength(0);
+	});
+
+	test("a suppressed subscriber is deleted after retention, and stays suppressed", async ({
+		db,
+	}) => {
+		const { page, sent, service } = await setup(db.db);
+		const old = `old-${nanoid().toLowerCase()}@example.com`;
+		const recent = `recent-${nanoid().toLowerCase()}@example.com`;
+		await service.subscribe(page, old);
+		await service.subscribe(page, recent);
+		await service.confirm(page.id, sent[0].token);
+		await service.confirm(page.id, sent[1].token);
+		await db.db.insert(emailSuppression).values([
+			{
+				email: old,
+				reason: "bounce",
+				suppressedAt: new Date(Date.now() - 91 * 24 * HOUR_MS),
+			},
+			{ email: recent, reason: "bounce" },
+		]);
+
+		expect(await deleteSuppressedSubscribers(db.db)).toBe(1);
+
+		const left = await db.db
+			.select()
+			.from(statusPageSubscriber)
+			.where(eq(statusPageSubscriber.statusPageId, page.id));
+		expect(left.map((row) => row.email)).toEqual([recent]);
+		const kept = await db.db.select().from(emailSuppression).where(eq(emailSuppression.email, old));
+		expect(kept).toHaveLength(1);
+	});
+
 	test("a failed send can be retried at once", async ({ db }) => {
 		const { page, sent, send, service } = await setup(db.db);
 		send.mockRejectedValueOnce(new Error("SMTP down"));
@@ -97,9 +144,9 @@ describe("StatusPageSubscriberService", () => {
 	test("a page over its daily confirmations sends nothing more", async ({ db }) => {
 		const { page, sent, service } = await setup(db.db, { base: 2, percentOfConfirmed: 0, max: 10 });
 
-		expect(await service.subscribe(page, "a@example.com")).toBe(true);
-		expect(await service.subscribe(page, "b@example.com")).toBe(true);
-		expect(await service.subscribe(page, "c@example.com")).toBe(false);
+		expect(await service.subscribe(page, "a@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "b@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "c@example.com")).toBe("capped");
 
 		expect(sent.map((c) => c.email)).toEqual(["a@example.com", "b@example.com"]);
 	});
@@ -117,7 +164,7 @@ describe("StatusPageSubscriberService", () => {
 
 		await subscribeAndConfirm("a@example.com");
 		// One sent against a base of 1: capped until confirmed subscribers lift it.
-		expect(await service.subscribe(page, "b@example.com")).toBe(false);
+		expect(await service.subscribe(page, "b@example.com")).toBe("capped");
 
 		for (const email of ["c@example.com", "d@example.com", "e@example.com"]) {
 			await db.db.insert(statusPageSubscriber).values({
@@ -129,8 +176,8 @@ describe("StatusPageSubscriberService", () => {
 			});
 		}
 		// Four confirmed at 100% would allow four; the max allows two, one of which is used.
-		expect(await service.subscribe(page, "b@example.com")).toBe(true);
-		expect(await service.subscribe(page, "f@example.com")).toBe(false);
+		expect(await service.subscribe(page, "b@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "f@example.com")).toBe("capped");
 	});
 
 	test("confirm is idempotent and scoped to the page", async ({ db }) => {

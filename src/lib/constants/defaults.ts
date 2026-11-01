@@ -1,5 +1,7 @@
 import { envInt, envString } from "#lib/utils.js";
 
+import { isSelfHosted } from "./plans";
+
 /** Monitor interval constraints for worker scheduler */
 export const MONITOR_INTERVAL = {
 	MIN_SECONDS: envInt("UPPITY_MIN_INTERVAL_SECONDS", 30),
@@ -84,6 +86,12 @@ export const SUBSCRIBER_CONFIRMATION_CAP = {
 	max: envInt("UPPITY_SUBSCRIBER_CONFIRMATIONS_MAX", 300),
 };
 
+/** Days a suppressed address's subscriptions are kept before deletion. The suppression itself stays. */
+export const SUPPRESSED_SUBSCRIBER_RETENTION_DAYS = envInt(
+	"UPPITY_SUPPRESSED_SUBSCRIBER_RETENTION_DAYS",
+	90,
+);
+
 /**
  * Unanswered emails one organization may have sent in the past week: confirmations to email
  * channel addresses and team invitations together. A confirmation or an accepted invitation
@@ -91,6 +99,30 @@ export const SUBSCRIBER_CONFIRMATION_CAP = {
  * strangers who ignore it stalls here.
  */
 export const CHANNEL_PENDING_CONFIRMATIONS = envInt("UPPITY_CHANNEL_PENDING_CONFIRMATIONS", 5);
+
+/**
+ * Emails to addresses that never agreed to mail, across the whole instance, in 24 hours. The
+ * per-organization caps don't bound the total because accounts are free. Zero turns it off,
+ * the default when self-hosted, where the mail account at risk is the operator's own.
+ */
+export const UNSOLICITED_MAIL_DAILY_CEILING = envInt(
+	"UPPITY_UNSOLICITED_MAIL_DAILY_CEILING",
+	isSelfHosted() ? 0 : 1000,
+);
+
+/**
+ * When an organization's unsolicited mail draws too many failures: at least the minimum count
+ * in the window, and at least the rate of its sends. The minimums keep a handful of typos
+ * from counting as a rate. The rates are Scaleway's 7% rejection alert and Google's 0.3% spam
+ * limit. Complaints are in per mille because envInt reads whole numbers.
+ */
+export const MAIL_REPUTATION = {
+	windowDays: envInt("UPPITY_MAIL_REPUTATION_WINDOW_DAYS", 30),
+	bounceMin: envInt("UPPITY_MAIL_BOUNCE_MIN", 10),
+	bouncePercent: envInt("UPPITY_MAIL_BOUNCE_PERCENT", 7),
+	complaintMin: envInt("UPPITY_MAIL_COMPLAINT_MIN", 3),
+	complaintPerMille: envInt("UPPITY_MAIL_COMPLAINT_PER_MILLE", 3),
+};
 
 /**
  * Slug of a public status page to feature on the landing page, or empty to

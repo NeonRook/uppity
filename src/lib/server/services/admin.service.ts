@@ -4,7 +4,14 @@ import { nanoid } from "nanoid";
 import { auth } from "#lib/server/auth.js";
 import { organization, member, user } from "#lib/server/db/auth-schema.js";
 import { db, type Db } from "#lib/server/db/index.js";
-import { monitor, incident } from "#lib/server/db/schema.js";
+import {
+	emailSuppression,
+	incident,
+	mailEvent,
+	monitor,
+	organizationMailBlock,
+} from "#lib/server/db/schema.js";
+import { clearOpsAlert } from "#lib/server/ops-alert.js";
 
 import { auditService, AuditService, type Actor } from "./audit.service";
 
@@ -335,6 +342,72 @@ export class AdminService {
 				metadata: { orgId: row.organizationId },
 			});
 
+			return true;
+		});
+	}
+
+	async getMailBlock(organizationId: string) {
+		const [block] = await this.db
+			.select()
+			.from(organizationMailBlock)
+			.where(eq(organizationMailBlock.organizationId, organizationId));
+		return block ?? null;
+	}
+
+	/**
+	 * Lets the organization email new addresses again. Its counted failures go too, or the
+	 * next bounce would block it straight away.
+	 */
+	async clearMailBlock(actor: Actor, organizationId: string): Promise<boolean> {
+		const cleared = await this.db.transaction(async (tx) => {
+			const [block] = await tx
+				.delete(organizationMailBlock)
+				.where(eq(organizationMailBlock.organizationId, organizationId))
+				.returning({ reason: organizationMailBlock.reason });
+			if (!block) return false;
+
+			await tx
+				.update(mailEvent)
+				.set({ organizationId: null })
+				.where(eq(mailEvent.organizationId, organizationId));
+			await this.audit.record(tx, actor, {
+				action: "org.mail_block_clear",
+				targetType: "organization",
+				targetId: organizationId,
+				targetLabel: organizationId,
+				metadata: { reason: block.reason },
+			});
+			return true;
+		});
+
+		if (cleared) {
+			await clearOpsAlert(this.db, { type: "organization_mail_blocked", subject: organizationId });
+		}
+		return cleared;
+	}
+
+	async getSuppression(email: string) {
+		const [row] = await this.db
+			.select()
+			.from(emailSuppression)
+			.where(eq(emailSuppression.email, email));
+		return row ?? null;
+	}
+
+	/** Lets the lowercased address get mail again. Its subscribers then stay, not deleted. */
+	async liftSuppression(actor: Actor, email: string): Promise<boolean> {
+		return this.db.transaction(async (tx) => {
+			const [lifted] = await tx
+				.delete(emailSuppression)
+				.where(eq(emailSuppression.email, email))
+				.returning({ reason: emailSuppression.reason });
+			if (!lifted) return false;
+
+			await this.audit.record(tx, actor, {
+				action: "mail.suppression_lift",
+				targetLabel: email,
+				metadata: { reason: lifted.reason },
+			});
 			return true;
 		});
 	}

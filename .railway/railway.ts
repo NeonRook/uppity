@@ -93,6 +93,7 @@ export default defineRailway((ctx) => {
 			POLAR_PRODUCT_UPPITY_MONTHLY: staging("b0da7b4f-7c13-43f5-8325-f08f125d3d9c"),
 			POLAR_SERVER: ctx.shared.POLAR_SERVER,
 			POLAR_WEBHOOK_SECRET: preserve(),
+			RESEND_WEBHOOK_SECRET: preserve(),
 			SMTP_FROM: "Uppity <noreply@uppity.cloud>",
 			SMTP_HOST: ctx.shared.SMTP_HOST,
 			SMTP_PASSWORD: preserve(),
@@ -104,6 +105,8 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_PORT: resend.port,
 			SUBSCRIBER_SMTP_USER: resend.user,
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
+			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
+			UPPITY_OPS_ALERT_EMAIL: preserve(),
 		},
 	});
 	const workerNotifier = service("worker-notifier", {

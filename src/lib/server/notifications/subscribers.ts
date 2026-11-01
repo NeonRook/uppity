@@ -1,7 +1,8 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, notExists } from "drizzle-orm";
 
 import type { Db } from "../db/index";
 import {
+	emailSuppression,
 	incidentMonitor,
 	incidentUpdate,
 	statusPage,
@@ -19,9 +20,10 @@ export type SendSubscriberIncidentEmail = (email: SubscriberIncidentEmail) => Pr
 
 /**
  * Emails an incident event to the confirmed subscribers of every public page that shows
- * the incident. Each subscriber is claimed before sending, so a retried or concurrently
- * reclaimed event never emails anyone twice. Sends one at a time to stay within SMTP
- * rate limits. Null when no subscriber is due an email.
+ * the incident, except addresses that bounced or complained. Each subscriber is claimed
+ * before sending, so a retried or concurrently reclaimed event never emails anyone twice.
+ * Sends one at a time to stay within SMTP rate limits. Null when no subscriber is due an
+ * email.
  */
 export async function notifyIncidentSubscribers(
 	db: Db,
@@ -57,7 +59,17 @@ export async function notifyIncidentSubscribers(
 				eq(incidentMonitor.incidentId, incident.id),
 			),
 		)
-		.where(isNotNull(s.verifiedAt));
+		.where(
+			and(
+				isNotNull(s.verifiedAt),
+				notExists(
+					db
+						.select({ email: emailSuppression.email })
+						.from(emailSuppression)
+						.where(eq(emailSuppression.email, s.email)),
+				),
+			),
+		);
 
 	const claimed = new Set<string>();
 	for (let i = 0; i < recipients.length; i += CLAIM_CHUNK) {
