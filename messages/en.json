@@ -855,6 +855,7 @@
 	"alerts_unsubscribe_submit": "Stop alerts",
 	"alerts_unsubscribe_done": "You're unsubscribed. This address won't get these alerts anymore.",
 	"notifications_unconfirmed": "Unconfirmed",
+	"notifications_not_sent": "Email not sent",
 	"notifications_unsubscribed": "Unsubscribed",
 	"notifications_resend": "Resend confirmation",
 	"notifications_resend_sent": "Confirmation email sent",

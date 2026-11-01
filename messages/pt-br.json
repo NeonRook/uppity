@@ -855,6 +855,7 @@
 	"alerts_unsubscribe_submit": "Parar alertas",
 	"alerts_unsubscribe_done": "Inscrição cancelada. Este endereço não receberá mais esses alertas.",
 	"notifications_unconfirmed": "Não confirmado",
+	"notifications_not_sent": "E-mail não enviado",
 	"notifications_unsubscribed": "Inscrição cancelada",
 	"notifications_resend": "Reenviar confirmação",
 	"notifications_resend_sent": "E-mail de confirmação enviado",
