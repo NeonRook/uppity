@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { describe, expect } from "vitest";
+import { describe, expect, vi } from "vitest";
 
 import { organization } from "../../lib/server/db/auth-schema";
 import {
@@ -12,8 +12,16 @@ import {
 	notificationLog,
 } from "../../lib/server/db/schema";
 import { NotificationService } from "../../lib/server/notifications/service";
+import { EmailChannelService } from "../../lib/server/services/email-channel.service";
 import { test } from "../../lib/server/test/fixture";
-import { processBacklog, STUCK_ROW_THRESHOLD_MS } from "./processor";
+import { seedOrg } from "../../lib/server/test/seed";
+import {
+	ALERTS,
+	CONFIRMATIONS,
+	processBacklog,
+	processOne,
+	STUCK_ROW_THRESHOLD_MS,
+} from "./processor";
 
 // WideEventBuilder requires a real Pino logger — cast to never rather than
 // wiring up the full logging stack in a test.
@@ -25,6 +33,96 @@ const stubEvent = () =>
 		setSuccess: () => {},
 		setError: () => {},
 	}) as never;
+
+type TestDrizzle = Parameters<typeof seedOrg>[0];
+
+async function queueConfirmation(db: TestDrizzle, send: () => Promise<void>) {
+	const orgId = await seedOrg(db);
+	const channelId = `test-ch-${nanoid()}`;
+	await db.insert(notificationChannel).values({
+		id: channelId,
+		organizationId: orgId,
+		name: "Ops",
+		type: "email",
+		config: { email: "stranger@example.com" },
+		token: nanoid(),
+	});
+	await new EmailChannelService(db, send).queueConfirmation(channelId, orgId, {
+		email: "admin@example.com",
+		emailVerified: true,
+	});
+	const [{ id }] = await db
+		.select({ id: notificationEvent.id })
+		.from(notificationEvent)
+		.where(eq(notificationEvent.organizationId, orgId));
+	const row = async () =>
+		(await db.select().from(notificationEvent).where(eq(notificationEvent.id, id)))[0];
+	return { id, row, service: new NotificationService(db, undefined, undefined, send) };
+}
+
+describe("confirmation emails in the queue", () => {
+	test("the alert sweep leaves them, and their own sweep sends them", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {});
+		const { row, service } = await queueConfirmation(db, send);
+
+		expect(await processBacklog(db, "sweep", stubEvent, service, ALERTS)).toBe(0);
+
+		expect(send).not.toHaveBeenCalled();
+		expect((await row()).status).toBe(CONFIRMATIONS.queued);
+
+		expect(await processBacklog(db, "sweep", stubEvent, service, CONFIRMATIONS)).toBe(1);
+
+		expect(send).toHaveBeenCalledTimes(1);
+		expect(await row()).toMatchObject({ status: "sent", payload: {} });
+	});
+
+	test("LISTEN claims them in their own lane", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {});
+		const { id, row, service } = await queueConfirmation(db, send);
+		const hung = {
+			dispatchEvent: () => Promise.reject(new Error("connection terminated")),
+		} as unknown as NotificationService;
+
+		await expect(processOne(db, id, undefined, hung)).rejects.toThrow("connection terminated");
+		expect((await row()).status).toBe(CONFIRMATIONS.claimed);
+
+		await db
+			.update(notificationEvent)
+			.set({ claimedAt: new Date(Date.now() - STUCK_ROW_THRESHOLD_MS - 1000) })
+			.where(eq(notificationEvent.id, id));
+		expect(await processBacklog(db, "sweep", stubEvent, service, ALERTS)).toBe(0);
+		expect(await processBacklog(db, "sweep", stubEvent, service, CONFIRMATIONS)).toBe(1);
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("LISTEN with an alert", () => {
+	test("claims it as processing and writes its terminal status", async ({ db: { db } }) => {
+		const orgId = await seedOrg(db);
+		const id = `test-evt-${nanoid()}`;
+		await db.insert(notificationEvent).values({
+			id,
+			organizationId: orgId,
+			type: "monitor_down",
+			payload: { previousStatus: "up", newStatus: "down", consecutiveFailures: 1, checkId: "c" },
+		});
+		const row = async () =>
+			(await db.select().from(notificationEvent).where(eq(notificationEvent.id, id)))[0];
+		const seen: string[] = [];
+		const service = {
+			dispatchEvent: async () => {
+				seen.push((await row()).status);
+				return { status: "sent" };
+			},
+		} as unknown as NotificationService;
+
+		await processOne(db, id, undefined, service);
+		await processOne(db, id, undefined, service);
+
+		expect(seen).toEqual([ALERTS.claimed]);
+		expect(await row()).toMatchObject({ status: "sent", payload: { checkId: "c" } });
+	});
+});
 
 describe("notifier integration (real Postgres)", () => {
 	test("processes a pending event end-to-end, logs per-channel attempts", async ({ db }) => {

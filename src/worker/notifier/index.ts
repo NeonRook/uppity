@@ -3,7 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { childLogger, wideEvent, type NotifierWideEvent } from "../../lib/server/logger";
 import { NotificationService } from "../../lib/server/notifications/service";
 import { client, db } from "../shared/db";
-import { processBacklog, processOne } from "./processor";
+import { ALERTS, CONFIRMATIONS, processBacklog, processOne, type Lane } from "./processor";
 import { reportDeadLetters, reportOverdueChecks } from "./watchdog";
 
 const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -41,11 +41,11 @@ async function handleNotification(eventId: string): Promise<void> {
 	}
 }
 
-async function sweep(trigger: "startup" | "sweep"): Promise<void> {
+async function sweep(trigger: "startup" | "sweep", lane: Lane = ALERTS): Promise<void> {
 	try {
-		const processed = await processBacklog(db, trigger, newEvent, notificationService);
+		const processed = await processBacklog(db, trigger, newEvent, notificationService, lane);
 		if (processed > 0 || trigger === "startup") {
-			consumerLogger.info({ processed, trigger }, "Backlog sweep complete");
+			consumerLogger.info({ processed, trigger, lane: lane.queued }, "Backlog sweep complete");
 		}
 	} catch (err) {
 		consumerLogger.error({ error: err, trigger }, "Backlog sweep failed");
@@ -69,6 +69,7 @@ async function start(): Promise<void> {
 		"Starting notification worker",
 	);
 
+	track(sweep("startup", CONFIRMATIONS));
 	await sweep("startup");
 
 	// Subscribe to pg_notify channel. Payload is the event row id.
@@ -83,6 +84,7 @@ async function start(): Promise<void> {
 	sweepTimer = setInterval(() => {
 		if (!running) return;
 		track(sweep("sweep"));
+		track(sweep("sweep", CONFIRMATIONS));
 		track(reportOverdueChecks(db));
 		track(reportDeadLetters(db));
 	}, BACKLOG_SWEEP_INTERVAL_MS);

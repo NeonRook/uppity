@@ -703,8 +703,28 @@ describe("NotificationService.dispatchEvent (channel confirmation)", () => {
 
 		expect(await service.dispatchEvent(row)).toEqual({
 			status: "failed",
-			errorMessage: "SMTP down",
+			errorMessage: "confirmation email not sent",
 		});
+	});
+
+	test("a database failure is left for the sweep to retry", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {});
+		const { row, service } = await queued(db, send);
+		const broken = new NotificationService(
+			{
+				select: () => {
+					throw new Error("connection terminated");
+				},
+			} as never,
+			undefined,
+			undefined,
+			send,
+		);
+
+		await expect(broken.dispatchEvent(row)).rejects.toThrow("connection terminated");
+
+		expect(send).not.toHaveBeenCalled();
+		expect(await service.dispatchEvent(row)).toEqual({ status: "sent" });
 	});
 
 	test("a malformed payload fails without sending", async ({ db: { db } }) => {

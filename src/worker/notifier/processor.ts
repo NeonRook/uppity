@@ -1,21 +1,50 @@
-import { and, eq, inArray, lt, or } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 
 import type { Db } from "../../lib/server/db/index";
 import type { NotificationEvent } from "../../lib/server/db/schema";
 import { notificationEvent } from "../../lib/server/db/schema";
 import type { NotifierWideEvent, WideEventBuilder } from "../../lib/server/logger";
+import {
+	CHANNEL_CONFIRMATION_EVENT,
+	CONFIRMATION_QUEUED,
+	CONFIRMATION_SENDING,
+} from "../../lib/server/notifications/events";
 import type { NotificationService } from "../../lib/server/notifications/service";
 
 export const CLAIM_BATCH_SIZE = 25;
 export const STUCK_ROW_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
+/** The statuses a sweep works through, and how many rows it claims at once. */
+export interface Lane {
+	queued: string;
+	claimed: string;
+	batch: number;
+}
+
+export const ALERTS: Lane = { queued: "pending", claimed: "processing", batch: CLAIM_BATCH_SIZE };
+
 /**
- * Claims up to CLAIM_BATCH_SIZE pending events (or rows stuck in 'processing'
- * older than STUCK_ROW_THRESHOLD_MS) and returns the full claimed rows. Called
- * by the periodic backlog sweep; the LISTEN handler processes pg_notify
- * payloads directly via processOne rather than claiming in batches.
+ * Swept apart from alerts, so a hanging mail server cannot hold an alert behind a confirmation
+ * email. A notifier without this lane ignores these statuses, so during a deploy a confirmation
+ * waits for the new one. Claims one row at a time: a row waiting in a claimed batch would go
+ * stale behind slow sends, and a later sweep would email the address twice.
  */
-export async function claimPendingEvents(db: Db): Promise<NotificationEvent[]> {
+export const CONFIRMATIONS: Lane = {
+	queued: CONFIRMATION_QUEUED,
+	claimed: CONFIRMATION_SENDING,
+	batch: 1,
+};
+
+/**
+ * Claims up to lane.batch queued events (or claimed rows older than
+ * STUCK_ROW_THRESHOLD_MS) and returns the full claimed rows. Called by the
+ * periodic backlog sweep; the LISTEN handler processes pg_notify payloads
+ * directly via processOne rather than claiming in batches.
+ */
+export async function claimPendingEvents(
+	db: Db,
+	lane: Lane = ALERTS,
+): Promise<NotificationEvent[]> {
 	return db.transaction(async (tx) => {
 		const cutoff = new Date(Date.now() - STUCK_ROW_THRESHOLD_MS);
 
@@ -24,12 +53,12 @@ export async function claimPendingEvents(db: Db): Promise<NotificationEvent[]> {
 			.from(notificationEvent)
 			.where(
 				or(
-					eq(notificationEvent.status, "pending"),
-					and(eq(notificationEvent.status, "processing"), lt(notificationEvent.claimedAt, cutoff)),
+					eq(notificationEvent.status, lane.queued),
+					and(eq(notificationEvent.status, lane.claimed), lt(notificationEvent.claimedAt, cutoff)),
 				),
 			)
 			.orderBy(notificationEvent.createdAt)
-			.limit(CLAIM_BATCH_SIZE)
+			.limit(lane.batch)
 			.for("update", { skipLocked: true });
 
 		if (rows.length === 0) return [];
@@ -37,7 +66,7 @@ export async function claimPendingEvents(db: Db): Promise<NotificationEvent[]> {
 		const ids = rows.map((r) => r.id);
 		return await tx
 			.update(notificationEvent)
-			.set({ status: "processing", claimedAt: new Date() })
+			.set({ status: lane.claimed, claimedAt: new Date() })
 			.where(inArray(notificationEvent.id, ids))
 			.returning();
 	});
@@ -60,8 +89,16 @@ export async function processOne(
 ): Promise<void> {
 	const [row] = await db
 		.update(notificationEvent)
-		.set({ status: "processing", claimedAt: new Date() })
-		.where(and(eq(notificationEvent.id, id), eq(notificationEvent.status, "pending")))
+		.set({
+			status: sql`case ${notificationEvent.status} when ${CONFIRMATIONS.queued} then ${CONFIRMATIONS.claimed} else ${ALERTS.claimed} end`,
+			claimedAt: new Date(),
+		})
+		.where(
+			and(
+				eq(notificationEvent.id, id),
+				inArray(notificationEvent.status, [ALERTS.queued, CONFIRMATIONS.queued]),
+			),
+		)
 		.returning();
 
 	if (!row) {
@@ -109,7 +146,13 @@ async function dispatchClaimed(
 	// will write its own terminal. Don't overwrite.
 	const updated = await db
 		.update(notificationEvent)
-		.set({ status: result.status, processedAt: new Date(), errorMessage })
+		.set({
+			status: result.status,
+			processedAt: new Date(),
+			errorMessage,
+			// This table keeps its rows, and a confirmation's payload names two people.
+			...(row.type === CHANNEL_CONFIRMATION_EVENT ? { payload: {} } : {}),
+		})
 		.where(and(eq(notificationEvent.id, row.id), eq(notificationEvent.claimedAt, row.claimedAt!)))
 		.returning({ id: notificationEvent.id });
 
@@ -137,10 +180,11 @@ export async function processBacklog(
 	trigger: "startup" | "sweep",
 	createEvent: () => WideEventBuilder<NotifierWideEvent>,
 	service: NotificationService,
+	lane: Lane = ALERTS,
 ): Promise<number> {
 	let total = 0;
 	for (;;) {
-		const rows = await claimPendingEvents(db);
+		const rows = await claimPendingEvents(db, lane);
 		if (rows.length === 0) return total;
 		for (const row of rows) {
 			const event = createEvent();

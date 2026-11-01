@@ -15,6 +15,7 @@ import {
 import type { ChannelConfirmation } from "#lib/server/notifications/email.js";
 import {
 	CHANNEL_CONFIRMATION_EVENT,
+	CONFIRMATION_QUEUED,
 	type ChannelConfirmationPayload,
 } from "#lib/server/notifications/events.js";
 
@@ -84,6 +85,11 @@ interface PendingSend {
 	reasked: boolean;
 }
 
+/** Why a confirmation did not go out, once its claim is undone. */
+export interface UnsentConfirmation {
+	failure: unknown;
+}
+
 /** The recipient fields of an email channel whose address was just set. */
 export function freshRecipient() {
 	return {
@@ -140,7 +146,8 @@ export class EmailChannelService {
 		const pending = await this.claim(channelId, organizationId, requester);
 		if (pending === null || typeof pending === "string" || "askAgainAt" in pending) return pending;
 
-		await this.deliver(channelId, organizationId, pending);
+		const unsent = await this.deliver(channelId, organizationId, pending);
+		if (unsent) throw unsent.failure;
 		return "sent";
 	}
 
@@ -157,40 +164,52 @@ export class EmailChannelService {
 	}
 
 	/**
-	 * Sends a queued confirmation. False, with the slot given back, when the channel stopped
-	 * waiting for one at that address while it sat in the queue.
+	 * Sends a queued confirmation. "skipped", with the slot given back, when the channel stopped
+	 * waiting for one at that address, the organization was blocked, or the address was
+	 * suppressed while it sat in the queue. A failed send undoes the claim and returns why.
+	 * Anything else that throws leaves the claim in place for the sweep to retry.
 	 */
 	async sendQueued(
 		organizationId: string,
 		{ channelId, previous, ...queued }: ChannelConfirmationPayload,
-	): Promise<boolean> {
+	): Promise<"sent" | "skipped" | UnsentConfirmation> {
 		const c = notificationChannel;
 		const [row] = await this.db
 			.select({ token: c.token })
 			.from(c)
+			// A slot already given back means this is a retry of a send that failed.
+			.innerJoin(channelConfirmationSend, eq(channelConfirmationSend.id, queued.sendId))
 			.where(
 				and(
 					eq(c.id, channelId),
 					eq(c.organizationId, organizationId),
 					isNull(c.verifiedAt),
 					isNull(c.unsubscribedAt),
+					// Null after a readdress, when the channel holds a token this send never claimed.
+					isNotNull(c.confirmationSentAt),
 					sql`lower(${c.config}->>'email') = lower(${queued.email})`,
 				),
 			);
 		if (!row?.token) {
 			await this.releaseSend(queued.sendId);
-			return false;
+			return "skipped";
 		}
 
-		await this.deliver(channelId, organizationId, {
+		const pending = {
 			...queued,
 			token: row.token,
 			previous: {
 				confirmationSentAt: toDate(previous.confirmationSentAt),
 				unsubscribedAt: toDate(previous.unsubscribedAt),
 			},
-		});
-		return true;
+		};
+		if (await this.guard.stopped(this.db, organizationId, queued.email.toLowerCase())) {
+			await this.undoClaim(channelId, organizationId, pending);
+			return "skipped";
+		}
+
+		await this.guard.stamp(this.db, queued.sendId);
+		return (await this.deliver(channelId, organizationId, pending)) ?? "sent";
 	}
 
 	/** Decides the request and takes the slot, queueing the email when `queue` is set. */
@@ -273,36 +292,50 @@ export class EmailChannelService {
 					organizationId,
 					type: CHANNEL_CONFIRMATION_EVENT,
 					payload,
+					status: CONFIRMATION_QUEUED,
 				});
 			}
 			return pending;
 		});
 	}
 
-	private async deliver(channelId: string, organizationId: string, pending: PendingSend) {
-		const c = notificationChannel;
-		const log = channelConfirmationSend;
+	/** Null when the email went out. */
+	private async deliver(
+		channelId: string,
+		organizationId: string,
+		pending: PendingSend,
+	): Promise<UnsentConfirmation | null> {
 		try {
 			await this.sendConfirmation({
 				email: pending.email,
 				token: pending.token,
 				requestedBy: pending.requestedBy,
 			});
-		} catch (error) {
-			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
-			await this.db.transaction(async (tx) => {
-				await tx.delete(log).where(eq(log.id, pending.sendId));
-				await this.guard.release(tx, pending.sendId);
-				await tx
-					.update(c)
-					.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
-					.where(eq(c.id, channelId));
-				if (pending.reasked) {
-					await setReasked(tx, organizationId, pending.email.toLowerCase(), null);
-				}
-			});
-			throw error;
+			return null;
+		} catch (failure) {
+			await this.undoClaim(channelId, organizationId, pending);
+			return { failure };
 		}
+	}
+
+	/** Nothing went out, so the organization keeps its slot and any earlier link stays valid. */
+	private async undoClaim(channelId: string, organizationId: string, pending: PendingSend) {
+		const c = notificationChannel;
+		await this.db.transaction(async (tx) => {
+			await tx
+				.delete(channelConfirmationSend)
+				.where(eq(channelConfirmationSend.id, pending.sendId));
+			await this.guard.release(tx, pending.sendId);
+			await tx
+				.update(c)
+				.set({ ...pending.previous, ...(pending.reasked ? { reaskedAt: null } : {}) })
+				.where(
+					and(eq(c.id, channelId), sql`lower(${c.config}->>'email') = lower(${pending.email})`),
+				);
+			if (pending.reasked) {
+				await setReasked(tx, organizationId, pending.email.toLowerCase(), null);
+			}
+		});
 	}
 
 	/** Null when the token is unknown. */

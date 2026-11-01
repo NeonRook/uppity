@@ -178,22 +178,23 @@ export class NotificationService {
 	}
 
 	/**
-	 * A failure is final rather than left for the sweep: the claim is already undone, and the
-	 * channel list offers a resend.
+	 * A failed send is final rather than left for the sweep: the claim is already undone, and
+	 * the channel list offers a resend. The row keeps no SMTP error, which can quote the address.
 	 */
 	private async dispatchChannelConfirmation(row: NotificationEvent): Promise<DispatchResult> {
-		try {
-			const payload = v.parse(ChannelConfirmationPayload, row.payload);
-			return (await this.confirmations.sendQueued(row.organizationId, payload))
-				? { status: "sent" }
-				: { status: "suppressed", errorMessage: "channel no longer awaits this confirmation" };
-		} catch (error) {
-			this.logger.error({ event_id: row.id, error }, "Failed to send channel confirmation");
-			return {
-				status: "failed",
-				errorMessage: error instanceof Error ? error.message : String(error),
-			};
+		const payload = v.safeParse(ChannelConfirmationPayload, row.payload);
+		if (!payload.success) return { status: "failed", errorMessage: "invalid payload" };
+
+		const outcome = await this.confirmations.sendQueued(row.organizationId, payload.output);
+		if (outcome === "sent") return { status: "sent" };
+		if (outcome === "skipped") {
+			return { status: "suppressed", errorMessage: "confirmation no longer due" };
 		}
+		this.logger.error(
+			{ event_id: row.id, error: outcome.failure },
+			"Failed to send channel confirmation",
+		);
+		return { status: "failed", errorMessage: "confirmation email not sent" };
 	}
 
 	async dispatchEvent(row: NotificationEvent): Promise<DispatchResult> {
