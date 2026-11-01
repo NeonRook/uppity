@@ -200,7 +200,8 @@ describe("organization block", () => {
 	test("refuses all three kinds of unsolicited mail, and leaves other organizations alone", async ({
 		db,
 	}) => {
-		const [blocked, other] = [await seedOrg(db.db), await seedOrg(db.db)];
+		const blocked = await seedOrg(db.db, { subscriberEmailEnabled: true });
+		const other = await seedOrg(db.db);
 		await db.db.insert(organizationMailBlock).values({ organizationId: blocked, reason: "bounce" });
 		const send = vi.fn(async (_: ChannelConfirmation) => {});
 		const channels = new EmailChannelService(db.db, send);
@@ -223,7 +224,7 @@ describe("organization block", () => {
 async function fresh(db: TestDb["db"]) {
 	await db.delete(unsolicitedMailSend);
 	vi.mocked(raiseOpsAlert).mockClear();
-	return seedOrg(db);
+	return seedOrg(db, { subscriberEmailEnabled: true });
 }
 
 describe("UnsolicitedMailGuard ceiling", () => {

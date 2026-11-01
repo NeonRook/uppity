@@ -222,6 +222,31 @@
 		</Card.Content>
 	</Card.Root>
 
+	{#if !data.billing.selfHosted}
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-start justify-between gap-4">
+					<div>
+						<Card.Title>{m.admin_org_subscriber_email()}</Card.Title>
+						<Card.Description>
+							{data.org.subscriberEmailEnabled
+								? m.admin_org_subscriber_email_on()
+								: m.admin_org_subscriber_email_off()}
+						</Card.Description>
+					</div>
+					<form method="POST" action="?/setSubscriberEmail" use:formEnhance>
+						<input type="hidden" name="enabled" value={String(!data.org.subscriberEmailEnabled)} />
+						<Button type="submit" variant="outline" size="sm">
+							{data.org.subscriberEmailEnabled
+								? m.admin_org_subscriber_email_disable()
+								: m.admin_org_subscriber_email_enable()}
+						</Button>
+					</form>
+				</div>
+			</Card.Header>
+		</Card.Root>
+	{/if}
+
 	<!-- Members -->
 	<Card.Root>
 		<Card.Header>

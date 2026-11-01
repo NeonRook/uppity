@@ -1,4 +1,4 @@
-import { and, asc, eq, desc, ilike, isNotNull, or, count, sql } from "drizzle-orm";
+import { and, asc, eq, desc, ilike, isNotNull, ne, or, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { auth } from "#lib/server/auth.js";
@@ -352,6 +352,31 @@ export class AdminService {
 			.from(organizationMailBlock)
 			.where(eq(organizationMailBlock.organizationId, organizationId));
 		return block ?? null;
+	}
+
+	/** Turns the organization's status page subscriber email on or off. */
+	async setSubscriberEmail(actor: Actor, organizationId: string, enabled: boolean): Promise<void> {
+		await this.db.transaction(async (tx) => {
+			const [changed] = await tx
+				.update(organization)
+				.set({ subscriberEmailEnabled: enabled })
+				.where(
+					and(
+						eq(organization.id, organizationId),
+						ne(organization.subscriberEmailEnabled, enabled),
+					),
+				)
+				.returning({ id: organization.id });
+			if (!changed) return;
+
+			await this.audit.record(tx, actor, {
+				action: "org.subscriber_email_set",
+				targetType: "organization",
+				targetId: organizationId,
+				targetLabel: organizationId,
+				metadata: { enabled },
+			});
+		});
 	}
 
 	/**

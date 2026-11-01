@@ -232,6 +232,13 @@
       "when": 1793514638056,
       "tag": "0032_unsolicited_mail",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793516599366,
+      "tag": "0033_subscriber_email_enabled",
+      "breakpoints": true
     }
   ]
 }

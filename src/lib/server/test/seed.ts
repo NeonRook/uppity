@@ -4,7 +4,10 @@ import { member, organization, user } from "../db/auth-schema";
 import type { Db, DbExecutor } from "../db/index";
 import { monitor, subscription } from "../db/schema";
 
-export async function seedOrg(db: Db): Promise<string> {
+export async function seedOrg(
+	db: Db,
+	overrides: Partial<typeof organization.$inferInsert> = {},
+): Promise<string> {
 	const suffix = nanoid();
 	const orgId = `test-org-${suffix}`;
 	await db.insert(organization).values({
@@ -12,6 +15,7 @@ export async function seedOrg(db: Db): Promise<string> {
 		name: `Test Org ${suffix}`,
 		slug: orgId,
 		createdAt: new Date(),
+		...overrides,
 	});
 	return orgId;
 }

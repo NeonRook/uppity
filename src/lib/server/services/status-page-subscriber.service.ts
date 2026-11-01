@@ -8,7 +8,8 @@ import {
 	SUPPRESSED_SUBSCRIBER_RETENTION_DAYS,
 } from "#lib/constants/defaults.js";
 import type { Db } from "#lib/server/db/index.js";
-import { emailSuppression, statusPageSubscriber } from "#lib/server/db/schema.js";
+import { emailSuppression, statusPage, statusPageSubscriber } from "#lib/server/db/schema.js";
+import { subscriberEmailEnabled } from "#lib/server/notifications/subscribers.js";
 import type { SubscriptionConfirmation } from "#lib/server/subscriber-email.js";
 
 import { UnsolicitedMailGuard } from "./mail-reputation.service";
@@ -37,17 +38,25 @@ export class StatusPageSubscriberService {
 		private guard = new UnsolicitedMailGuard(db),
 	) {}
 
+	/** Whether the organization's status pages take subscribers. */
+	accepts(organizationId: string): Promise<boolean> {
+		return subscriberEmailEnabled(this.db, organizationId);
+	}
+
 	/**
 	 * Records a pending subscription and emails its confirmation link. An address that is
 	 * already confirmed, bounced or complained, or was sent a link within the resend interval,
 	 * gets nothing, so the response cannot reveal who subscribes. "capped" when the page has
-	 * used up its daily confirmations, "paused" when the organization or instance may not
-	 * email new addresses.
+	 * used up its daily confirmations, "paused" when subscriber email is off or the
+	 * organization or instance may not email new addresses. The switch is read before the
+	 * address is, so its refusal is the same for every address.
 	 */
 	async subscribe(
 		page: { id: string; organizationId: string },
 		email: string,
 	): Promise<SubscribeResult> {
+		if (!(await this.accepts(page.organizationId))) return "paused";
+
 		const t = statusPageSubscriber;
 		const address = email.trim().toLowerCase();
 		const now = new Date();
@@ -114,14 +123,18 @@ export class StatusPageSubscriberService {
 		return "sent";
 	}
 
-	/** The status page a confirmation token belongs to. */
+	/**
+	 * The status page a confirmation token belongs to. Undefined with subscriber email off,
+	 * because a confirmed subscriber would then wait for mail that never comes.
+	 */
 	async pageIdFor(token: string): Promise<string | undefined> {
 		const t = statusPageSubscriber;
 		const [row] = await this.db
-			.select({ statusPageId: t.statusPageId })
+			.select({ statusPageId: t.statusPageId, organizationId: statusPage.organizationId })
 			.from(t)
+			.innerJoin(statusPage, eq(statusPage.id, t.statusPageId))
 			.where(eq(t.token, token));
-		return row?.statusPageId;
+		return row && (await this.accepts(row.organizationId)) ? row.statusPageId : undefined;
 	}
 
 	/** Null when the token is unknown, or its confirmation link has expired. */

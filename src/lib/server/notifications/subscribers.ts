@@ -1,5 +1,8 @@
 import { and, desc, eq, isNotNull, notExists } from "drizzle-orm";
 
+import { isSelfHosted } from "#lib/constants/plans.js";
+
+import { organization } from "../db/auth-schema";
 import type { Db } from "../db/index";
 import {
 	emailSuppression,
@@ -18,12 +21,23 @@ const CLAIM_CHUNK = 1000;
 
 export type SendSubscriberIncidentEmail = (email: SubscriberIncidentEmail) => Promise<void>;
 
+/** Whether an organization's status pages take subscribers and email them. */
+export async function subscriberEmailEnabled(db: Db, organizationId: string): Promise<boolean> {
+	if (isSelfHosted()) return true;
+
+	const [org] = await db
+		.select({ enabled: organization.subscriberEmailEnabled })
+		.from(organization)
+		.where(eq(organization.id, organizationId));
+	return org?.enabled ?? false;
+}
+
 /**
  * Emails an incident event to the confirmed subscribers of every public page that shows
  * the incident, except addresses that bounced or complained. Each subscriber is claimed
  * before sending, so a retried or concurrently reclaimed event never emails anyone twice.
  * Sends one at a time to stay within SMTP rate limits. Null when no subscriber is due an
- * email.
+ * email, which includes an organization with subscriber email off.
  */
 export async function notifyIncidentSubscribers(
 	db: Db,
@@ -33,6 +47,8 @@ export async function notifyIncidentSubscribers(
 	incident: Incident,
 	updateMessage: string | undefined,
 ): Promise<{ sent: number; failures: string[] } | null> {
+	if (!(await subscriberEmailEnabled(db, incident.organizationId))) return null;
+
 	const s = statusPageSubscriber;
 	const recipients = await db
 		.selectDistinct({
