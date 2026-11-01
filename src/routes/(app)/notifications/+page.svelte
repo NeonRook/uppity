@@ -16,6 +16,7 @@
 		getChannelType,
 	} from "#lib/notifications.js";
 	import { m } from "#lib/paraglide/messages.js";
+	import { getLocale } from "#lib/paraglide/runtime.js";
 	import {
 		getChannels,
 		toggleChannel,
@@ -86,10 +87,22 @@
 		ceiling: m.mail_refused_ceiling,
 	};
 
+	/** Rounds up, so the time shown never falls before the interval ends. */
+	function minuteAfter(date: Date): string {
+		const minute = 60_000;
+		return new Date(Math.ceil(date.getTime() / minute) * minute).toLocaleTimeString(getLocale(), {
+			timeStyle: "short",
+		});
+	}
+
 	async function handleResend(channelId: string) {
 		resendingChannelId = channelId;
 		try {
 			const { result } = await resendConfirmation({ channelId });
+			if (typeof result === "object") {
+				toast.error(m.notifications_reask_too_soon({ time: minuteAfter(result.askAgainAt) }));
+				return;
+			}
 			const message = resendMessages[result]();
 			if (result === "sent" || result === "confirmed") toast.success(message);
 			else toast.error(message);

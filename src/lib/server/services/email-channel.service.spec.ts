@@ -375,6 +375,24 @@ describe("EmailChannelService.unsubscribe", () => {
 		expect((await service.lookup(channel.token))?.state).not.toBe("confirmed");
 	});
 
+	test("asking again within the interval says when it opens", async ({ db: { db } }) => {
+		const { orgId, service, send } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.requestConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+		const sentAt = new Date(Date.now() - 10 * 60_000);
+		await db
+			.update(channelConfirmationSend)
+			.set({ sentAt })
+			.where(eq(channelConfirmationSend.organizationId, orgId));
+
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toEqual({
+			askAgainAt: new Date(sentAt.getTime() + RESEND_INTERVAL_MS),
+		});
+		expect(send).toHaveBeenCalledTimes(1);
+		expect((await service.lookup(channel.token))?.state).toBe("unsubscribed");
+	});
+
 	test("a second channel to the same address waits out the interval", async ({ db: { db } }) => {
 		const { orgId, service } = await setup(db);
 		const first = await seedEmailChannel(db, orgId);

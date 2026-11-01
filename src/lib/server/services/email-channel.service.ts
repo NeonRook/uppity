@@ -41,6 +41,11 @@ export type ResendResult =
 	| "capped"
 	| MailRefusal;
 
+/** Refusal of a re-ask inside the resend interval, which the admin did not start. */
+export interface ReaskWait {
+	askAgainAt: Date;
+}
+
 /** The member asking for a confirmation. */
 export interface Requester {
 	email: string;
@@ -114,7 +119,7 @@ export class EmailChannelService {
 		channelId: string,
 		organizationId: string,
 		requester: Requester,
-	): Promise<ResendResult | null> {
+	): Promise<ResendResult | ReaskWait | null> {
 		const c = notificationChannel;
 		const log = channelConfirmationSend;
 		const now = new Date();
@@ -146,6 +151,7 @@ export class EmailChannelService {
 			if (!requester.emailVerified) return "unverified";
 
 			const claim = await claimSlot(tx, organizationId, email, this.cap, this.guard, now);
+			if (claim.refused === "too_soon" && optOut) return { askAgainAt: claim.retryAt };
 			if (claim.refused) return claim.refused;
 
 			// A channel saved without a token, by code older than its column, gets one here.
@@ -170,7 +176,7 @@ export class EmailChannelService {
 				reasked: optOut !== undefined,
 			};
 		});
-		if (pending === null || typeof pending === "string") return pending;
+		if (pending === null || typeof pending === "string" || pending.askAgainAt) return pending;
 
 		try {
 			await this.sendConfirmation({
@@ -424,7 +430,8 @@ async function lockSends(tx: DbExecutor, organizationId: string) {
 
 type SlotClaim =
 	| { sendId: string; refused?: undefined }
-	| { sendId?: undefined; refused: "too_soon" | "capped" | MailRefusal };
+	| { sendId?: undefined; refused: "too_soon"; retryAt: Date }
+	| { sendId?: undefined; refused: "capped" | MailRefusal };
 
 /** Logs a send to the lowercased address, unless the interval or the cap forbids it. */
 async function claimSlot(
@@ -441,9 +448,8 @@ async function claimSlot(
 		.select({ lastSent: max(log.sentAt) })
 		.from(log)
 		.where(and(eq(log.organizationId, organizationId), eq(log.email, email)));
-	if (lastSent && now.getTime() - lastSent.getTime() < RESEND_INTERVAL_MS) {
-		return { refused: "too_soon" };
-	}
+	const retryAt = lastSent && new Date(lastSent.getTime() + RESEND_INTERVAL_MS);
+	if (retryAt && now < retryAt) return { refused: "too_soon", retryAt };
 
 	if ((await unconfirmedAddresses(tx, organizationId, now)) >= cap) return { refused: "capped" };
 

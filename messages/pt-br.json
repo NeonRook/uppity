@@ -861,6 +861,7 @@
 	"notifications_resend_confirmed": "Este endereço já está confirmado",
 	"notifications_resend_unsubscribed": "Este endereço cancelou de novo depois de um novo pedido e não pode ser consultado outra vez. Use outro endereço no canal.",
 	"notifications_resend_too_soon": "Uma confirmação foi enviada há menos de uma hora. Tente novamente mais tarde.",
+	"notifications_reask_too_soon": "Você pode perguntar a este endereço novamente depois das {time}. Cada endereço recebe no máximo um e-mail de confirmação por hora.",
 	"notifications_resend_capped": "Muitos endereços da última semana ainda não foram confirmados. Será possível enviar mais quando os destinatários confirmarem.",
 	"alerts_unsubscribe_reask": "{organization} pode pedir sua confirmação mais uma vez.",
 	"alerts_unsubscribe_final": "{organization} já pediu de novo uma vez e não poderá pedir outra vez.",

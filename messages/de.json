@@ -861,6 +861,7 @@
 	"notifications_resend_confirmed": "Diese Adresse ist bereits bestätigt",
 	"notifications_resend_unsubscribed": "Diese Adresse hat sich nach erneuter Anfrage wieder abgemeldet und kann nicht mehr gefragt werden. Verwende eine andere Adresse für den Kanal.",
 	"notifications_resend_too_soon": "Vor weniger als einer Stunde ging eine Bestätigung raus. Versuche es später erneut.",
+	"notifications_reask_too_soon": "Du kannst diese Adresse nach {time} erneut fragen. Jede Adresse erhält höchstens eine Bestätigungs-E-Mail pro Stunde.",
 	"notifications_resend_capped": "Zu viele Adressen aus der letzten Woche sind noch unbestätigt. Sobald Empfänger bestätigen, kannst du weitere senden.",
 	"alerts_unsubscribe_reask": "{organization} kann dich noch einmal um Bestätigung bitten.",
 	"alerts_unsubscribe_final": "{organization} hat bereits einmal erneut gefragt und kann dich nicht noch einmal fragen.",
