@@ -25,6 +25,41 @@ describe("redactUrl", () => {
 		);
 	});
 
+	it("masks a query name that does not read as a plain name", () => {
+		expect(redactUrl("https://example.com/x?a;hunter2=1&a:hunter2=2&a+hunter2=3")).toBe(
+			"https://example.com/x?***=***&***=***&***=***",
+		);
+		expect(redactUrl(`https://example.com/x?${"a".repeat(25)}=1`)).toBe(
+			"https://example.com/x?***=***",
+		);
+	});
+
+	it("keeps a long ordinary parameter name", () => {
+		expect(redactUrl("https://example.com/x?X-Amz-SignedHeaders=host")).toBe(
+			"https://example.com/x?X-Amz-SignedHeaders=***",
+		);
+	});
+
+	it("masks matrix parameters and keeps the rest of the path", () => {
+		expect(redactUrl("https://example.com/a;jsessionid=hunter2/b;v=1?c=d")).toBe(
+			"https://example.com/a;***/b;***?c=***",
+		);
+	});
+
+	it("removes userinfo however the URL spells it", () => {
+		for (const raw of [
+			"HTTP://u:hunter2@example.com/",
+			"http:u:hunter2@example.com/",
+			"http:\\\\u:hunter2@example.com\\",
+			"  http://u:hunter2@example.com/  ",
+			"ht\ntp://u:\thunter2@example.com/",
+			"http://a@b@c:hunter2@example.com/",
+			"http://u%3Ahunter2@example.com/",
+		]) {
+			expect(redactUrl(raw)).toBe("http://example.com/");
+		}
+	});
+
 	it("returns null for null or an unparseable URL", () => {
 		expect(redactUrl(null)).toBeNull();
 		expect(redactUrl("not a url with secret")).toBeNull();
