@@ -1,5 +1,7 @@
 import type { IncomingMessage } from "node:http";
 
+import { domainOfHost } from "../src/lib/status-page.ts";
+
 /**
  * Header names this server sets on every request and hands to adapter-node as
  * PROTOCOL_HEADER and HOST_HEADER. Whatever a client sends under them is
@@ -36,6 +38,12 @@ export function parseOrigin(input: string | undefined): URL | undefined {
  * sets them on each request. Unset, it changes nothing and the adapter's own
  * header settings apply. The adapter reads those settings once, when its
  * handler module loads, so this must run before that import.
+ *
+ * A Host that is a public DNS name keeps its own origin, because a status page's
+ * custom domain must pass the same-origin check on form posts. The web tier's
+ * first hook refuses every such name that is not an app host or verified domain.
+ * Addresses and internal names, which no browser can be sent to by a public
+ * name, stay pinned.
  */
 export function pinOrigin(env: NodeJS.ProcessEnv): ((req: IncomingMessage) => void) | undefined {
 	const origin = parseOrigin(env.ORIGIN);
@@ -49,6 +57,8 @@ export function pinOrigin(env: NodeJS.ProcessEnv): ((req: IncomingMessage) => vo
 	const protocol = origin.protocol.slice(0, -1);
 	return (req) => {
 		req.headers[PROTOCOL_HEADER] = protocol;
-		req.headers[HOST_HEADER] = origin.host;
+		req.headers[HOST_HEADER] = domainOfHost(req.headers.host ?? "")
+			? req.headers.host
+			: origin.host;
 	};
 }

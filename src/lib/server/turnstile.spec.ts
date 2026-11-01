@@ -95,6 +95,21 @@ describe("with keys", () => {
 		await expect(verifyTurnstile("XXXX.DUMMY.TOKEN.XXXX", "subscribe")).resolves.toBe(false);
 	});
 
+	it("accepts a token from the page's own verified domain", async () => {
+		answer({ ...accepted, hostname: "status.acme.com" });
+
+		await expect(verifyTurnstile("token", "subscribe", "status.acme.com")).resolves.toBe(true);
+	});
+
+	it.each([
+		["no verified domain", null],
+		["another page's verified domain", "status.other.com"],
+	])("refuses a custom domain's token with %s", async (_, verified) => {
+		answer({ ...accepted, hostname: "status.acme.com" });
+
+		await expect(verifyTurnstile("token", "subscribe", verified)).resolves.toBe(false);
+	});
+
 	it("aborts a call Cloudflare never answers", async () => {
 		vi.spyOn(AbortSignal, "timeout").mockImplementationOnce(() => AbortSignal.abort());
 		const hang = vi.fn(

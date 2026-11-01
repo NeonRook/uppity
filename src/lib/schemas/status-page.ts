@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import { normalizeDomain } from "#lib/status-page.js";
+
 const statusPageFields = {
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
 	slug: v.pipe(
@@ -19,6 +21,19 @@ export const createStatusPageSchema = v.object({
 });
 
 export const updateStatusPageSchema = v.object(statusPageFields);
+
+export const claimDomainSchema = v.object({
+	domain: v.pipe(
+		v.string(),
+		v.maxLength(254),
+		v.rawTransform(({ dataset, addIssue, NEVER }) => {
+			const domain = normalizeDomain(dataset.value);
+			if (domain) return domain;
+			addIssue();
+			return NEVER;
+		}),
+	),
+});
 
 export const addMonitorSchema = v.object({
 	monitorId: v.pipe(v.string(), v.minLength(1, "Monitor ID is required")),

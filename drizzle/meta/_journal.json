@@ -239,6 +239,13 @@
       "when": 1793516599366,
       "tag": "0033_subscriber_email_enabled",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793521572751,
+      "tag": "0034_status_page_domain_claim",
+      "breakpoints": true
     }
   ]
 }

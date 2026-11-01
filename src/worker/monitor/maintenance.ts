@@ -6,6 +6,7 @@ import {
 	CRON_CAPACITY_GRACE,
 	CRON_CLEANUP,
 	CRON_DAILY_STATS,
+	CRON_DOMAIN_RECHECK,
 	CRON_MAINTENANCE_WINDOW_TRANSITIONS,
 	CRON_ROLLING_STATS,
 	CRON_USAGE_SNAPSHOT,
@@ -24,6 +25,7 @@ import { pruneChannelConfirmationSends } from "../../lib/server/services/email-c
 import { pruneMailRecords } from "../../lib/server/services/mail-reputation.service";
 import { MaintenanceWindowService } from "../../lib/server/services/maintenance-window.service";
 import { MeterService } from "../../lib/server/services/meter.service";
+import { recheckDomains } from "../../lib/server/services/status-page-domain.service";
 import {
 	deleteExpiredUnconfirmedSubscribers,
 	deleteSuppressedSubscribers,
@@ -97,6 +99,13 @@ const JOBS: JobRegistry = {
 			const result = await new MaintenanceWindowService(db).runStatusTransitions();
 			event.set("windows_started", result.started);
 			event.set("windows_completed", result.completed);
+		},
+	},
+	"custom-domain-recheck": {
+		name: "Custom Domain Recheck",
+		cron: CRON_DOMAIN_RECHECK,
+		run: async (event) => {
+			event.set("records_processed", (await recheckDomains(db)).checked);
 		},
 	},
 	"usage-snapshot": {

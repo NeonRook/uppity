@@ -10,6 +10,8 @@ declare global {
 			>;
 			/** The organization behind an `/api/v1` request, set once its key verifies. */
 			apiCaller: import("#lib/server/api-auth.js").ApiCaller | null;
+			/** This request came in on a page's custom domain, which carries no session. */
+			statusHost: boolean;
 		}
 
 		// interface Error {}

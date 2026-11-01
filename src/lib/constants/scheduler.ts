@@ -21,5 +21,8 @@ export const CRON_MAINTENANCE_WINDOW_TRANSITIONS = envString(
 /** Cron schedule for the over-capacity grace period: clocks, warnings, and pauses. */
 export const CRON_CAPACITY_GRACE = envString("UPPITY_CRON_CAPACITY_GRACE", "20 * * * *");
 
+/** Cron schedule for rechecking the DNS of live custom domains. */
+export const CRON_DOMAIN_RECHECK = envString("UPPITY_CRON_DOMAIN_RECHECK", "*/15 * * * *");
+
 /** Number of days to keep individual check records before cleanup deletes them. */
 export const CHECK_RETENTION_DAYS = envInt("UPPITY_CHECK_RETENTION_DAYS", 30);

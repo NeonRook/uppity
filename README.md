@@ -222,6 +222,7 @@ See [`.env.example`](.env.example) for all available configuration options.
 - `UPPITY_OPS_ALERT_*` - Where to tell you when monitors stop being checked
 - `RESEND_WEBHOOK_SECRET` - Stops mail to addresses that bounce or complain, if you send through Resend
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` - Cloudflare Turnstile on the register, password reset and subscribe forms; unset skips the check
+- `UPPITY_STATUS_PAGE_CNAME_TARGET` - Where customers point a status page's custom domain; see [`docs/custom-domains.md`](docs/custom-domains.md) for DNS and reverse proxy setup
 - `UPPITY_DEFAULT_*` - Monitor default configurations
 - `UPPITY_CRON_*` - Background job schedules
 

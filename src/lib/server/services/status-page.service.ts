@@ -27,6 +27,13 @@ import {
 } from "#lib/server/errors.js";
 import { incidentActive, incidentEnded } from "#lib/server/incident-state.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
+import {
+	claimDomain,
+	findClaim,
+	releaseDomain,
+	verifyClaim,
+	type VerifyResult,
+} from "#lib/server/services/status-page-domain.service.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 export interface CreateStatusPageInput {
@@ -51,7 +58,6 @@ export interface UpdateStatusPageInput {
 	faviconUrl?: string;
 	primaryColor?: string;
 	customCss?: string;
-	customDomain?: string;
 }
 
 export interface CreateGroupInput {
@@ -387,14 +393,6 @@ export class StatusPageService {
 			return null;
 		}
 
-		// Check if custom domain is allowed when setting one
-		if (input.customDomain && input.customDomain !== existing.customDomain) {
-			const domainCheck = await subscriptionService.areCustomDomainsAllowed(organizationId);
-			if (!domainCheck.allowed) {
-				throw new FeatureNotAvailableError(domainCheck.message ?? "Custom domains not available");
-			}
-		}
-
 		// Check slug uniqueness if changing
 		if (input.slug && input.slug !== existing.slug) {
 			const slugExists = await this.findBySlug(input.slug);
@@ -413,6 +411,52 @@ export class StatusPageService {
 			.returning();
 
 		return updated || null;
+	}
+
+	/** The slug of the public page serving on a verified domain. */
+	async findPublicSlugByDomain(domain: string): Promise<string | null> {
+		const [page] = await this.db
+			.select({ slug: statusPage.slug })
+			.from(statusPage)
+			.where(and(eq(statusPage.customDomain, domain), eq(statusPage.isPublic, true)));
+
+		return page?.slug ?? null;
+	}
+
+	private async assertCustomDomainsAllowed(organizationId: string): Promise<void> {
+		const domainCheck = await subscriptionService.areCustomDomainsAllowed(organizationId);
+		if (!domainCheck.allowed) {
+			throw new FeatureNotAvailableError(domainCheck.message ?? "Custom domains not available");
+		}
+	}
+
+	/** Claims `domain` for the page and checks its DNS. Null when the page is not the org's. */
+	async claimDomain(
+		id: string,
+		organizationId: string,
+		domain: string,
+	): Promise<VerifyResult | null> {
+		if (!(await this.findByIdAndOrg(id, organizationId))) return null;
+		await this.assertCustomDomainsAllowed(organizationId);
+
+		const claim = await claimDomain(this.db, id, domain);
+		return claim ? verifyClaim(this.db, claim) : "taken";
+	}
+
+	/** Checks the page's claim again. Null when the page has none or is not the org's. */
+	async verifyDomain(id: string, organizationId: string): Promise<VerifyResult | null> {
+		if (!(await this.findByIdAndOrg(id, organizationId))) return null;
+		const claim = await findClaim(this.db, id);
+		if (!claim) return null;
+
+		await this.assertCustomDomainsAllowed(organizationId);
+		return verifyClaim(this.db, claim);
+	}
+
+	async releaseDomain(id: string, organizationId: string): Promise<boolean> {
+		if (!(await this.findByIdAndOrg(id, organizationId))) return false;
+		await releaseDomain(this.db, id);
+		return true;
 	}
 
 	async delete(id: string, organizationId: string): Promise<boolean> {
