@@ -1,6 +1,6 @@
 import type { IncomingMessage } from "node:http";
 
-import { domainOfHost } from "../src/lib/status-page.ts";
+import { REWRITTEN_ORIGIN_HEADER } from "../src/lib/status-page.ts";
 
 /**
  * Header names this server sets on every request and hands to adapter-node as
@@ -39,11 +39,14 @@ export function parseOrigin(input: string | undefined): URL | undefined {
  * header settings apply. The adapter reads those settings once, when its
  * handler module loads, so this must run before that import.
  *
- * A Host that is a public DNS name keeps its own origin, because a status page's
- * custom domain must pass the same-origin check on form posts. The web tier's
- * first hook refuses every such name that is not an app host or verified domain.
- * Addresses and internal names, which no browser can be sent to by a public
- * name, stay pinned.
+ * The origin stays pinned whatever the Host, so a client never chooses it. A
+ * custom domain's form post still has to pass SvelteKit's same-origin check, which
+ * runs before any hook and compares `Origin` with the pinned origin. A post whose
+ * `Origin` names its own `Host` is same-origin to the browser, so `Origin` is
+ * rewritten to the pin and the request is marked with REWRITTEN_ORIGIN_HEADER. This
+ * has no database, so the web tier's first hook refuses a marked request unless its
+ * host is a verified domain. A post from any other site keeps its `Origin` and fails
+ * the check.
  */
 export function pinOrigin(env: NodeJS.ProcessEnv): ((req: IncomingMessage) => void) | undefined {
 	const origin = parseOrigin(env.ORIGIN);
@@ -57,8 +60,13 @@ export function pinOrigin(env: NodeJS.ProcessEnv): ((req: IncomingMessage) => vo
 	const protocol = origin.protocol.slice(0, -1);
 	return (req) => {
 		req.headers[PROTOCOL_HEADER] = protocol;
-		req.headers[HOST_HEADER] = domainOfHost(req.headers.host ?? "")
-			? req.headers.host
-			: origin.host;
+		req.headers[HOST_HEADER] = origin.host;
+		delete req.headers[REWRITTEN_ORIGIN_HEADER];
+
+		const { host, origin: sentOrigin } = req.headers;
+		if (host !== origin.host && sentOrigin === `${protocol}://${host}`) {
+			req.headers.origin = origin.origin;
+			req.headers[REWRITTEN_ORIGIN_HEADER] = "1";
+		}
 	};
 }

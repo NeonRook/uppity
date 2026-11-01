@@ -299,6 +299,8 @@ export const statusPageDomainClaim = pgTable(
 		verifiedTarget: text("verified_target"),
 		/** Consecutive rechecks that found the records gone. */
 		failedChecks: integer("failed_checks").notNull().default(0),
+		/** When rechecks took the page off this domain. Cleared by the next verification. */
+		lapsedAt: timestamp("lapsed_at", { withTimezone: true }),
 		checkedAt: timestamp("checked_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	},

@@ -1,6 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { APIError } from "better-auth/api";
-import { and, eq } from "drizzle-orm";
 import { message, superValidate } from "sveltekit-superforms";
 import { valibot } from "sveltekit-superforms/adapters";
 
@@ -8,21 +7,10 @@ import { API_KEYS_PER_ORGANIZATION } from "#lib/constants/api.js";
 import { createApiKeySchema } from "#lib/schemas/settings.js";
 import { requestsPerMinute } from "#lib/server/api-auth.js";
 import { auth } from "#lib/server/auth.js";
-import { member } from "#lib/server/db/auth-schema.js";
-import { db } from "#lib/server/db/index.js";
+import { canManage } from "#lib/server/organization-role.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
 import type { Actions, PageServerLoad } from "./$types";
-
-const MANAGER_ROLES: ReadonlySet<string> = new Set(["owner", "admin"]);
-
-async function canManage(organizationId: string, userId: string): Promise<boolean> {
-	const [row] = await db
-		.select({ role: member.role })
-		.from(member)
-		.where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
-	return row !== undefined && MANAGER_ROLES.has(row.role);
-}
 
 export const load: PageServerLoad = async ({ locals, request }) => {
 	if (!locals.user) redirect(302, "/login");

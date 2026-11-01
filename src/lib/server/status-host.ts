@@ -1,7 +1,7 @@
 import type { Handle } from "@sveltejs/kit/hooks";
 
 import { statusPageService } from "#lib/server/services/status-page.service.js";
-import { normalizeDomain } from "#lib/status-page.js";
+import { domainOfHost, REWRITTEN_ORIGIN_HEADER } from "#lib/status-page.js";
 
 import { appUrl } from "./account-email";
 
@@ -16,41 +16,57 @@ const APP_HOSTS = new Set(
 	].flatMap(hostnameOf),
 );
 
-/** All a custom domain serves. Links in mail stay on the app host, so these need no routes here. */
-const STATUS_ROUTES = new Set([
-	"/(public)/status/[slug]",
-	"/(public)/status/[slug]/incidents/[incidentId]",
-]);
+const PAGE_ROUTE = "/(public)/status/[slug]";
 
-/** Platform health probes arrive under a hostname of the platform's choosing. */
+/** All a custom domain serves. Links in mail stay on the app host, so these need no routes here. */
+const CUSTOM_DOMAIN_ROUTES = new Set([PAGE_ROUTE, `${PAGE_ROUTE}/incidents/[incidentId]`]);
+
+/** Platform probes need no lookup, so one answers while the database is down. */
 const HEALTH_ROUTE = "/api/health";
 
 const VARY_BY_HOST = { vary: "Host", "cache-control": "no-store" };
 
 const refused = () => new Response("Not found", { status: 404, headers: VARY_BY_HOST });
+const crossSite = () => new Response("Cross-site form submissions are forbidden", { status: 403 });
 
 /**
- * Decides what a request's host may reach. Addresses and internal names serve the app, because no
- * public DNS name can reach them and proxies and probes use them. A public name serves the app
- * only if it is configured as one of its hosts. Otherwise it must be a page's verified domain,
- * which serves that page and nothing else, with no session, or it gets a bare 404.
+ * Decides what a request's host may reach. A verified domain serves its page and nothing else,
+ * with no session. Every other host serves the app, because a host the operator never configured
+ * must not take an install offline, and the session cookie never reaches a host it was not set
+ * on. The exception is a page on a verified domain: it serves there or on an app host, so a
+ * lookalike domain pointed at this instance cannot show it.
  */
 export const handleStatusHost: Handle = async ({ event, resolve }) => {
 	event.locals.statusHost = false;
+	if (event.route.id === HEALTH_ROUTE) return resolve(event);
 
-	const domain = normalizeDomain(event.url.hostname);
-	if (!domain || APP_HOSTS.has(domain)) return resolve(event);
+	// With ORIGIN set, `event.url` holds the pinned origin rather than the host requested.
+	const host = process.env.ORIGIN ? (event.request.headers.get("host") ?? "") : event.url.host;
+	const domain = domainOfHost(host);
+	const external = domain !== null && !APP_HOSTS.has(domain);
 
-	const slug = await statusPageService.findPublicSlugByDomain(domain);
-	if (!slug) return event.route.id === HEALTH_ROUTE ? resolve(event) : refused();
+	const page = external ? await statusPageService.findByDomain(domain) : null;
+	if (!page) {
+		if (event.request.headers.has(REWRITTEN_ORIGIN_HEADER)) return crossSite();
 
+		const { slug } = event.params;
+		const onPageRoute = slug !== undefined && event.route.id?.startsWith(PAGE_ROUTE);
+		if (external && onPageRoute && (await statusPageService.hasCustomDomain(slug))) {
+			return refused();
+		}
+		return resolve(event);
+	}
+
+	if (!page.isPublic || event.isRemoteRequest) return refused();
 	if (event.url.pathname === "/") {
 		return new Response(null, {
 			status: 307,
-			headers: { ...VARY_BY_HOST, location: `/status/${slug}` },
+			headers: { ...VARY_BY_HOST, location: `/status/${page.slug}` },
 		});
 	}
-	if (!STATUS_ROUTES.has(event.route.id ?? "") || event.params.slug !== slug) return refused();
+	if (!CUSTOM_DOMAIN_ROUTES.has(event.route.id ?? "") || event.params.slug !== page.slug) {
+		return refused();
+	}
 
 	event.locals.statusHost = true;
 	event.locals.user = null;

@@ -953,5 +953,8 @@
 	"status_page_domain_taken": "Another status page already serves on this domain.",
 	"status_page_domain_invalid": "Enter a public domain name, such as status.example.com.",
 	"status_page_domain_removed": "Domain removed.",
-	"status_page_domain_rate_limited": "Too many checks. Wait a minute and try again."
+	"status_page_domain_rate_limited": "Too many checks. Wait a minute and try again.",
+	"status_page_domain_lapsed": "Lost",
+	"status_page_domain_lapsed_help": "DNS checks found these records gone, so the page no longer serves on this domain and anyone who controls its DNS can claim it. Put the records back and check DNS to serve here again.",
+	"status_page_domain_managers_only": "Only owners and admins can change this organization's custom domains."
 }

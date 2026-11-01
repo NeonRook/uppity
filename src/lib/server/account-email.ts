@@ -80,6 +80,37 @@ export async function sendCapacityNotice(to: string[], notice: CapacityNotice): 
 	});
 }
 
+export interface DomainLapseNotice {
+	domain: string;
+	page: { id: string; name: string };
+}
+
+/** Tells an organization's owners and admins a page left its custom domain. Throws when it cannot. */
+export async function sendDomainLapseNotice(
+	to: string[],
+	{ domain, page }: DomainLapseNotice,
+): Promise<void> {
+	if (!smtpTransport) throw new Error("SMTP not configured");
+	if (to.length === 0) throw new Error("No owner or admin to notify");
+
+	const settingsUrl = `${appUrl}/status-pages/${page.id}`;
+	const paragraph = `The status page "${page.name}" is no longer served on ${domain}. Repeated checks found its DNS records gone. Anyone who controls the domain's DNS can now claim it.`;
+	const remedy =
+		"If this was not intended, put the records back and choose Check DNS on the page's settings.";
+
+	await smtpTransport.sendMail({
+		from: smtpFrom,
+		to,
+		subject: `${domain} no longer serves your status page`,
+		html: [
+			`<p>${escapeHtml(paragraph)}</p>`,
+			`<p>${escapeHtml(remedy)}</p>`,
+			`<p><a href="${settingsUrl}">Open the page's settings</a></p>`,
+		].join("\n"),
+		text: [paragraph, "", remedy, "", `Open the page's settings: ${settingsUrl}`].join("\n"),
+	});
+}
+
 export interface ChannelUnsubscribedNotice {
 	organizationName: string;
 	channelName: string;

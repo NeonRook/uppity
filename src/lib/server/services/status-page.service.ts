@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, gte, lte, inArray, sql, type SQL } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import { DEFAULT_PRIMARY_COLOR, STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
@@ -29,6 +29,7 @@ import { incidentActive, incidentEnded } from "#lib/server/incident-state.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 import {
 	claimDomain,
+	domainTarget,
 	findClaim,
 	releaseDomain,
 	verifyClaim,
@@ -413,17 +414,30 @@ export class StatusPageService {
 		return updated || null;
 	}
 
-	/** The slug of the public page serving on a verified domain. */
-	async findPublicSlugByDomain(domain: string): Promise<string | null> {
+	/** The page serving on a verified domain, public or not. */
+	async findByDomain(domain: string): Promise<{ slug: string; isPublic: boolean } | null> {
 		const [page] = await this.db
-			.select({ slug: statusPage.slug })
+			.select({ slug: statusPage.slug, isPublic: statusPage.isPublic })
 			.from(statusPage)
-			.where(and(eq(statusPage.customDomain, domain), eq(statusPage.isPublic, true)));
+			.where(eq(statusPage.customDomain, domain));
 
-		return page?.slug ?? null;
+		return page ?? null;
+	}
+
+	/** Whether the page with this slug serves on a verified domain. */
+	async hasCustomDomain(slug: string): Promise<boolean> {
+		const [page] = await this.db
+			.select({ id: statusPage.id })
+			.from(statusPage)
+			.where(and(eq(statusPage.slug, slug), isNotNull(statusPage.customDomain)));
+
+		return page !== undefined;
 	}
 
 	private async assertCustomDomainsAllowed(organizationId: string): Promise<void> {
+		if (!domainTarget()) {
+			throw new FeatureNotAvailableError("Custom domains are not set up on this instance.");
+		}
 		const domainCheck = await subscriptionService.areCustomDomainsAllowed(organizationId);
 		if (!domainCheck.allowed) {
 			throw new FeatureNotAvailableError(domainCheck.message ?? "Custom domains not available");
