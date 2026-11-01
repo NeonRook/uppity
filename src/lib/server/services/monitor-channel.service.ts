@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import type { ChannelOption } from "#lib/notifications.js";
 import { defaultChannelLink, type MonitorChannelLink } from "#lib/schemas/monitor.js";
@@ -14,7 +14,10 @@ export interface MonitorChannelSummary extends MonitorChannelLink {
 	type: string;
 	enabled: boolean;
 	confirmed: boolean;
+	unsubscribed: boolean;
 }
+
+const unsubscribed = sql<boolean>`${isNotNull(notificationChannel.unsubscribedAt)}`;
 
 /**
  * Slack and Discord webhook URLs are credentials, so only the parts that
@@ -69,6 +72,7 @@ export class MonitorChannelService {
 				type: notificationChannel.type,
 				enabled: notificationChannel.enabled,
 				confirmed: sql<boolean>`${channelConfirmed}`,
+				unsubscribed,
 				config: notificationChannel.config,
 			})
 			.from(notificationChannel)
@@ -120,6 +124,7 @@ export class MonitorChannelService {
 				type: notificationChannel.type,
 				enabled: notificationChannel.enabled,
 				confirmed: sql<boolean>`${channelConfirmed}`,
+				unsubscribed,
 			})
 			.from(monitorNotificationChannel)
 			.innerJoin(
