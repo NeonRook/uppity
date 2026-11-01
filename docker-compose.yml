@@ -5,6 +5,7 @@ x-worker: &worker
   restart: unless-stopped
   environment: &worker-env
     DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+    SELF_HOSTED: "${SELF_HOSTED:-}"
     SMTP_HOST: "${SMTP_HOST:-}"
     SMTP_PORT: "${SMTP_PORT:-587}"
     SMTP_USER: "${SMTP_USER:-}"
@@ -26,6 +27,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       DATABASE_URL: "postgres://uppity:${DB_PASSWORD:-uppity}@db:5432/uppity"
+      SELF_HOSTED: "${SELF_HOSTED:-}"
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
       BETTER_AUTH_URL: "${BETTER_AUTH_URL:-https://localhost:3000}"
       BETTER_AUTH_TRUSTED_ORIGINS: "${BETTER_AUTH_TRUSTED_ORIGINS:-https://localhost:3000}"
@@ -39,6 +41,11 @@ services:
       SMTP_FROM: "${SMTP_FROM:-}"
       RESEND_WEBHOOK_SECRET: "${RESEND_WEBHOOK_SECRET:-}"
       UPPITY_UNSOLICITED_MAIL_DAILY_CEILING: "${UPPITY_UNSOLICITED_MAIL_DAILY_CEILING:-}"
+      UPPITY_MAIL_REPUTATION_WINDOW_DAYS: "${UPPITY_MAIL_REPUTATION_WINDOW_DAYS:-}"
+      UPPITY_MAIL_BOUNCE_MIN: "${UPPITY_MAIL_BOUNCE_MIN:-}"
+      UPPITY_MAIL_BOUNCE_PERCENT: "${UPPITY_MAIL_BOUNCE_PERCENT:-}"
+      UPPITY_MAIL_COMPLAINT_MIN: "${UPPITY_MAIL_COMPLAINT_MIN:-}"
+      UPPITY_MAIL_COMPLAINT_PER_MILLE: "${UPPITY_MAIL_COMPLAINT_PER_MILLE:-}"
       UPPITY_OPS_ALERT_EMAIL: "${UPPITY_OPS_ALERT_EMAIL:-}"
       UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: "${UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL:-}"
     command: ["sh", "-c", "./entrypoint.sh migrate && ./entrypoint.sh serve"]
@@ -51,6 +58,8 @@ services:
     environment:
       <<: *worker-env
       UPPITY_WORKER_BATCH_SIZE: "${UPPITY_WORKER_BATCH_SIZE:-10}"
+      UPPITY_MAIL_REPUTATION_WINDOW_DAYS: "${UPPITY_MAIL_REPUTATION_WINDOW_DAYS:-}"
+      UPPITY_SUPPRESSED_SUBSCRIBER_RETENTION_DAYS: "${UPPITY_SUPPRESSED_SUBSCRIBER_RETENTION_DAYS:-}"
     command: ["./entrypoint.sh", "worker-monitor"]
     deploy:
       replicas: 1 # Scale up for horizontal scaling
