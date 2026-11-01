@@ -930,6 +930,6 @@
 	"admin_org_subscriber_email_affected": "Bestätigte Abonnenten, die beim Ausschalten keine E-Mails mehr bekommen: {count}.",
 	"admin_org_subscriber_email_enable": "Einschalten",
 	"admin_org_subscriber_email_disable": "Ausschalten",
-	"challenge_failed": "Wir konnten diese Anfrage nicht überprüfen. Lade die Seite neu und versuche es in ein paar Minuten erneut. Dieses Formular benötigt JavaScript.",
+	"challenge_failed": "Wir konnten diese Anfrage nicht überprüfen. Versuche es gleich noch einmal und lade die Seite neu, falls es weiterhin nicht klappt. Dieses Formular benötigt JavaScript.",
 	"challenge_needs_javascript": "Dieses Formular benötigt JavaScript für die Spam-Prüfung."
 }

@@ -1,17 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { m } from "#lib/paraglide/messages.js";
 import { appUrl } from "#lib/server/account-email.js";
 
-import { actions } from "./+page.server";
+import { actions, load } from "./+page.server";
 
-const subscribe = vi.hoisted(() => vi.fn());
+const { accepts, subscribe } = vi.hoisted(() => ({ accepts: vi.fn(), subscribe: vi.fn() }));
 
 vi.mock("#lib/server/services/status-page-subscriber.instance.js", () => ({
-	statusPageSubscriberService: { subscribe },
+	statusPageSubscriberService: { accepts, subscribe },
 }));
 vi.mock("#lib/server/services/status-page.service.js", () => ({
 	statusPageService: {
 		findBySlug: async () => ({ id: "page", organizationId: "org", isPublic: true }),
+		getPublicStatusPage: async () => ({ name: "Acme" }),
 	},
 }));
 
@@ -33,9 +35,14 @@ function post(fields: Record<string, string>, address = `client-${++client}`) {
 	}>;
 }
 
+beforeEach(() => {
+	accepts.mockResolvedValue(true);
+});
+
 afterEach(() => {
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
+	accepts.mockReset();
 	subscribe.mockReset();
 });
 
@@ -60,6 +67,29 @@ describe("with Turnstile keys", () => {
 	beforeEach(() => {
 		vi.stubEnv("TURNSTILE_SITE_KEY", "site");
 		vi.stubEnv("TURNSTILE_SECRET_KEY", "secret");
+	});
+
+	it("reads a status page without calling Cloudflare", async () => {
+		const verify = vi.fn();
+		vi.stubGlobal("fetch", verify);
+
+		const data = await load({ params: { slug: "acme" } } as never);
+
+		expect(data).toMatchObject({ statusData: { name: "Acme" }, turnstileSiteKey: "site" });
+		expect(verify).not.toHaveBeenCalled();
+	});
+
+	it("answers paused without Cloudflare when subscriber email is off", async () => {
+		const verify = vi.fn();
+		vi.stubGlobal("fetch", verify);
+		accepts.mockResolvedValue(false);
+
+		const result = await post({ email: "visitor@example.com" });
+
+		expect(result.status).toBe(503);
+		expect(result.data.form.message).toBe(m.public_subscribe_paused());
+		expect(verify).not.toHaveBeenCalled();
+		expect(subscribe).not.toHaveBeenCalled();
 	});
 
 	it("subscribes once Cloudflare accepts the token", async () => {

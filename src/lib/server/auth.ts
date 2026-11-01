@@ -180,6 +180,12 @@ const INVITATION_REFUSALS = {
 	failed: m.invitation_refused_failed,
 };
 
+/** The endpoints that create an account or mail a typed address, each with its widget action. */
+const TURNSTILE_ACTIONS = new Map([
+	["/sign-up/email", "signup"],
+	["/request-password-reset", "password-reset"],
+]);
+
 const NOT_BILLED_THROUGH = "for a subscription the org is not billed through";
 
 /**
@@ -354,9 +360,10 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			const turnstileAction = TURNSTILE_ACTIONS.get(ctx.path);
 			if (
-				ctx.path === "/sign-up/email" &&
-				!(await verifyTurnstile(ctx.headers?.get(TURNSTILE_TOKEN_HEADER), "signup"))
+				turnstileAction &&
+				!(await verifyTurnstile(ctx.headers?.get(TURNSTILE_TOKEN_HEADER), turnstileAction))
 			) {
 				throw new APIError("FORBIDDEN", { message: m.challenge_failed() });
 			}

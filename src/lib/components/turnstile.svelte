@@ -8,9 +8,14 @@
 	let container: HTMLDivElement;
 	let widget: string | undefined;
 
-	/** Issues a new token. Cloudflare accepts each one once. */
+	/** The token issued so far, if any. */
+	export function token() {
+		return widget ? window.turnstile?.getResponse(widget) : undefined;
+	}
+
+	/** Replaces an issued token, which Cloudflare accepts once. A running challenge keeps going. */
 	export function reset() {
-		if (widget) window.turnstile?.reset(widget);
+		if (widget && token()) window.turnstile?.reset(widget);
 	}
 
 	onMount(() => {
