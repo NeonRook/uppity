@@ -372,7 +372,11 @@
 							{#if !alert.enabled}
 								<Badge variant="secondary">{m.common_disabled()}</Badge>
 							{:else if !alert.confirmed}
-								<Badge variant="secondary">{m.notifications_unconfirmed()}</Badge>
+								<Badge variant="secondary">
+									{alert.unsubscribed
+										? m.notifications_unsubscribed()
+										: m.notifications_unconfirmed()}
+								</Badge>
 							{/if}
 							<span class="text-muted-foreground w-full text-xs sm:ml-auto sm:w-auto">
 								{alertEvents(alert)}

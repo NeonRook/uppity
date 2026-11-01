@@ -183,4 +183,24 @@ describe("MonitorChannelService.options", () => {
 		expect(JSON.stringify(options)).not.toContain("secret");
 		expect(options.map((o) => o.confirmed)).toEqual([false, true, true, true]);
 	});
+
+	test("tells an unsubscribed channel from an unconfirmed one", async ({ db: { db } }) => {
+		const service = new MonitorChannelService(db);
+		const orgId = await seedOrg(db);
+		const monitorId = await seedMonitor(db, orgId);
+		const unconfirmed = await seedChannel(db, orgId);
+		const unsubscribed = await seedChannel(db, orgId);
+		await db
+			.update(notificationChannel)
+			.set({ name: "Z", unsubscribedAt: new Date() })
+			.where(eq(notificationChannel.id, unsubscribed));
+		await service.replace(monitorId, orgId, [link(unconfirmed), link(unsubscribed)]);
+
+		const options = await service.options(orgId);
+		const summary = await service.summary(monitorId, orgId);
+
+		expect(options.map((o) => o.unsubscribed)).toEqual([false, true]);
+		expect(options.map((o) => o.confirmed)).toEqual([false, false]);
+		expect(summary.map((s) => s.unsubscribed)).toEqual([false, true]);
+	});
 });

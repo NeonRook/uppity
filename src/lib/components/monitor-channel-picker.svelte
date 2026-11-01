@@ -86,7 +86,11 @@
 							{#if !channel.enabled}
 								<Badge variant="secondary">{m.common_disabled()}</Badge>
 							{:else if !channel.confirmed}
-								<Badge variant="secondary">{m.notifications_unconfirmed()}</Badge>
+								<Badge variant="secondary">
+									{channel.unsubscribed
+										? m.notifications_unsubscribed()
+										: m.notifications_unconfirmed()}
+								</Badge>
 							{/if}
 						</span>
 						{#if channel.destination && channel.destination !== channel.name}
