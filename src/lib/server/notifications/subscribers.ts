@@ -20,9 +20,10 @@ export type SendSubscriberIncidentEmail = (email: SubscriberIncidentEmail) => Pr
 
 /**
  * Emails an incident event to the confirmed subscribers of every public page that shows
- * the incident, except addresses that bounced or complained. Each subscriber is claimed before sending, so a retried or concurrently
- * reclaimed event never emails anyone twice. Sends one at a time to stay within SMTP
- * rate limits. Null when no subscriber is due an email.
+ * the incident, except addresses that bounced or complained. Each subscriber is claimed
+ * before sending, so a retried or concurrently reclaimed event never emails anyone twice.
+ * Sends one at a time to stay within SMTP rate limits. Null when no subscriber is due an
+ * email.
  */
 export async function notifyIncidentSubscribers(
 	db: Db,
