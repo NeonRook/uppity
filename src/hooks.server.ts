@@ -9,6 +9,7 @@ import { authenticateApiRequest, requiresApiKey } from "#lib/server/api-auth.js"
 import { auth } from "#lib/server/auth.js";
 import { clientAddress } from "#lib/server/client-ip.js";
 import { wideEvent, type RequestWideEvent } from "#lib/server/logger/index.js";
+import { handleStatusHost } from "#lib/server/status-host.js";
 
 /**
  * Logging middleware - creates wide event and emits on request completion.
@@ -89,6 +90,8 @@ const handleApi: Handle = async ({ event, resolve }) => {
 };
 
 const handleAuth: Handle = async ({ event, resolve }) => {
+	if (event.locals.statusHost) return resolve(event);
+
 	const session = await auth.api.getSession({
 		headers: event.request.headers,
 	});
@@ -102,6 +105,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = sequence(
 	handleLogging,
+	handleStatusHost,
 	handleParaglide,
 	handleApi,
 	handleAuth,

@@ -51,6 +51,25 @@ describe("pinOrigin", () => {
 		);
 	});
 
+	it("passes a public hostname through, so the web tier can serve or refuse it", () => {
+		const env = { ORIGIN: "https://uppity.example.com" };
+		expect(handled(env, { host: "Status.Acme.com:443" })).toBe("https://Status.Acme.com:443");
+	});
+
+	it("keeps the pin for addresses and internal names", () => {
+		const env = { ORIGIN: "https://uppity.example.com" };
+		for (const host of ["10.0.0.5:3000", "[::1]:3000", "app:3000", "uppity.lan", "web.internal"]) {
+			expect(handled(env, { host })).toBe("https://uppity.example.com");
+		}
+	});
+
+	it("takes the host from the Host header alone", () => {
+		const env = { ORIGIN: "https://uppity.example.com", HOST_HEADER: "x-forwarded-host" };
+		expect(handled(env, { host: "app:3000", "x-forwarded-host": "status.acme.com" })).toBe(
+			"https://uppity.example.com",
+		);
+	});
+
 	it("leaves the adapter's header settings alone when unset", () => {
 		const env = { PROTOCOL_HEADER: "x-forwarded-proto", HOST_HEADER: "x-forwarded-host" };
 		expect(pinOrigin(env)).toBeUndefined();

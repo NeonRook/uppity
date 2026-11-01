@@ -266,13 +266,48 @@ export const statusPage = pgTable(
 		primaryColor: text("primary_color").default("#000000"),
 		customCss: text("custom_css"),
 
-		// Custom domain
+		// The verified domain the page serves on. Unverified names live on the claim.
 		customDomain: text("custom_domain").unique(),
 
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
-	(table) => [index("status_page_org_idx").on(table.organizationId)],
+	(table) => [
+		index("status_page_org_idx").on(table.organizationId),
+		check(
+			"status_page_custom_domain_canonical",
+			sql`${table.customDomain} = lower(rtrim(${table.customDomain}, '.'))`,
+		),
+	],
+);
+
+/**
+ * A page's claim on a custom domain, and the proof behind `status_page.custom_domain`. Kept
+ * apart from `status_page` because the workers read that table and can start before the
+ * migration. A domain may have claims from several pages: only verification takes it.
+ */
+export const statusPageDomainClaim = pgTable(
+	"status_page_domain_claim",
+	{
+		statusPageId: text("status_page_id")
+			.primaryKey()
+			.references(() => statusPage.id, { onDelete: "cascade" }),
+		domain: text("domain").notNull(),
+		/** The value of the ownership TXT record, new for every claim. */
+		token: text("token").notNull(),
+		/** The CNAME target at the last verification, which rechecks compare against. */
+		verifiedTarget: text("verified_target"),
+		/** Consecutive rechecks that found the records gone. */
+		failedChecks: integer("failed_checks").notNull().default(0),
+		checkedAt: timestamp("checked_at", { withTimezone: true }),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		check(
+			"status_page_domain_claim_domain_canonical",
+			sql`${table.domain} = lower(rtrim(${table.domain}, '.'))`,
+		),
+	],
 );
 
 export const statusPageGroup = pgTable(
@@ -959,6 +994,7 @@ export type IncidentUpdate = typeof incidentUpdate.$inferSelect;
 export type StatusPage = typeof statusPage.$inferSelect;
 export type StatusPageGroup = typeof statusPageGroup.$inferSelect;
 export type StatusPageMonitor = typeof statusPageMonitor.$inferSelect;
+export type StatusPageDomainClaim = typeof statusPageDomainClaim.$inferSelect;
 export type NotificationChannel = typeof notificationChannel.$inferSelect;
 export type NotificationEvent = typeof notificationEvent.$inferSelect;
 export type Subscription = typeof subscription.$inferSelect;

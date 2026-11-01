@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { describe, expect } from "vitest";
+import { afterEach, describe, expect, vi } from "vitest";
 
 import { STATUS_PAGE_HISTORY_DAYS } from "#lib/constants/defaults.js";
 
@@ -14,14 +14,16 @@ import {
 	monitorCheck,
 	monitorStatus as monitorStatusTable,
 	statusPage,
+	statusPageDomainClaim,
 	statusPageGroup,
 	statusPageMonitor,
 } from "../db/schema";
-import { NotFoundError } from "../errors";
+import { FeatureNotAvailableError, NotFoundError } from "../errors";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitor, seedOrg } from "../test/seed";
 import { StatusPageService } from "./status-page.service";
+import { subscriptionService } from "./subscription.instance";
 
 async function seedStatusPageWithMonitor(
 	drizzleDb: TestDb["db"],
@@ -833,5 +835,66 @@ describe("StatusPageService.getPublicSummary", () => {
 		await drizzleDb.update(statusPage).set({ isPublic: false }).where(eq(statusPage.id, pageId));
 		expect(await service.getPublicSummary(pageId)).toBeNull();
 		expect(await service.getPublicSummary("sp-missing")).toBeNull();
+	});
+});
+
+const allowDomains = (allowed: boolean) =>
+	vi.spyOn(subscriptionService, "areCustomDomainsAllowed").mockResolvedValue({ allowed });
+
+async function seedDomainPage(drizzleDb: TestDb["db"]) {
+	const orgId = await seedOrg(drizzleDb);
+	const monitorId = await seedMonitor(drizzleDb, orgId);
+	return { orgId, ...(await seedStatusPageWithMonitor(drizzleDb, orgId, monitorId)) };
+}
+
+const domainClaims = (drizzleDb: TestDb["db"], pageId: string) =>
+	drizzleDb
+		.select()
+		.from(statusPageDomainClaim)
+		.where(eq(statusPageDomainClaim.statusPageId, pageId));
+
+describe("StatusPageService custom domains", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("keeps the plan gate on a new domain", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const { orgId, pageId } = await seedDomainPage(drizzleDb);
+		allowDomains(false);
+
+		await expect(service.claimDomain(pageId, orgId, "gate.acme.com")).rejects.toBeInstanceOf(
+			FeatureNotAvailableError,
+		);
+		expect(await domainClaims(drizzleDb, pageId)).toEqual([]);
+	});
+
+	test("stays inside the organization", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const { pageId } = await seedDomainPage(drizzleDb);
+		const otherOrg = await seedOrg(drizzleDb);
+		allowDomains(true);
+
+		await expect(service.claimDomain(pageId, otherOrg, "org.acme.com")).resolves.toBeNull();
+		await expect(service.verifyDomain(pageId, otherOrg)).resolves.toBeNull();
+		await expect(service.releaseDomain(pageId, otherOrg)).resolves.toBe(false);
+		expect(await domainClaims(drizzleDb, pageId)).toEqual([]);
+	});
+
+	test("finds a page by domain only while it is public", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const { pageId, slug } = await seedDomainPage(drizzleDb);
+		await drizzleDb
+			.update(statusPage)
+			.set({ customDomain: "public.acme.com" })
+			.where(eq(statusPage.id, pageId));
+
+		await expect(service.findPublicSlugByDomain("public.acme.com")).resolves.toBe(slug);
+
+		await drizzleDb.update(statusPage).set({ isPublic: false }).where(eq(statusPage.id, pageId));
+		await expect(service.findPublicSlugByDomain("public.acme.com")).resolves.toBeNull();
 	});
 });

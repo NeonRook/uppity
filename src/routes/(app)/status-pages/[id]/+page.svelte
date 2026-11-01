@@ -16,6 +16,7 @@
 
 	import DeleteDialog from "#lib/components/delete-dialog.svelte";
 	import PageHeader from "#lib/components/page-header.svelte";
+	import StatusPageDomain from "#lib/components/status-page-domain.svelte";
 	import StatusPageFields from "#lib/components/status-page-fields.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -25,7 +26,7 @@
 	import { deleteStatusPage } from "#lib/remote/status-pages.remote.js";
 	import { getStatusPageUrl } from "#lib/status-page.js";
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const updateSuperform = superForm(
 		untrack(() => data.updateForm),
@@ -110,6 +111,10 @@
 					</Button>
 				</div>
 			</form>
+
+			{#if data.customDomain}
+				<StatusPageDomain {...data.customDomain} notice={form?.domainNotice} />
+			{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="monitors" class="mt-6 space-y-6">

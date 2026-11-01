@@ -61,7 +61,7 @@ export const actions: Actions = {
 
 		// Ahead of the service, so the answer says nothing about the address.
 		const token = (await request.formData()).get(TURNSTILE_RESPONSE_FIELD);
-		if (!(await verifyTurnstile(token, "subscribe"))) {
+		if (!(await verifyTurnstile(token, "subscribe", page.customDomain))) {
 			return message(form, m.challenge_failed(), { status: 403 });
 		}
 

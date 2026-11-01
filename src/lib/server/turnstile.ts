@@ -34,14 +34,19 @@ export function turnstileSiteKey(): string | undefined {
 /**
  * Whether the token passes, or true when this instance sets neither key. Siteverify accepts a
  * token once, so a retry needs a new one from the widget. The token must come from the widget
- * for `action` on this instance's host, which Cloudflare's test keys never satisfy.
+ * for `action` on this instance's host or on `customDomain`, the verified domain of the page
+ * the form belongs to, which Cloudflare's test keys never satisfy.
  *
  * Refuses when Cloudflare cannot answer. The widget comes from Cloudflare too, so an outage
  * mostly leaves visitors with no token at all, and passing on an error would let scripts
  * through for the little it saves. One key alone also refuses: an operator who set it wants
  * the check, and running without it would leave the instance open with only a log line.
  */
-export async function verifyTurnstile(token: unknown, action: string): Promise<boolean> {
+export async function verifyTurnstile(
+	token: unknown,
+	action: string,
+	customDomain?: string | null,
+): Promise<boolean> {
 	const { TURNSTILE_SITE_KEY: siteKey, TURNSTILE_SECRET_KEY: secret } = process.env;
 	if (!siteKey && !secret) return true;
 	if (!siteKey || !secret) {
@@ -77,5 +82,8 @@ export async function verifyTurnstile(token: unknown, action: string): Promise<b
 		}
 		return false;
 	}
-	return result.action === action && result.hostname === new URL(appUrl).hostname;
+	const fromThisSite =
+		result.hostname === new URL(appUrl).hostname ||
+		(Boolean(customDomain) && result.hostname === customDomain);
+	return result.action === action && fromThisSite;
 }
