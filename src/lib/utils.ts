@@ -10,6 +10,17 @@ export function envInt(key: EnvVar, defaultValue: number): number {
 	return Number.isNaN(parsed) ? defaultValue : parsed;
 }
 
+/** Reads an integer from environment variables, returning the default outside `min` to `max`. */
+export function envIntBetween(
+	key: EnvVar,
+	defaultValue: number,
+	min: number,
+	max: number,
+): number {
+	const parsed = envInt(key, defaultValue);
+	return parsed >= min && parsed <= max ? parsed : defaultValue;
+}
+
 /** Reads a string from environment variables, returning the default if missing. */
 export function envString(key: EnvVar, defaultValue: string): string {
 	return process.env[key] || defaultValue;
