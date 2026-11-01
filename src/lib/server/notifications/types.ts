@@ -1,11 +1,14 @@
 import type { Monitor, MonitorStatus, Incident } from "#lib/server/db/schema.js";
 
+import type { MonitorFlappingEventPayload } from "./events";
+
 export type NotificationType =
 	| "monitor_down"
 	| "monitor_up"
 	| "monitor_degraded"
 	| "monitor_checks_stopped"
 	| "monitor_checks_resumed"
+	| "monitor_flapping"
 	| "incident_created"
 	| "incident_updated"
 	| "incident_resolved"
@@ -21,6 +24,7 @@ export interface NotificationPayload {
 	incident?: Incident;
 	previousStatus?: string;
 	sslDaysRemaining?: number;
+	flap?: MonitorFlappingEventPayload;
 	errorMessage?: string;
 	updateMessage?: string;
 	timestamp: Date;

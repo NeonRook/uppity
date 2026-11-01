@@ -19,9 +19,11 @@ const ORANGE = 0xf97316;
 const AMBER = 0xf59e0b;
 const GRAY = 0xa1a1a1;
 
+const inMinutes = (minutes: number) => `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+
 /** Says a message is late, and that what it describes has changed if it has. */
 export function lateNotice({ minutes, now }: LateDelivery): string {
-	const delay = `This message is ${minutes} ${minutes === 1 ? "minute" : "minutes"} late because earlier delivery attempts failed.`;
+	const delay = `This message is ${inMinutes(minutes)} late because earlier delivery attempts failed.`;
 	return now ? `${delay} It describes an earlier state: the status is now ${now}.` : delay;
 }
 
@@ -30,6 +32,8 @@ export function describeNotification(payload: NotificationPayload): Notification
 	const incidentTitle = payload.incident?.title ?? "Unknown Incident";
 	const impact = payload.incident?.impact ?? "Unknown";
 	const url: Pair[] = payload.monitor?.url ? [["URL", payload.monitor.url]] : [];
+	const settle = inMinutes(Math.ceil((payload.flap?.settleSeconds ?? 0) / 60));
+	const reminder = inMinutes(Math.ceil((payload.flap?.reminderSeconds ?? 0) / 60));
 
 	const messages: Record<NotificationType, () => NotificationMessage> = {
 		monitor_down: () => ({
@@ -70,6 +74,21 @@ export function describeNotification(payload: NotificationPayload): Notification
 			color: GREEN,
 			fields: [["Status", "Being checked again"]],
 			details: url,
+		}),
+		monitor_flapping: () => ({
+			title: `🟠 Monitor Flapping: ${monitorName}`,
+			color: ORANGE,
+			fields: [
+				["Status", "Flapping"],
+				["Last Check", payload.status?.status ?? "Unknown"],
+			],
+			details: [
+				[
+					"Reason",
+					`This monitor keeps going down and recovering, so its status alerts are on hold. You get one alert when it holds a status for ${settle}, and a reminder every ${reminder} until then.`,
+				],
+				...url,
+			],
 		}),
 		ssl_expiry_warning: () => ({
 			title: `⚠️ SSL Certificate Expiring: ${monitorName}`,

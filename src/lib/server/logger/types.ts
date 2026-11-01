@@ -115,6 +115,9 @@ export interface CheckWideEvent extends WideEventBase {
 	maintenance_active?: boolean;
 	maintenance_window_id?: string;
 	maintenance_window_name?: string;
+
+	// Alerts held while the monitor flaps
+	flapping?: boolean;
 }
 
 /**

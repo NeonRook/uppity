@@ -43,6 +43,18 @@ export const DEFAULT_SSL_EXPIRY_THRESHOLD_DAYS = envInt(
  */
 export const SSL_WARNING_COOLDOWN_HOURS = envInt("UPPITY_SSL_WARNING_COOLDOWN_HOURS", 24);
 
+/**
+ * Up and down alerts within FLAP_WINDOW_SECONDS at which a monitor's next outage counts as
+ * flapping and holds its alerts. Below 2 turns flap detection off.
+ */
+export const FLAP_THRESHOLD = envInt("UPPITY_FLAP_THRESHOLD", 5);
+
+/** How far back flapping alerts count, and the time between reminders while a monitor flaps. */
+export const FLAP_WINDOW_SECONDS = envInt("UPPITY_FLAP_WINDOW_SECONDS", 3600);
+
+/** How long a flapping monitor must hold one status before it alerts that status. */
+export const FLAP_SETTLE_SECONDS = envInt("UPPITY_FLAP_SETTLE_SECONDS", 300);
+
 /** Cooldown between repeats of one operator alert while its cause lasts. */
 export const OPS_ALERT_COOLDOWN_HOURS = envInt("UPPITY_OPS_ALERT_COOLDOWN_HOURS", 6);
 
