@@ -792,7 +792,7 @@
 	"monitor_unchecked_summary": "O Uppity não consegue executar as verificações deste monitor. Próxima tentativa {next}.",
 	"monitor_overdue_summary": "As verificações do Uppity não estão rodando. A verificação deste monitor estava prevista {due}.",
 	"monitor_flapping_title": "Este monitor está instável",
-	"monitor_flapping_desc": "Ele cai e se recupera repetidamente, por isso seus alertas de status estão em espera. Você recebe um alerta quando ele mantiver o mesmo status por {minutes} min. O status e as verificações nesta página continuam atualizados.",
+	"monitor_flapping_desc": "Ele cai e se recupera repetidamente, por isso seus alertas de status estão em espera. Você recebe um alerta quando ele ficar fora do ar por {minutes} min ou passar {minutes} min sem cair. O status e as verificações nesta página continuam atualizados.",
 	"monitor_unchecked_title": "Este monitor não está sendo verificado",
 	"monitor_unchecked_since": "Sem verificação desde {since}. Os canais de notificação vinculados são avisados quando as verificações forem retomadas.",
 	"public_status_unmonitored": "Alguns sistemas não estão sendo monitorados no momento",

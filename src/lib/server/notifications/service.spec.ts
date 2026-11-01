@@ -594,7 +594,8 @@ describe("NotificationService.dispatchEvent (flapping)", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const body = fetchMock.mock.calls[0][1].body as string;
 		expect(body).toContain("Monitor Flapping: Probe");
-		expect(body).toContain("holds a status for 5 minutes, and a reminder every 60 minutes");
+		expect(body).toContain("stays down for 5 minutes or goes 5 minutes without going down");
+		expect(body).toContain("a reminder every 60 minutes");
 	});
 });
 

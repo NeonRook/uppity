@@ -792,7 +792,7 @@
 	"monitor_unchecked_summary": "Uppity kann die Prüfungen dieses Monitors nicht ausführen. Nächster Versuch {next}.",
 	"monitor_overdue_summary": "Die Prüfungen von Uppity laufen gerade nicht. Die Prüfung dieses Monitors war {due} fällig.",
 	"monitor_flapping_title": "Dieser Monitor schwankt",
-	"monitor_flapping_desc": "Er fällt immer wieder aus und erholt sich, daher sind seine Statusmeldungen pausiert. Du erhältst eine Meldung, sobald er {minutes} Min. lang denselben Status hält. Status und Prüfungen auf dieser Seite bleiben aktuell.",
+	"monitor_flapping_desc": "Er fällt immer wieder aus und erholt sich, daher sind seine Statusmeldungen pausiert. Du erhältst eine Meldung, sobald er {minutes} Min. lang ausgefallen bleibt oder {minutes} Min. lang nicht mehr ausfällt. Status und Prüfungen auf dieser Seite bleiben aktuell.",
 	"monitor_unchecked_title": "Dieser Monitor wird nicht geprüft",
 	"monitor_unchecked_since": "Nicht geprüft seit {since}. Verknüpfte Benachrichtigungskanäle erfahren es, sobald die Prüfungen wieder laufen.",
 	"public_status_unmonitored": "Einige Systeme werden gerade nicht überwacht",
