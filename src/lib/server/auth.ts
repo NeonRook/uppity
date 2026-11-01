@@ -27,6 +27,7 @@ import {
 	SESSION_UPDATE_AGE_SECONDS,
 } from "#lib/constants/auth.js";
 import { DEFAULT_PLAN_ID, FREE_PLAN } from "#lib/constants/plans.js";
+import { TURNSTILE_TOKEN_HEADER } from "#lib/constants/turnstile.js";
 import { m } from "#lib/paraglide/messages.js";
 import { appUrl, sendAccountVerification } from "#lib/server/account-email.js";
 import { refuseApiKeyCreate } from "#lib/server/api-auth.js";
@@ -50,6 +51,7 @@ import type {
 	PolarSubscriptionSnapshot,
 } from "#lib/server/services/subscription.service.js";
 import { smtpFrom, smtpTransport } from "#lib/server/smtp.js";
+import { verifyTurnstile } from "#lib/server/turnstile.js";
 import type { PlanId, SubscriptionStatus } from "#lib/types/plans.js";
 
 // process.env rather than $env/dynamic/private, which the build can inline.
@@ -352,6 +354,12 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			if (
+				ctx.path === "/sign-up/email" &&
+				!(await verifyTurnstile(ctx.headers?.get(TURNSTILE_TOKEN_HEADER), "signup"))
+			) {
+				throw new APIError("FORBIDDEN", { message: m.challenge_failed() });
+			}
 			// Signed out, the endpoint mails any unverified account, which a rotating IP could
 			// turn on one inbox. The banner, its only caller, always has a session.
 			if (ctx.path === "/send-verification-email" && !(await getSessionFromCtx(ctx))) {

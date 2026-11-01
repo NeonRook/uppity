@@ -929,5 +929,7 @@
 	"admin_org_subscriber_email_off": "As páginas de status não mostram o formulário de inscrição, e inscritos não recebem e-mails de incidentes. Inscritos confirmados são mantidos e voltam a receber e-mails quando isto for ligado.",
 	"admin_org_subscriber_email_affected": "Inscritos confirmados que deixam de receber e-mails se isto for desligado: {count}.",
 	"admin_org_subscriber_email_enable": "Ligar",
-	"admin_org_subscriber_email_disable": "Desligar"
+	"admin_org_subscriber_email_disable": "Desligar",
+	"challenge_failed": "Não foi possível verificar esta solicitação. Recarregue a página e tente novamente em alguns minutos. Este formulário precisa de JavaScript.",
+	"challenge_needs_javascript": "Este formulário precisa de JavaScript para a verificação contra spam."
 }

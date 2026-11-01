@@ -18,6 +18,14 @@ declare global {
 		// interface Platform {}
 	}
 
+	interface Window {
+		turnstile?: {
+			render(container: HTMLElement, options: Record<string, string>): string | undefined;
+			reset(widget: string): void;
+			remove(widget: string): void;
+		};
+	}
+
 	interface ImportMetaEnv {
 		/** package.json's version, set by the Vite configs at build time. */
 		readonly APP_VERSION: string;
@@ -45,6 +53,10 @@ declare global {
 			BETTER_AUTH_SECRET: string;
 			BETTER_AUTH_URL: string;
 			BETTER_AUTH_TRUSTED_ORIGINS: string;
+
+			// Turnstile [Optional]
+			TURNSTILE_SITE_KEY?: string;
+			TURNSTILE_SECRET_KEY?: string;
 
 			// Server [Optional]
 			PORT?: string;

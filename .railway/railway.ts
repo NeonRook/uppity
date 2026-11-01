@@ -104,6 +104,8 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_PASSWORD: resend.password,
 			SUBSCRIBER_SMTP_PORT: resend.port,
 			SUBSCRIBER_SMTP_USER: resend.user,
+			TURNSTILE_SECRET_KEY: preserve(),
+			TURNSTILE_SITE_KEY: preserve(),
 			UPPITY_GATE_SUBSCRIBER_EMAIL: "true",
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),

@@ -5,13 +5,17 @@
 	import { CircleAlert, LoaderCircle } from "@lucide/svelte";
 
 	import { signUp } from "#lib/auth-client.js";
+	import Turnstile from "#lib/components/turnstile.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { TURNSTILE_RESPONSE_FIELD, TURNSTILE_TOKEN_HEADER } from "#lib/constants/turnstile.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { sameOriginPath } from "#lib/utils/same-origin-path.js";
+
+	let { data } = $props();
 
 	// Same-origin only, so the parameter cannot send a fresh session elsewhere.
 	const redirectTo = $derived(
@@ -24,8 +28,9 @@
 	let confirmPassword = $state("");
 	let error = $state("");
 	let loading = $state(false);
+	let turnstile = $state<Turnstile>();
 
-	async function handleSubmit(e: SubmitEvent) {
+	async function handleSubmit(e: SubmitEvent & { currentTarget: HTMLFormElement }) {
 		e.preventDefault();
 		error = "";
 
@@ -37,15 +42,16 @@
 		loading = true;
 
 		try {
-			const result = await signUp.email({
-				email,
-				password,
-				name,
-			});
+			const token = new FormData(e.currentTarget).get(TURNSTILE_RESPONSE_FIELD);
+			const result = await signUp.email(
+				{ email, password, name },
+				{ headers: { [TURNSTILE_TOKEN_HEADER]: typeof token === "string" ? token : "" } },
+			);
 
 			if (result.error) {
 				error = result.error.message || m.auth_register_error_failed();
 				loading = false;
+				turnstile?.reset();
 				return;
 			}
 
@@ -121,6 +127,10 @@
 					disabled={loading}
 				/>
 			</Field.Field>
+
+			{#if data.turnstileSiteKey}
+				<Turnstile bind:this={turnstile} siteKey={data.turnstileSiteKey} action="signup" />
+			{/if}
 
 			<Button type="submit" class="w-full" disabled={loading}>
 				{#if loading}

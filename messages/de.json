@@ -929,5 +929,7 @@
 	"admin_org_subscriber_email_off": "Statusseiten zeigen kein Abo-Formular, und Abonnenten erhalten keine E-Mails zu Vorfällen. Bestätigte Abonnenten bleiben erhalten und bekommen wieder E-Mails, sobald dies eingeschaltet ist.",
 	"admin_org_subscriber_email_affected": "Bestätigte Abonnenten, die beim Ausschalten keine E-Mails mehr bekommen: {count}.",
 	"admin_org_subscriber_email_enable": "Einschalten",
-	"admin_org_subscriber_email_disable": "Ausschalten"
+	"admin_org_subscriber_email_disable": "Ausschalten",
+	"challenge_failed": "Wir konnten diese Anfrage nicht überprüfen. Lade die Seite neu und versuche es in ein paar Minuten erneut. Dieses Formular benötigt JavaScript.",
+	"challenge_needs_javascript": "Dieses Formular benötigt JavaScript für die Spam-Prüfung."
 }
