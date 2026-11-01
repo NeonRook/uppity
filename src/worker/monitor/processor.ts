@@ -202,7 +202,8 @@ async function interpret(
 				id: nanoid(),
 				incidentId,
 				status: DEFAULT_INCIDENT_STATUS,
-				message: result.errorMessage || "Monitor is not responding.",
+				// Status pages and subscribers read this, and check errors quote hostnames and ports.
+				message: "Monitor is not responding.",
 				createdAt: new Date(),
 			});
 

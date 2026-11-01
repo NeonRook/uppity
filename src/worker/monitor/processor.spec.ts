@@ -279,7 +279,7 @@ describe("processResults", () => {
 				.select()
 				.from(incidentUpdate)
 				.where(eq(incidentUpdate.incidentId, inc.id));
-			expect(updates).toHaveLength(1);
+			expect(updates).toMatchObject([{ message: "Monitor is not responding." }]);
 		} finally {
 			await unlisten();
 		}
