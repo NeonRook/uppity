@@ -370,7 +370,9 @@ describe("subscriber email backfill", () => {
 		.split("--> statement-breakpoint")
 		.at(-1);
 
-	test("turns on organizations with a subscriber on any page, and no others", async ({ db }) => {
+	test("turns on organizations with a confirmed subscriber on any page, and no others", async ({
+		db,
+	}) => {
 		const seed = async (subscriber: { confirmed: boolean } | null, isPublic = true) => {
 			const orgId = await seedOrg(db.db);
 			const id = `sp-${nanoid().toLowerCase()}`;
@@ -397,7 +399,7 @@ describe("subscriber email backfill", () => {
 
 		expect(await switchState(db.db, confirmed)).toBe(true);
 		expect(await switchState(db.db, onPrivatePage)).toBe(true);
-		expect(await switchState(db.db, pendingOnly)).toBe(true);
+		expect(await switchState(db.db, pendingOnly)).toBe(false);
 		expect(await switchState(db.db, none)).toBe(false);
 	});
 });
