@@ -10,6 +10,8 @@ overrides:
   ws: ^8.21.0
 
 # esbuild's postinstall only validates the binary its platform package already
-# ships, so skipping it loses nothing.
+# ships, and protobufjs's only warns about a mismatched major, so skipping them
+# loses nothing.
 allowBuilds:
   esbuild: false
+  protobufjs: false

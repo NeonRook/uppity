@@ -22,6 +22,7 @@
 		Wrench,
 	} from "@lucide/svelte";
 	import { ModeWatcher, setMode, userPrefersMode } from "mode-watcher";
+	import { onMount } from "svelte";
 
 	import { signOut } from "#lib/auth-client.js";
 	import CapacityBanner from "#lib/components/billing/capacity-banner.svelte";
@@ -34,6 +35,11 @@
 	import { errorMessage } from "#lib/utils/error-message.js";
 
 	let { data, children } = $props();
+
+	onMount(() => {
+		const config = data.webTelemetry;
+		if (config) void import("#lib/web-telemetry.js").then((web) => web.startWebTelemetry(config));
+	});
 
 	let sidebarOpen = $state(false);
 	let switchingOrg = $state(false);

@@ -69,6 +69,16 @@ declare global {
 			LOG_LEVEL?: string;
 			SERVICE_NAME?: string;
 
+			// Telemetry [Optional]
+			OTEL_EXPORTER_OTLP_ENDPOINT?: string;
+			OTEL_EXPORTER_OTLP_HEADERS?: string;
+			UPPITY_ENVIRONMENT?: string;
+			RAILWAY_DEPLOYMENT_ID?: string;
+			RAILWAY_GIT_BRANCH?: string;
+			RAILWAY_GIT_COMMIT_SHA?: string;
+			UPPITY_WEB_OTLP_ENDPOINT?: string;
+			UPPITY_WEB_OTLP_TOKEN?: string;
+
 			// Email Notifications [Optional]
 			SMTP_HOST?: string;
 			SMTP_PORT?: string;

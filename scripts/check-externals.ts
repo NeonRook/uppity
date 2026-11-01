@@ -14,24 +14,11 @@ import { pathToFileURL } from "node:url";
 
 import { init, parse } from "es-module-lexer";
 
-/**
- * Specifiers the build may leave unresolved.
- *
- * Empty, and worth keeping that way — an empty allowlist is what lets the runtime
- * image ship no node_modules at all. The failure path below says what adding one
- * costs.
- */
-const RUNTIME_EXTERNALS: readonly string[] = [];
-
-/**
- * Packages the build may reach only through a dynamic `import()`, which the
- * caller is expected to catch and survive. They are absent from the image, so a
- * static import of one is still an offence.
- *
- * `@opentelemetry/api`: SvelteKit forces it external, and better-auth loads it
- * in a try/catch that falls back to a no-op tracer.
- */
-const OPTIONAL_EXTERNALS: readonly string[] = ["@opentelemetry/api"];
+/** The image installs `dependencies` only, so a bare import of anything else fails at runtime. */
+const pkg = JSON.parse(await readFile("package.json", "utf8")) as {
+	dependencies: Record<string, string>;
+};
+const RUNTIME_EXTERNALS: readonly string[] = Object.keys(pkg.dependencies);
 
 const SCAN_TARGETS: ReadonlyArray<readonly [string, string]> = [
 	["build", "*.js"],
@@ -119,7 +106,7 @@ if (invokedDirectly()) {
 
 	const offences = new Map<string, string[]>();
 	for (const [root, pattern] of targets) {
-		for (const entry of await findOffences(root, RUNTIME_EXTERNALS, pattern, OPTIONAL_EXTERNALS)) {
+		for (const entry of await findOffences(root, RUNTIME_EXTERNALS, pattern)) {
 			offences.set(entry[0], entry[1]);
 		}
 	}
@@ -131,9 +118,7 @@ if (invokedDirectly()) {
 			for (const specifier of specifiers) console.error(`    ${specifier}`);
 		}
 		console.error(
-			"\nEither let the bundler inline them, or add them to RUNTIME_EXTERNALS above and to" +
-				"\n`ssr.external` in the vite config that emitted the file — and COPY them into the" +
-				"\nDockerfile's runner stage.",
+			"\nMove them to `dependencies` in package.json, which is what the image installs.",
 		);
 		process.exit(1);
 	}

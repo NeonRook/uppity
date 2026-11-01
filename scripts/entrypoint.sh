@@ -2,7 +2,7 @@
 # Runs one Uppity process on Node.
 #
 # Every process runs under Node's permission model. Reads are scoped to the
-# trees each one loads, and filesystem writes, child processes, worker threads,
+# build and its production dependencies, and filesystem writes, child processes, worker threads,
 # native addons, WASI and FFI are denied: those are what turn a compromised
 # dependency into code execution or persistence, and no process needs them.
 #
@@ -41,12 +41,15 @@ fi
 
 case "$target" in
 serve)
-	run --permission --allow-net --allow-fs-read=./build ./build/serve.js
+	run --permission --allow-net --allow-fs-read=./build --allow-fs-read=./node_modules \
+		--import=./build/telemetry.js ./build/serve.js
 	;;
 migrate)
-	run --permission --allow-net --allow-fs-read=./drizzle --allow-fs-read=./build ./build/migrate.js
+	run --permission --allow-net --allow-fs-read=./drizzle --allow-fs-read=./build \
+		--allow-fs-read=./node_modules ./build/migrate.js
 	;;
 worker-monitor | worker-notifier)
-	run --permission --allow-net --allow-fs-read=./build "./build/$target.js"
+	run --permission --allow-net --allow-fs-read=./build --allow-fs-read=./node_modules \
+		--import=./build/telemetry.js "./build/$target.js"
 	;;
 esac

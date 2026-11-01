@@ -5,6 +5,7 @@ import { isSelfHosted } from "#lib/constants/plans.js";
 import { auth } from "#lib/server/auth.js";
 import { member, organization } from "#lib/server/db/auth-schema.js";
 import { db } from "#lib/server/db/index.js";
+import { deployment } from "#lib/server/deployment.js";
 import { getUsageLimitsData } from "#lib/server/services/usage-limits.js";
 import { smtpTransport } from "#lib/server/smtp.js";
 
@@ -54,6 +55,8 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 		? { userId: locals.user.id, name: locals.user.name }
 		: null;
 
+	const { UPPITY_WEB_OTLP_ENDPOINT: url, UPPITY_WEB_OTLP_TOKEN: authToken } = process.env;
+
 	return {
 		user: locals.user,
 		impersonating,
@@ -63,5 +66,6 @@ export const load: LayoutServerLoad = async ({ locals, request }) => {
 		selfHosted: isSelfHosted(),
 		// Without mail there is no verification link, so asking for one would only nag.
 		canVerifyEmail: smtpTransport !== null,
+		webTelemetry: url && authToken ? { url, authToken, deployment: deployment() } : null,
 	};
 };

@@ -15,6 +15,7 @@ export default defineRailway((ctx) => {
 	// Production's values live in Railway; staging's are declared here and point
 	// at Polar Sandbox.
 	const staging = (value: string) => (prod ? preserve() : value);
+	const uppityEnvironment = prod ? "production" : "staging";
 	const uppity = github("NeonRook/uppity", { checkSuites: false });
 
 	const build = {
@@ -85,6 +86,8 @@ export default defineRailway((ctx) => {
 			CLIENT_IP_HEADER: "x-real-ip",
 			DATABASE_URL: Postgres.env.DATABASE_URL,
 			NODE_ENV: ctx.shared.NODE_ENV,
+			OTEL_EXPORTER_OTLP_ENDPOINT: preserve(),
+			OTEL_EXPORTER_OTLP_HEADERS: preserve(),
 			POLAR_ACCESS_TOKEN: ctx.shared.POLAR_ACCESS_TOKEN,
 			POLAR_PRODUCT_DEDICATED_ANNUAL: staging("05d4b061-6593-4844-857a-c88c2a3764bb"),
 			POLAR_PRODUCT_DEDICATED_MONTHLY: staging("7ed4e4b8-4e6c-4000-9c95-71d48ece4cf0"),
@@ -106,10 +109,13 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_USER: resend.user,
 			TURNSTILE_SECRET_KEY: preserve(),
 			TURNSTILE_SITE_KEY: preserve(),
+			UPPITY_ENVIRONMENT: uppityEnvironment,
 			UPPITY_GATE_SUBSCRIBER_EMAIL: "true",
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
 			UPPITY_OPS_ALERT_EMAIL: preserve(),
+			UPPITY_WEB_OTLP_ENDPOINT: preserve(),
+			UPPITY_WEB_OTLP_TOKEN: preserve(),
 		},
 	});
 	const workerNotifier = service("worker-notifier", {
@@ -124,6 +130,8 @@ export default defineRailway((ctx) => {
 			BETTER_AUTH_URL: uppityServer.env.BETTER_AUTH_URL,
 			DATABASE_URL: Postgres.env.DATABASE_URL,
 			NODE_ENV: ctx.shared.NODE_ENV,
+			OTEL_EXPORTER_OTLP_ENDPOINT: preserve(),
+			OTEL_EXPORTER_OTLP_HEADERS: preserve(),
 			SERVICE_NAME: staging("worker-notifier"),
 			SMTP_FROM: "Uppity Alerts <alerts@alerts.uppity.cloud>",
 			SMTP_HOST: resend.host,
@@ -132,6 +140,7 @@ export default defineRailway((ctx) => {
 			SMTP_USER: resend.user,
 			SUBSCRIBER_SMTP_FROM: subscriberFrom,
 			// The server hides the form and the notifier drops the mail on this one setting.
+			UPPITY_ENVIRONMENT: uppityEnvironment,
 			UPPITY_GATE_SUBSCRIBER_EMAIL: uppityServer.env.UPPITY_GATE_SUBSCRIBER_EMAIL,
 			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
 			UPPITY_OPS_ALERT_EMAIL: preserve(),
@@ -148,9 +157,12 @@ export default defineRailway((ctx) => {
 			BETTER_AUTH_SECRET: ctx.shared.BETTER_AUTH_SECRET,
 			DATABASE_URL: Postgres.env.DATABASE_URL,
 			NODE_ENV: ctx.shared.NODE_ENV,
+			OTEL_EXPORTER_OTLP_ENDPOINT: preserve(),
+			OTEL_EXPORTER_OTLP_HEADERS: preserve(),
 			POLAR_ACCESS_TOKEN: ctx.shared.POLAR_ACCESS_TOKEN,
 			POLAR_SERVER: ctx.shared.POLAR_SERVER,
 			SERVICE_NAME: staging("worker-monitor"),
+			UPPITY_ENVIRONMENT: uppityEnvironment,
 			// Over-capacity notices are account email, so they send as the server does
 			// and link back to it.
 			BETTER_AUTH_URL: uppityServer.env.BETTER_AUTH_URL,

@@ -6,7 +6,8 @@ date: 2026-10-12
 # Node runs the web tier in production
 
 The production image runs `serve` and `migrate` on Node, through `@sveltejs/adapter-node`. This
-supersedes the runtime half of ADR 0001. The build half stands, with pnpm per ADR 0003.
+supersedes the runtime half of ADR 0001. The build half stands, with pnpm per ADR 0003. ADR 0009
+replaces the bundling described here.
 
 ## Context
 
@@ -81,8 +82,8 @@ This is accepted: it is the cost of a runtime with a future.
   bare import that survives.
 - The SMTP transport no longer dials by host name to satisfy a per-host allowlist.
 - `--allow-net` prints an experimental warning once at startup.
-- A pino transport runs in a worker thread, which `--permission` denies. The OTLP log exporter
-  (NEO-85) either writes from the main thread or `serve` gains `--allow-worker`.
+- A pino transport runs in a worker thread, which `--permission` denies. OTLP logs leave from the
+  main thread instead (ADR 0009).
 
 ## Revisit when
 

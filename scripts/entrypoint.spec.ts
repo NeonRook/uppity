@@ -43,23 +43,31 @@ describe("permission model", () => {
 		expect(grants.every((f) => f === "--allow-net" || f.startsWith("--allow-fs-read="))).toBe(true);
 	});
 
-	it("scopes the web tier's reads to the build", async () => {
+	it.each(["serve", "worker-monitor", "worker-notifier"])(
+		"%s loads telemetry ahead of its entry point",
+		async (target) => {
+			const { flags } = await commandFor(target, { DATABASE_URL: DB });
+			expect(flags).toContain("--import=./build/telemetry.js");
+		},
+	);
+
+	it("scopes the web tier's reads to the build and its dependencies", async () => {
 		const { read, entry } = await commandFor("serve", { DATABASE_URL: DB });
-		expect(read).toEqual(["./build"]);
+		expect(read).toEqual(["./build", "./node_modules"]);
 		expect(entry).toBe("./build/serve.js");
 	});
 
-	it("scopes migrate's reads to the migration SQL and the build", async () => {
+	it("scopes migrate's reads to the migration SQL, the build and its dependencies", async () => {
 		const { read, entry } = await commandFor("migrate", { DATABASE_URL: DB });
-		expect(read).toEqual(["./drizzle", "./build"]);
+		expect(read).toEqual(["./drizzle", "./build", "./node_modules"]);
 		expect(entry).toBe("./build/migrate.js");
 	});
 
 	it.each(["worker-monitor", "worker-notifier"])(
-		"scopes %s's reads to the build",
+		"scopes %s's reads to the build and its dependencies",
 		async (target) => {
 			const { read, entry } = await commandFor(target, { DATABASE_URL: DB });
-			expect(read).toEqual(["./build"]);
+			expect(read).toEqual(["./build", "./node_modules"]);
 			expect(entry).toBe(`./build/${target}.js`);
 		},
 	);
@@ -80,9 +88,10 @@ describe("extra CA certificates", () => {
 
 		try {
 			const { flags } = await commandFor("worker-monitor", { DATABASE_URL: DB });
+			const permissions = flags.filter((f) => !f.startsWith("--import="));
 			const probe = `const s = require("node:tls").connect({ host: "127.0.0.1", port: ${port}, servername: "localhost", rejectUnauthorized: false }, () => { console.log(s.authorized ? "trusted" : s.authorizationError); s.destroy(); });`;
 			const verdict = async (env: Record<string, string>) =>
-				(await run(process.execPath, [...flags, "-e", probe], { env })).stdout.trim();
+				(await run(process.execPath, [...permissions, "-e", probe], { env })).stdout.trim();
 
 			expect(await verdict({})).toBe("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
 			expect(await verdict({ NODE_EXTRA_CA_CERTS: `${fixtures}extra-ca-cert.pem` })).toBe(

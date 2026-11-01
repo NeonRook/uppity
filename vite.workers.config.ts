@@ -33,9 +33,6 @@ export default defineConfig({
 		},
 	},
 
-	// The runner image ships no node_modules, so nothing may be left external.
-	ssr: { noExternal: true },
-
 	build: {
 		ssr: true,
 		sourcemap: false,
@@ -45,6 +42,7 @@ export default defineConfig({
 		rolldownOptions: {
 			input: {
 				serve: "scripts/serve.ts",
+				telemetry: "src/lib/server/telemetry.ts",
 				"worker-monitor": "src/worker/monitor/index.ts",
 				"worker-notifier": "src/worker/notifier/index.ts",
 				migrate: "scripts/migrate.ts",

@@ -2,6 +2,7 @@ import { ingestEvents } from "@polar-sh/sdk/2026-10/services/events";
 
 import type { Db } from "#lib/server/db/index.js";
 import { logger } from "#lib/server/logger/index.js";
+import { reason } from "#lib/server/ops-alert.js";
 import { polarClient } from "#lib/server/polar.js";
 
 import {
@@ -123,7 +124,10 @@ export class MeterService {
 		try {
 			rows = await collectUsageSnapshots(this.db);
 		} catch (error) {
-			logger.error({ error }, "Failed to collect usage snapshots for Polar metering");
+			logger.error(
+				{ event_type: "usage_snapshot_failed", error: reason(error) },
+				"Failed to collect usage snapshots for Polar metering",
+			);
 			return { ...EMPTY_REPORT, failure: "collect_failed" };
 		}
 		if (rows.length === 0) return EMPTY_REPORT;
