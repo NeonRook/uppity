@@ -53,8 +53,13 @@ export const actions: Actions = {
 			return rateLimited();
 		}
 
-		// Ahead of the service, so the answer depends on the token alone and says nothing about
-		// the address.
+		// Staff can turn this off under an open page, whose form then has no token to send. The
+		// service reads the switch again under its lock.
+		if (!(await statusPageSubscriberService.accepts(page.organizationId))) {
+			return message(form, m.public_subscribe_paused(), { status: 503 });
+		}
+
+		// Ahead of the service, so the answer says nothing about the address.
 		const token = (await request.formData()).get(TURNSTILE_RESPONSE_FIELD);
 		if (!(await verifyTurnstile(token, "subscribe"))) {
 			return message(form, m.challenge_failed(), { status: 403 });

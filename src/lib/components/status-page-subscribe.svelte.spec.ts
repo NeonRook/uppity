@@ -16,7 +16,12 @@ const data = {
 };
 
 function stubWidget() {
-	const widget = { render: vi.fn(() => "widget"), reset: vi.fn(), remove: vi.fn() };
+	const widget = {
+		render: vi.fn(() => "widget"),
+		getResponse: vi.fn(() => "token"),
+		reset: vi.fn(),
+		remove: vi.fn(),
+	};
 	vi.stubGlobal("turnstile", widget);
 	return widget;
 }
@@ -51,6 +56,19 @@ describe("status-page-subscribe.svelte", () => {
 		options?.onResult?.({} as never);
 
 		expect(widget.reset).toHaveBeenCalledWith("widget");
+	});
+
+	it("leaves a challenge running after a submission that beat its token", async () => {
+		const widget = stubWidget();
+		widget.getResponse.mockReturnValue(undefined as never);
+		await render(StatusPageSubscribe, { data, turnstileSiteKey: "site" });
+		await page.getByLabelText("Email address").click();
+		await vi.waitFor(() => expect(widget.render).toHaveBeenCalledOnce());
+
+		const options = vi.mocked(superForm).mock.lastCall?.[1];
+		options?.onResult?.({} as never);
+
+		expect(widget.reset).not.toHaveBeenCalled();
 	});
 
 	it("shows no widget without a site key", async () => {

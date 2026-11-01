@@ -11,7 +11,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { TURNSTILE_RESPONSE_FIELD, TURNSTILE_TOKEN_HEADER } from "#lib/constants/turnstile.js";
+	import { TURNSTILE_TOKEN_HEADER } from "#lib/constants/turnstile.js";
 	import { m } from "#lib/paraglide/messages.js";
 	import { sameOriginPath } from "#lib/utils/same-origin-path.js";
 
@@ -30,7 +30,7 @@
 	let loading = $state(false);
 	let turnstile = $state<Turnstile>();
 
-	async function handleSubmit(e: SubmitEvent & { currentTarget: HTMLFormElement }) {
+	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		error = "";
 
@@ -42,10 +42,9 @@
 		loading = true;
 
 		try {
-			const token = new FormData(e.currentTarget).get(TURNSTILE_RESPONSE_FIELD);
 			const result = await signUp.email(
 				{ email, password, name },
-				{ headers: { [TURNSTILE_TOKEN_HEADER]: typeof token === "string" ? token : "" } },
+				{ headers: { [TURNSTILE_TOKEN_HEADER]: turnstile?.token() ?? "" } },
 			);
 
 			if (result.error) {

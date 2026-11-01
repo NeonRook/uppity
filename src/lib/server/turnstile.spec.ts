@@ -17,6 +17,7 @@ function answer(body: unknown) {
 afterEach(() => {
 	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 describe("without keys", () => {
@@ -31,11 +32,13 @@ describe("without keys", () => {
 	it.each([
 		["TURNSTILE_SITE_KEY", "site"],
 		["TURNSTILE_SECRET_KEY", "secret"],
-	])("treats %s alone as unconfigured", async (name, value) => {
+	])("refuses with %s alone, so a half-set instance is not left open", async (name, value) => {
 		vi.stubEnv(name, value);
+		const verify = answer(accepted);
 
 		expect(turnstileSiteKey()).toBeUndefined();
-		await expect(verifyTurnstile(null, "subscribe")).resolves.toBe(true);
+		await expect(verifyTurnstile("token", "subscribe")).resolves.toBe(false);
+		expect(verify).not.toHaveBeenCalled();
 	});
 });
 
@@ -82,24 +85,44 @@ describe("with keys", () => {
 		await expect(verifyTurnstile("token", "subscribe")).resolves.toBe(false);
 	});
 
-	it("accepts Cloudflare's test keys, which carry no action and a placeholder host", async () => {
+	it("takes nothing in the answer as a reason to skip the action and host checks", async () => {
 		answer({
 			success: true,
 			hostname: "example.com",
 			metadata: { result_with_testing_key: true },
 		});
 
-		await expect(verifyTurnstile("XXXX.DUMMY.TOKEN.XXXX", "subscribe")).resolves.toBe(true);
+		await expect(verifyTurnstile("XXXX.DUMMY.TOKEN.XXXX", "subscribe")).resolves.toBe(false);
 	});
 
-	it("still refuses a failed token from Cloudflare's test keys", async () => {
-		answer({
-			success: false,
-			"error-codes": ["invalid-input-response"],
-			metadata: { result_with_testing_key: true },
-		});
+	it("aborts a call Cloudflare never answers", async () => {
+		vi.spyOn(AbortSignal, "timeout").mockImplementationOnce(() => AbortSignal.abort());
+		const hang = vi.fn(
+			(_url: string, { signal }: RequestInit) =>
+				new Promise<Response>((_, reject) => {
+					signal?.throwIfAborted();
+					signal?.addEventListener("abort", () => reject(signal.reason as Error));
+				}),
+		);
+		vi.stubGlobal("fetch", hang);
 
 		await expect(verifyTurnstile("token", "subscribe")).resolves.toBe(false);
+		expect(AbortSignal.timeout).toHaveBeenCalledWith(5_000);
+	});
+
+	it("holds a bounded number of calls open, then refuses without another", async () => {
+		const answers: ((response: Response) => void)[] = [];
+		const hang = vi.fn(() => new Promise<Response>((resolve) => answers.push(resolve)));
+		vi.stubGlobal("fetch", hang);
+
+		const held = Array.from({ length: 256 }, () => verifyTurnstile("token", "subscribe"));
+		await expect(verifyTurnstile("token", "subscribe")).resolves.toBe(false);
+		expect(hang).toHaveBeenCalledTimes(256);
+
+		for (const respond of answers) respond(Response.json(accepted));
+		await Promise.all(held);
+		answer(accepted);
+		await expect(verifyTurnstile("token", "subscribe")).resolves.toBe(true);
 	});
 
 	it("refuses when Cloudflare cannot be reached", async () => {

@@ -930,6 +930,6 @@
 	"admin_org_subscriber_email_affected": "Confirmed subscribers who stop getting mail if you turn this off: {count}.",
 	"admin_org_subscriber_email_enable": "Turn on",
 	"admin_org_subscriber_email_disable": "Turn off",
-	"challenge_failed": "We couldn't verify this request. Reload the page and try again in a few minutes. This form needs JavaScript.",
+	"challenge_failed": "We couldn't verify this request. Try again in a moment, and reload the page if it keeps failing. This form needs JavaScript.",
 	"challenge_needs_javascript": "This form needs JavaScript for its spam check."
 }

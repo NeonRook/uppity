@@ -3,17 +3,22 @@
 	import { CircleAlert, LoaderCircle, CircleCheck } from "@lucide/svelte";
 
 	import { requestPasswordReset } from "#lib/auth-client.js";
+	import Turnstile from "#lib/components/turnstile.svelte";
 	import { Alert, AlertDescription } from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { TURNSTILE_TOKEN_HEADER } from "#lib/constants/turnstile.js";
 	import { m } from "#lib/paraglide/messages.js";
+
+	let { data } = $props();
 
 	let email = $state("");
 	let error = $state("");
 	let loading = $state(false);
 	let submitted = $state(false);
+	let turnstile = $state<Turnstile>();
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -21,9 +26,17 @@
 		loading = true;
 
 		try {
-			// The result is ignored so a failure looks like success, which prevents
-			// user enumeration.
-			await requestPasswordReset({ email, redirectTo: "/reset-password" });
+			const result = await requestPasswordReset(
+				{ email, redirectTo: "/reset-password" },
+				{ headers: { [TURNSTILE_TOKEN_HEADER]: turnstile?.token() ?? "" } },
+			);
+			// A refused check depends on the token alone. Any other failure looks like success,
+			// which prevents user enumeration.
+			if (result.error?.status === 403) {
+				error = result.error.message || m.auth_login_error_unexpected();
+				turnstile?.reset();
+				return;
+			}
 			submitted = true;
 		} catch {
 			error = m.auth_login_error_unexpected();
@@ -68,6 +81,14 @@
 						disabled={loading}
 					/>
 				</Field.Field>
+
+				{#if data.turnstileSiteKey}
+					<Turnstile
+						bind:this={turnstile}
+						siteKey={data.turnstileSiteKey}
+						action="password-reset"
+					/>
+				{/if}
 
 				<Button type="submit" class="w-full" disabled={loading}>
 					{#if loading}
