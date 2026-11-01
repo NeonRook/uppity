@@ -11,12 +11,7 @@ export function envInt(key: EnvVar, defaultValue: number): number {
 }
 
 /** Reads an integer from environment variables, returning the default outside `min` to `max`. */
-export function envIntBetween(
-	key: EnvVar,
-	defaultValue: number,
-	min: number,
-	max: number,
-): number {
+export function envIntBetween(key: EnvVar, defaultValue: number, min: number, max: number): number {
 	const parsed = envInt(key, defaultValue);
 	return parsed >= min && parsed <= max ? parsed : defaultValue;
 }
