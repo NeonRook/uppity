@@ -1,7 +1,8 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
+import { FLAP_SETTLE_SECONDS, FLAP_WINDOW_SECONDS } from "../../lib/constants/defaults";
 import { organization } from "../../lib/server/db/auth-schema";
 import {
 	incident,
@@ -1316,6 +1317,284 @@ describe("flapping", () => {
 
 		expect(await openIncidents(drizzleDb, monitor.id)).toHaveLength(1);
 		expect(await updateMessages(drizzleDb, manual.id)).toEqual(["We are moving hosts."]);
+	});
+});
+
+/**
+ * Feeds results and stamps each alert with its check's time, which production gets from running in
+ * real time. Reminders compare the two, so a spec with simulated time needs them to agree.
+ */
+async function feedInTime(
+	drizzleDb: TestDb["db"],
+	monitor: Monitor,
+	beats: Beat[],
+	start: number,
+	step = MINUTE,
+): Promise<number> {
+	let at = start;
+	for (const [i, status] of beats.entries()) {
+		at = start + i * step;
+		await feed(drizzleDb, monitor, [status], at);
+		await drizzleDb
+			.update(notificationEvent)
+			.set({ createdAt: new Date(at) })
+			.where(
+				and(
+					eq(notificationEvent.monitorId, monitor.id),
+					gte(notificationEvent.createdAt, new Date(Date.now() - 10 * MINUTE)),
+				),
+			);
+	}
+	return at;
+}
+
+async function alerts(drizzleDb: TestDb["db"], monitorId: string) {
+	const rows = await drizzleDb
+		.select({ type: notificationEvent.type, createdAt: notificationEvent.createdAt })
+		.from(notificationEvent)
+		.where(eq(notificationEvent.monitorId, monitorId))
+		.orderBy(notificationEvent.createdAt);
+	return rows.map((row) => ({ type: row.type, at: row.createdAt.getTime() }));
+}
+
+describe("holds, against the outage guarantee", () => {
+	const BOUNCES: Beat[] = ["down", "up", "down", "up", "down"];
+	const DAY = 24 * 60 * MINUTE;
+
+	test("jitter between down and degraded stays on hold, with one reminder per window", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - 2 * DAY;
+		const last = await feedInTime(drizzleDb, monitor, BOUNCES, start);
+		const mostlyDown = Array.from({ length: 200 }, (_, i): Beat =>
+			i % 5 === 4 ? "degraded" : "down",
+		);
+		await feedInTime(drizzleDb, monitor, mostlyDown, last + MINUTE);
+
+		const sent = await alerts(drizzleDb, monitor.id);
+		const flapping = sent.filter((alert) => alert.type === "monitor_flapping");
+		expect(flapping.map((alert) => alert.at - flapping[0].at)).toEqual([
+			0,
+			60 * MINUTE,
+			120 * MINUTE,
+			180 * MINUTE,
+		]);
+		expect(sent.filter((alert) => alert.type === "monitor_down")).toHaveLength(2);
+		expect(await openIncidents(drizzleDb, monitor.id)).toHaveLength(1);
+	});
+
+	test("a monitor paused on hold alerts its status on its first checks back", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - 3 * DAY;
+		const last = await feedInTime(drizzleDb, monitor, BOUNCES, start);
+		await feedInTime(drizzleDb, monitor, ["down"], last + DAY);
+
+		expect((await alerts(drizzleDb, monitor.id)).at(-1)).toEqual({
+			type: "monitor_down",
+			at: last + DAY,
+		});
+	});
+
+	test("a monitor paused on hold and resumed in a new outage is reminded of, then alerts", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - 3 * DAY;
+		const last = await feedInTime(drizzleDb, monitor, [...BOUNCES, "up"], start);
+		const resumed = last + DAY;
+		await feedInTime(drizzleDb, monitor, Array<Beat>(6).fill("down"), resumed);
+
+		const sent = await alerts(drizzleDb, monitor.id);
+		expect(sent.slice(-2)).toEqual([
+			{ type: "monitor_flapping", at: resumed },
+			{ type: "monitor_down", at: resumed + 5 * MINUTE },
+		]);
+	});
+
+	test("raising the threshold on hold delays the alert to the new threshold", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - DAY;
+		const last = await feedInTime(drizzleDb, monitor, [...BOUNCES, "up"], start);
+		await drizzleDb
+			.update(monitorTable)
+			.set({ alertAfterFailures: 8 })
+			.where(eq(monitorTable.id, monitor.id));
+		await feedInTime(drizzleDb, monitor, Array<Beat>(8).fill("down"), last + MINUTE);
+
+		expect((await alerts(drizzleDb, monitor.id)).at(-1)).toEqual({
+			type: "monitor_down",
+			at: last + 8 * MINUTE,
+		});
+	});
+
+	test("two processors on one hold send one alert", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - DAY;
+		const last = await feedInTime(drizzleDb, monitor, BOUNCES, start);
+		for (const i of [1, 2, 3, 4, 5]) {
+			await insertResult(
+				drizzleDb,
+				monitor.id,
+				{ status: "down", responseTimeMs: 1 },
+				new Date(last + i * MINUTE),
+			);
+		}
+		await Promise.all([
+			processResults(drizzleDb, monitor.id),
+			processResults(drizzleDb, monitor.id),
+		]);
+
+		const types = await eventTypes(drizzleDb, monitor.id);
+		expect(types.at(-1)).toBe("monitor_down");
+		expect(types.filter((type) => type === "monitor_flapping")).toHaveLength(1);
+	});
+
+	test("a new monitor with no history can flap", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "unknown" });
+
+		await feedInTime(drizzleDb, monitor, BOUNCES, Date.now() - DAY);
+
+		expect((await eventTypes(drizzleDb, monitor.id)).at(-1)).toBe("monitor_flapping");
+	});
+
+	test("an incident a person resolves on hold stays closed until the monitor settles", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - DAY;
+		const last = await feedInTime(drizzleDb, monitor, BOUNCES, start);
+		const [open] = await openIncidents(drizzleDb, monitor.id);
+		await new IncidentService(drizzleDb).addUpdate({
+			incidentId: open.id,
+			organizationId: monitor.organizationId,
+			status: "resolved",
+			message: "Handled.",
+		});
+
+		const bounce = Array.from({ length: 8 }, (_, i): Beat => (i % 2 === 0 ? "up" : "down"));
+		const after = await feedInTime(drizzleDb, monitor, bounce, last + MINUTE);
+		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+
+		await feedInTime(drizzleDb, monitor, Array<Beat>(6).fill("down"), after + MINUTE);
+		expect(await openIncidents(drizzleDb, monitor.id)).toMatchObject([
+			{ title: "Test Monitor is down" },
+		]);
+	});
+
+	describe("over generated sequences", () => {
+		const SETTLE = FLAP_SETTLE_SECONDS * 1000;
+		const REMINDER = FLAP_WINDOW_SECONDS * 1000;
+		const OUTAGE_ALERTS = ["monitor_down", "monitor_up", "monitor_flapping"];
+		const STATUS_ALERTS = [...OUTAGE_ALERTS, "monitor_degraded"];
+
+		const RANDOM_BEATS: Beat[] = ["up", "down", "degraded"];
+		const PATTERNS: ((i: number, roll: () => number) => Beat)[] = [
+			() => "up",
+			() => "down",
+			() => "degraded",
+			(i) => (i % 2 === 0 ? "down" : "up"),
+			(i) => (i % 2 === 0 ? "up" : "degraded"),
+			(i) => (i % 2 === 0 ? "down" : "degraded"),
+			(i) => (i % 5 === 4 ? "degraded" : "down"),
+			(i) => (i % 3 === 2 ? "up" : "down"),
+			(_, roll) => RANDOM_BEATS[Math.floor(roll() * 3)],
+		];
+
+		/** A small seeded generator, so that a failing seed can be replayed. */
+		function seeded(seed: number) {
+			let state = seed;
+			return () => {
+				state = (state + 0x6d2b79f5) | 0;
+				let t = Math.imul(state ^ (state >>> 15), 1 | state);
+				t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+				return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+			};
+		}
+
+		function sequence(roll: () => number): Beat[] {
+			const beats: Beat[] = [...BOUNCES, "up", "down", "up", "down", "up"];
+			for (let segment = 0; segment < 10; segment++) {
+				const pattern = PATTERNS[Math.floor(roll() * PATTERNS.length)];
+				const length = 1 + Math.floor(roll() * 30);
+				beats.push(...Array.from({ length }, (_, i) => pattern(i, roll)));
+			}
+			return beats;
+		}
+
+		const CASES = [
+			{ seed: 1, failures: 1, stepMinutes: 1 },
+			{ seed: 4, failures: 3, stepMinutes: 1 },
+			{ seed: 6, failures: 2, stepMinutes: 3 },
+			{ seed: 8, failures: 3, stepMinutes: 10 },
+		];
+
+		for (const { seed, failures, stepMinutes } of CASES) {
+			test(`seed ${seed}, alert after ${failures}, every ${stepMinutes} min`, async ({ db }) => {
+				const { db: drizzleDb } = db;
+				const monitor = await upMonitor(drizzleDb, { alertAfterFailures: failures });
+				const step = stepMinutes * MINUTE;
+				const settling = Array<Beat>(Math.ceil(SETTLE / step) + 2).fill("up");
+				const beats = [...sequence(seeded(seed)), ...settling];
+				const start = Date.now() - 30 * DAY;
+				await feedInTime(drizzleDb, monitor, beats, start, step);
+
+				const sent = await alerts(drizzleDb, monitor.id);
+				const newest = (types: string[], at: number) =>
+					sent.findLast((alert) => types.includes(alert.type) && alert.at <= at);
+				const held = (at: number) => newest(STATUS_ALERTS, at)?.type === "monitor_flapping";
+
+				let downFrom = 0;
+				let downChecks = 0;
+				let lastDown = 0;
+				for (const [i, beat] of beats.entries()) {
+					const at = start + i * step;
+					const context = `check ${i} of ${beats.join(" ")}`;
+					if (beat === "down") {
+						downFrom = downChecks === 0 ? at : downFrom;
+						downChecks++;
+						lastDown = at;
+						if (at - downFrom >= SETTLE && downChecks >= failures) {
+							const alerted = sent.some(
+								(alert) => alert.type === "monitor_down" && alert.at >= downFrom && alert.at <= at,
+							);
+							expect(alerted, `outage not alerted by ${context}`).toBe(true);
+						}
+					} else {
+						downChecks = 0;
+					}
+
+					if (held(at)) {
+						const sinceMessage = at - (newest(["monitor_flapping"], at)?.at ?? 0);
+						expect(sinceMessage, `no reminder by ${context}`).toBeLessThan(REMINDER);
+						if (beat !== "down") {
+							expect(at - lastDown, `still held at ${context}`).toBeLessThan(SETTLE + 2 * step);
+						}
+					} else if (beat === "up") {
+						const outage = newest(OUTAGE_ALERTS, at)?.type ?? "monitor_up";
+						expect(outage, `no recovery by ${context}`).toBe("monitor_up");
+					}
+				}
+
+				expect(held(start + beats.length * step)).toBe(false);
+				expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+			}, 60_000);
+		}
 	});
 });
 
