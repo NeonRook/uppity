@@ -10,19 +10,27 @@ import {
 	volume,
 } from "railway/iac";
 
+import pkg from "../package.json" with { type: "json" };
+
 export default defineRailway((ctx) => {
 	const prod = ctx.isEnvironment("production");
 	// Production's values live in Railway; staging's are declared here and point
 	// at Polar Sandbox.
 	const staging = (value: string) => (prod ? preserve() : value);
 	const uppityEnvironment = prod ? "production" : "staging";
-	const uppity = github("NeonRook/uppity", { checkSuites: false });
+	// Staging builds every push to main. Production runs the released image, and the
+	// Deploy Production job in main.yml applies this file once that image is published.
+	const uppity = prod
+		? image(`ghcr.io/neonrook/uppity:${pkg.version}`)
+		: github("NeonRook/uppity", { checkSuites: false });
 
-	const build = {
-		buildEnvironment: "V3",
-		builder: "DOCKERFILE",
-		dockerfilePath: "/Dockerfile",
-	} as const;
+	const build = prod
+		? undefined
+		: ({
+				buildEnvironment: "V3",
+				builder: "DOCKERFILE",
+				dockerfilePath: "/Dockerfile",
+			} as const);
 	const volumeOptions = {
 		alerts: { usage: { "100": {}, "80": {}, "95": {} } },
 		allowOnlineResize: true,

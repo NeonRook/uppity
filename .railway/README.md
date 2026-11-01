@@ -34,6 +34,16 @@ Apply the planned changes:
 railway config apply
 ```
 
+## Deployments
+
+Staging builds every push to `main`. Production runs `ghcr.io/neonrook/uppity:<version>`, where the version comes from `package.json`, so it changes only when a version pull request merges. The Deploy Production job in `.github/workflows/main.yml` then applies this configuration, after the image and the `v<version>` tag exist.
+
+To roll production back, use Rollback on the deployment in Railway. It restores the previous image and variables.
+
+Run `railway config apply --environment production` by hand only with a release checked out: on a commit ahead of the last release it applies changes that release does not contain, and if the version bump has not published yet, the image does not exist.
+
+Staging applies are still manual, so run `railway config apply --environment staging` after merging a change to this file.
+
 ## Notes
 
 - `railway config plan` is safe and does not change Railway.
