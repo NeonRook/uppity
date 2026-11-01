@@ -597,6 +597,70 @@ describe("NotificationService.dispatchEvent (flapping)", () => {
 		expect(body).toContain("stays down for 5 minutes or goes 5 minutes without going down");
 		expect(body).toContain("a reminder every 60 minutes");
 	});
+
+	test("a retry that outlives the hold says so, and no webhook gets it", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const fetchMock = vi.fn().mockResolvedValue(new Response("ok"));
+		vi.stubGlobal("fetch", fetchMock);
+		const orgId = await seedOrg(drizzleDb);
+		const monitorId = await seedMonitor(drizzleDb, orgId);
+		await drizzleDb.insert(monitorStatus).values({ monitorId, status: "up" });
+
+		const slack = `chan-${nanoid()}`;
+		await drizzleDb.insert(notificationChannel).values({
+			id: slack,
+			organizationId: orgId,
+			name: "Slack",
+			type: "slack",
+			config: { webhookUrl: "https://slack.example/hook" },
+		});
+		await linkMonitorToChannel(drizzleDb, monitorId, slack);
+		const webhook = await seedWebhookChannel(drizzleDb, orgId);
+		await linkMonitorToChannel(drizzleDb, monitorId, webhook);
+
+		const eventId = `evt-${nanoid()}`;
+		const createdAt = new Date(Date.now() - 20 * 60_000);
+		await drizzleDb.insert(notificationEvent).values({
+			id: eventId,
+			organizationId: orgId,
+			monitorId,
+			type: "monitor_flapping",
+			payload: {
+				settleSeconds: 300,
+				reminderSeconds: 3600,
+				retry: {
+					owed: [slack, webhook],
+					reached: false,
+					rejected: [],
+					mailServerDown: false,
+					attempt: 2,
+					nextAt: new Date().toISOString(),
+				},
+			},
+			status: "retry_sending",
+			createdAt,
+		});
+		const service = new NotificationService(drizzleDb);
+
+		await service.dispatchEvent(await fetchEvent(drizzleDb, eventId));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(fetchMock.mock.calls[0][1].body).toContain("Delayed: ");
+
+		fetchMock.mockClear();
+		await drizzleDb.insert(notificationEvent).values({
+			id: `evt-${nanoid()}`,
+			organizationId: orgId,
+			monitorId,
+			type: "monitor_up",
+			payload: {},
+			status: "sent",
+		});
+		await service.dispatchEvent(await fetchEvent(drizzleDb, eventId));
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(fetchMock.mock.calls[0][0]).toBe("https://slack.example/hook");
+		expect(fetchMock.mock.calls[0][1].body).toContain("Delayed, now up: ");
+	});
 });
 
 /** Sends a monitor_down alert to one channel of each type; returns what each one received. */
