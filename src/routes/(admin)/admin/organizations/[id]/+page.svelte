@@ -222,7 +222,7 @@
 		</Card.Content>
 	</Card.Root>
 
-	{#if !data.billing.selfHosted}
+	{#if data.subscriberEmail.gated}
 		<Card.Root>
 			<Card.Header>
 				<div class="flex items-start justify-between gap-4">
@@ -232,6 +232,11 @@
 							{data.org.subscriberEmailEnabled
 								? m.admin_org_subscriber_email_on()
 								: m.admin_org_subscriber_email_off()}
+							{#if data.org.subscriberEmailEnabled}
+								{m.admin_org_subscriber_email_affected({
+									count: data.subscriberEmail.reachableSubscribers,
+								})}
+							{/if}
 						</Card.Description>
 					</div>
 					<form method="POST" action="?/setSubscriberEmail" use:formEnhance>

@@ -49,14 +49,13 @@ export class StatusPageSubscriberService {
 	 * gets nothing, so the response cannot reveal who subscribes. "capped" when the page has
 	 * used up its daily confirmations, "paused" when subscriber email is off or the
 	 * organization or instance may not email new addresses. The switch is read before the
-	 * address is, so its refusal is the same for every address.
+	 * address is, so its refusal is the same for every address, and under a row lock, so a
+	 * subscribe that follows staff turning it off is refused.
 	 */
 	async subscribe(
 		page: { id: string; organizationId: string },
 		email: string,
 	): Promise<SubscribeResult> {
-		if (!(await this.accepts(page.organizationId))) return "paused";
-
 		const t = statusPageSubscriber;
 		const address = email.trim().toLowerCase();
 		const now = new Date();
@@ -64,6 +63,10 @@ export class StatusPageSubscriberService {
 		const windowStart = new Date(now.getTime() - RESEND_INTERVAL_MS);
 
 		const row = await this.db.transaction(async (tx): Promise<Pending | SubscribeResult> => {
+			if (!(await subscriberEmailEnabled(tx, page.organizationId, { lock: true }))) {
+				return "paused";
+			}
+
 			// Serializes subscribes per page, so concurrent requests cannot all pass the cap.
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${page.id}))`);
 

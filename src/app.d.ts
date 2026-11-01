@@ -87,6 +87,7 @@ declare global {
 			// Status Page [Optional]
 			UPPITY_STATUS_PAGE_HISTORY_DAYS?: string;
 			UPPITY_LANDING_STATUS_SLUG?: string;
+			UPPITY_GATE_SUBSCRIBER_EMAIL?: string;
 
 			// Worker Scheduler [Optional]
 			UPPITY_MIN_INTERVAL_SECONDS?: string;

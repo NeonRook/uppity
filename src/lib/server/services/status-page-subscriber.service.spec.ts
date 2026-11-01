@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { afterEach, describe, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
 import { organization } from "../db/auth-schema";
 import {
@@ -28,9 +28,8 @@ const HOUR_MS = 60 * 60_000;
 async function setup(
 	drizzleDb: TestDb["db"],
 	cap?: { base: number; percentOfConfirmed: number; max: number },
-	subscriberEmailEnabled = true,
 ) {
-	const orgId = await seedOrg(drizzleDb, { subscriberEmailEnabled });
+	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
 	const page = { id: `sp-${suffix}`, organizationId: orgId };
 	await drizzleDb.insert(statusPage).values({ ...page, name: "Acme", slug: `acme-${suffix}` });
@@ -244,9 +243,35 @@ describe("StatusPageSubscriberService", () => {
 	});
 });
 
+const setSwitch = (drizzleDb: TestDb["db"], organizationId: string, enabled: boolean) =>
+	drizzleDb
+		.update(organization)
+		.set({ subscriberEmailEnabled: enabled })
+		.where(eq(organization.id, organizationId));
+
+const switchState = async (drizzleDb: TestDb["db"], organizationId: string) => {
+	const [org] = await drizzleDb
+		.select({ enabled: organization.subscriberEmailEnabled })
+		.from(organization)
+		.where(eq(organization.id, organizationId));
+	return org.enabled;
+};
+
+const insertSubscriber = (drizzleDb: TestDb["db"], statusPageId: string) =>
+	drizzleDb.insert(statusPageSubscriber).values({
+		id: nanoid(),
+		statusPageId,
+		email: `${nanoid().toLowerCase()}@example.com`,
+		token: nanoid(),
+	});
+
 describe("subscriber email switch", () => {
+	beforeEach(() => {
+		vi.stubEnv("UPPITY_GATE_SUBSCRIBER_EMAIL", "true");
+	});
+
 	test("off refuses every address alike and records nothing", async ({ db }) => {
-		const { page, send, service } = await setup(db.db, undefined, false);
+		const { page, send, service } = await setup(db.db);
 		const suppressed = `${nanoid().toLowerCase()}@example.com`;
 		await db.db.insert(emailSuppression).values({ email: suppressed, reason: "bounce" });
 		const fresh = `${nanoid().toLowerCase()}@example.com`;
@@ -269,39 +294,83 @@ describe("subscriber email switch", () => {
 
 	test("off stops a waiting confirmation link, and unsubscribing still works", async ({ db }) => {
 		const { page, sent, service } = await setup(db.db);
+		await setSwitch(db.db, page.organizationId, true);
 		await service.subscribe(page, "visitor@example.com");
 		const [{ token }] = sent;
 		expect(await service.pageIdFor(token)).toBe(page.id);
 
-		await db.db
-			.update(organization)
-			.set({ subscriberEmailEnabled: false })
-			.where(eq(organization.id, page.organizationId));
+		await setSwitch(db.db, page.organizationId, false);
 
 		expect(await service.pageIdFor(token)).toBeUndefined();
 		await service.unsubscribe(page.id, token);
 		expect(await service.lookup(page.id, token)).toBeNull();
 	});
 
+	test("a subscribe that overlaps staff turning it off waits, then is refused", async ({ db }) => {
+		const { page, send, service } = await setup(db.db);
+		await setSwitch(db.db, page.organizationId, true);
+
+		let result: Promise<string> | undefined;
+		await db.db.transaction(async (tx) => {
+			await tx
+				.update(organization)
+				.set({ subscriberEmailEnabled: false })
+				.where(eq(organization.id, page.organizationId));
+			result = service.subscribe(page, "visitor@example.com");
+			await new Promise((done) => setTimeout(done, 100));
+		});
+
+		expect(await result).toBe("paused");
+		expect(send).not.toHaveBeenCalled();
+	});
+
 	test("self-hosted instances ignore it", async ({ db }) => {
 		vi.stubEnv("SELF_HOSTED", "true");
-		const { page, sent, service } = await setup(db.db, undefined, false);
+		const { page, sent, service } = await setup(db.db);
 
 		expect(await service.subscribe(page, "visitor@example.com")).toBe("sent");
 
 		expect(await service.pageIdFor(sent[0].token)).toBe(page.id);
 		expect(await service.accepts(page.organizationId)).toBe(true);
 	});
+
+	test("an instance without the setting ignores it", async ({ db }) => {
+		vi.stubEnv("UPPITY_GATE_SUBSCRIBER_EMAIL", "");
+		const { page, sent, service } = await setup(db.db);
+
+		expect(await service.subscribe(page, "visitor@example.com")).toBe("sent");
+
+		expect(await service.pageIdFor(sent[0].token)).toBe(page.id);
+	});
+
+	test("a new subscriber leaves the switch as it was", async ({ db }) => {
+		const { page } = await setup(db.db);
+
+		await insertSubscriber(db.db, page.id);
+		expect(await switchState(db.db, page.organizationId)).toBe(false);
+
+		await setSwitch(db.db, page.organizationId, true);
+		await insertSubscriber(db.db, page.id);
+		expect(await switchState(db.db, page.organizationId)).toBe(true);
+	});
+
+	test("a staff off survives a new subscriber", async ({ db }) => {
+		const { page } = await setup(db.db);
+		await setSwitch(db.db, page.organizationId, true);
+		await setSwitch(db.db, page.organizationId, false);
+
+		await insertSubscriber(db.db, page.id);
+
+		expect(await switchState(db.db, page.organizationId)).toBe(false);
+	});
 });
 
 describe("subscriber email backfill", () => {
-	const [, backfill] = readFileSync("drizzle/0033_subscriber_email_enabled.sql", "utf8").split(
-		"--> statement-breakpoint",
-	);
+	const backfill = readFileSync("drizzle/0033_subscriber_email_enabled.sql", "utf8")
+		.split("--> statement-breakpoint")
+		.at(-1);
 
-	test("turns on organizations with a confirmed subscriber on any page, and no others", async ({
-		db,
-	}) => {
+	test("turns on organizations with a subscriber on any page, and no others", async ({ db }) => {
 		const seed = async (subscriber: { confirmed: boolean } | null, isPublic = true) => {
 			const orgId = await seedOrg(db.db);
 			const id = `sp-${nanoid().toLowerCase()}`;
@@ -324,13 +393,11 @@ describe("subscriber email backfill", () => {
 		const pendingOnly = await seed({ confirmed: false });
 		const none = await seed(null);
 
-		await db.client.unsafe(backfill);
+		await db.client.unsafe(backfill ?? "");
 
-		const rows = await db.db.select().from(organization);
-		const enabled = (id: string) => rows.find((o) => o.id === id)?.subscriberEmailEnabled;
-		expect(enabled(confirmed)).toBe(true);
-		expect(enabled(onPrivatePage)).toBe(true);
-		expect(enabled(pendingOnly)).toBe(false);
-		expect(enabled(none)).toBe(false);
+		expect(await switchState(db.db, confirmed)).toBe(true);
+		expect(await switchState(db.db, onPrivatePage)).toBe(true);
+		expect(await switchState(db.db, pendingOnly)).toBe(true);
+		expect(await switchState(db.db, none)).toBe(false);
 	});
 });

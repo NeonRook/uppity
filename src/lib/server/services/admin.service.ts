@@ -11,6 +11,7 @@ import {
 	monitor,
 	organizationMailBlock,
 } from "#lib/server/db/schema.js";
+import { reachableSubscribers } from "#lib/server/notifications/subscribers.js";
 import { clearOpsAlert } from "#lib/server/ops-alert.js";
 
 import { auditService, AuditService, type Actor } from "./audit.service";
@@ -354,6 +355,11 @@ export class AdminService {
 		return block ?? null;
 	}
 
+	/** Confirmed subscribers who stop getting incident email if the switch goes off. */
+	countReachableSubscribers(organizationId: string): Promise<number> {
+		return reachableSubscribers(this.db, organizationId);
+	}
+
 	/** Turns the organization's status page subscriber email on or off. */
 	async setSubscriberEmail(actor: Actor, organizationId: string, enabled: boolean): Promise<void> {
 		await this.db.transaction(async (tx) => {
@@ -374,7 +380,10 @@ export class AdminService {
 				targetType: "organization",
 				targetId: organizationId,
 				targetLabel: organizationId,
-				metadata: { enabled },
+				metadata: {
+					enabled,
+					confirmedSubscribers: await reachableSubscribers(tx, organizationId),
+				},
 			});
 		});
 	}

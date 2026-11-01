@@ -35,7 +35,6 @@ async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
 		name: `Test Org ${suffix}`,
 		slug: orgId,
 		createdAt: new Date(),
-		subscriberEmailEnabled: true,
 	});
 	return orgId;
 }
@@ -366,10 +365,6 @@ function recordingSender() {
 
 async function seedSwitchedOffEvent(drizzleDb: TestDb["db"]) {
 	const orgId = await seedOrg(drizzleDb);
-	await drizzleDb
-		.update(organization)
-		.set({ subscriberEmailEnabled: false })
-		.where(eq(organization.id, orgId));
 	const monitorId = await seedMonitor(drizzleDb, orgId);
 	const page = await seedPage(drizzleDb, orgId, [monitorId]);
 	await seedSubscriber(drizzleDb, page, "confirmed@example.com");
@@ -378,12 +373,20 @@ async function seedSwitchedOffEvent(drizzleDb: TestDb["db"]) {
 	return fetchEvent(drizzleDb, eventId);
 }
 
+async function sentWithSwitchOff(drizzleDb: TestDb["db"]) {
+	const { sent, send } = recordingSender();
+	const service = new NotificationService(drizzleDb, undefined, send);
+	await service.dispatchEvent(await seedSwitchedOffEvent(drizzleDb));
+	return sent.map((email) => email.email);
+}
+
 describe("NotificationService.dispatchEvent (subscribers)", () => {
 	afterEach(() => {
 		vi.unstubAllEnvs();
 	});
 
 	test("sends nothing while the organization's subscriber email is off", async ({ db }) => {
+		vi.stubEnv("UPPITY_GATE_SUBSCRIBER_EMAIL", "true");
 		const { db: drizzleDb } = db;
 		const { send } = recordingSender();
 		const service = new NotificationService(drizzleDb, undefined, send);
@@ -394,15 +397,15 @@ describe("NotificationService.dispatchEvent (subscribers)", () => {
 		expect(result.status).toBe("suppressed");
 	});
 
-	test("a self-hosted instance sends with the switch off", async ({ db }) => {
+	test("an instance without the gate setting sends with the switch off", async ({ db }) => {
+		expect(await sentWithSwitchOff(db.db)).toEqual(["confirmed@example.com"]);
+	});
+
+	test("a self-hosted instance sends with the switch off, whatever the setting", async ({ db }) => {
 		vi.stubEnv("SELF_HOSTED", "true");
-		const { db: drizzleDb } = db;
-		const { sent, send } = recordingSender();
-		const service = new NotificationService(drizzleDb, undefined, send);
+		vi.stubEnv("UPPITY_GATE_SUBSCRIBER_EMAIL", "true");
 
-		await service.dispatchEvent(await seedSwitchedOffEvent(drizzleDb));
-
-		expect(sent.map((email) => email.email)).toEqual(["confirmed@example.com"]);
+		expect(await sentWithSwitchOff(db.db)).toEqual(["confirmed@example.com"]);
 	});
 
 	test("emails confirmed subscribers of public pages that show the incident", async ({ db }) => {

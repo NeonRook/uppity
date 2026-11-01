@@ -925,6 +925,7 @@
 	"admin_org_subscriber_email": "E-mail para inscritos",
 	"admin_org_subscriber_email_on": "As páginas de status oferecem inscrição por e-mail, e inscritos confirmados recebem e-mails de incidentes.",
 	"admin_org_subscriber_email_off": "As páginas de status não mostram o formulário de inscrição, e inscritos não recebem e-mails de incidentes. Inscritos confirmados são mantidos e voltam a receber e-mails quando isto for ligado.",
+	"admin_org_subscriber_email_affected": "Inscritos confirmados que deixam de receber e-mails se isto for desligado: {count}.",
 	"admin_org_subscriber_email_enable": "Ligar",
 	"admin_org_subscriber_email_disable": "Desligar"
 }
