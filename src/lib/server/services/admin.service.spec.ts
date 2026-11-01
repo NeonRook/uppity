@@ -337,6 +337,24 @@ describe("liftSuppression", () => {
 	});
 });
 
+describe("setSubscriberEmail", () => {
+	test("changes the switch and audits only a real change", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+
+		await service.setSubscriberEmail(actor, orgId, true);
+		await service.setSubscriberEmail(actor, orgId, true);
+
+		const org = await service.getOrganizationById(orgId);
+		expect(org?.subscriberEmailEnabled).toBe(true);
+		const audit = await auditRowsFor(drizzleDb, actor);
+		expect(audit.map((row) => row.action)).toEqual(["org.subscriber_email_set"]);
+		expect(audit[0].metadata).toEqual({ enabled: true });
+	});
+});
+
 describe("clearMailBlock", () => {
 	test("lifts the block, forgets the counted failures, and audits", async ({ db }) => {
 		const { db: drizzleDb } = db;

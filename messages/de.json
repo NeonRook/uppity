@@ -919,5 +919,10 @@
 	"admin_suppression_bounce": "Endgültiger Zustellfehler am {date}.",
 	"admin_suppression_complaint": "Spam-Beschwerde am {date}.",
 	"admin_suppression_provider": "Wenn du über Resend sendest, entferne die Adresse auch aus der Sperrliste von Resend. Sonst kommen E-Mails weiterhin nicht an und die Adresse landet wieder hier.",
-	"admin_suppression_lift": "Sperre aufheben"
+	"admin_suppression_lift": "Sperre aufheben",
+	"admin_org_subscriber_email": "E-Mails an Abonnenten",
+	"admin_org_subscriber_email_on": "Statusseiten bieten E-Mail-Abonnements an, und bestätigte Abonnenten erhalten E-Mails zu Vorfällen.",
+	"admin_org_subscriber_email_off": "Statusseiten zeigen kein Abo-Formular, und Abonnenten erhalten keine E-Mails zu Vorfällen. Bestätigte Abonnenten bleiben erhalten und bekommen wieder E-Mails, sobald dies eingeschaltet ist.",
+	"admin_org_subscriber_email_enable": "Einschalten",
+	"admin_org_subscriber_email_disable": "Ausschalten"
 }

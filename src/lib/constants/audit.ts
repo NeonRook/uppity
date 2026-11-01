@@ -15,6 +15,7 @@ export const AUDIT_ACTIONS = [
 	"org.member_remove",
 	"org.subscription_resync",
 	"org.mail_block_clear",
+	"org.subscriber_email_set",
 	"monitor.dead_letter_reset",
 	"mail.suppression_lift",
 ] as const;

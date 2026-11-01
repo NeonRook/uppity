@@ -919,5 +919,10 @@
 	"admin_suppression_bounce": "Hard bounce on {date}.",
 	"admin_suppression_complaint": "Spam complaint on {date}.",
 	"admin_suppression_provider": "If you send through Resend, remove the address from Resend's suppression list too, or mail to it stays undelivered and it comes back here.",
-	"admin_suppression_lift": "Lift suppression"
+	"admin_suppression_lift": "Lift suppression",
+	"admin_org_subscriber_email": "Subscriber email",
+	"admin_org_subscriber_email_on": "Status pages offer email subscriptions, and confirmed subscribers get incident emails.",
+	"admin_org_subscriber_email_off": "Status pages show no subscribe form, and subscribers get no incident emails. Confirmed subscribers are kept and get mail again once this is on.",
+	"admin_org_subscriber_email_enable": "Turn on",
+	"admin_org_subscriber_email_disable": "Turn off"
 }

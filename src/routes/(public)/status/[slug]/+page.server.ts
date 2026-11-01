@@ -21,7 +21,13 @@ export const load: PageServerLoad = async ({ params }) => {
 		error(404, "Status page not found");
 	}
 
-	return { statusData: data, subscribeForm: await superValidate(valibot(subscribeSchema)) };
+	const page = await statusPageService.findBySlug(params.slug);
+	const accepting = page && (await statusPageSubscriberService.accepts(page.organizationId));
+
+	return {
+		statusData: data,
+		subscribeForm: accepting ? await superValidate(valibot(subscribeSchema)) : null,
+	};
 };
 
 export const actions: Actions = {

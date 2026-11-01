@@ -34,6 +34,7 @@ async function seedOrg(drizzleDb: TestDb["db"]): Promise<string> {
 		name: `Test Org ${suffix}`,
 		slug: orgId,
 		createdAt: new Date(),
+		subscriberEmailEnabled: true,
 	});
 	return orgId;
 }
@@ -362,7 +363,47 @@ function recordingSender() {
 	return { sent, send };
 }
 
+async function seedSwitchedOffEvent(drizzleDb: TestDb["db"]) {
+	const orgId = await seedOrg(drizzleDb);
+	await drizzleDb
+		.update(organization)
+		.set({ subscriberEmailEnabled: false })
+		.where(eq(organization.id, orgId));
+	const monitorId = await seedMonitor(drizzleDb, orgId);
+	const page = await seedPage(drizzleDb, orgId, [monitorId]);
+	await seedSubscriber(drizzleDb, page, "confirmed@example.com");
+	const incidentId = await seedIncident(drizzleDb, orgId, [monitorId]);
+	const eventId = await enqueueIncidentEvent(drizzleDb, orgId, incidentId, "incident_created");
+	return fetchEvent(drizzleDb, eventId);
+}
+
 describe("NotificationService.dispatchEvent (subscribers)", () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	test("sends nothing while the organization's subscriber email is off", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const { send } = recordingSender();
+		const service = new NotificationService(drizzleDb, undefined, send);
+
+		const result = await service.dispatchEvent(await seedSwitchedOffEvent(drizzleDb));
+
+		expect(send).not.toHaveBeenCalled();
+		expect(result.status).toBe("suppressed");
+	});
+
+	test("a self-hosted instance sends with the switch off", async ({ db }) => {
+		vi.stubEnv("SELF_HOSTED", "true");
+		const { db: drizzleDb } = db;
+		const { sent, send } = recordingSender();
+		const service = new NotificationService(drizzleDb, undefined, send);
+
+		await service.dispatchEvent(await seedSwitchedOffEvent(drizzleDb));
+
+		expect(sent.map((email) => email.email)).toEqual(["confirmed@example.com"]);
+	});
+
 	test("emails confirmed subscribers of public pages that show the incident", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const { sent, send } = recordingSender();

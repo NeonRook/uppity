@@ -84,6 +84,8 @@ export const organization = pgTable("organization", {
 	logo: text("logo"),
 	createdAt: timestamp("created_at").notNull(),
 	metadata: text("metadata"),
+	// Staff switch for status page subscriber email. Self-hosted instances ignore it.
+	subscriberEmailEnabled: boolean("subscriber_email_enabled").default(false).notNull(),
 });
 
 export const member = pgTable(

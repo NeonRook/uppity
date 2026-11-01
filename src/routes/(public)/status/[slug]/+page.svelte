@@ -232,7 +232,9 @@
 		{/if}
 	{/each}
 
-	<StatusPageSubscribe data={data.subscribeForm} />
+	{#if data.subscribeForm}
+		<StatusPageSubscribe data={data.subscribeForm} />
+	{/if}
 
 	<!-- Incident History -->
 	<section class="mb-8">

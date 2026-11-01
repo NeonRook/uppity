@@ -919,5 +919,10 @@
 	"admin_suppression_bounce": "Devolução permanente em {date}.",
 	"admin_suppression_complaint": "Reclamação de spam em {date}.",
 	"admin_suppression_provider": "Se você envia pelo Resend, remova o endereço também da lista de supressão do Resend. Caso contrário, os e-mails continuam sem chegar e o endereço volta para cá.",
-	"admin_suppression_lift": "Remover supressão"
+	"admin_suppression_lift": "Remover supressão",
+	"admin_org_subscriber_email": "E-mail para inscritos",
+	"admin_org_subscriber_email_on": "As páginas de status oferecem inscrição por e-mail, e inscritos confirmados recebem e-mails de incidentes.",
+	"admin_org_subscriber_email_off": "As páginas de status não mostram o formulário de inscrição, e inscritos não recebem e-mails de incidentes. Inscritos confirmados são mantidos e voltam a receber e-mails quando isto for ligado.",
+	"admin_org_subscriber_email_enable": "Ligar",
+	"admin_org_subscriber_email_disable": "Desligar"
 }

@@ -1,8 +1,16 @@
-import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
-import { describe, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
-import { emailSuppression, statusPage, statusPageSubscriber } from "../db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { nanoid } from "nanoid";
+import { afterEach, describe, expect, vi } from "vitest";
+
+import { organization } from "../db/auth-schema";
+import {
+	emailSuppression,
+	statusPage,
+	statusPageSubscriber,
+	unsolicitedMailSend,
+} from "../db/schema";
 import type { SubscriptionConfirmation } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -20,8 +28,9 @@ const HOUR_MS = 60 * 60_000;
 async function setup(
 	drizzleDb: TestDb["db"],
 	cap?: { base: number; percentOfConfirmed: number; max: number },
+	subscriberEmailEnabled = true,
 ) {
-	const orgId = await seedOrg(drizzleDb);
+	const orgId = await seedOrg(drizzleDb, { subscriberEmailEnabled });
 	const suffix = nanoid().toLowerCase();
 	const page = { id: `sp-${suffix}`, organizationId: orgId };
 	await drizzleDb.insert(statusPage).values({ ...page, name: "Acme", slug: `acme-${suffix}` });
@@ -37,6 +46,10 @@ async function setup(
 		service: new StatusPageSubscriberService(drizzleDb, send, cap),
 	};
 }
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
 
 const backdate = (drizzleDb: TestDb["db"], token: string, ms: number) =>
 	drizzleDb
@@ -228,5 +241,96 @@ describe("StatusPageSubscriberService", () => {
 			.from(statusPageSubscriber)
 			.where(eq(statusPageSubscriber.statusPageId, page.id));
 		expect(remaining.map((r) => r.token).toSorted()).toEqual([fresh, kept].toSorted());
+	});
+});
+
+describe("subscriber email switch", () => {
+	test("off refuses every address alike and records nothing", async ({ db }) => {
+		const { page, send, service } = await setup(db.db, undefined, false);
+		const suppressed = `${nanoid().toLowerCase()}@example.com`;
+		await db.db.insert(emailSuppression).values({ email: suppressed, reason: "bounce" });
+		const fresh = `${nanoid().toLowerCase()}@example.com`;
+
+		expect(await service.subscribe(page, suppressed)).toBe("paused");
+		expect(await service.subscribe(page, fresh)).toBe("paused");
+
+		expect(send).not.toHaveBeenCalled();
+		const rows = await db.db
+			.select()
+			.from(statusPageSubscriber)
+			.where(eq(statusPageSubscriber.statusPageId, page.id));
+		expect(rows).toHaveLength(0);
+		const logged = await db.db
+			.select()
+			.from(unsolicitedMailSend)
+			.where(inArray(unsolicitedMailSend.email, [suppressed, fresh]));
+		expect(logged).toHaveLength(0);
+	});
+
+	test("off stops a waiting confirmation link, and unsubscribing still works", async ({ db }) => {
+		const { page, sent, service } = await setup(db.db);
+		await service.subscribe(page, "visitor@example.com");
+		const [{ token }] = sent;
+		expect(await service.pageIdFor(token)).toBe(page.id);
+
+		await db.db
+			.update(organization)
+			.set({ subscriberEmailEnabled: false })
+			.where(eq(organization.id, page.organizationId));
+
+		expect(await service.pageIdFor(token)).toBeUndefined();
+		await service.unsubscribe(page.id, token);
+		expect(await service.lookup(page.id, token)).toBeNull();
+	});
+
+	test("self-hosted instances ignore it", async ({ db }) => {
+		vi.stubEnv("SELF_HOSTED", "true");
+		const { page, sent, service } = await setup(db.db, undefined, false);
+
+		expect(await service.subscribe(page, "visitor@example.com")).toBe("sent");
+
+		expect(await service.pageIdFor(sent[0].token)).toBe(page.id);
+		expect(await service.accepts(page.organizationId)).toBe(true);
+	});
+});
+
+describe("subscriber email backfill", () => {
+	const [, backfill] = readFileSync("drizzle/0033_subscriber_email_enabled.sql", "utf8").split(
+		"--> statement-breakpoint",
+	);
+
+	test("turns on organizations with a confirmed subscriber on any page, and no others", async ({
+		db,
+	}) => {
+		const seed = async (subscriber: { confirmed: boolean } | null, isPublic = true) => {
+			const orgId = await seedOrg(db.db);
+			const id = `sp-${nanoid().toLowerCase()}`;
+			await db.db
+				.insert(statusPage)
+				.values({ id, organizationId: orgId, name: "Acme", slug: id, isPublic });
+			if (subscriber) {
+				await db.db.insert(statusPageSubscriber).values({
+					id: nanoid(),
+					statusPageId: id,
+					email: "visitor@example.com",
+					token: nanoid(),
+					verifiedAt: subscriber.confirmed ? new Date() : null,
+				});
+			}
+			return orgId;
+		};
+		const confirmed = await seed({ confirmed: true });
+		const onPrivatePage = await seed({ confirmed: true }, false);
+		const pendingOnly = await seed({ confirmed: false });
+		const none = await seed(null);
+
+		await db.client.unsafe(backfill);
+
+		const rows = await db.db.select().from(organization);
+		const enabled = (id: string) => rows.find((o) => o.id === id)?.subscriberEmailEnabled;
+		expect(enabled(confirmed)).toBe(true);
+		expect(enabled(onPrivatePage)).toBe(true);
+		expect(enabled(pendingOnly)).toBe(false);
+		expect(enabled(none)).toBe(false);
 	});
 });

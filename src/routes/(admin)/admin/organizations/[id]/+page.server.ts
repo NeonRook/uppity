@@ -136,6 +136,16 @@ export const actions: Actions = {
 		return { cleared: true };
 	},
 
+	setSubscriberEmail: async (event) => {
+		if (isSelfHosted()) {
+			return fail(400, { message: "Subscriber email has no switch in self-hosted mode" });
+		}
+
+		const enabled = (await event.request.formData()).get("enabled") === "true";
+		await adminService.setSubscriberEmail(await getActor(event), event.params.id, enabled);
+		return { subscriberEmailSet: true };
+	},
+
 	resyncSubscription: async (event) => {
 		const { params } = event;
 
