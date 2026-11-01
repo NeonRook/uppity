@@ -142,6 +142,12 @@ describe("performHttpCheck", () => {
 		});
 	});
 
+	test("reports a stored URL that is not http or https as not valid", async () => {
+		const result = await performHttpCheck({ ...target("http://x"), url: "admin:hunter2@example" });
+
+		expect(result).toMatchObject({ status: "down", errorMessage: "URL is not valid" });
+	});
+
 	test("keeps an unsupported redirect target out of the error", async () => {
 		const { origin } = await serve((_req, res) => {
 			res.writeHead(302, { location: "app://callback?token=abc123" }).end();

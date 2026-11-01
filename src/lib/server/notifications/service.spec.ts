@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { afterEach, describe, expect, vi } from "vitest";
 
-import { UNREADABLE_URL } from "../api/redact";
 import { organization } from "../db/auth-schema";
 import {
 	emailSuppression,
@@ -575,21 +574,29 @@ describe("NotificationService.dispatchEvent (monitor URL)", () => {
 		const redacted = "https://example.com/health?token=***";
 		expect(JSON.parse(bodies.get("plain")!).monitor.url).toBe(redacted);
 		expect(JSON.parse(bodies.get("templated")!)).toEqual({ at: redacted });
-		expect(bodies.get("slack")).toContain(redacted);
-		expect(bodies.get("discord")).toContain(redacted);
-		expect(mail.text).toContain(redacted);
+		expect(JSON.parse(bodies.get("slack")!).attachments[0].blocks).toContainEqual({
+			type: "section",
+			text: { type: "mrkdwn", text: `*URL:* ${redacted}` },
+		});
+		expect(JSON.parse(bodies.get("discord")!).embeds[0].fields).toContainEqual({
+			name: "URL",
+			value: redacted,
+			inline: false,
+		});
+		expect(mail.text).toContain(`URL: ${redacted}`);
+		expect(mail.html).toContain(`<strong>URL:</strong> ${redacted}`);
 	});
 
-	test("every channel gets a placeholder for a URL it cannot read", async ({ db }) => {
+	test("every channel omits a URL it cannot read", async ({ db }) => {
 		for (const url of ["admin:hunter2@example.com/health", "not a url hunter2"]) {
 			const { bodies, mail, sent } = await alertEveryChannel(db.db, url);
 
 			expect(sent).not.toContain("hunter2");
-			expect(JSON.parse(bodies.get("plain")!).monitor.url).toBe(UNREADABLE_URL);
-			expect(JSON.parse(bodies.get("templated")!)).toEqual({ at: UNREADABLE_URL });
-			expect(bodies.get("slack")).toContain(UNREADABLE_URL);
-			expect(bodies.get("discord")).toContain(UNREADABLE_URL);
-			expect(mail.text).toContain(UNREADABLE_URL);
+			expect(JSON.parse(bodies.get("plain")!).monitor.url).toBeNull();
+			expect(JSON.parse(bodies.get("templated")!)).toEqual({ at: "" });
+			expect(bodies.get("slack")).not.toContain("URL:");
+			expect(bodies.get("discord")).not.toContain('"URL"');
+			expect(mail.text).not.toContain("URL:");
 		}
 	});
 });
