@@ -1,5 +1,105 @@
 # Changelog
 
+## 0.9.0
+
+### Minor Changes
+
+- [#183](https://github.com/NeonRook/uppity/pull/183) [`105dd9a`](https://github.com/NeonRook/uppity/commit/105dd9ac19af017a7b731000107706070fe55c2e) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Alerts that fail to deliver are now sent again instead of being lost. When a mail server, Slack, Discord or a webhook is down, times out or is overloaded, Uppity tries again after 1, 2, 5, 10, 20 and 30 minutes. Status page subscribers get the same retries. A clear refusal, such as a rejected address or a webhook answering 404, is not tried again. After a timeout, an alert can occasionally arrive twice.
+
+  A late alert says it is late and shows the time it happened. If the monitor or incident has moved on since, its subject says so, for example "Delayed, now up", and webhooks do not receive it, so an automation never ends on an old state.
+
+  A webhook that takes longer than 30 seconds to answer now counts as failed and is retried.
+
+  An email channel whose address bounced or marked email as spam now says so on the notification channels page, because alerts to it are dropped.
+
+  Self-hosted operators with ops alerts configured get a message within minutes when the mail server refuses the login or the sender, or stops answering, at most once per cooldown. Alert emails wait for about an hour, so fixing the password in that time delivers them. An ops alert sent by email goes through that same mail server, so set the Discord destination to hear about this. A customer's failing webhook sends no ops alert. Nothing to configure and no migration.
+
+- [#186](https://github.com/NeonRook/uppity/pull/186) [`16cf003`](https://github.com/NeonRook/uppity/commit/16cf003630b5d177c4935b1832326fa5fe9aaeb2) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Status pages can now serve on your own domain, such as `status.example.com`. An owner or admin adds the domain in the page's settings, creates the CNAME and TXT records it shows, and the page goes live on that domain once DNS checks out. Keep both records in place: about three hours after either one is removed, the page leaves the domain, and owners and admins get an email and see the domain marked as lost in the settings. Putting the records back restores it. On hosted plans that include custom domains, HTTPS for a new domain is set up by hand, so it may take a while after the domain shows as active.
+
+  Self-hosted operators need to do three things to use this. Pass the original `Host` header through your reverse proxy, get a certificate for each customer domain, and add each domain to your Turnstile widget if you use one. The custom domains guide in the repository has Caddy and Traefik examples. `UPPITY_STATUS_PAGE_CNAME_TARGET` sets where customers point their domain. With `SELF_HOSTED=true` it defaults to the host of `BETTER_AUTH_URL`, and without a public hostname there the feature stays hidden.
+
+  Upgrade note: any domain already stored on a status page by hand was never verified, so it stops being used as the page's address. The page's settings show it as waiting for DNS until an owner or admin creates the records. Other hostnames keep reaching the app as before.
+
+- [#179](https://github.com/NeonRook/uppity/pull/179) [`53f6ba5`](https://github.com/NeonRook/uppity/commit/53f6ba556e27de3dc071816ce890b7e4de445190) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Status page subscribers whose address hard-bounces or reports an email as spam stop receiving mail, and no later confirmation email reaches them if they subscribe again. Their subscriptions are deleted after 90 days (`UPPITY_SUPPRESSED_SUBSCRIBER_RETENTION_DAYS`, set on the monitor worker). An admin can look up an address under Suppressed addresses in the admin area and lift it, which also keeps its subscriptions.
+
+  If you send through Resend, add a webhook for `email.bounced` and `email.complained` pointing at `/api/webhooks/resend`, and set its signing secret as `RESEND_WEBHOOK_SECRET` on the web server. Without the secret the endpoint refuses every request and mail behaves as before. Resend sends a webhook every event on the account, so instances sharing one Resend account suppress each other's addresses.
+
+- [#179](https://github.com/NeonRook/uppity/pull/179) [`4b579a1`](https://github.com/NeonRook/uppity/commit/4b579a1e0a038f405e513eaff54872541d494505) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Hosted instances now limit email to addresses that never agreed to mail: channel confirmations, status page subscriber confirmations and team invitations. The whole instance sends at most 1,000 a day, of which status page subscriptions may use half, and past that sends are refused with a message saying so. An organization whose own channel confirmations and invitations draw too many hard bounces or spam complaints can't email new addresses until an admin clears it from the organization's page in the admin area. Addresses visitors type into a status page don't count against its organization. Alerts to confirmed addresses are never held back.
+
+  Self-hosted instances keep working as before: the ceiling is off with `SELF_HOSTED=true`, and organizations are only blocked if a Resend webhook is set up. Set `UPPITY_UNSOLICITED_MAIL_DAILY_CEILING` to change or turn on the ceiling, and the `UPPITY_MAIL_*` variables in `.env.example` to change the thresholds. To hear about the ceiling and blocks, set `UPPITY_OPS_ALERT_EMAIL` or `UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL` on the web server as well as the notifier.
+
+  With `docker-compose.yml`, `SELF_HOSTED` from your `.env` now reaches every container. It was ignored before, so if you set it, plan limits stop applying after this upgrade.
+
+  Subscription confirmation links no longer contain the status page's address. Links already sent keep working. The upgrade only adds new tables.
+
+- [#182](https://github.com/NeonRook/uppity/pull/182) [`57d02ed`](https://github.com/NeonRook/uppity/commit/57d02ed9bf21962922d7fbc89e06bc0371741692) Thanks [@lucasvienna](https://github.com/lucasvienna)! - On the hosted service, staff now turn on status page email subscriptions per organization. Organizations with confirmed subscribers when they upgrade keep them, keep their subscribe form and keep sending. Other organizations no longer show the form until staff turn it on, and confirmation links already sent to their visitors stop working. Alerts are not affected.
+
+  Self-hosted instances need no action. Subscribe forms and subscriber email keep working for every organization, whether or not `SELF_HOSTED` is set.
+
+- [#184](https://github.com/NeonRook/uppity/pull/184) [`5949091`](https://github.com/NeonRook/uppity/commit/5949091c2e3add4edd2a74b2f8d1aa5eb86851f4) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The register, password reset and status page subscribe forms can now run a Cloudflare Turnstile bot check. It is usually invisible to visitors, and status page visitors only load it once they start on the subscribe form.
+
+  Self-hosted instances keep working with no setup. To turn it on, create a Turnstile widget for the host in `BETTER_AUTH_URL` and set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on the web server. Setting only one makes those forms refuse submissions and logs an error.
+
+  With the check on, the subscribe form needs JavaScript. Those forms also refuse submissions while Cloudflare is unreachable, and unsetting both keys reopens them. Reading a status page and signing in never depend on Cloudflare. Cloudflare receives the IP address and browser details of visitors who use the forms, so name it in your privacy notice.
+
+### Patch Changes
+
+- [#180](https://github.com/NeonRook/uppity/pull/180) [`7ddbea2`](https://github.com/NeonRook/uppity/commit/7ddbea217dc2162fa9101615fa823f4c19d2e2ef) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Monitor alerts no longer show passwords or tokens from a monitor's URL. Slack, Discord, email and webhooks get the URL without its username, password and fragment, with query values and unusual query names shown as `***`. A secret written in the URL's host or path is still shown, so move it to a request header. A stored URL that is not http or https is left out of alerts, and webhooks send `monitor.url` as `null` for it. Because webhooks now get the masked value, a consumer that calls or matches that URL should use `monitor.id` instead.
+
+  The API applies the same masking and returns `null` for a monitor URL that is not http or https.
+
+  An automatically opened incident now starts with "Monitor is not responding." instead of the check's error text, which could show hostnames and ports on public status pages and in subscriber emails. The error stays in alerts and check history. A check that fails on an unsupported redirect no longer quotes the redirect target.
+
+  The monitor form now requires an http or https URL. A monitor saved with any other URL fails every check, and its form asks for a working URL before the next save.
+
+  Alerts and incident updates already sent still hold the original text, so change any credential you had in a monitor URL.
+
+- [#181](https://github.com/NeonRook/uppity/pull/181) [`e43c13a`](https://github.com/NeonRook/uppity/commit/e43c13a89916a3a51478f4931a4becf3439afa10) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Clicking "Ask again" too soon after an address unsubscribes now tells you the time you can ask again.
+
+- [#181](https://github.com/NeonRook/uppity/pull/181) [`9722a46`](https://github.com/NeonRook/uppity/commit/9722a467fe790be4c9897e5563cd6ed5fb9575ac) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Saving an email channel no longer waits for the confirmation email to send. The notification worker sends it now, so self-hosted operators need that worker running for confirmation emails to go out, as they already do for alerts. If the email can't be sent, the channel list shows "Email not sent" and you can resend it right away. "Resend confirmation" and "Ask again" still send right away.
+
+- [#185](https://github.com/NeonRook/uppity/pull/185) [`706628c`](https://github.com/NeonRook/uppity/commit/706628c9f454116fda15abf085e9d927e3b26998) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A monitor that keeps going down and recovering no longer sends an alert for every change. Once a monitor has sent 4 up and down alerts in an hour, its next outage sends one "flapping" message instead, with a reminder every hour while it lasts. Up, down and degraded alerts then wait until the monitor stays down for 5 minutes or goes 5 minutes without going down, and you get one alert for its status.
+
+  A real outage is still reported: a flapping monitor that stays down alerts within 5 minutes plus one check interval of its first failure, or at its "alert after failures" setting if that takes longer. A flapping monitor that recovers sends one recovery alert after the same 5 minutes. A monitor that keeps switching between down and degraded stays on hold, with the hourly reminder and an open incident, until it does one or the other.
+
+  The monitor page explains when a monitor is flapping. Status, check history, uptime and public status pages stay live throughout. An automatic incident stays open with the title "<monitor> is flapping" until the monitor settles, instead of one incident per bounce.
+
+  Webhooks get a new `monitor_flapping` event type. Webhook consumers that act on `monitor_down` and `monitor_up` receive neither while a monitor flaps.
+
+  Self-hosted operators can change this on the monitor worker with `UPPITY_FLAP_THRESHOLD`, `UPPITY_FLAP_WINDOW_SECONDS` and `UPPITY_FLAP_SETTLE_SECONDS`. A threshold of 0 or 1 turns it off, and a value outside the range in `.env.example` uses the default. A longer settle time delays the alert for an outage that follows flapping.
+
+- [#174](https://github.com/NeonRook/uppity/pull/174) [`5a6185e`](https://github.com/NeonRook/uppity/commit/5a6185ef8ca7a00411e755db86c17ddf26dd8359) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Logs now report the running release instead of `0.0.1`. Checks of a down target log at info level with `status="success"`, keeping the outcome in `check_status` and `check_error`, and `status="error"` now means the worker itself failed. If you alert on `status="error"` to catch down checks, switch to `check_status="down"`.
+
+- [#178](https://github.com/NeonRook/uppity/pull/178) [`f1432df`](https://github.com/NeonRook/uppity/commit/f1432df65685e9d8c232bbcf1e69624654c36366) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A monitor with an invalid saved URL now shows as down with the error "URL is not valid" and alerts like any other outage.
+
+- [#189](https://github.com/NeonRook/uppity/pull/189) [`6bf5056`](https://github.com/NeonRook/uppity/commit/6bf50567d1e8ccdf2e8e536fd3ca288ea3441360) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The landing page now shows the correct competitor prices for SAML SSO, audit logs and private status pages.
+
+- [#185](https://github.com/NeonRook/uppity/pull/185) [`951d8b1`](https://github.com/NeonRook/uppity/commit/951d8b1369313ef92e89805108729b3933569c2d) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Lowering a monitor's "alert after failures" setting during an outage now alerts on the next failed check. Before, an outage that had already passed the new setting stayed silent until it ended.
+
+- [#181](https://github.com/NeonRook/uppity/pull/181) [`bbde571`](https://github.com/NeonRook/uppity/commit/bbde5711e67c03f51fd540eeb5cc3038978e6a2e) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Uppity now gives up on a mail server that stops answering: after 30 seconds when connecting, or 60 seconds of silence once connected, instead of 2 and 10 minutes. Self-hosted operators with a relay that stays silent for longer will see those sends fail, and alert emails are tried again later.
+
+- [#172](https://github.com/NeonRook/uppity/pull/172) [`68f222e`](https://github.com/NeonRook/uppity/commit/68f222e3a95a4ce9678acf3c7cedc6f19091aecf) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Security updates to the HTTP client behind checks and webhook deliveries, and to the web framework. The database driver moves to a new major version: on TLS connections it now binds the login to the server certificate when the server offers it. No configuration changes are needed.
+
+- [#176](https://github.com/NeonRook/uppity/pull/176) [`9149ec2`](https://github.com/NeonRook/uppity/commit/9149ec282c51c9226b7654002b1396312e76f2b7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Self-hosted operators can now be told when monitors stop being checked on their instance. Set `UPPITY_OPS_ALERT_EMAIL`, `UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL`, or both on the notifier worker to get an alert when checks are overdue, when monitors are dead-lettered, or when the database cannot be read. The same alert repeats every 6 hours while its cause lasts; change that with `UPPITY_OPS_ALERT_COOLDOWN_HOURS`. A new outage after a recovery alerts straight away. Alerts name monitors and organizations by ID only, and the admin page has the details. Email needs the SMTP settings, and a webhook on a private address needs `UPPITY_ALLOW_PRIVATE_TARGETS`. With neither destination set, nothing changes. The upgrade adds one small table and locks nothing that exists.
+
+- [#177](https://github.com/NeonRook/uppity/pull/177) [`b7753f3`](https://github.com/NeonRook/uppity/commit/b7753f3d9bb5ec1b76fd32b076bcb72c93f6a58d) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Password reset emails now say the link expires in 1 hour, in both the HTML and plain-text versions.
+
+- [#181](https://github.com/NeonRook/uppity/pull/181) [`f191c7e`](https://github.com/NeonRook/uppity/commit/f191c7e0438f16b82dc9310ab1b41a8c4b73d54d) Thanks [@lucasvienna](https://github.com/lucasvienna)! - The monitor form and monitor page now show an unsubscribed email channel as "Unsubscribed", matching the channel list, instead of "Unconfirmed".
+
+- [#178](https://github.com/NeonRook/uppity/pull/178) [`efb377f`](https://github.com/NeonRook/uppity/commit/efb377f19c4705cdd5ed76e82c442ce47818b4b7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - An incident with a postmortem now counts as ended: it moves to the resolved history on status pages, the next outage on its monitor opens a new incident, and its postmortem stays editable. The API reference lists `postmortem` as an incident status.
+
+- [#177](https://github.com/NeonRook/uppity/pull/177) [`156a0c3`](https://github.com/NeonRook/uppity/commit/156a0c3376410eb78fa162a1debc572c01acd89f) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Alert emails and Discord messages now show a readable time with its zone, such as `10 Oct 2026, 18:34 UTC`, instead of a raw timestamp. Webhook payloads keep ISO 8601.
+
+- [#185](https://github.com/NeonRook/uppity/pull/185) [`3da3330`](https://github.com/NeonRook/uppity/commit/3da333055eaa84a23f47a83196ff7d7b51503c71) Thanks [@lucasvienna](https://github.com/lucasvienna)! - A monitor that recovers through a slow patch now sends its recovery alert. Before, going from down to degraded to up sent no recovery alert and left the automatic incident open on the status page until the next outage ended.
+
+  The recovery alert goes out on the first up check. The automatic incident closes then too, or sooner if the monitor stays degraded for 5 minutes, because it is responding again.
+
+- [#175](https://github.com/NeonRook/uppity/pull/175) [`995bb4e`](https://github.com/NeonRook/uppity/commit/995bb4ef4359ec16c7a3b6ad546016da40925fa7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Team invitations now reach the person you invite. They get an email with a link to accept or decline, and anyone with a pending invitation sees it on their dashboard. Accepting needs a verified email address that matches the invitation, and only members with a verified address can invite. Recipients can unsubscribe from a team's invitations, and an invitation stops working if the person who sent it leaves the organization.
+
+  Self-hosted operators: invitations need SMTP. Without it, inviting now fails with a clear message instead of reporting success. Invitation emails go through the subscriber mail server when one is set, and count toward `UPPITY_CHANNEL_PENDING_CONFIRMATIONS` together with alert confirmations.
+
+- [#177](https://github.com/NeonRook/uppity/pull/177) [`5454d44`](https://github.com/NeonRook/uppity/commit/5454d4453348e9a0660ac63b967b3c85875edead) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Uptime bars on status pages no longer label each day one day early for visitors west of UTC.
+
 ## 0.8.0
 
 ### Minor Changes
