@@ -1,6 +1,8 @@
 import { INVITATION_EXPIRES_IN_HOURS } from "#lib/constants/auth.js";
 
 import { appUrl, escapeHtml } from "./account-email";
+import { lateNotice } from "./notifications/message";
+import type { LateDelivery } from "./notifications/types";
 import { CONFIRMATION_TTL_HOURS } from "./services/status-page-subscriber.service";
 import { subscriberFrom, subscriberTransport } from "./smtp";
 
@@ -93,6 +95,7 @@ export interface SubscriberIncidentEmail {
 	incident: { id: string; title: string; status: string };
 	kind: "incident_created" | "incident_updated" | "incident_resolved";
 	message: string | undefined;
+	late?: LateDelivery;
 }
 
 const SUBJECT_PREFIX = {
@@ -111,6 +114,7 @@ export async function sendSubscriberIncidentEmail({
 	incident,
 	kind,
 	message,
+	late,
 }: SubscriberIncidentEmail): Promise<void> {
 	if (!subscriberTransport) throw new Error("SMTP not configured");
 
@@ -118,15 +122,17 @@ export async function sendSubscriberIncidentEmail({
 	const unsubscribeUrl = `${appUrl}/status/${page.slug}/unsubscribe/${token}`;
 	const status = `Status: ${capitalize(incident.status)}`;
 	const footer = `You get this email because you subscribed to ${page.name} status updates.`;
+	const notice = late ? lateNotice(late) : undefined;
 
 	await subscriberTransport.sendMail({
 		from: subscriberFrom,
 		to: email,
-		subject: `[${page.name}] ${SUBJECT_PREFIX[kind]}${incident.title}`,
+		subject: `[${page.name}] ${late ? "Delayed: " : ""}${SUBJECT_PREFIX[kind]}${incident.title}`,
 		headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
 		html: [
 			`<h2>${escapeHtml(incident.title)}</h2>`,
 			`<p><strong>${escapeHtml(status)}</strong></p>`,
+			...(notice ? [`<p><em>${escapeHtml(notice)}</em></p>`] : []),
 			...(message ? [`<p>${escapeHtml(message)}</p>`] : []),
 			`<p><a href="${incidentUrl}">View incident</a></p>`,
 			`<p><small>${escapeHtml(footer)} <a href="${unsubscribeUrl}">Unsubscribe</a></small></p>`,
@@ -134,6 +140,7 @@ export async function sendSubscriberIncidentEmail({
 		text: [
 			incident.title,
 			status,
+			...(notice ? ["", notice] : []),
 			...(message ? ["", message] : []),
 			"",
 			`View incident: ${incidentUrl}`,

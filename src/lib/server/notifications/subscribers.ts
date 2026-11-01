@@ -16,7 +16,8 @@ import {
 } from "../db/schema";
 import { logger } from "../logger";
 import type { SubscriberIncidentEmail } from "../subscriber-email";
-import { isMailServerDown, isTransientMailFailure } from "./email";
+import { isMailServerDown, isTransientMailFailure, mailFailureText } from "./email";
+import type { LateDelivery } from "./types";
 
 /** Keeps each claim insert well under Postgres's bind parameter limit. */
 const CLAIM_CHUNK = 1000;
@@ -29,6 +30,7 @@ export interface SubscriberRound {
 	failures: string[];
 	/** Failures the event's next attempt sends again. */
 	retrying: string[];
+	mailServerDown: boolean;
 }
 
 /**
@@ -106,6 +108,7 @@ export async function notifyIncidentSubscribers(
 	kind: SubscriberIncidentEmail["kind"],
 	incident: Incident,
 	updateMessage: string | undefined,
+	late?: LateDelivery,
 ): Promise<SubscriberRound | null> {
 	const s = statusPageSubscriber;
 	const recipients = await db
@@ -177,7 +180,7 @@ export async function notifyIncidentSubscribers(
 		(kind === "incident_created" ? await openingMessage(db, incident.id) : undefined);
 
 	const due = recipients.filter((r) => claimed.has(r.id));
-	const round: SubscriberRound = { sent: 0, failures: [], retrying: [] };
+	const round: SubscriberRound = { sent: 0, failures: [], retrying: [], mailServerDown: false };
 	const released: string[] = [];
 	for (const [i, r] of due.entries()) {
 		try {
@@ -188,10 +191,11 @@ export async function notifyIncidentSubscribers(
 				incident,
 				kind,
 				message,
+				late,
 			});
 			round.sent++;
 		} catch (err) {
-			const failure = `subscriber ${r.id}: ${err instanceof Error ? err.message : String(err)}`;
+			const failure = `subscriber ${r.id}: ${mailFailureText(err)}`;
 			if (!isTransientMailFailure(err)) {
 				round.failures.push(failure);
 				continue;
@@ -199,6 +203,7 @@ export async function notifyIncidentSubscribers(
 			round.retrying.push(failure);
 			released.push(r.id);
 			if (isMailServerDown(err)) {
+				round.mailServerDown = true;
 				released.push(...due.slice(i + 1).map((later) => later.id));
 				break;
 			}

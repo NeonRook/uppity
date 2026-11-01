@@ -39,6 +39,7 @@ import {
 	type SubscriberRound,
 } from "./subscribers";
 import type {
+	LateDelivery,
 	NotificationPayload,
 	NotificationResult,
 	NotificationType,
@@ -57,9 +58,28 @@ interface Round {
 	rejected: string[];
 	transient: string[];
 	owed: string[];
+	mailServerDown: boolean;
 }
 
-const NO_CHANNELS: Round = { reached: false, rejected: [], transient: [], owed: [] };
+const NO_CHANNELS: Round = {
+	reached: false,
+	rejected: [],
+	transient: [],
+	owed: [],
+	mailServerDown: false,
+};
+
+const INCIDENT_ENDED = new Set(["resolved", "postmortem"]);
+
+/** What a retried alert tells its reader, and undefined for a first attempt. */
+function lateDelivery(
+	prior: DeliveryProgress | undefined,
+	createdAt: Date,
+	now: string | undefined,
+): LateDelivery | undefined {
+	if (!prior) return undefined;
+	return { minutes: Math.max(1, Math.round((Date.now() - createdAt.getTime()) / 60_000)), now };
+}
 
 function send(
 	channel: NotificationChannel,
@@ -100,7 +120,7 @@ function summarize(failures: string[], total: number, noun: string): string {
 function withSubscribers(channels: Round, subscribers: SubscriberRound | null): Round {
 	if (!subscribers) return channels;
 
-	const { sent, failures, retrying } = subscribers;
+	const { sent, failures, retrying, mailServerDown } = subscribers;
 	const total = sent + failures.length + retrying.length;
 	const summary = (some: string[]) =>
 		some.length > 0 ? [summarize(some, total, "subscribers")] : [];
@@ -109,6 +129,7 @@ function withSubscribers(channels: Round, subscribers: SubscriberRound | null): 
 		reached: channels.reached || sent > 0,
 		rejected: [...channels.rejected, ...summary(failures)],
 		transient: [...channels.transient, ...summary(retrying)],
+		mailServerDown: channels.mailServerDown || mailServerDown,
 	};
 }
 
@@ -117,14 +138,21 @@ function settle(prior: DeliveryProgress | undefined, round: Round): DispatchResu
 	const reached = Boolean(prior?.reached) || round.reached;
 	const rejected = [...(prior?.rejected ?? []), ...round.rejected];
 	const errors = [...rejected, ...round.transient];
-	if (errors.length === 0) return { status: "sent" };
+	if (errors.length === 0) {
+		return reached
+			? { status: "sent" }
+			: { status: "suppressed", errorMessage: "no channel is owed this alert any more" };
+	}
 
 	const result = {
 		status: reached ? "partial" : "failed",
 		errorMessage: errors.join("; "),
 	} as const;
 	return round.transient.length > 0
-		? { ...result, retry: { owed: round.owed, reached, rejected } }
+		? {
+				...result,
+				retry: { owed: round.owed, reached, rejected, mailServerDown: round.mailServerDown },
+			}
 		: result;
 }
 
@@ -303,9 +331,19 @@ export class NotificationService {
 			};
 		}
 
-		const payload = this.buildNotificationPayload(row, monitor, status);
-
 		const prior = queuedRetry(row.payload);
+		const { newStatus } = row.payload as { newStatus?: string };
+		const payload = this.buildNotificationPayload(
+			row,
+			monitor,
+			status,
+			lateDelivery(
+				prior,
+				row.createdAt,
+				newStatus && newStatus !== status.status ? status.status : undefined,
+			),
+		);
+
 		const round = await this.fanOut(
 			eligible.map(({ channel }) => channel),
 			payload,
@@ -334,7 +372,14 @@ export class NotificationService {
 		}
 
 		const prior = queuedRetry(row.payload);
-		const channels = await this.dispatchIncidentChannels(row, incidentRow, parsed, prior);
+		const late = lateDelivery(
+			prior,
+			row.createdAt,
+			INCIDENT_ENDED.has(incidentRow.status) && row.type !== "incident_resolved"
+				? incidentRow.status
+				: undefined,
+		);
+		const channels = await this.dispatchIncidentChannels(row, incidentRow, parsed, prior, late);
 		const subscribers = await notifyIncidentSubscribers(
 			this.db,
 			this.sendSubscriberEmail,
@@ -342,6 +387,7 @@ export class NotificationService {
 			row.type as "incident_created" | "incident_updated" | "incident_resolved",
 			incidentRow,
 			parsed.updateMessage,
+			late,
 		);
 		if ("status" in channels && !subscribers) return channels;
 		return settle(
@@ -355,6 +401,7 @@ export class NotificationService {
 		incidentRow: Incident,
 		parsed: IncidentEventPayload,
 		prior: DeliveryProgress | undefined,
+		late: LateDelivery | undefined,
 	): Promise<Round | Extract<DispatchResult, { status: "suppressed" }>> {
 		// Fan-out: union of channels linked to any affected monitor, deduplicated, and
 		// never outside the incident's organization whatever the links say.
@@ -417,12 +464,17 @@ export class NotificationService {
 			incident: incidentRow,
 			timestamp: row.createdAt,
 			updateMessage: parsed.updateMessage,
+			late,
 		};
 
 		return this.fanOut(channels, payload, prior, undefined, incidentRow.id);
 	}
 
-	/** Sends to all at once, so that a hanging channel holds up no other. */
+	/**
+	 * Sends to all at once, so that a hanging channel holds up no other. A webhook does not get a
+	 * retry that events have overtaken: people read the delay in the message, and a machine acts
+	 * on the last event it received, which would leave it reporting a state that has ended.
+	 */
 	private async fanOut(
 		channels: NotificationChannel[],
 		payload: NotificationPayload,
@@ -430,7 +482,9 @@ export class NotificationService {
 		monitorId?: string,
 		incidentId?: string,
 	): Promise<Round> {
-		const due = prior ? channels.filter((channel) => prior.owed.includes(channel.id)) : channels;
+		const due = (
+			prior ? channels.filter((channel) => prior.owed.includes(channel.id)) : channels
+		).filter((channel) => !(payload.late?.now && channel.type === "webhook"));
 		const results = await Promise.all(
 			due.map((channel) =>
 				this.sendToChannel(channel, payload, monitorId, incidentId).catch(
@@ -446,9 +500,11 @@ export class NotificationService {
 		const rejected: string[] = [];
 		const transient: string[] = [];
 		const owed: string[] = [];
+		let mailServerDown = false;
 		for (const [i, { id }] of due.entries()) {
 			const { success, errorMessage, transient: mayPass } = results[i];
 			if (success) continue;
+			mailServerDown ||= Boolean(results[i].mailServerDown);
 			(mayPass ? transient : rejected).push(`${id}: ${errorMessage ?? "delivery failed"}`);
 			if (mayPass) owed.push(id);
 		}
@@ -459,6 +515,7 @@ export class NotificationService {
 			rejected: summary(rejected),
 			transient: summary(transient),
 			owed,
+			mailServerDown,
 		};
 	}
 
@@ -466,6 +523,7 @@ export class NotificationService {
 		row: NotificationEvent,
 		monitor: NotifiedMonitor,
 		status: MonitorStatus,
+		late: LateDelivery | undefined,
 	): NotificationPayload {
 		const p = row.payload as Record<string, unknown>;
 		const type = row.type as NotificationType;
@@ -478,6 +536,7 @@ export class NotificationService {
 			status: type === "monitor_checks_stopped" ? undefined : status,
 			// A retried alert still says when it happened.
 			timestamp: row.createdAt,
+			late,
 		};
 		if (type === "ssl_expiry_warning") {
 			return { ...base, sslDaysRemaining: p.daysRemaining as number };

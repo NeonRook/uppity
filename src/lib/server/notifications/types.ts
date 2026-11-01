@@ -24,6 +24,14 @@ export interface NotificationPayload {
 	errorMessage?: string;
 	updateMessage?: string;
 	timestamp: Date;
+	late?: LateDelivery;
+}
+
+/** How a retried alert differs from one sent on time. */
+export interface LateDelivery {
+	minutes: number;
+	/** The state the monitor or incident has moved to since the event, if it has. */
+	now?: string;
 }
 
 export interface NotificationResult {
@@ -31,4 +39,6 @@ export interface NotificationResult {
 	errorMessage?: string;
 	/** The failure may pass, so the alert is worth sending again. */
 	transient?: boolean;
+	/** The fault is the instance's mail server, not the customer's destination. */
+	mailServerDown?: boolean;
 }

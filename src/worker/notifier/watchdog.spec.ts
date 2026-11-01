@@ -208,13 +208,19 @@ async function seedEvent(
 		id: nanoid(),
 		organizationId: await seedOrg(drizzleDb),
 		type: "monitor_down",
-		payload: { retriesExhausted: true },
+		payload: { mailServerDown: true },
 		status: "failed",
 		errorMessage: "Webhook error: 500 - https://user:hunter2@customer.example",
 		processedAt: new Date(),
 		...row,
 	});
 }
+
+const retrying = (attempt: number, mailServerDown: boolean) => ({
+	status: "retry_queued",
+	processedAt: null,
+	payload: { retry: { attempt, mailServerDown } },
+});
 
 describe("reportUndeliveredAlerts", () => {
 	test("one storm is one alert, with IDs and no customer text", async ({ db }) => {
@@ -227,8 +233,8 @@ describe("reportUndeliveredAlerts", () => {
 		const [[, alert]] = raised.mock.calls;
 		expect(alert).toMatchObject({
 			type: "alert_undelivered",
-			subject: "retries_exhausted",
-			title: "Alerts not delivered: 12",
+			subject: "mail_server",
+			title: "Alert email failing: 12",
 		});
 		expect(alert.body).toContain("/admin/organizations");
 		expect(alert.body).toContain("and 2 more");
@@ -243,6 +249,26 @@ describe("reportUndeliveredAlerts", () => {
 
 		const [[, first], [, second]] = raised.mock.calls;
 		expect(second.subject).toBe(first.subject);
+	});
+
+	test("hears about a mail server failing while its rows still retry", async ({ db }) => {
+		await db.db.delete(notificationEvent);
+		await seedEvent(db.db, retrying(3, true));
+
+		await reportUndeliveredAlerts(db.db);
+
+		expect(raised).toHaveBeenCalledOnce();
+	});
+
+	test("leaves a short blip and customer endpoints alone", async ({ db }) => {
+		await db.db.delete(notificationEvent);
+		await seedEvent(db.db, retrying(2, true));
+		await seedEvent(db.db, retrying(6, false));
+		await seedEvent(db.db, { payload: { mailServerDown: false } });
+
+		await reportUndeliveredAlerts(db.db);
+
+		expect(raised).not.toHaveBeenCalled();
 	});
 
 	test("ignores rejections that never retried and failures past the window", async ({ db }) => {

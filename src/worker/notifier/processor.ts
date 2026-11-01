@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { and, eq, inArray, lt, or, sql, type SQL } from "drizzle-orm";
 
 import type { Db } from "../../lib/server/db/index";
@@ -15,6 +17,13 @@ import {
 import type { NotificationService } from "../../lib/server/notifications/service";
 
 const SWEEP_WORKERS = 25;
+/**
+ * Spaces out a sweep's claims. A backlog is mostly email, and a provider's limit can be as low
+ * as 2 sends a second with no burst, shared by the whole account.
+ */
+const SWEEP_CLAIM_GAP_MS = 500;
+/** Retries one organization may have in flight, so its dead endpoint fills no one else's workers. */
+const ORGANIZATION_RETRIES = 5;
 export const STUCK_ROW_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -27,7 +36,7 @@ export const ALERT_RETRY_DELAYS_MS = [1, 2, 5, 10, 20, 30].map((minutes) => minu
 export interface Lane {
 	queued: string;
 	claimed: string;
-	/** Rows a sweep sends at once. A hanging send takes up one worker and no more. */
+	/** Rows a sweep sends at once. A hanging send takes up one and no more. */
 	workers: number;
 	/** Narrows the queued rows, for a lane whose rows wait for a time. */
 	due?: SQL;
@@ -48,13 +57,20 @@ export const CONFIRMATIONS: Lane = {
 
 /**
  * Swept apart from new alerts, so an outage's backlog of retries cannot hold one up. A notifier
- * without this lane ignores these statuses, so during a deploy a retry waits for the new one.
+ * without this lane ignores these statuses, so during a deploy a retry waits for the new one, and
+ * after a rollback until an operator requeues it as `pending`.
  */
 export const RETRIES: Lane = {
 	queued: RETRY_QUEUED,
 	claimed: RETRY_SENDING,
 	workers: SWEEP_WORKERS,
-	due: sql`(${notificationEvent.payload}->'retry'->>'nextAt')::timestamptz <= now()`,
+	due: sql`(${notificationEvent.payload}->'retry'->>'nextAt')::timestamptz <= now()
+		and ${notificationEvent.organizationId} not in (
+			select sending.organization_id from notification_event sending
+			where sending.status = ${RETRY_SENDING}
+			group by sending.organization_id
+			having count(*) >= ${ORGANIZATION_RETRIES}
+		)`,
 };
 
 /**
@@ -167,6 +183,8 @@ async function dispatchClaimed(
 
 	const errorMessage = result.status === "sent" ? null : result.errorMessage;
 	const owes = "retry" in result ? result.retry : undefined;
+	const { retry: _retry, ...payload } = row.payload as { retry?: unknown };
+	const exhausted = owes ? { mailServerDown: owes.mailServerDown } : {};
 	const attempt = queuedRetry(row.payload)?.attempt ?? 0;
 	const delay = owes && ALERT_RETRY_DELAYS_MS.at(attempt);
 
@@ -181,7 +199,7 @@ async function dispatchClaimed(
 						status: RETRIES.queued,
 						errorMessage,
 						payload: {
-							...(row.payload as object),
+							...payload,
 							retry: {
 								...owes,
 								attempt: attempt + 1,
@@ -194,8 +212,7 @@ async function dispatchClaimed(
 						processedAt: new Date(),
 						errorMessage,
 						// This table keeps its rows, and a confirmation's payload names two people.
-						...(row.type === CHANNEL_CONFIRMATION_EVENT ? { payload: {} } : {}),
-						...(owes ? { payload: { ...(row.payload as object), retriesExhausted: true } } : {}),
+						payload: row.type === CHANNEL_CONFIRMATION_EVENT ? {} : { ...payload, ...exhausted },
 					},
 		)
 		.where(and(eq(notificationEvent.id, row.id), eq(notificationEvent.claimedAt, row.claimedAt!)))
@@ -227,25 +244,33 @@ export async function processBacklog(
 	service: NotificationService,
 	lane: Lane = ALERTS,
 ): Promise<number> {
-	let total = 0;
-	const work = async () => {
-		for (;;) {
-			const row = await claimPendingEvent(db, lane);
-			if (!row) return;
-			total++;
-			const event = createEvent();
-			event.set("trigger_source", trigger);
-			try {
-				await dispatchClaimed(db, row, service, event);
-				event.setSuccess();
-			} catch (err) {
-				event.setError(err);
-				// Don't throw — continue processing the rest of the backlog
-			} finally {
-				event.emit("notifier");
-			}
+	const work = async (row: NotificationEvent) => {
+		const event = createEvent();
+		event.set("trigger_source", trigger);
+		try {
+			await dispatchClaimed(db, row, service, event);
+			event.setSuccess();
+		} catch (err) {
+			event.setError(err);
+			// Don't throw — continue processing the rest of the backlog
+		} finally {
+			event.emit("notifier");
 		}
 	};
-	await Promise.all(Array.from({ length: lane.workers }, work));
-	return total;
+
+	let total = 0;
+	const sending = new Set<Promise<void>>();
+	try {
+		for (;;) {
+			while (sending.size >= lane.workers) await Promise.race(sending);
+			const row = await claimPendingEvent(db, lane);
+			if (!row) return total;
+			total++;
+			const send = work(row).finally(() => sending.delete(send));
+			sending.add(send);
+			await sleep(SWEEP_CLAIM_GAP_MS);
+		}
+	} finally {
+		await Promise.all(sending);
+	}
 }

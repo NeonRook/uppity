@@ -53,6 +53,8 @@ const DeliveryProgress = v.object({
 	reached: v.boolean(),
 	/** Final failures, kept so that the row still reports them when it ends. */
 	rejected: v.array(v.string()),
+	/** The last attempt failed at the instance's mail server, which is the operator's to fix. */
+	mailServerDown: v.boolean(),
 });
 export type DeliveryProgress = v.InferOutput<typeof DeliveryProgress>;
 
