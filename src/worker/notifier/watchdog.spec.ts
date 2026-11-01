@@ -1,5 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { nanoid } from "nanoid";
 import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, vi } from "vitest";
 
@@ -8,14 +9,14 @@ import { raiseOpsAlert } from "../../lib/server/ops-alert";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { seedMonitor, seedOrg } from "../../lib/server/test/seed";
-import { reportDeadLetters, reportOverdueChecks } from "./watchdog";
+import { reportDeadLetters, reportOverdueChecks, reportUndeliveredAlerts } from "./watchdog";
 
 vi.mock("../../lib/server/ops-alert", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../lib/server/ops-alert")>()),
 	raiseOpsAlert: vi.fn(),
 }));
 
-const { monitor } = schema;
+const { monitor, notificationEvent } = schema;
 const raised = vi.mocked(raiseOpsAlert);
 
 beforeEach(() => {
@@ -196,5 +197,62 @@ describe("reportDeadLetters", () => {
 
 		const [[, first], [, second]] = raised.mock.calls;
 		expect(second.subject).not.toBe(first.subject);
+	});
+});
+
+async function seedEvent(
+	drizzleDb: TestDb["db"],
+	row: Partial<typeof notificationEvent.$inferInsert>,
+) {
+	await drizzleDb.insert(notificationEvent).values({
+		id: nanoid(),
+		organizationId: await seedOrg(drizzleDb),
+		type: "monitor_down",
+		payload: { retriesExhausted: true },
+		status: "failed",
+		errorMessage: "Webhook error: 500 - https://user:hunter2@customer.example",
+		processedAt: new Date(),
+		...row,
+	});
+}
+
+describe("reportUndeliveredAlerts", () => {
+	test("one storm is one alert, with IDs and no customer text", async ({ db }) => {
+		await db.db.delete(notificationEvent);
+		for (let i = 0; i < 12; i++) await seedEvent(db.db, { status: i % 2 ? "failed" : "partial" });
+
+		await reportUndeliveredAlerts(db.db);
+
+		expect(raised).toHaveBeenCalledOnce();
+		const [[, alert]] = raised.mock.calls;
+		expect(alert).toMatchObject({
+			type: "alert_undelivered",
+			subject: "retries_exhausted",
+			title: "Alerts not delivered: 12",
+		});
+		expect(alert.body).toContain("/admin/organizations");
+		expect(alert.body).toContain("and 2 more");
+		expect(`${alert.title}${alert.body}`).not.toMatch(/hunter2|customer\.example/);
+	});
+
+	test("a new failure keeps the subject, so the cooldown covers it", async ({ db }) => {
+		await seedEvent(db.db, {});
+		await reportUndeliveredAlerts(db.db);
+		await seedEvent(db.db, {});
+		await reportUndeliveredAlerts(db.db);
+
+		const [[, first], [, second]] = raised.mock.calls;
+		expect(second.subject).toBe(first.subject);
+	});
+
+	test("ignores rejections that never retried and failures past the window", async ({ db }) => {
+		await db.db.delete(notificationEvent);
+		await seedEvent(db.db, { payload: {} });
+		await seedEvent(db.db, { processedAt: new Date(Date.now() - 2 * 60 * 60_000) });
+		await seedEvent(db.db, { status: "sent" });
+
+		await reportUndeliveredAlerts(db.db);
+
+		expect(raised).not.toHaveBeenCalled();
 	});
 });

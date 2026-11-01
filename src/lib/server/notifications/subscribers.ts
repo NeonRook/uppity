@@ -1,4 +1,4 @@
-import { and, countDistinct, desc, eq, isNotNull, notExists } from "drizzle-orm";
+import { and, countDistinct, desc, eq, inArray, isNotNull, notExists } from "drizzle-orm";
 
 import { isSelfHosted } from "#lib/constants/plans.js";
 
@@ -16,11 +16,20 @@ import {
 } from "../db/schema";
 import { logger } from "../logger";
 import type { SubscriberIncidentEmail } from "../subscriber-email";
+import { isMailServerDown, isTransientMailFailure } from "./email";
 
 /** Keeps each claim insert well under Postgres's bind parameter limit. */
 const CLAIM_CHUNK = 1000;
 
 export type SendSubscriberIncidentEmail = (email: SubscriberIncidentEmail) => Promise<void>;
+
+export interface SubscriberRound {
+	sent: number;
+	/** Final failures. */
+	failures: string[];
+	/** Failures the event's next attempt sends again. */
+	retrying: string[];
+}
 
 /**
  * Whether this instance enforces the per-organization switch. Only an instance that asks
@@ -85,9 +94,10 @@ export async function reachableSubscribers(
 /**
  * Emails an incident event to the confirmed subscribers of every public page that shows
  * the incident, except addresses that bounced or complained. Each subscriber is claimed
- * before sending, so a retried or concurrently reclaimed event never emails anyone twice.
- * Sends one at a time to stay within SMTP rate limits. Null when no subscriber is due an
- * email, which includes an organization with subscriber email off.
+ * before sending, so a reclaimed event never emails anyone twice. A transient failure gives
+ * the claim back for the event's next attempt, and a mail server that is down ends the
+ * round. Sends one at a time to stay within SMTP rate limits. Null when no subscriber is
+ * due an email, which includes an organization with subscriber email off.
  */
 export async function notifyIncidentSubscribers(
 	db: Db,
@@ -96,7 +106,7 @@ export async function notifyIncidentSubscribers(
 	kind: SubscriberIncidentEmail["kind"],
 	incident: Incident,
 	updateMessage: string | undefined,
-): Promise<{ sent: number; failures: string[] } | null> {
+): Promise<SubscriberRound | null> {
 	const s = statusPageSubscriber;
 	const recipients = await db
 		.selectDistinct({
@@ -166,9 +176,10 @@ export async function notifyIncidentSubscribers(
 		updateMessage ??
 		(kind === "incident_created" ? await openingMessage(db, incident.id) : undefined);
 
-	const failures: string[] = [];
-	for (const r of recipients) {
-		if (!claimed.has(r.id)) continue;
+	const due = recipients.filter((r) => claimed.has(r.id));
+	const round: SubscriberRound = { sent: 0, failures: [], retrying: [] };
+	const released: string[] = [];
+	for (const [i, r] of due.entries()) {
 		try {
 			await send({
 				email: r.email,
@@ -178,11 +189,33 @@ export async function notifyIncidentSubscribers(
 				kind,
 				message,
 			});
+			round.sent++;
 		} catch (err) {
-			failures.push(`subscriber ${r.id}: ${err instanceof Error ? err.message : String(err)}`);
+			const failure = `subscriber ${r.id}: ${err instanceof Error ? err.message : String(err)}`;
+			if (!isTransientMailFailure(err)) {
+				round.failures.push(failure);
+				continue;
+			}
+			round.retrying.push(failure);
+			released.push(r.id);
+			if (isMailServerDown(err)) {
+				released.push(...due.slice(i + 1).map((later) => later.id));
+				break;
+			}
 		}
 	}
-	return { sent: claimed.size - failures.length, failures };
+
+	for (let i = 0; i < released.length; i += CLAIM_CHUNK) {
+		await db
+			.delete(statusPageSubscriberDelivery)
+			.where(
+				and(
+					eq(statusPageSubscriberDelivery.eventId, eventId),
+					inArray(statusPageSubscriberDelivery.subscriberId, released.slice(i, i + CLAIM_CHUNK)),
+				),
+			);
+	}
+	return round;
 }
 
 async function openingMessage(db: Db, incidentId: string): Promise<string | undefined> {

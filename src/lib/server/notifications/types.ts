@@ -29,4 +29,6 @@ export interface NotificationPayload {
 export interface NotificationResult {
 	success: boolean;
 	errorMessage?: string;
+	/** The failure may pass, so the alert is worth sending again. */
+	transient?: boolean;
 }

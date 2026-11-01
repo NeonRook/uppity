@@ -28,10 +28,16 @@ import {
 	CHANNEL_CONFIRMATION_EVENT,
 	ChannelConfirmationPayload,
 	parseEventPayload,
+	queuedRetry,
+	type DeliveryProgress,
 	type IncidentEventPayload,
 } from "./events";
 import { sendSlack } from "./slack";
-import { notifyIncidentSubscribers, type SendSubscriberIncidentEmail } from "./subscribers";
+import {
+	notifyIncidentSubscribers,
+	type SendSubscriberIncidentEmail,
+	type SubscriberRound,
+} from "./subscribers";
 import type {
 	NotificationPayload,
 	NotificationResult,
@@ -42,9 +48,18 @@ import { sendWebhook } from "./webhook";
 
 export type DispatchResult =
 	| { status: "sent" }
-	| { status: "failed"; errorMessage: string }
-	| { status: "partial"; errorMessage: string }
+	| { status: "failed" | "partial"; errorMessage: string; retry?: DeliveryProgress }
 	| { status: "suppressed"; errorMessage: string };
+
+/** What one delivery attempt at an event came to. */
+interface Round {
+	reached: boolean;
+	rejected: string[];
+	transient: string[];
+	owed: string[];
+}
+
+const NO_CHANNELS: Round = { reached: false, rejected: [], transient: [], owed: [] };
 
 function send(
 	channel: NotificationChannel,
@@ -81,24 +96,36 @@ function summarize(failures: string[], total: number, noun: string): string {
 	return `${failures.length}/${total} ${noun} failed: ${head}${suffix}`;
 }
 
-/** Folds subscriber delivery into the channels' result. Either reaching anyone is a partial success. */
-function withSubscribers(
-	channels: DispatchResult,
-	subscribers: { sent: number; failures: string[] } | null,
-): DispatchResult {
+/** Folds subscriber delivery into the channels' round. */
+function withSubscribers(channels: Round, subscribers: SubscriberRound | null): Round {
 	if (!subscribers) return channels;
 
-	const { sent, failures } = subscribers;
-	const errors = [
-		...(channels.status === "failed" || channels.status === "partial"
-			? [channels.errorMessage]
-			: []),
-		...(failures.length > 0 ? [summarize(failures, sent + failures.length, "subscribers")] : []),
-	];
+	const { sent, failures, retrying } = subscribers;
+	const total = sent + failures.length + retrying.length;
+	const summary = (some: string[]) =>
+		some.length > 0 ? [summarize(some, total, "subscribers")] : [];
+	return {
+		...channels,
+		reached: channels.reached || sent > 0,
+		rejected: [...channels.rejected, ...summary(failures)],
+		transient: [...channels.transient, ...summary(retrying)],
+	};
+}
+
+/** Adds a round to the attempts before it. Reaching anyone at all is a partial success. */
+function settle(prior: DeliveryProgress | undefined, round: Round): DispatchResult {
+	const reached = Boolean(prior?.reached) || round.reached;
+	const rejected = [...(prior?.rejected ?? []), ...round.rejected];
+	const errors = [...rejected, ...round.transient];
 	if (errors.length === 0) return { status: "sent" };
 
-	const reachedAnyone = sent > 0 || channels.status === "sent" || channels.status === "partial";
-	return { status: reachedAnyone ? "partial" : "failed", errorMessage: errors.join("; ") };
+	const result = {
+		status: reached ? "partial" : "failed",
+		errorMessage: errors.join("; "),
+	} as const;
+	return round.transient.length > 0
+		? { ...result, retry: { owed: round.owed, reached, rejected } }
+		: result;
 }
 
 export class NotificationService {
@@ -278,12 +305,15 @@ export class NotificationService {
 
 		const payload = this.buildNotificationPayload(row, monitor, status);
 
-		return this.fanOut(
+		const prior = queuedRetry(row.payload);
+		const round = await this.fanOut(
 			eligible.map(({ channel }) => channel),
 			payload,
+			prior,
 			row.monitorId,
 			row.incidentId ?? undefined,
 		);
+		return settle(prior, round);
 	}
 
 	private async dispatchIncidentEvent(
@@ -303,7 +333,8 @@ export class NotificationService {
 			return { status: "suppressed", errorMessage: "incident not found" };
 		}
 
-		const channels = await this.dispatchIncidentChannels(row, incidentRow, parsed);
+		const prior = queuedRetry(row.payload);
+		const channels = await this.dispatchIncidentChannels(row, incidentRow, parsed, prior);
 		const subscribers = await notifyIncidentSubscribers(
 			this.db,
 			this.sendSubscriberEmail,
@@ -312,14 +343,19 @@ export class NotificationService {
 			incidentRow,
 			parsed.updateMessage,
 		);
-		return withSubscribers(channels, subscribers);
+		if ("status" in channels && !subscribers) return channels;
+		return settle(
+			prior,
+			withSubscribers("status" in channels ? NO_CHANNELS : channels, subscribers),
+		);
 	}
 
 	private async dispatchIncidentChannels(
 		row: NotificationEvent,
 		incidentRow: Incident,
 		parsed: IncidentEventPayload,
-	): Promise<DispatchResult> {
+		prior: DeliveryProgress | undefined,
+	): Promise<Round | Extract<DispatchResult, { status: "suppressed" }>> {
 		// Fan-out: union of channels linked to any affected monitor, deduplicated, and
 		// never outside the incident's organization whatever the links say.
 		const linked = await this.db
@@ -379,35 +415,51 @@ export class NotificationService {
 		const payload: NotificationPayload = {
 			type: row.type as NotificationType,
 			incident: incidentRow,
-			timestamp: new Date(),
+			timestamp: row.createdAt,
 			updateMessage: parsed.updateMessage,
 		};
 
-		return this.fanOut(channels, payload, undefined, incidentRow.id);
+		return this.fanOut(channels, payload, prior, undefined, incidentRow.id);
 	}
 
+	/** Sends to all at once, so that a hanging channel holds up no other. */
 	private async fanOut(
 		channels: NotificationChannel[],
 		payload: NotificationPayload,
+		prior: DeliveryProgress | undefined,
 		monitorId?: string,
 		incidentId?: string,
-	): Promise<DispatchResult> {
-		const failures: string[] = [];
-		for (const channel of channels) {
-			try {
-				const result = await this.sendToChannel(channel, payload, monitorId, incidentId);
-				if (!result.success) {
-					failures.push(`${channel.id}: ${result.errorMessage ?? "delivery failed"}`);
-				}
-			} catch (err) {
-				failures.push(`${channel.id}: ${err instanceof Error ? err.message : String(err)}`);
-			}
+	): Promise<Round> {
+		const due = prior ? channels.filter((channel) => prior.owed.includes(channel.id)) : channels;
+		const results = await Promise.all(
+			due.map((channel) =>
+				this.sendToChannel(channel, payload, monitorId, incidentId).catch(
+					(err: unknown): NotificationResult => ({
+						success: false,
+						errorMessage: err instanceof Error ? err.message : String(err),
+						transient: true,
+					}),
+				),
+			),
+		);
+
+		const rejected: string[] = [];
+		const transient: string[] = [];
+		const owed: string[] = [];
+		for (const [i, { id }] of due.entries()) {
+			const { success, errorMessage, transient: mayPass } = results[i];
+			if (success) continue;
+			(mayPass ? transient : rejected).push(`${id}: ${errorMessage ?? "delivery failed"}`);
+			if (mayPass) owed.push(id);
 		}
-
-		if (failures.length === 0) return { status: "sent" };
-
-		const errorMessage = summarize(failures, channels.length, "channels");
-		return { status: failures.length === channels.length ? "failed" : "partial", errorMessage };
+		const summary = (some: string[]) =>
+			some.length > 0 ? [summarize(some, due.length, "channels")] : [];
+		return {
+			reached: rejected.length + transient.length < due.length,
+			rejected: summary(rejected),
+			transient: summary(transient),
+			owed,
+		};
 	}
 
 	private buildNotificationPayload(
@@ -424,7 +476,8 @@ export class NotificationService {
 			monitor: { ...monitor, url: redactUrl(monitor.url) },
 			// Checks stopped, so the recorded status is stale and is not sent.
 			status: type === "monitor_checks_stopped" ? undefined : status,
-			timestamp: new Date(),
+			// A retried alert still says when it happened.
+			timestamp: row.createdAt,
 		};
 		if (type === "ssl_expiry_warning") {
 			return { ...base, sslDaysRemaining: p.daysRemaining as number };

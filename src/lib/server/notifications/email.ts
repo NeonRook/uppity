@@ -54,6 +54,23 @@ export async function sendChannelConfirmation({
 	});
 }
 
+interface MailError {
+	code?: string;
+	responseCode?: number | false;
+}
+
+/** Nodemailer gives every server or connection failure a code; only a reply carries a number. */
+export function isTransientMailFailure(error: unknown): boolean {
+	const { code, responseCode } = error as MailError;
+	return responseCode ? responseCode < 500 : code !== undefined;
+}
+
+/** The server never answered, so the next address would wait out the same timeout. */
+export function isMailServerDown(error: unknown): boolean {
+	const { code, responseCode } = error as MailError;
+	return !responseCode && code !== undefined;
+}
+
 export async function sendEmail(
 	config: { email: string; token: string },
 	payload: NotificationPayload,
@@ -92,6 +109,7 @@ export async function sendEmail(
 		return {
 			success: false,
 			errorMessage: error instanceof Error ? error.message : "Failed to send email",
+			transient: isTransientMailFailure(error),
 		};
 	}
 }

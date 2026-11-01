@@ -1,7 +1,10 @@
+import { and, desc, gt, inArray, sql } from "drizzle-orm";
+
 import { formatUtcDateTime } from "../../lib/format";
 import { appUrl } from "../../lib/server/account-email";
 import { deadLetteredMonitors, overdueChecks } from "../../lib/server/check-state";
 import type { DbExecutor } from "../../lib/server/db/index";
+import { notificationEvent } from "../../lib/server/db/schema";
 import { childLogger } from "../../lib/server/logger";
 import {
 	clearOpsAlert,
@@ -13,11 +16,13 @@ import {
 
 const log = childLogger("consumer");
 
-/** Monitors a dead-letter alert names. The rest are on the admin page. */
-const LISTED_MONITORS = 10;
+/** Rows an alert names. The rest are on the admin pages. */
+const LISTED_ROWS = 10;
+const UNDELIVERED_WINDOW_HOURS = 1;
 
 const CHECKS_OVERDUE = { type: "monitor_checks_overdue", subject: "scheduler" } as const;
 const DATABASE_UNREADABLE = { type: "monitor_checks_overdue", subject: "database" } as const;
+const UNDELIVERED = { type: "alert_undelivered", subject: "retries_exhausted" } as const;
 
 /**
  * Watches the monitor worker from outside it: a worker that is down cannot log
@@ -64,7 +69,7 @@ export async function reportOverdueChecks(db: DbExecutor, timeoutMs?: number): P
 export async function reportDeadLetters(db: DbExecutor, timeoutMs?: number): Promise<void> {
 	if (!opsAlertsEnabled()) return;
 	try {
-		const monitors = await withTimeout(deadLetteredMonitors(db, LISTED_MONITORS), timeoutMs);
+		const monitors = await withTimeout(deadLetteredMonitors(db, LISTED_ROWS), timeoutMs);
 		const [newest] = monitors;
 		if (!newest) return;
 
@@ -89,5 +94,61 @@ export async function reportDeadLetters(db: DbExecutor, timeoutMs?: number): Pro
 		});
 	} catch (err) {
 		log.error({ error: err }, "Dead letter query failed");
+	}
+}
+
+function undeliveredAlerts(db: DbExecutor, limit: number) {
+	return db
+		.select({
+			id: notificationEvent.id,
+			organizationId: notificationEvent.organizationId,
+			total: sql<number>`count(*) OVER ()`.mapWith(Number),
+		})
+		.from(notificationEvent)
+		.where(
+			and(
+				inArray(notificationEvent.status, ["failed", "partial"]),
+				sql`${notificationEvent.payload}->'retriesExhausted' = 'true'`,
+				gt(
+					notificationEvent.processedAt,
+					sql`NOW() - make_interval(hours => ${UNDELIVERED_WINDOW_HOURS})`,
+				),
+			),
+		)
+		.orderBy(desc(notificationEvent.processedAt))
+		.limit(limit);
+}
+
+/**
+ * Reports alerts that ran out of retries. One subject for all of them, so an outage that fails
+ * many rows is one message per cooldown, and a quiet window ends the cooldown. A rejection that
+ * never retried stays out: a customer's dead webhook is theirs to fix. The message carries IDs
+ * only, because errors quote customer text.
+ */
+export async function reportUndeliveredAlerts(db: DbExecutor, timeoutMs?: number): Promise<void> {
+	if (!opsAlertsEnabled()) return;
+	try {
+		const rows = await withTimeout(undeliveredAlerts(db, LISTED_ROWS), timeoutMs);
+		const [newest] = rows;
+		if (!newest) {
+			await clearOpsAlert(db, UNDELIVERED, timeoutMs);
+			return;
+		}
+
+		const lines = rows.map((row) => `- ${row.id}, organization ${row.organizationId}`);
+		if (newest.total > rows.length) lines.push(`- and ${newest.total - rows.length} more`);
+		await raiseOpsAlert(db, {
+			...UNDELIVERED,
+			title: `Alerts not delivered: ${newest.total}`,
+			body: [
+				`${newest.total} alert events ran out of delivery retries in the past ${UNDELIVERED_WINDOW_HOURS} hour. Check the mail server and the notifier logs.`,
+				"",
+				`Review organizations at ${appUrl}/admin/organizations`,
+				"",
+				...lines,
+			].join("\n"),
+		});
+	} catch (err) {
+		log.error({ error: err }, "Undelivered alert query failed");
 	}
 }

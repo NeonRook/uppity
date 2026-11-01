@@ -26,6 +26,7 @@ const log = childLogger("ops-alert");
 export type OpsAlertType =
 	| "monitor_dead_lettered"
 	| "monitor_checks_overdue"
+	| "alert_undelivered"
 	| "unsolicited_mail_ceiling"
 	| "organization_mail_blocked";
 

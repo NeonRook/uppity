@@ -42,6 +42,35 @@ export const CHANNEL_CONFIRMATION_EVENT = "channel_confirmation";
 export const CONFIRMATION_QUEUED = "confirmation_queued";
 export const CONFIRMATION_SENDING = "confirmation_sending";
 
+/** Not `pending`, so that only the retry sweep picks up an alert, and only once it is due. */
+export const RETRY_QUEUED = "retry_queued";
+export const RETRY_SENDING = "retry_sending";
+
+/** What an event's next delivery attempt needs from the attempts before it. */
+const DeliveryProgress = v.object({
+	/** Channels the event still owes. Delivered and rejected ones are not sent again. */
+	owed: v.array(v.string()),
+	reached: v.boolean(),
+	/** Final failures, kept so that the row still reports them when it ends. */
+	rejected: v.array(v.string()),
+});
+export type DeliveryProgress = v.InferOutput<typeof DeliveryProgress>;
+
+/**
+ * Lives in the payload rather than in columns because the notifier can start before the web
+ * tier's pre-deploy step has migrated, and a column it cannot read would stop every alert.
+ */
+const QueuedRetry = v.object({
+	...DeliveryProgress.entries,
+	attempt: v.pipe(v.number(), v.integer(), v.minValue(1)),
+	nextAt: v.pipe(v.string(), v.isoTimestamp()),
+});
+
+export function queuedRetry(payload: unknown): v.InferOutput<typeof QueuedRetry> | undefined {
+	const { retry } = payload as { retry?: unknown };
+	return v.is(QueuedRetry, retry) ? retry : undefined;
+}
+
 const NullableTimestamp = v.nullable(v.pipe(v.string(), v.isoTimestamp()));
 
 /** A confirmation email whose slot is taken. The link token stays on the channel, out of the queue. */

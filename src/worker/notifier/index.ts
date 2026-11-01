@@ -3,10 +3,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { childLogger, wideEvent, type NotifierWideEvent } from "../../lib/server/logger";
 import { NotificationService } from "../../lib/server/notifications/service";
 import { client, db } from "../shared/db";
-import { ALERTS, CONFIRMATIONS, processBacklog, processOne, type Lane } from "./processor";
-import { reportDeadLetters, reportOverdueChecks } from "./watchdog";
+import { ALERTS, CONFIRMATIONS, processBacklog, processOne, RETRIES, type Lane } from "./processor";
+import { reportDeadLetters, reportOverdueChecks, reportUndeliveredAlerts } from "./watchdog";
 
 const BACKLOG_SWEEP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const RETRY_SWEEP_INTERVAL_MS = 30_000;
 // Within the platform's stop timeout, so sends in flight finish rather than
 // being re-sent by the next sweep.
 const SHUTDOWN_GRACE_MS = 20_000;
@@ -18,6 +19,8 @@ const notificationService = new NotificationService(db, consumerLogger);
 
 let running = true;
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
+let retryTimer: ReturnType<typeof setInterval> | null = null;
+let retrySweeping = false;
 let unlisten: (() => Promise<void>) | null = null;
 const stopped = Promise.withResolvers<void>();
 const inFlight = new Set<Promise<void>>();
@@ -52,10 +55,19 @@ async function sweep(trigger: "startup" | "sweep", lane: Lane = ALERTS): Promise
 	}
 }
 
+/** Skips a tick while the last sweep still runs, so its hanging sends cannot pile up. */
+async function sweepRetries(): Promise<void> {
+	if (retrySweeping) return;
+	retrySweeping = true;
+	await sweep("sweep", RETRIES);
+	retrySweeping = false;
+}
+
 function shutdown(signal: string): void {
 	consumerLogger.info({ signal }, "Received shutdown signal");
 	running = false;
 	if (sweepTimer) clearInterval(sweepTimer);
+	if (retryTimer) clearInterval(retryTimer);
 	if (unlisten) void unlisten();
 	stopped.resolve();
 }
@@ -70,6 +82,7 @@ async function start(): Promise<void> {
 	);
 
 	track(sweep("startup", CONFIRMATIONS));
+	track(sweep("startup", RETRIES));
 	await sweep("startup");
 
 	// Subscribe to pg_notify channel. Payload is the event row id.
@@ -87,7 +100,12 @@ async function start(): Promise<void> {
 		track(sweep("sweep", CONFIRMATIONS));
 		track(reportOverdueChecks(db));
 		track(reportDeadLetters(db));
+		track(reportUndeliveredAlerts(db));
 	}, BACKLOG_SWEEP_INTERVAL_MS);
+
+	retryTimer = setInterval(() => {
+		if (running) track(sweepRetries());
+	}, RETRY_SWEEP_INTERVAL_MS);
 
 	await stopped.promise;
 	await Promise.race([Promise.allSettled(inFlight), sleep(SHUTDOWN_GRACE_MS)]);
