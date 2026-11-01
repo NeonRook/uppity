@@ -7,6 +7,7 @@ import { isSelfHosted } from "#lib/constants/plans.js";
 import { updateOrganizationSchema, addMemberSchema } from "#lib/schemas/admin.js";
 import { getActor } from "#lib/server/audit-actor.js";
 import { db } from "#lib/server/db/index.js";
+import { subscriberEmailGated } from "#lib/server/notifications/subscribers.js";
 import { fetchPolarSnapshot } from "#lib/server/polar-subscription.js";
 import { adminService } from "#lib/server/services/admin.service.js";
 import { auditService } from "#lib/server/services/audit.service.js";
@@ -36,12 +37,13 @@ export const load: PageServerLoad = async ({ params }) => {
 	const availableUsers = await adminService.getUsersNotInOrg(params.id);
 
 	const selfHosted = isSelfHosted();
-	const [subscription, plan, usage, limits, mailBlock] = await Promise.all([
+	const [subscription, plan, usage, limits, mailBlock, reachableSubscribers] = await Promise.all([
 		subscriptionService.getSubscription(params.id),
 		subscriptionService.getOrganizationPlan(params.id),
 		subscriptionService.getUsage(params.id),
 		subscriptionService.getEffectiveLimits(params.id),
 		adminService.getMailBlock(params.id),
+		adminService.countReachableSubscribers(params.id),
 	]);
 
 	const { entries: history } = await auditService.list({
@@ -57,6 +59,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		availableUsers,
 		history,
 		mailBlock,
+		subscriberEmail: { gated: subscriberEmailGated(), reachableSubscribers },
 		billing: { selfHosted, subscription, plan, usage, limits },
 	};
 };
@@ -137,8 +140,8 @@ export const actions: Actions = {
 	},
 
 	setSubscriberEmail: async (event) => {
-		if (isSelfHosted()) {
-			return fail(400, { message: "Subscriber email has no switch in self-hosted mode" });
+		if (!subscriberEmailGated()) {
+			return fail(400, { message: "This instance does not gate subscriber email" });
 		}
 
 		const enabled = (await event.request.formData()).get("enabled") === "true";

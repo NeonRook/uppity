@@ -104,6 +104,7 @@ export default defineRailway((ctx) => {
 			SUBSCRIBER_SMTP_PASSWORD: resend.password,
 			SUBSCRIBER_SMTP_PORT: resend.port,
 			SUBSCRIBER_SMTP_USER: resend.user,
+			UPPITY_GATE_SUBSCRIBER_EMAIL: "true",
 			UPPITY_LANDING_STATUS_SLUG: preserve(),
 			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
 			UPPITY_OPS_ALERT_EMAIL: preserve(),
@@ -128,6 +129,8 @@ export default defineRailway((ctx) => {
 			SMTP_PORT: resend.port,
 			SMTP_USER: resend.user,
 			SUBSCRIBER_SMTP_FROM: subscriberFrom,
+			// The server hides the form and the notifier drops the mail on this one setting.
+			UPPITY_GATE_SUBSCRIBER_EMAIL: uppityServer.env.UPPITY_GATE_SUBSCRIBER_EMAIL,
 			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: preserve(),
 			UPPITY_OPS_ALERT_EMAIL: preserve(),
 		},

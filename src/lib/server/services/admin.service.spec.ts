@@ -9,6 +9,8 @@ import {
 	mailEvent,
 	monitor,
 	organizationMailBlock,
+	statusPage,
+	statusPageSubscriber,
 } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -337,6 +339,12 @@ describe("liftSuppression", () => {
 	});
 });
 
+const subscriberRow = (
+	statusPageId: string,
+	email: string,
+	verifiedAt: Date | null = new Date(),
+) => ({ id: nanoid(), statusPageId, email, token: nanoid(), verifiedAt });
+
 describe("setSubscriberEmail", () => {
 	test("changes the switch and audits only a real change", async ({ db }) => {
 		const { db: drizzleDb } = db;
@@ -351,7 +359,42 @@ describe("setSubscriberEmail", () => {
 		expect(org?.subscriberEmailEnabled).toBe(true);
 		const audit = await auditRowsFor(drizzleDb, actor);
 		expect(audit.map((row) => row.action)).toEqual(["org.subscriber_email_set"]);
-		expect(audit[0].metadata).toEqual({ enabled: true });
+		expect(audit[0].metadata).toEqual({ enabled: true, confirmedSubscribers: 0 });
+	});
+
+	test("records how many confirmed subscribers turning it off affects", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const seedPage = async (isPublic: boolean) => {
+			const id = nanoid();
+			await drizzleDb
+				.insert(statusPage)
+				.values({ id, organizationId: orgId, name: "Acme", slug: id, isPublic });
+			return id;
+		};
+		const [open, closed] = [await seedPage(true), await seedPage(false)];
+		const suppressed = `${nanoid().toLowerCase()}@example.com`;
+		await drizzleDb.insert(emailSuppression).values({ email: suppressed, reason: "bounce" });
+		await drizzleDb
+			.insert(statusPageSubscriber)
+			.values([
+				subscriberRow(open, "reader@example.com"),
+				subscriberRow(open, suppressed),
+				subscriberRow(closed, "private@example.com"),
+				subscriberRow(open, "pending@example.com", null),
+			]);
+
+		await drizzleDb
+			.update(organization)
+			.set({ subscriberEmailEnabled: true })
+			.where(eq(organization.id, orgId));
+
+		await service.setSubscriberEmail(actor, orgId, false);
+
+		const [row] = await auditRowsFor(drizzleDb, actor);
+		expect(row.metadata).toEqual({ enabled: false, confirmedSubscribers: 1 });
 	});
 });
 

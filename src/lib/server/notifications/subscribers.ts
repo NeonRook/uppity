@@ -1,9 +1,9 @@
-import { and, desc, eq, isNotNull, notExists } from "drizzle-orm";
+import { and, countDistinct, desc, eq, isNotNull, notExists } from "drizzle-orm";
 
 import { isSelfHosted } from "#lib/constants/plans.js";
 
 import { organization } from "../db/auth-schema";
-import type { Db } from "../db/index";
+import type { Db, DbExecutor } from "../db/index";
 import {
 	emailSuppression,
 	incidentMonitor,
@@ -14,6 +14,7 @@ import {
 	statusPageSubscriberDelivery,
 	type Incident,
 } from "../db/schema";
+import { logger } from "../logger";
 import type { SubscriberIncidentEmail } from "../subscriber-email";
 
 /** Keeps each claim insert well under Postgres's bind parameter limit. */
@@ -21,15 +22,64 @@ const CLAIM_CHUNK = 1000;
 
 export type SendSubscriberIncidentEmail = (email: SubscriberIncidentEmail) => Promise<void>;
 
-/** Whether an organization's status pages take subscribers and email them. */
-export async function subscriberEmailEnabled(db: Db, organizationId: string): Promise<boolean> {
-	if (isSelfHosted()) return true;
+/**
+ * Whether this instance enforces the per-organization switch. Only an instance that asks
+ * for it does, so one that has never heard of the setting keeps sending. The web server
+ * and the notifier both decide through here, and both need the setting.
+ */
+export function subscriberEmailGated(): boolean {
+	return process.env.UPPITY_GATE_SUBSCRIBER_EMAIL === "true" && !isSelfHosted();
+}
 
-	const [org] = await db
+/**
+ * Whether an organization's status pages take subscribers and email them. `lock` holds the
+ * organization row until the caller's transaction ends, so the switch cannot go off while
+ * that transaction acts on the answer.
+ */
+export async function subscriberEmailEnabled(
+	db: DbExecutor,
+	organizationId: string,
+	{ lock = false } = {},
+): Promise<boolean> {
+	if (!subscriberEmailGated()) return true;
+
+	const query = db
 		.select({ enabled: organization.subscriberEmailEnabled })
 		.from(organization)
 		.where(eq(organization.id, organizationId));
+	const [org] = await (lock ? query.for("share") : query);
 	return org?.enabled ?? false;
+}
+
+/** Addresses that incident email reaches from the organization's public status pages. */
+export async function reachableSubscribers(
+	db: DbExecutor,
+	organizationId: string,
+): Promise<number> {
+	const s = statusPageSubscriber;
+	const [row] = await db
+		.select({ reachable: countDistinct(s.email) })
+		.from(s)
+		.innerJoin(
+			statusPage,
+			and(
+				eq(statusPage.id, s.statusPageId),
+				eq(statusPage.isPublic, true),
+				eq(statusPage.organizationId, organizationId),
+			),
+		)
+		.where(
+			and(
+				isNotNull(s.verifiedAt),
+				notExists(
+					db
+						.select({ email: emailSuppression.email })
+						.from(emailSuppression)
+						.where(eq(emailSuppression.email, s.email)),
+				),
+			),
+		);
+	return row.reachable;
 }
 
 /**
@@ -47,8 +97,6 @@ export async function notifyIncidentSubscribers(
 	incident: Incident,
 	updateMessage: string | undefined,
 ): Promise<{ sent: number; failures: string[] } | null> {
-	if (!(await subscriberEmailEnabled(db, incident.organizationId))) return null;
-
 	const s = statusPageSubscriber;
 	const recipients = await db
 		.selectDistinct({
@@ -86,6 +134,21 @@ export async function notifyIncidentSubscribers(
 				),
 			),
 		);
+
+	if (!(await subscriberEmailEnabled(db, incident.organizationId))) {
+		if (recipients.length > 0) {
+			logger.warn(
+				{
+					event_type: "subscriber_email_off",
+					organization_id: incident.organizationId,
+					event_id: eventId,
+					recipients: recipients.length,
+				},
+				"Subscriber email is off, so confirmed subscribers were not emailed",
+			);
+		}
+		return null;
+	}
 
 	const claimed = new Set<string>();
 	for (let i = 0; i < recipients.length; i += CLAIM_CHUNK) {
