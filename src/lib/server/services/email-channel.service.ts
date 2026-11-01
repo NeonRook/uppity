@@ -9,6 +9,7 @@ import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import {
 	channelConfirmationSend,
 	emailOptOut,
+	emailSuppression,
 	notificationChannel,
 	notificationEvent,
 } from "#lib/server/db/schema.js";
@@ -550,6 +551,25 @@ export class EmailChannelService {
 	async mailRefusal(organizationId: string, email: string): Promise<MailRefusal | null> {
 		if (await isVerifiedMember(this.db, organizationId, email)) return null;
 		return this.guard.refusal(this.db, organizationId, email.toLowerCase());
+	}
+
+	/** Confirmed channels whose address bounced or complained, so their alerts go nowhere. */
+	async suppressedChannelIds(organizationId: string): Promise<Set<string>> {
+		const rows = await this.db
+			.select({ id: notificationChannel.id })
+			.from(notificationChannel)
+			.innerJoin(
+				emailSuppression,
+				eq(emailSuppression.email, sql`lower(${notificationChannel.config}->>'email')`),
+			)
+			.where(
+				and(
+					eq(notificationChannel.organizationId, organizationId),
+					eq(notificationChannel.type, "email"),
+					isNotNull(notificationChannel.verifiedAt),
+				),
+			);
+		return new Set(rows.map((row) => row.id));
 	}
 
 	/** Whether a confirmation to `email` would exceed the organization's pending cap. */

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import * as v from "valibot";
 import { describe, expect, vi } from "vitest";
@@ -631,5 +631,25 @@ describe("EmailChannelService.confirmMemberAddress", () => {
 		await service.confirmMemberAddress(`${userId}@example.com`);
 
 		expect((await service.lookup(channel.token))?.state).toBe("unsubscribed");
+	});
+});
+
+describe("EmailChannelService.suppressedChannelIds", () => {
+	test("names confirmed channels of this organization whose address is suppressed", async ({
+		db: { db },
+	}) => {
+		const { orgId, service } = await setup(db);
+		const other = await setup(db);
+		await db.insert(emailSuppression).values({ email: "gone@example.com", reason: "bounce" });
+		const confirmed = await seedEmailChannel(db, orgId, "Gone@example.com");
+		await seedEmailChannel(db, orgId, "gone@example.com");
+		const healthy = await seedEmailChannel(db, orgId, "fine@example.com");
+		const foreign = await seedEmailChannel(db, other.orgId, "gone@example.com");
+		await db
+			.update(notificationChannel)
+			.set({ verifiedAt: new Date() })
+			.where(inArray(notificationChannel.id, [confirmed.id, healthy.id, foreign.id]));
+
+		expect(await service.suppressedChannelIds(orgId)).toEqual(new Set([confirmed.id]));
 	});
 });

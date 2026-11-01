@@ -18,6 +18,8 @@ import { subscriptionService } from "#lib/server/services/subscription.instance.
 /** A channel as members see it. The token would let them confirm an address on its owner's behalf. */
 export type ChannelView = Omit<NotificationChannel, "token">;
 
+export type ListedChannel = ChannelView & { addressSuppressed: boolean };
+
 const { token: _token, ...viewColumns } = getTableColumns(notificationChannel);
 
 const MAIL_REFUSALS: Record<MailRefusal, () => string> = {
@@ -141,12 +143,18 @@ export class NotificationChannelService {
 		return result || null;
 	}
 
-	async findByOrganization(organizationId: string): Promise<ChannelView[]> {
-		return db
-			.select(viewColumns)
-			.from(notificationChannel)
-			.where(eq(notificationChannel.organizationId, organizationId))
-			.orderBy(desc(notificationChannel.createdAt));
+	async findByOrganization(organizationId: string): Promise<ListedChannel[]> {
+		const [channels, suppressed] = await Promise.all([
+			db
+				.select(viewColumns)
+				.from(notificationChannel)
+				.where(eq(notificationChannel.organizationId, organizationId))
+				.orderBy(desc(notificationChannel.createdAt)),
+			emailChannelService.suppressedChannelIds(organizationId),
+		]);
+		return channels.map((channel) =>
+			Object.assign(channel, { addressSuppressed: suppressed.has(channel.id) }),
+		);
 	}
 
 	/** A new email address starts confirmation over, on behalf of `requester`. */

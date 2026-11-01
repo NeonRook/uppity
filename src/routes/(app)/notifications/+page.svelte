@@ -183,10 +183,18 @@
 										{#if channel.type === "email" && !channel.verifiedAt}
 											<Badge variant="outline">{recipientState(channel)}</Badge>
 										{/if}
+										{#if channel.addressSuppressed}
+											<Badge variant="destructive">{m.notifications_address_suppressed()}</Badge>
+										{/if}
 									</div>
 									<p class="text-muted-foreground truncate text-sm">
 										{getChannelDescription(channel)}
 									</p>
+									{#if channel.addressSuppressed}
+										<p class="text-destructive text-sm">
+											{m.notifications_address_suppressed_desc()}
+										</p>
+									{/if}
 								</div>
 							</div>
 

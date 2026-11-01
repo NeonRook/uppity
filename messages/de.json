@@ -857,6 +857,8 @@
 	"notifications_unconfirmed": "Unbestätigt",
 	"notifications_not_sent": "E-Mail nicht gesendet",
 	"notifications_unsubscribed": "Abgemeldet",
+	"notifications_address_suppressed": "Alarme nicht zugestellt",
+	"notifications_address_suppressed_desc": "Diese Adresse hat E-Mails abgewiesen oder als Spam markiert, daher gehen Alarme an sie verloren. Verwende eine andere Adresse für den Kanal.",
 	"notifications_resend": "Bestätigung erneut senden",
 	"notifications_resend_sent": "Bestätigungs-E-Mail gesendet",
 	"notifications_resend_confirmed": "Diese Adresse ist bereits bestätigt",
