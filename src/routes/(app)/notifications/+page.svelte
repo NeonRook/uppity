@@ -74,6 +74,11 @@
 		}
 	}
 
+	function recipientState(channel: ChannelView): string {
+		if (channel.unsubscribedAt) return m.notifications_unsubscribed();
+		return channel.confirmationSentAt ? m.notifications_unconfirmed() : m.notifications_not_sent();
+	}
+
 	const resendMessages: Record<ResendResult, () => string> = {
 		sent: m.notifications_resend_sent,
 		confirmed: m.notifications_resend_confirmed,
@@ -176,11 +181,7 @@
 											<Badge variant="outline">{m.common_disabled()}</Badge>
 										{/if}
 										{#if channel.type === "email" && !channel.verifiedAt}
-											<Badge variant="outline">
-												{channel.unsubscribedAt
-													? m.notifications_unsubscribed()
-													: m.notifications_unconfirmed()}
-											</Badge>
+											<Badge variant="outline">{recipientState(channel)}</Badge>
 										{/if}
 									</div>
 									<p class="text-muted-foreground truncate text-sm">

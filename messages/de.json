@@ -855,6 +855,7 @@
 	"alerts_unsubscribe_submit": "Alarme abbestellen",
 	"alerts_unsubscribe_done": "Du bist abgemeldet. Diese Adresse erhält keine dieser Alarme mehr.",
 	"notifications_unconfirmed": "Unbestätigt",
+	"notifications_not_sent": "E-Mail nicht gesendet",
 	"notifications_unsubscribed": "Abgemeldet",
 	"notifications_resend": "Bestätigung erneut senden",
 	"notifications_resend_sent": "Bestätigungs-E-Mail gesendet",
