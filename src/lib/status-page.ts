@@ -1,6 +1,12 @@
 /** The label under a custom domain that holds its ownership TXT record. */
 export const DOMAIN_CHALLENGE_LABEL = "_uppity-challenge";
 
+/**
+ * Set on a form post whose `Origin` the server rewrote to the pinned origin because it matched the
+ * request's `Host`. The web tier refuses such a post unless that host is a verified custom domain.
+ */
+export const REWRITTEN_ORIGIN_HEADER = "x-uppity-rewritten-origin";
+
 /** Names that only resolve inside a network, or are reserved and never delegated. */
 const RESERVED_TLDS = new Set([
 	"alt",

@@ -13,6 +13,7 @@ import {
 } from "#lib/schemas/status-page.js";
 import { db } from "#lib/server/db/index.js";
 import { FeatureNotAvailableError } from "#lib/server/errors.js";
+import { canManage } from "#lib/server/organization-role.js";
 import { RateLimiter } from "#lib/server/rate-limit.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 import {
@@ -39,18 +40,31 @@ const DOMAIN_NOTICES: Record<VerifyResult, () => string> = {
 const domainRefused = (status: number, text: string) =>
 	fail(status, { domainNotice: { ok: false, text } });
 
-/** Runs a domain action for the signed-in organization, within the check limit. */
+type DomainEvent = { params: { id: string }; locals: App.Locals };
+
+/** The organization a domain action runs for, or the refusal when the user may not act. */
+async function domainManager({ locals }: DomainEvent) {
+	const organizationId = locals.session?.activeOrganizationId;
+	if (!organizationId || !locals.user) return domainRefused(401, "Not authenticated");
+	if (!(await canManage(organizationId, locals.user.id))) {
+		return domainRefused(403, m.status_page_domain_managers_only());
+	}
+	return organizationId;
+}
+
+/** Runs a check for an owner or admin of the signed-in organization, within the check limit. */
 async function domainCheck(
-	{ params, locals }: { params: { id: string }; locals: App.Locals },
+	event: DomainEvent,
 	action: "claim_custom_domain" | "verify_custom_domain",
 	check: (organizationId: string) => Promise<VerifyResult | null>,
 ) {
-	const organizationId = locals.session?.activeOrganizationId;
-	if (!organizationId) return domainRefused(401, "Not authenticated");
+	const { params, locals } = event;
+	const organizationId = await domainManager(event);
+	if (typeof organizationId !== "string") return organizationId;
 
 	locals.event.merge({ action, resource_type: "status_page", resource_id: params.id });
 
-	if (!domainCheckLimiter.attempt(params.id)) {
+	if (!domainCheckLimiter.attempt(`${organizationId}:${params.id}`)) {
 		return domainRefused(429, m.status_page_domain_rate_limited());
 	}
 	try {
@@ -91,6 +105,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { allowed } = await subscriptionService.areCustomDomainsAllowed(
 		locals.session.activeOrganizationId,
 	);
+	const target = domainTarget();
 
 	// Initialize forms with current values
 	const updateForm = await superValidate(
@@ -113,11 +128,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		pageMonitors,
 		updateForm,
 		customDomain:
-			claim || allowed
+			target && (claim || allowed)
 				? {
 						claim: claim && { domain: claim.domain, token: claim.token },
 						active: claim !== null && claim.domain === statusPage.customDomain,
-						target: domainTarget(),
+						lapsed: claim?.lapsedAt != null,
+						canManage:
+							locals.user !== null &&
+							(await canManage(locals.session.activeOrganizationId, locals.user.id)),
+						target,
 					}
 				: null,
 	};
@@ -175,15 +194,19 @@ export const actions: Actions = {
 			statusPageService.verifyDomain(event.params.id, organizationId),
 		),
 
-	releaseDomain: async ({ params, locals }) => {
-		if (!locals.session?.activeOrganizationId) return domainRefused(401, "Not authenticated");
+	releaseDomain: async (event) => {
+		const { params, locals } = event;
+		const organizationId = await domainManager(event);
+		if (typeof organizationId !== "string") return organizationId;
 
 		locals.event.merge({
 			action: "release_custom_domain",
 			resource_type: "status_page",
 			resource_id: params.id,
 		});
-		await statusPageService.releaseDomain(params.id, locals.session.activeOrganizationId);
+		if (!(await statusPageService.releaseDomain(params.id, organizationId))) {
+			return domainRefused(404, "Status page not found");
+		}
 		return { domainNotice: { ok: true, text: m.status_page_domain_removed() } };
 	},
 

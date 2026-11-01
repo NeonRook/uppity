@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 
 import { describe, expect, it } from "vitest";
 
+import { REWRITTEN_ORIGIN_HEADER } from "../src/lib/status-page.ts";
 import { parseOrigin, pinOrigin } from "./origin.ts";
 
 /** The origin adapter-node derives from a request, given the header settings in `env`. */
@@ -51,19 +52,14 @@ describe("pinOrigin", () => {
 		);
 	});
 
-	it("passes a public hostname through, so the web tier can serve or refuse it", () => {
+	it("keeps the pin whatever the Host", () => {
 		const env = { ORIGIN: "https://uppity.example.com" };
-		expect(handled(env, { host: "Status.Acme.com:443" })).toBe("https://Status.Acme.com:443");
-	});
-
-	it("keeps the pin for addresses and internal names", () => {
-		const env = { ORIGIN: "https://uppity.example.com" };
-		for (const host of ["10.0.0.5:3000", "[::1]:3000", "app:3000", "uppity.lan", "web.internal"]) {
+		for (const host of ["status.acme.com", "10.0.0.5:3000", "[::1]:3000", "app:3000"]) {
 			expect(handled(env, { host })).toBe("https://uppity.example.com");
 		}
 	});
 
-	it("takes the host from the Host header alone", () => {
+	it("takes nothing from X-Forwarded-Host", () => {
 		const env = { ORIGIN: "https://uppity.example.com", HOST_HEADER: "x-forwarded-host" };
 		expect(handled(env, { host: "app:3000", "x-forwarded-host": "status.acme.com" })).toBe(
 			"https://uppity.example.com",
@@ -81,6 +77,56 @@ describe("pinOrigin", () => {
 				"x-forwarded-host": "status.example.com",
 			}),
 		).toBe("https://status.example.com");
+	});
+});
+
+describe("the same-origin check on form posts", () => {
+	const env = { ORIGIN: "https://uppity.example.com" };
+
+	/** What reaches SvelteKit's check, which compares `Origin` with the pinned origin. */
+	function posted(headers: IncomingHttpHeaders) {
+		const pinned = { ...env };
+		const req = { headers: { ...headers } } as IncomingMessage;
+		pinOrigin(pinned)?.(req);
+		return {
+			passes: req.headers.origin === adapterOrigin(pinned, req.headers),
+			marked: REWRITTEN_ORIGIN_HEADER in req.headers,
+		};
+	}
+
+	it("lets a post from a page on the Host through, marked for the web tier to judge", () => {
+		const headers = { host: "status.acme.com", origin: "https://status.acme.com" };
+		expect(handled({ ...env }, headers)).toBe("https://uppity.example.com");
+		expect(posted(headers)).toEqual({ passes: true, marked: true });
+	});
+
+	it("leaves a post from the app's own origin unmarked", () => {
+		const headers = { host: "uppity.example.com", origin: "https://uppity.example.com" };
+		expect(posted(headers)).toEqual({ passes: true, marked: false });
+	});
+
+	it("keeps a proxy that rewrites Host working, as the pin always has", () => {
+		const headers = { host: "app:3000", origin: "https://uppity.example.com" };
+		expect(posted(headers)).toEqual({ passes: true, marked: false });
+	});
+
+	it.each([
+		["another site, to the app", "uppity.example.com", "https://evil.example"],
+		["another site, to a custom domain", "status.acme.com", "https://evil.example"],
+		["a custom domain, to the app", "uppity.example.com", "https://status.acme.com"],
+		["plain http, to a custom domain", "status.acme.com", "http://status.acme.com"],
+		["no origin at all", "status.acme.com", undefined],
+	])("refuses a post from %s", (_, host, origin) => {
+		expect(posted({ host, origin })).toEqual({ passes: false, marked: false });
+	});
+
+	it("overwrites a mark the client sent", () => {
+		const headers = {
+			host: "uppity.example.com",
+			origin: "https://uppity.example.com",
+			[REWRITTEN_ORIGIN_HEADER]: "1",
+		};
+		expect(posted(headers).marked).toBe(false);
 	});
 });
 

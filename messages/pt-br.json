@@ -953,5 +953,8 @@
 	"status_page_domain_taken": "Outra página de status já responde neste domínio.",
 	"status_page_domain_invalid": "Informe um nome de domínio público, como status.example.com.",
 	"status_page_domain_removed": "Domínio removido.",
-	"status_page_domain_rate_limited": "Muitas verificações. Aguarde um minuto e tente novamente."
+	"status_page_domain_rate_limited": "Muitas verificações. Aguarde um minuto e tente novamente.",
+	"status_page_domain_lapsed": "Perdido",
+	"status_page_domain_lapsed_help": "As verificações de DNS não encontraram mais estes registros, então a página deixou de ser servida neste domínio e qualquer pessoa que controle o DNS dele pode reivindicá-lo. Coloque os registros de volta e verifique o DNS para servir aqui novamente.",
+	"status_page_domain_managers_only": "Somente proprietários e administradores podem alterar os domínios personalizados desta organização."
 }

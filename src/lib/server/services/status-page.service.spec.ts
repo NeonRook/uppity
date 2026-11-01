@@ -883,7 +883,7 @@ describe("StatusPageService custom domains", () => {
 		expect(await domainClaims(drizzleDb, pageId)).toEqual([]);
 	});
 
-	test("finds a page by domain only while it is public", async ({ db }) => {
+	test("finds a page by domain, private or not", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const service = new StatusPageService(drizzleDb);
 		const { pageId, slug } = await seedDomainPage(drizzleDb);
@@ -892,9 +892,30 @@ describe("StatusPageService custom domains", () => {
 			.set({ customDomain: "public.acme.com" })
 			.where(eq(statusPage.id, pageId));
 
-		await expect(service.findPublicSlugByDomain("public.acme.com")).resolves.toBe(slug);
+		await expect(service.findByDomain("public.acme.com")).resolves.toEqual({
+			slug,
+			isPublic: true,
+		});
+		await expect(service.hasCustomDomain(slug)).resolves.toBe(true);
 
 		await drizzleDb.update(statusPage).set({ isPublic: false }).where(eq(statusPage.id, pageId));
-		await expect(service.findPublicSlugByDomain("public.acme.com")).resolves.toBeNull();
+		await expect(service.findByDomain("public.acme.com")).resolves.toEqual({
+			slug,
+			isPublic: false,
+		});
+	});
+
+	test("refuses a claim while the instance has no target", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new StatusPageService(drizzleDb);
+		const { orgId, pageId } = await seedDomainPage(drizzleDb);
+		allowDomains(true);
+		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", "");
+
+		await expect(service.claimDomain(pageId, orgId, "org.acme.com")).rejects.toThrow(
+			FeatureNotAvailableError,
+		);
+		expect(await domainClaims(drizzleDb, pageId)).toEqual([]);
+		vi.unstubAllEnvs();
 	});
 });

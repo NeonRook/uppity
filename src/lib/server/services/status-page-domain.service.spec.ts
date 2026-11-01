@@ -1,10 +1,12 @@
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { normalizeDomain } from "../../status-page";
 import { appUrl } from "../account-email";
+import { member, user } from "../db/auth-schema";
 import type { Db } from "../db/index";
-import { statusPage, statusPageDomainClaim } from "../db/schema";
+import { auditLog, statusPage, statusPageDomainClaim } from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedOrg } from "../test/seed";
@@ -19,7 +21,16 @@ import {
 } from "./status-page-domain.service";
 
 const DOMAIN = "status.acme.com";
-const target = new URL(appUrl).hostname;
+const target = "domains.uppity.cloud";
+
+const noNotice = vi.fn(async () => {});
+
+beforeAll(() => {
+	vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", target);
+});
+afterAll(() => {
+	vi.unstubAllEnvs();
+});
 
 const dnsError = (code: string) => Object.assign(new Error(code), { code });
 
@@ -69,6 +80,27 @@ const staleClaim = (db: Db, id: string) =>
 		.set({ checkedAt: new Date(0) })
 		.where(eq(statusPageDomainClaim.statusPageId, id));
 
+const oneMissFromLapsing = (db: Db, id: string) =>
+	db
+		.update(statusPageDomainClaim)
+		.set({ failedChecks: 2 })
+		.where(eq(statusPageDomainClaim.statusPageId, id));
+
+async function seedMember(db: Db, organizationId: string, role: string): Promise<string> {
+	const id = nanoid();
+	const email = `${id}@example.org`.toLowerCase();
+	await db.insert(user).values({
+		id,
+		name: id,
+		email,
+		emailVerified: true,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	});
+	await db.insert(member).values({ id, organizationId, userId: id, role, createdAt: new Date() });
+	return email;
+}
+
 /** The database lasts the whole file, and these tests all want the one domain. */
 async function clearDomains({ db: { db } }: { db: TestDb }) {
 	await db.delete(statusPageDomainClaim);
@@ -105,6 +137,24 @@ describe("checkDns", () => {
 		expect(dns.resolveTxt).toHaveBeenCalledExactlyOnceWith(`_uppity-challenge.${DOMAIN}`);
 	});
 
+	it("ignores a CNAME aimed at an internal name, and follows no answer", async () => {
+		const dns = dnsWith({ cname: "metadata.google.internal", token: claim.token });
+
+		await expect(checkDns(claim, dns)).resolves.toBe("missing");
+		expect(dns.resolveCname).toHaveBeenCalledOnce();
+		expect(dns.resolveTxt).toHaveBeenCalledOnce();
+	});
+
+	it.each(["10.0.0.1", "http://10.0.0.1/x", "foo.internal", "localhost"])(
+		"looks up nothing for %s, a value stored before validation",
+		async (domain) => {
+			const dns = dnsWith({ cname: claim.target, token: claim.token });
+
+			await expect(checkDns({ ...claim, domain }, dns)).resolves.toBe("missing");
+			expect(dns.resolveCname).not.toHaveBeenCalled();
+		},
+	);
+
 	it.each(["ENOTFOUND", "ENODATA"])("reads %s as the records being gone", async (code) => {
 		await expect(checkDns(claim, failingDns(code))).resolves.toBe("missing");
 	});
@@ -115,12 +165,37 @@ describe("checkDns", () => {
 });
 
 describe("domainTarget", () => {
-	it("is the app's host unless the operator names another, in canonical form", () => {
-		expect(domainTarget()).toBe(target);
+	beforeEach(() => {
+		vi.stubEnv("SELF_HOSTED", "");
+	});
+	afterAll(() => {
+		vi.stubEnv("SELF_HOSTED", "");
+		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", target);
+	});
 
+	it("takes the operator's target in canonical form", () => {
 		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", "Domains.Uppity.cloud.");
+
 		expect(domainTarget()).toBe("domains.uppity.cloud");
-		vi.unstubAllEnvs();
+	});
+
+	it("is unset on the hosted service until the operator names one", () => {
+		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", "");
+
+		expect(domainTarget()).toBeNull();
+	});
+
+	it("falls back to the app's host when self-hosted, if that is a public name", () => {
+		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", "");
+		vi.stubEnv("SELF_HOSTED", "true");
+
+		expect(domainTarget()).toBe(normalizeDomain(new URL(appUrl).hostname));
+	});
+
+	it.each(["10.0.0.1", "localhost", "uppity.internal"])("refuses %s as a target", (value) => {
+		vi.stubEnv("UPPITY_STATUS_PAGE_CNAME_TARGET", value);
+
+		expect(domainTarget()).toBeNull();
 	});
 });
 
@@ -190,6 +265,25 @@ describe("claims", () => {
 		expect(await pageDomain(db, id)).toBeNull();
 	});
 
+	test("report no verification when a newer claim replaced them", async ({ db: { db } }) => {
+		const id = await seedPage(db);
+		const stale = (await claimDomain(db, id, DOMAIN))!;
+		await claimDomain(db, id, DOMAIN);
+
+		await expect(verifyClaim(db, stale, dnsWith({ token: stale.token }))).resolves.toBe("unknown");
+	});
+
+	test("cannot use another page's token on a domain it holds", async ({ db: { db } }) => {
+		const { claim: held } = await verifiedPage(db);
+		const other = await seedPage(db);
+
+		await expect(claimDomain(db, other, DOMAIN)).resolves.toBeNull();
+		await expect(
+			verifyClaim(db, { ...held, statusPageId: other }, dnsWith({ token: held.token })),
+		).resolves.toBe("taken");
+		expect(await pageDomain(db, other)).toBeNull();
+	});
+
 	test("end with the page's domain when released", async ({ db: { db } }) => {
 		const { id } = await verifiedPage(db);
 
@@ -235,20 +329,107 @@ describe("recheckDomains", () => {
 		const moved = dnsWith({ cname: "elsewhere.com" });
 
 		for (const lapsed of [0, 0, 1]) {
-			await expect(recheckDomains(db, moved)).resolves.toEqual({ checked: 1, lapsed });
+			await expect(recheckDomains(db, noNotice, moved)).resolves.toMatchObject({
+				checked: 1,
+				lapsed,
+			});
 			await staleClaim(db, id);
 		}
 
 		expect(await pageDomain(db, id)).toBeNull();
 	});
 
+	test("records a lapse for the operator, the card and the owners", async ({ db: { db } }) => {
+		const { id } = await verifiedPage(db);
+		await oneMissFromLapsing(db, id);
+		const [page] = await db.select().from(statusPage).where(eq(statusPage.id, id));
+		const manager = await seedMember(db, page.organizationId, "owner");
+		await seedMember(db, page.organizationId, "member");
+		const sendNotice = vi.fn(async () => {});
+
+		await recheckDomains(db, sendNotice, dnsWith({}));
+
+		expect(sendNotice).toHaveBeenCalledExactlyOnceWith(
+			[manager],
+			expect.objectContaining({ domain: DOMAIN, page: expect.objectContaining({ id }) }),
+		);
+		const [claim] = await db
+			.select()
+			.from(statusPageDomainClaim)
+			.where(eq(statusPageDomainClaim.statusPageId, id));
+		expect(claim.lapsedAt).toBeInstanceOf(Date);
+		const rows = await db.select().from(auditLog).where(eq(auditLog.targetId, id));
+		expect(rows).toEqual([
+			expect.objectContaining({
+				action: "status_page.domain_lapse",
+				actorId: null,
+				actorEmail: "system",
+				targetLabel: DOMAIN,
+			}),
+		]);
+	});
+
+	test("keeps a lapse when its notice cannot be sent", async ({ db: { db } }) => {
+		const { id } = await verifiedPage(db);
+		await oneMissFromLapsing(db, id);
+		const unreachable = vi.fn(async () => {
+			throw new Error("SMTP not configured");
+		});
+
+		await expect(recheckDomains(db, unreachable, dnsWith({}))).resolves.toEqual({
+			checked: 1,
+			lapsed: 1,
+			unnotified: 1,
+		});
+		expect(await pageDomain(db, id)).toBeNull();
+	});
+
+	test("clears the lapse when the owner verifies again", async ({ db: { db } }) => {
+		const { id, claim } = await verifiedPage(db);
+		await oneMissFromLapsing(db, id);
+		await recheckDomains(db, noNotice, dnsWith({}));
+
+		await verifyClaim(db, claim, dnsWith({ token: claim.token }));
+
+		const [row] = await db
+			.select()
+			.from(statusPageDomainClaim)
+			.where(eq(statusPageDomainClaim.statusPageId, id));
+		expect(row).toMatchObject({ lapsedAt: null, failedChecks: 0 });
+		expect(await pageDomain(db, id)).toBe(DOMAIN);
+	});
+
+	test("does not let a lapsed page take the domain from its new owner", async ({ db: { db } }) => {
+		const { id, claim: lapsed } = await verifiedPage(db);
+		await oneMissFromLapsing(db, id);
+		await recheckDomains(db, noNotice, dnsWith({}));
+		const owner = await seedPage(db);
+		const claim = (await claimDomain(db, owner, DOMAIN))!;
+		await verifyClaim(db, claim, dnsWith({ token: claim.token }));
+
+		await expect(verifyClaim(db, lapsed, dnsWith({ token: lapsed.token }))).resolves.toBe("taken");
+		expect(await pageDomain(db, owner)).toBe(DOMAIN);
+	});
+
+	test("counts one miss when two sweeps overlap", async ({ db: { db } }) => {
+		const { id } = await verifiedPage(db);
+
+		await Promise.all([
+			recheckDomains(db, noNotice, dnsWith({})),
+			recheckDomains(db, noNotice, dnsWith({})),
+		]);
+
+		const [row] = await db
+			.select({ failedChecks: statusPageDomainClaim.failedChecks })
+			.from(statusPageDomainClaim)
+			.where(eq(statusPageDomainClaim.statusPageId, id));
+		expect(row.failedChecks).toBe(1);
+	});
+
 	test("frees the domain for a new owner once it lapses", async ({ db: { db } }) => {
 		const { id } = await verifiedPage(db);
-		await db
-			.update(statusPageDomainClaim)
-			.set({ failedChecks: 2 })
-			.where(eq(statusPageDomainClaim.statusPageId, id));
-		await recheckDomains(db, dnsWith({}));
+		await oneMissFromLapsing(db, id);
+		await recheckDomains(db, noNotice, dnsWith({}));
 
 		const owner = await seedPage(db);
 		const claim = (await claimDomain(db, owner, DOMAIN))!;
@@ -260,7 +441,7 @@ describe("recheckDomains", () => {
 		const { id } = await verifiedPage(db);
 
 		for (let run = 0; run < 5; run++) {
-			await recheckDomains(db, failingDns("ETIMEOUT"));
+			await recheckDomains(db, noNotice, failingDns("ETIMEOUT"));
 			await staleClaim(db, id);
 		}
 
@@ -269,9 +450,9 @@ describe("recheckDomains", () => {
 
 	test("forgets failures once the records are back", async ({ db: { db } }) => {
 		const { id, claim } = await verifiedPage(db);
-		await recheckDomains(db, dnsWith({}));
+		await recheckDomains(db, noNotice, dnsWith({}));
 		await staleClaim(db, id);
-		await recheckDomains(db, dnsWith({ token: claim.token }));
+		await recheckDomains(db, noNotice, dnsWith({ token: claim.token }));
 
 		const [row] = await db
 			.select({ failedChecks: statusPageDomainClaim.failedChecks })
@@ -287,7 +468,7 @@ describe("recheckDomains", () => {
 			.set({ verifiedTarget: "edge.uppity.cloud", failedChecks: 2 })
 			.where(eq(statusPageDomainClaim.statusPageId, id));
 
-		await recheckDomains(db, dnsWith({ cname: "edge.uppity.cloud", token: claim.token }));
+		await recheckDomains(db, noNotice, dnsWith({ cname: "edge.uppity.cloud", token: claim.token }));
 
 		expect(await pageDomain(db, id)).toBe(DOMAIN);
 	});
@@ -300,6 +481,9 @@ describe("recheckDomains", () => {
 			.where(eq(statusPageDomainClaim.statusPageId, id));
 		await claimDomain(db, await seedPage(db), "status.pending.com");
 
-		await expect(recheckDomains(db, dnsWith({}))).resolves.toEqual({ checked: 0, lapsed: 0 });
+		await expect(recheckDomains(db, noNotice, dnsWith({}))).resolves.toMatchObject({
+			checked: 0,
+			lapsed: 0,
+		});
 	});
 });

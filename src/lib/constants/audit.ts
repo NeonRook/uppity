@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = [
 	"org.subscriber_email_set",
 	"monitor.dead_letter_reset",
 	"mail.suppression_lift",
+	"status_page.domain_lapse",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -29,6 +30,7 @@ export const AUDIT_TARGET_TYPES = [
 	"session",
 	"subscription",
 	"monitor",
+	"status_page",
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];

@@ -3,6 +3,7 @@ import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
 import { client, db } from "../shared/db";
 import { runCheck } from "./check";
+import { startDomainRecheck } from "./domain-recheck";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs } from "./maintenance";
 import { SlotPool } from "./pool";
 import { pendingMonitorIds, processResults } from "./processor";
@@ -177,6 +178,7 @@ async function start() {
 	);
 
 	await startResultProcessor();
+	startDomainRecheck();
 	await pollLoop();
 	await stopProcessing?.();
 

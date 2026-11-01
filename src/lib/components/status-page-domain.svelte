@@ -14,11 +14,13 @@
 	interface Props {
 		claim: { domain: string; token: string } | null;
 		active: boolean;
+		lapsed: boolean;
+		canManage: boolean;
 		target: string;
 		notice?: { ok: boolean; text: string };
 	}
 
-	let { claim, active, target, notice }: Props = $props();
+	let { claim, active, lapsed, canManage, target, notice }: Props = $props();
 
 	const records = $derived(
 		claim
@@ -50,10 +52,21 @@
 		{#if claim}
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="font-mono text-sm">{claim.domain}</span>
-				<Badge variant={active ? "default" : "outline"}>
-					{active ? m.status_page_domain_active() : m.status_page_domain_pending()}
-				</Badge>
+				{#if lapsed}
+					<Badge variant="destructive">{m.status_page_domain_lapsed()}</Badge>
+				{:else}
+					<Badge variant={active ? "default" : "outline"}>
+						{active ? m.status_page_domain_active() : m.status_page_domain_pending()}
+					</Badge>
+				{/if}
 			</div>
+
+			{#if lapsed}
+				<Alert variant="destructive">
+					<CircleAlert class="h-4 w-4" />
+					<AlertDescription>{m.status_page_domain_lapsed_help()}</AlertDescription>
+				</Alert>
+			{/if}
 
 			<p class="text-muted-foreground text-sm">{m.status_page_domain_records_help()}</p>
 			<div class="overflow-x-auto rounded-lg border">
@@ -78,15 +91,17 @@
 			</div>
 			<p class="text-muted-foreground text-sm">{m.status_page_domain_tls_help()}</p>
 
-			<div class="flex flex-wrap gap-2">
-				<form method="POST" action="?/verifyDomain" use:enhance>
-					<Button type="submit" variant="outline">{m.status_page_domain_check()}</Button>
-				</form>
-				<form method="POST" action="?/releaseDomain" use:enhance>
-					<Button type="submit" variant="ghost">{m.status_page_domain_remove()}</Button>
-				</form>
-			</div>
-		{:else}
+			{#if canManage}
+				<div class="flex flex-wrap gap-2">
+					<form method="POST" action="?/verifyDomain" use:enhance>
+						<Button type="submit" variant="outline">{m.status_page_domain_check()}</Button>
+					</form>
+					<form method="POST" action="?/releaseDomain" use:enhance>
+						<Button type="submit" variant="ghost">{m.status_page_domain_remove()}</Button>
+					</form>
+				</div>
+			{/if}
+		{:else if canManage}
 			<form method="POST" action="?/claimDomain" use:enhance>
 				<Field.Field>
 					<Field.Label for="custom-domain">{m.status_page_domain_label()}</Field.Label>
@@ -103,6 +118,8 @@
 					</div>
 				</Field.Field>
 			</form>
+		{:else}
+			<p class="text-muted-foreground text-sm">{m.status_page_domain_managers_only()}</p>
 		{/if}
 	</Card.Content>
 </Card.Root>
