@@ -54,8 +54,6 @@ export class StatusPageSubscriberService {
 
 		const windowStart = new Date(now.getTime() - RESEND_INTERVAL_MS);
 
-		const { organizationId } = page;
-
 		const row = await this.db.transaction(async (tx): Promise<Pending | SubscribeResult> => {
 			// Serializes subscribes per page, so concurrent requests cannot all pass the cap.
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${page.id}))`);
@@ -75,7 +73,7 @@ export class StatusPageSubscriberService {
 			const cap = Math.min(max, Math.max(base, Math.floor((confirmed * percentOfConfirmed) / 100)));
 			if (sent >= cap) return "capped";
 
-			const refused = await this.guard.refusal(tx, organizationId, address);
+			const refused = await this.guard.refusal(tx, page.organizationId, address, { visitor: true });
 			if (refused === "suppressed") return "sent";
 			if (refused) return "paused";
 
@@ -100,7 +98,7 @@ export class StatusPageSubscriberService {
 			if (!upserted) return "sent";
 
 			const sendId = nanoid();
-			await this.guard.record(tx, { id: sendId, organizationId, email: address });
+			await this.guard.record(tx, { id: sendId, organizationId: null, email: address });
 			return { ...upserted, sendId };
 		});
 		if (typeof row === "string") return row;

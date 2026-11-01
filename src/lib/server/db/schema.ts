@@ -352,14 +352,16 @@ export const mailEvent = pgTable("mail_event", {
 
 // One row per email to an address that never agreed to mail: channel confirmations,
 // subscriber confirmations and invitations. Feeds the instance-wide ceiling, and tells a
-// bounce which organization's send it answers.
+// bounce which organization's send it answers. Null organization for subscriber
+// confirmations: a visitor typed the address, so its bounces must not count against the page's
+// organization, or anyone could block an organization through its public form.
 export const unsolicitedMailSend = pgTable(
 	"unsolicited_mail_send",
 	{
 		id: text("id").primaryKey(),
-		organizationId: text("organization_id")
-			.notNull()
-			.references(() => organization.id, { onDelete: "cascade" }),
+		organizationId: text("organization_id").references(() => organization.id, {
+			onDelete: "cascade",
+		}),
 		// Lowercased.
 		email: text("email").notNull(),
 		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),

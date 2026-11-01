@@ -6,7 +6,7 @@ CREATE TABLE "organization_mail_block" (
 --> statement-breakpoint
 CREATE TABLE "unsolicited_mail_send" (
 	"id" text PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
+	"organization_id" text,
 	"email" text NOT NULL,
 	"sent_at" timestamp with time zone DEFAULT now() NOT NULL
 );

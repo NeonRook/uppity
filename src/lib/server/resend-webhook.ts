@@ -58,8 +58,8 @@ const eventSchema = v.variant("type", [
 export interface MailFailure {
 	kind: "bounce" | "complaint";
 	recipients: string[];
-	/** When the provider took the email, which places it among our own sends. */
-	sentAt: Date;
+	/** When the provider took the email, which places it among our own sends. Null if unknown. */
+	sentAt: Date | null;
 }
 
 const HANDLED = new Set(["email.bounced", "email.complained"]);
@@ -78,6 +78,6 @@ export function parseEvent(body: unknown): MailFailure | null {
 	return {
 		kind: event.type === "email.bounced" ? "bounce" : "complaint",
 		recipients: event.data.to.map((address) => address.trim().toLowerCase()),
-		sentAt: Number.isNaN(sentAt.getTime()) ? new Date() : sentAt,
+		sentAt: Number.isNaN(sentAt.getTime()) ? null : sentAt,
 	};
 }

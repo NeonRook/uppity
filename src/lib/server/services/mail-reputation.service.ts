@@ -1,6 +1,7 @@
 import { and, between, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { MAIL_REPUTATION, UNSOLICITED_MAIL_DAILY_CEILING } from "#lib/constants/defaults.js";
+import { appUrl } from "#lib/server/account-email.js";
 import type { Db, DbExecutor } from "#lib/server/db/index.js";
 import {
 	emailSuppression,
@@ -30,46 +31,56 @@ export class UnsolicitedMailGuard {
 
 	/**
 	 * Why the organization may not email the lowercased address, if so. Inside a transaction,
-	 * the ceiling stays held until it ends, so `record` must follow in that transaction.
+	 * the ceiling stays held until it ends, so `record` must follow in that transaction. The
+	 * address comes last: a visitor sees "suppressed" as success, so a paused form must look
+	 * the same for every address. `visitor` marks an address typed into a public form, which
+	 * may use only half the ceiling, so bots cannot spend it all and stop every invitation.
 	 */
 	async refusal(
 		tx: DbExecutor,
 		organizationId: string,
 		email: string,
+		{ visitor = false } = {},
 	): Promise<MailRefusal | null> {
-		const [suppressed] = await tx
-			.select({ email: emailSuppression.email })
-			.from(emailSuppression)
-			.where(eq(emailSuppression.email, email));
-		if (suppressed) return "suppressed";
-
 		const [block] = await tx
 			.select({ organizationId: organizationMailBlock.organizationId })
 			.from(organizationMailBlock)
 			.where(eq(organizationMailBlock.organizationId, organizationId));
 		if (block) return "blocked";
 
-		if (this.ceiling <= 0) return null;
+		if (await this.overCeiling(tx, visitor)) return "ceiling";
 
+		const [suppressed] = await tx
+			.select({ email: emailSuppression.email })
+			.from(emailSuppression)
+			.where(eq(emailSuppression.email, email));
+		return suppressed ? "suppressed" : null;
+	}
+
+	private async overCeiling(tx: DbExecutor, visitor: boolean): Promise<boolean> {
+		if (this.ceiling <= 0) return false;
+
+		const s = unsolicitedMailSend;
 		await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('unsolicited_mail_ceiling'))`);
-		const [{ sent }] = await tx
-			.select({ sent: count() })
-			.from(unsolicitedMailSend)
-			.where(gt(unsolicitedMailSend.sentAt, new Date(Date.now() - DAY_MS)));
-		if (sent < this.ceiling) return null;
+		const [{ sent, fromOrganizations }] = await tx
+			.select({ sent: count(), fromOrganizations: count(s.organizationId) })
+			.from(s)
+			.where(gt(s.sentAt, new Date(Date.now() - DAY_MS)));
+		const fromVisitors = sent - fromOrganizations;
+		if (sent < this.ceiling && !(visitor && fromVisitors * 2 >= this.ceiling)) return false;
 
 		void raiseOpsAlert(this.db, {
 			type: "unsolicited_mail_ceiling",
 			subject: "instance",
 			title: "Unsolicited mail ceiling reached",
-			body: `${sent} emails to new addresses went out in the past 24 hours, against a ceiling of ${this.ceiling}. Further sends are refused until the count drops.`,
+			body: `${sent} emails to new addresses went out in the past 24 hours, ${fromVisitors} of them typed into public status pages, which may use half of the ceiling of ${this.ceiling}. Sends are refused until the count drops.`,
 		});
-		return "ceiling";
+		return true;
 	}
 
 	async record(
 		tx: DbExecutor,
-		send: { id: string; organizationId: string; email: string },
+		send: { id: string; organizationId: string | null; email: string },
 	): Promise<void> {
 		await tx.insert(unsolicitedMailSend).values(send);
 	}
@@ -104,7 +115,7 @@ export async function recordMailFailure(
 			.values(recipients.map((email) => ({ email, reason: kind })))
 			.onConflictDoNothing();
 
-		const organizationId = await senderOf(tx, recipients, sentAt);
+		const organizationId = sentAt && (await senderOf(tx, recipients, sentAt));
 		if (!organizationId) return null;
 
 		await tx.update(mailEvent).set({ organizationId }).where(eq(mailEvent.id, eventId));
@@ -125,12 +136,12 @@ export async function recordMailFailure(
 			type: "organization_mail_blocked",
 			subject: blocked.organizationId,
 			title: "Organization blocked from emailing new addresses",
-			body: `Organization ${blocked.organizationId} crossed the ${blocked.reason} threshold. It stays blocked until an admin clears it on its page in the admin area.`,
+			body: `Organization ${blocked.organizationId} crossed the ${blocked.reason} threshold. It stays blocked until an admin clears it at ${appUrl}/admin/organizations/${blocked.organizationId}`,
 		});
 	}
 }
 
-/** The organization behind the recorded send closest in time to `sentAt`. */
+/** The organization behind the recorded send closest in time to `sentAt`, if one is accountable. */
 async function senderOf(tx: DbExecutor, recipients: string[], sentAt: Date) {
 	const s = unsolicitedMailSend;
 	const [send] = await tx
