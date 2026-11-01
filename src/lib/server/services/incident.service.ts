@@ -216,13 +216,10 @@ export class IncidentService {
 
 	/** Null when the incident is not in `input.organizationId`; nothing is written then. */
 	async addUpdate(input: AddUpdateInput): Promise<IncidentUpdate | null> {
-		// The prior status tells a real "resolved" transition from re-resolving an
-		// ended incident, which must not enqueue a second incident_resolved.
-		const previous = await this.findByIdAndOrg(input.incidentId, input.organizationId);
-		if (!previous) {
+		const existing = await this.findByIdAndOrg(input.incidentId, input.organizationId);
+		if (!existing) {
 			return null;
 		}
-		const hadEnded = isEndedIncidentStatus(previous.status);
 
 		const id = nanoid();
 
@@ -250,14 +247,15 @@ export class IncidentService {
 					eq(incident.organizationId, input.organizationId),
 					// A postmortem joins the timeline but never ends an incident still active.
 					input.status === "postmortem" ? incidentEnded : undefined,
+					// Resolving an ended incident joins the timeline but keeps its status and resolvedAt.
+					input.status === "resolved" ? incidentActive : undefined,
 				),
 			)
 			.returning({ id: incident.id, organizationId: incident.organizationId });
 
-		// A postmortem is post-resolution writing, not paging-worthy, and re-resolving
-		// an ended incident must not enqueue a duplicate event.
-		const notifiable = input.status !== "postmortem" && !(input.status === "resolved" && hadEnded);
-		if (updatedIncident && notifiable) {
+		// The UPDATE takes the row lock before it tests the status, so of concurrent resolves
+		// only one matches and enqueues. A postmortem is post-resolution writing, not paging-worthy.
+		if (updatedIncident && input.status !== "postmortem") {
 			await this.enqueueIncidentEvent(
 				input.status === "resolved" ? "incident_resolved" : "incident_updated",
 				updatedIncident,
