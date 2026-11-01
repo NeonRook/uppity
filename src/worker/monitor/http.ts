@@ -187,7 +187,8 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 			if (hop === MAX_REDIRECTS) throw new ProbeError(`More than ${MAX_REDIRECTS} redirects`);
 			const next = URL.parse(String(location), url);
 			if (next?.protocol !== "http:" && next?.protocol !== "https:") {
-				throw new ProbeError(`Redirect to an unsupported location: ${String(location)}`);
+				// The target's own text stays out: this message reaches alerts and public incidents.
+				throw new ProbeError("Redirect to an unsupported location");
 			}
 			if (
 				response.statusCode === 303
