@@ -9,7 +9,7 @@ permissions:
 jobs:
   lint:
     name: Lint & Format
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -19,7 +19,7 @@ jobs:
 
   typecheck:
     name: Type Check
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -29,7 +29,7 @@ jobs:
 
   unit:
     name: Unit Tests
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     services: &postgres-service
       postgres:
         image: postgres:18-alpine
@@ -59,7 +59,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2604
     services: *postgres-service
     env:
       DATABASE_URL: *database-url
@@ -76,7 +76,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     env:
       BETTER_AUTH_SECRET: ci-placeholder-not-a-real-secret
     steps:
