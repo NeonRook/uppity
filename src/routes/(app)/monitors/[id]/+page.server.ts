@@ -5,6 +5,7 @@ import { RESPONSE_HISTORY_WINDOWS } from "#lib/constants/defaults.js";
 import { checksOverdue } from "#lib/server/check-state.js";
 import { db } from "#lib/server/db/index.js";
 import { monitor, monitorStatus, monitorCheck } from "#lib/server/db/schema.js";
+import { activeFlap } from "#lib/server/flap.js";
 import { MonitorChannelService } from "#lib/server/services/monitor-channel.service.js";
 import { monitorService } from "#lib/server/services/monitor.service.js";
 import { ResponseHistoryService } from "#lib/server/services/response-history.service.js";
@@ -62,10 +63,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		Math.max(...historyWindows),
 	);
 
+	const flap = monitorData.active ? await activeFlap(db, params.id) : undefined;
+
 	return {
 		monitor: monitorData,
 		status: statusData || null,
 		checksOverdue: schedule?.overdue ?? false,
+		flapSettleMinutes: flap && Math.ceil(flap.settleSeconds / 60),
 		recentChecks,
 		alerts,
 		historyWindows,

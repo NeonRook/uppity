@@ -3,6 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import {
+		Activity,
 		BellOff,
 		Check,
 		Copy,
@@ -233,6 +234,16 @@
 				{#if data.monitor.deadLetteredAt}
 					{m.monitor_unchecked_since({ since: formatDateTimeShort(data.monitor.deadLetteredAt) })}
 				{/if}
+			</Alert.Description>
+		</Alert.Root>
+	{/if}
+
+	{#if data.flapSettleMinutes !== undefined}
+		<Alert.Root>
+			<Activity class="h-4 w-4" />
+			<Alert.Title>{m.monitor_flapping_title()}</Alert.Title>
+			<Alert.Description>
+				{m.monitor_flapping_desc({ minutes: data.flapSettleMinutes })}
 			</Alert.Description>
 		</Alert.Root>
 	{/if}

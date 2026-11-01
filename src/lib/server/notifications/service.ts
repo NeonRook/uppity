@@ -31,6 +31,7 @@ import {
 	queuedRetry,
 	type DeliveryProgress,
 	type IncidentEventPayload,
+	type MonitorFlappingEventPayload,
 } from "./events";
 import { sendSlack } from "./slack";
 import {
@@ -227,6 +228,8 @@ export class NotificationService {
 				return link.notifyOnDegraded;
 			case "ssl_expiry_warning":
 				return link.notifyOnSslExpiry;
+			case "monitor_flapping":
+				return link.notifyOnDown || link.notifyOnUp;
 			default:
 				return true;
 		}
@@ -540,6 +543,9 @@ export class NotificationService {
 		};
 		if (type === "ssl_expiry_warning") {
 			return { ...base, sslDaysRemaining: p.daysRemaining as number };
+		}
+		if (type === "monitor_flapping") {
+			return { ...base, flap: row.payload as MonitorFlappingEventPayload };
 		}
 		return {
 			...base,

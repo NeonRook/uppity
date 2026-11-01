@@ -520,7 +520,7 @@ export const notificationEvent = pgTable(
 		incidentId: text("incident_id").references(() => incident.id, { onDelete: "cascade" }),
 		type: text("type").notNull(),
 		// 'monitor_down' | 'monitor_up' | 'monitor_degraded' | 'ssl_expiry_warning'
-		// | 'monitor_checks_stopped' | 'monitor_checks_resumed'
+		// | 'monitor_checks_stopped' | 'monitor_checks_resumed' | 'monitor_flapping'
 		// | 'incident_created' | 'incident_updated' | 'incident_resolved'
 		// | 'channel_confirmation'
 		payload: jsonb("payload").notNull(),

@@ -28,6 +28,13 @@ export type SslExpiryEventPayload = v.InferOutput<typeof SslExpiryEventPayload>;
 export const CheckStateEventPayload = v.object({});
 export type CheckStateEventPayload = Record<string, never>;
 
+/** Carried in the event because the monitor worker's settings decide them, not the reader's. */
+export const MonitorFlappingEventPayload = v.object({
+	settleSeconds: v.pipe(v.number(), v.integer(), v.minValue(0)),
+	reminderSeconds: v.pipe(v.number(), v.integer(), v.minValue(0)),
+});
+export type MonitorFlappingEventPayload = v.InferOutput<typeof MonitorFlappingEventPayload>;
+
 export const IncidentEventPayload = v.object({
 	// For incident_updated only: the specific update entry's id and message body.
 	// For incident_created and incident_resolved: omitted.
@@ -100,6 +107,7 @@ export function parseEventPayload(
 	| MonitorStatusEventPayload
 	| SslExpiryEventPayload
 	| CheckStateEventPayload
+	| MonitorFlappingEventPayload
 	| IncidentEventPayload {
 	if (type === "monitor_down" || type === "monitor_up" || type === "monitor_degraded") {
 		return v.parse(MonitorStatusEventPayload, payload);
@@ -109,6 +117,9 @@ export function parseEventPayload(
 	}
 	if (type === "monitor_checks_stopped" || type === "monitor_checks_resumed") {
 		return v.parse(CheckStateEventPayload, payload);
+	}
+	if (type === "monitor_flapping") {
+		return v.parse(MonitorFlappingEventPayload, payload);
 	}
 	if (type === "incident_created" || type === "incident_updated" || type === "incident_resolved") {
 		return v.parse(IncidentEventPayload, payload);
