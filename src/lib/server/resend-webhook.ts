@@ -44,19 +44,22 @@ const eventSchema = v.variant("type", [
 	v.object({
 		type: v.literal("email.bounced"),
 		data: v.object({
+			created_at: v.optional(v.string()),
 			to: v.array(v.string()),
 			bounce: v.object({ type: v.string() }),
 		}),
 	}),
 	v.object({
 		type: v.literal("email.complained"),
-		data: v.object({ to: v.array(v.string()) }),
+		data: v.object({ created_at: v.optional(v.string()), to: v.array(v.string()) }),
 	}),
 ]);
 
 export interface MailFailure {
 	kind: "bounce" | "complaint";
 	recipients: string[];
+	/** When the provider took the email, which places it among our own sends. */
+	sentAt: Date;
 }
 
 const HANDLED = new Set(["email.bounced", "email.complained"]);
@@ -71,8 +74,10 @@ export function parseEvent(body: unknown): MailFailure | null {
 
 	const event = v.parse(eventSchema, body);
 	if (event.type === "email.bounced" && event.data.bounce.type !== "Permanent") return null;
+	const sentAt = new Date(event.data.created_at ?? NaN);
 	return {
 		kind: event.type === "email.bounced" ? "bounce" : "complaint",
 		recipients: event.data.to.map((address) => address.trim().toLowerCase()),
+		sentAt: Number.isNaN(sentAt.getTime()) ? new Date() : sentAt,
 	};
 }

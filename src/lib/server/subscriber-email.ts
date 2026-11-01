@@ -7,7 +7,6 @@ import { subscriberFrom, subscriberTransport } from "./smtp";
 export interface SubscriptionConfirmation {
 	email: string;
 	token: string;
-	page: { name: string; slug: string };
 }
 
 /**
@@ -18,11 +17,10 @@ export interface SubscriptionConfirmation {
 export async function sendSubscriptionConfirmation({
 	email,
 	token,
-	page,
 }: SubscriptionConfirmation): Promise<void> {
 	if (!subscriberTransport) throw new Error("SMTP not configured");
 
-	const confirmUrl = `${appUrl}/status/${page.slug}/confirm/${token}`;
+	const confirmUrl = `${appUrl}/status/confirm/${token}`;
 	const paragraphs = [
 		`Someone asked for this address to get an email whenever a status page on Uppity reports an incident. Confirm to start receiving them. The link works for ${CONFIRMATION_TTL_HOURS} hours.`,
 		"If you didn't ask for this, ignore this email. You won't hear from us again.",

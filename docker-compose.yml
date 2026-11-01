@@ -38,6 +38,9 @@ services:
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM: "${SMTP_FROM:-}"
       RESEND_WEBHOOK_SECRET: "${RESEND_WEBHOOK_SECRET:-}"
+      UPPITY_UNSOLICITED_MAIL_DAILY_CEILING: "${UPPITY_UNSOLICITED_MAIL_DAILY_CEILING:-}"
+      UPPITY_OPS_ALERT_EMAIL: "${UPPITY_OPS_ALERT_EMAIL:-}"
+      UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: "${UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL:-}"
     command: ["sh", "-c", "./entrypoint.sh migrate && ./entrypoint.sh serve"]
     depends_on:
       db:

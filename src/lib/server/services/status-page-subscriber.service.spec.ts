@@ -23,8 +23,8 @@ async function setup(
 ) {
 	const orgId = await seedOrg(drizzleDb);
 	const suffix = nanoid().toLowerCase();
-	const page = { id: `sp-${suffix}`, name: "Acme", slug: `acme-${suffix}` };
-	await drizzleDb.insert(statusPage).values({ ...page, organizationId: orgId });
+	const page = { id: `sp-${suffix}`, organizationId: orgId };
+	await drizzleDb.insert(statusPage).values({ ...page, name: "Acme", slug: `acme-${suffix}` });
 
 	const sent: SubscriptionConfirmation[] = [];
 	const send = vi.fn(async (c: SubscriptionConfirmation) => {
@@ -91,7 +91,7 @@ describe("StatusPageSubscriberService", () => {
 		const { page, sent, service } = await setup(db.db);
 		await db.db.insert(emailSuppression).values({ email: "gone@example.com", reason: "complaint" });
 
-		expect(await service.subscribe(page, "GONE@example.com")).toBe(true);
+		expect(await service.subscribe(page, "GONE@example.com")).toBe("sent");
 
 		expect(sent).toHaveLength(0);
 		const rows = await db.db
@@ -144,9 +144,9 @@ describe("StatusPageSubscriberService", () => {
 	test("a page over its daily confirmations sends nothing more", async ({ db }) => {
 		const { page, sent, service } = await setup(db.db, { base: 2, percentOfConfirmed: 0, max: 10 });
 
-		expect(await service.subscribe(page, "a@example.com")).toBe(true);
-		expect(await service.subscribe(page, "b@example.com")).toBe(true);
-		expect(await service.subscribe(page, "c@example.com")).toBe(false);
+		expect(await service.subscribe(page, "a@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "b@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "c@example.com")).toBe("capped");
 
 		expect(sent.map((c) => c.email)).toEqual(["a@example.com", "b@example.com"]);
 	});
@@ -164,7 +164,7 @@ describe("StatusPageSubscriberService", () => {
 
 		await subscribeAndConfirm("a@example.com");
 		// One sent against a base of 1: capped until confirmed subscribers lift it.
-		expect(await service.subscribe(page, "b@example.com")).toBe(false);
+		expect(await service.subscribe(page, "b@example.com")).toBe("capped");
 
 		for (const email of ["c@example.com", "d@example.com", "e@example.com"]) {
 			await db.db.insert(statusPageSubscriber).values({
@@ -176,8 +176,8 @@ describe("StatusPageSubscriberService", () => {
 			});
 		}
 		// Four confirmed at 100% would allow four; the max allows two, one of which is used.
-		expect(await service.subscribe(page, "b@example.com")).toBe(true);
-		expect(await service.subscribe(page, "f@example.com")).toBe(false);
+		expect(await service.subscribe(page, "b@example.com")).toBe("sent");
+		expect(await service.subscribe(page, "f@example.com")).toBe("capped");
 	});
 
 	test("confirm is idempotent and scoped to the page", async ({ db }) => {

@@ -45,7 +45,9 @@ export const actions: Actions = {
 		}
 
 		try {
-			if (!(await statusPageSubscriberService.subscribe(page, form.data.email))) {
+			const result = await statusPageSubscriberService.subscribe(page, form.data.email);
+			if (result === "paused") return message(form, m.public_subscribe_paused(), { status: 503 });
+			if (result === "capped") {
 				locals.event.set("confirmation_cap_reached", true);
 				return rateLimited();
 			}
