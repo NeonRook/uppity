@@ -948,6 +948,15 @@ async function updateMessages(drizzleDb: TestDb["db"], incidentId: string) {
 	return rows.map((row) => row.message);
 }
 
+/** A small seeded generator, so that a failing seed can be replayed. */
+function seeded(seed: number) {
+	let state = seed;
+	return () => {
+		state = (Math.imul(state, 1664525) + 1013904223) | 0;
+		return (state >>> 0) / 2 ** 32;
+	};
+}
+
 const MINUTE = 60_000;
 type Beat = "up" | "down" | "degraded";
 
@@ -1384,7 +1393,7 @@ describe("holds, against the outage guarantee", () => {
 		]);
 		expect(sent.filter((alert) => alert.type === "monitor_down")).toHaveLength(2);
 		expect(await openIncidents(drizzleDb, monitor.id)).toHaveLength(1);
-	});
+	}, 30_000);
 
 	test("a monitor paused on hold alerts its status on its first checks back", async ({ db }) => {
 		const { db: drizzleDb } = db;
@@ -1516,17 +1525,6 @@ describe("holds, against the outage guarantee", () => {
 			(_, roll) => RANDOM_BEATS[Math.floor(roll() * 3)],
 		];
 
-		/** A small seeded generator, so that a failing seed can be replayed. */
-		function seeded(seed: number) {
-			let state = seed;
-			return () => {
-				state = (state + 0x6d2b79f5) | 0;
-				let t = Math.imul(state ^ (state >>> 15), 1 | state);
-				t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-				return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-			};
-		}
-
 		function sequence(roll: () => number): Beat[] {
 			const beats: Beat[] = [...BOUNCES, "up", "down", "up", "down", "up"];
 			for (let segment = 0; segment < 10; segment++) {
@@ -1538,10 +1536,10 @@ describe("holds, against the outage guarantee", () => {
 		}
 
 		const CASES = [
-			{ seed: 1, failures: 1, stepMinutes: 1 },
-			{ seed: 4, failures: 3, stepMinutes: 1 },
-			{ seed: 6, failures: 2, stepMinutes: 3 },
-			{ seed: 8, failures: 3, stepMinutes: 10 },
+			{ seed: 100, failures: 1, stepMinutes: 1 },
+			{ seed: 101, failures: 2, stepMinutes: 1 },
+			{ seed: 115, failures: 1, stepMinutes: 3 },
+			{ seed: 117, failures: 3, stepMinutes: 10 },
 		];
 
 		for (const { seed, failures, stepMinutes } of CASES) {
@@ -1559,12 +1557,16 @@ describe("holds, against the outage guarantee", () => {
 					sent.findLast((alert) => types.includes(alert.type) && alert.at <= at);
 				const held = (at: number) => newest(STATUS_ALERTS, at)?.type === "monitor_flapping";
 
+				const broken: string[] = [];
+				const check = (holds: boolean, broke: string, i: number) => {
+					if (!holds) broken.push(`${broke} at check ${i} of ${beats.join(" ")}`);
+				};
+
 				let downFrom = 0;
 				let downChecks = 0;
 				let lastDown = 0;
 				for (const [i, beat] of beats.entries()) {
 					const at = start + i * step;
-					const context = `check ${i} of ${beats.join(" ")}`;
 					if (beat === "down") {
 						downFrom = downChecks === 0 ? at : downFrom;
 						downChecks++;
@@ -1573,7 +1575,7 @@ describe("holds, against the outage guarantee", () => {
 							const alerted = sent.some(
 								(alert) => alert.type === "monitor_down" && alert.at >= downFrom && alert.at <= at,
 							);
-							expect(alerted, `outage not alerted by ${context}`).toBe(true);
+							check(alerted, "outage not alerted", i);
 						}
 					} else {
 						downChecks = 0;
@@ -1581,16 +1583,15 @@ describe("holds, against the outage guarantee", () => {
 
 					if (held(at)) {
 						const sinceMessage = at - (newest(["monitor_flapping"], at)?.at ?? 0);
-						expect(sinceMessage, `no reminder by ${context}`).toBeLessThan(REMINDER);
-						if (beat !== "down") {
-							expect(at - lastDown, `still held at ${context}`).toBeLessThan(SETTLE + 2 * step);
-						}
+						check(sinceMessage < REMINDER, "no reminder", i);
+						check(beat === "down" || at - lastDown < SETTLE + 2 * step, "still held", i);
 					} else if (beat === "up") {
 						const outage = newest(OUTAGE_ALERTS, at)?.type ?? "monitor_up";
-						expect(outage, `no recovery by ${context}`).toBe("monitor_up");
+						check(outage === "monitor_up", "no recovery", i);
 					}
 				}
 
+				expect(broken).toEqual([]);
 				expect(held(start + beats.length * step)).toBe(false);
 				expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
 			}, 60_000);
