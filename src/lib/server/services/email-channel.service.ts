@@ -10,8 +10,13 @@ import {
 	channelConfirmationSend,
 	emailOptOut,
 	notificationChannel,
+	notificationEvent,
 } from "#lib/server/db/schema.js";
 import type { ChannelConfirmation } from "#lib/server/notifications/email.js";
+import {
+	CHANNEL_CONFIRMATION_EVENT,
+	type ChannelConfirmationPayload,
+} from "#lib/server/notifications/events.js";
 
 import { UnsolicitedMailGuard, type MailRefusal } from "./mail-reputation.service";
 
@@ -69,6 +74,16 @@ export interface UnsubscribedChannel {
 	final: boolean;
 }
 
+/** A claimed slot whose email has not gone out, and what undoing the claim restores. */
+interface PendingSend {
+	sendId: string;
+	email: string;
+	token: string;
+	requestedBy: string;
+	previous: { confirmationSentAt: Date | null; unsubscribedAt: Date | null };
+	reasked: boolean;
+}
+
 /** The recipient fields of an email channel whose address was just set. */
 export function freshRecipient() {
 	return {
@@ -98,6 +113,8 @@ async function isVerifiedMember(tx: DbExecutor, organizationId: string, email: s
 
 const confirmationCutoff = () => new Date(Date.now() - CONFIRMATION_TTL_MS);
 
+const toDate = (timestamp: string | null) => (timestamp === null ? null : new Date(timestamp));
+
 /** Consent for email channel addresses that don't belong to a verified member of the organization. */
 export class EmailChannelService {
 	constructor(
@@ -120,11 +137,73 @@ export class EmailChannelService {
 		organizationId: string,
 		requester: Requester,
 	): Promise<ResendResult | ReaskWait | null> {
+		const pending = await this.claim(channelId, organizationId, requester);
+		if (pending === null || typeof pending === "string" || "askAgainAt" in pending) return pending;
+
+		await this.deliver(channelId, organizationId, pending);
+		return "sent";
+	}
+
+	/**
+	 * As `requestConfirmation`, with the email left to the notifier worker so a save does not
+	 * wait on the mail server. The address confirms or the slot is taken before this returns.
+	 */
+	async queueConfirmation(
+		channelId: string,
+		organizationId: string,
+		requester: Requester,
+	): Promise<void> {
+		await this.claim(channelId, organizationId, requester, true);
+	}
+
+	/**
+	 * Sends a queued confirmation. False, with the slot given back, when the channel stopped
+	 * waiting for one at that address while it sat in the queue.
+	 */
+	async sendQueued(
+		organizationId: string,
+		{ channelId, previous, ...queued }: ChannelConfirmationPayload,
+	): Promise<boolean> {
 		const c = notificationChannel;
-		const log = channelConfirmationSend;
+		const [row] = await this.db
+			.select({ token: c.token })
+			.from(c)
+			.where(
+				and(
+					eq(c.id, channelId),
+					eq(c.organizationId, organizationId),
+					isNull(c.verifiedAt),
+					isNull(c.unsubscribedAt),
+					sql`lower(${c.config}->>'email') = lower(${queued.email})`,
+				),
+			);
+		if (!row?.token) {
+			await this.releaseSend(queued.sendId);
+			return false;
+		}
+
+		await this.deliver(channelId, organizationId, {
+			...queued,
+			token: row.token,
+			previous: {
+				confirmationSentAt: toDate(previous.confirmationSentAt),
+				unsubscribedAt: toDate(previous.unsubscribedAt),
+			},
+		});
+		return true;
+	}
+
+	/** Decides the request and takes the slot, queueing the email when `queue` is set. */
+	private async claim(
+		channelId: string,
+		organizationId: string,
+		requester: Requester,
+		queue = false,
+	) {
+		const c = notificationChannel;
 		const now = new Date();
 
-		const pending = await this.db.transaction(async (tx) => {
+		return this.db.transaction(async (tx) => {
 			await lockSends(tx, organizationId);
 
 			const [row] = await tx
@@ -165,24 +244,49 @@ export class EmailChannelService {
 				})
 				.where(eq(c.id, channelId));
 			if (optOut) await setReasked(tx, organizationId, email, now);
-			return {
+
+			const pending: PendingSend = {
 				sendId: claim.sendId,
 				email: row.config.email,
 				token,
+				requestedBy: requester.email,
 				previous: {
 					confirmationSentAt: row.confirmationSentAt,
 					unsubscribedAt: row.unsubscribedAt,
 				},
 				reasked: optOut !== undefined,
 			};
+			if (queue) {
+				const payload: ChannelConfirmationPayload = {
+					channelId,
+					sendId: pending.sendId,
+					email: pending.email,
+					requestedBy: pending.requestedBy,
+					previous: {
+						confirmationSentAt: pending.previous.confirmationSentAt?.toISOString() ?? null,
+						unsubscribedAt: pending.previous.unsubscribedAt?.toISOString() ?? null,
+					},
+					reasked: pending.reasked,
+				};
+				await tx.insert(notificationEvent).values({
+					id: nanoid(),
+					organizationId,
+					type: CHANNEL_CONFIRMATION_EVENT,
+					payload,
+				});
+			}
+			return pending;
 		});
-		if (pending === null || typeof pending === "string" || pending.askAgainAt) return pending;
+	}
 
+	private async deliver(channelId: string, organizationId: string, pending: PendingSend) {
+		const c = notificationChannel;
+		const log = channelConfirmationSend;
 		try {
 			await this.sendConfirmation({
 				email: pending.email,
 				token: pending.token,
-				requestedBy: requester.email,
+				requestedBy: pending.requestedBy,
 			});
 		} catch (error) {
 			// Nothing went out, so the organization keeps its slot and any earlier link stays valid.
@@ -199,7 +303,6 @@ export class EmailChannelService {
 			});
 			throw error;
 		}
-		return "sent";
 	}
 
 	/** Null when the token is unknown. */

@@ -18,6 +18,7 @@ import {
 	statusPageMonitor,
 	statusPageSubscriber,
 } from "../db/schema";
+import { EmailChannelService } from "../services/email-channel.service";
 import type { SubscriberIncidentEmail } from "../subscriber-email";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
@@ -660,5 +661,59 @@ describe("NotificationService.dispatchEvent (incident, email confirmation)", () 
 		);
 
 		expect(result).toEqual({ status: "suppressed", errorMessage: "no channels configured" });
+	});
+});
+
+async function queued(db: TestDb["db"], send: () => Promise<void>) {
+	const orgId = await seedOrg(db);
+	const channelId = `chan-${nanoid()}`;
+	await db.insert(notificationChannel).values({
+		id: channelId,
+		organizationId: orgId,
+		name: "Ops",
+		type: "email",
+		config: { email: "stranger@example.com" },
+		token: nanoid(),
+	});
+	await new EmailChannelService(db, send).queueConfirmation(channelId, orgId, {
+		email: "admin@example.com",
+		emailVerified: true,
+	});
+	const [row] = await db
+		.select()
+		.from(notificationEvent)
+		.where(eq(notificationEvent.organizationId, orgId));
+	return { row, service: new NotificationService(db, undefined, undefined, send) };
+}
+
+describe("NotificationService.dispatchEvent (channel confirmation)", () => {
+	test("sends the queued email", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {});
+		const { row, service } = await queued(db, send);
+
+		expect(await service.dispatchEvent(row)).toEqual({ status: "sent" });
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	test("a failed send is final", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {
+			throw new Error("SMTP down");
+		});
+		const { row, service } = await queued(db, send);
+
+		expect(await service.dispatchEvent(row)).toEqual({
+			status: "failed",
+			errorMessage: "SMTP down",
+		});
+	});
+
+	test("a malformed payload fails without sending", async ({ db: { db } }) => {
+		const send = vi.fn(async () => {});
+		const { row, service } = await queued(db, send);
+
+		const result = await service.dispatchEvent({ ...row, payload: {} });
+
+		expect(result.status).toBe("failed");
+		expect(send).not.toHaveBeenCalled();
 	});
 });
