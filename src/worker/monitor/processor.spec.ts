@@ -1108,6 +1108,33 @@ describe("flapping", () => {
 		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
 	});
 
+	test("jitter between up and degraded ends the hold once it stops going down", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const last = await feed(drizzleDb, monitor, BOUNCES, Date.now() - 50 * MINUTE);
+		const jitter = Array.from({ length: 6 }, (_, i): Beat => (i % 2 === 0 ? "up" : "degraded"));
+		await feed(drizzleDb, monitor, jitter, last + MINUTE);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([...BOUNCE_ALERTS, "monitor_degraded"]);
+		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+	});
+
+	test("one up check does not end the hold of a monitor checked less often than the settle time", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb, { intervalSeconds: 600 });
+		const step = 10 * MINUTE;
+
+		const start = Date.now() - 8 * step;
+		await feed(drizzleDb, monitor, [...BOUNCES, "up"], start, step);
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(BOUNCE_ALERTS);
+
+		await feed(drizzleDb, monitor, ["up"], start + 6 * step);
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([...BOUNCE_ALERTS, "monitor_up"]);
+	});
+
 	test("a monitor that keeps bouncing is reminded of once per window", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const monitor = await upMonitor(drizzleDb);

@@ -52,7 +52,7 @@ export const FLAP_THRESHOLD = envInt("UPPITY_FLAP_THRESHOLD", 5);
 /** How far back flapping alerts count, and the time between reminders while a monitor flaps. */
 export const FLAP_WINDOW_SECONDS = envInt("UPPITY_FLAP_WINDOW_SECONDS", 3600);
 
-/** How long a flapping monitor must hold one status before it alerts that status. */
+/** How long a flapping monitor must stay down, or go without a down check, before it alerts. */
 export const FLAP_SETTLE_SECONDS = envInt("UPPITY_FLAP_SETTLE_SECONDS", 300);
 
 /** Cooldown between repeats of one operator alert while its cause lasts. */

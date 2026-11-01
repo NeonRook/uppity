@@ -792,7 +792,7 @@
 	"monitor_unchecked_summary": "Uppity can't run this monitor's checks. Next attempt {next}.",
 	"monitor_overdue_summary": "Uppity's checks are not running. This monitor's check was due {due}.",
 	"monitor_flapping_title": "This monitor is flapping",
-	"monitor_flapping_desc": "It keeps going down and recovering, so its status alerts are on hold. You get one alert when it holds a status for {minutes} min. The status and checks on this page stay live.",
+	"monitor_flapping_desc": "It keeps going down and recovering, so its status alerts are on hold. You get one alert when it stays down for {minutes} min or goes {minutes} min without going down. The status and checks on this page stay live.",
 	"monitor_unchecked_title": "This monitor is not being checked",
 	"monitor_unchecked_since": "Not checked since {since}. Linked notification channels are told when checks resume.",
 	"public_status_unmonitored": "Some systems are not being monitored right now",

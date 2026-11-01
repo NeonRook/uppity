@@ -8,7 +8,7 @@
  * see the same row, from LISTEN, the sweep or the check that wrote it, and only
  * the first interprets it.
  */
-import { and, asc, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, between, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import {
@@ -58,6 +58,22 @@ async function reachesFlapLimit(tx: DbExecutor, monitorId: string, at: Date): Pr
 			),
 		);
 	return changes + 1 >= FLAP_THRESHOLD;
+}
+
+/** Whether a check in the settle time up to `at` was down. */
+async function wentDownRecently(tx: DbExecutor, monitorId: string, at: Date): Promise<boolean> {
+	const [down] = await tx
+		.select({ id: monitorCheck.id })
+		.from(monitorCheck)
+		.where(
+			and(
+				eq(monitorCheck.monitorId, monitorId),
+				eq(monitorCheck.status, "down"),
+				between(monitorCheck.checkedAt, new Date(at.getTime() - FLAP_SETTLE_SECONDS * 1000), at),
+			),
+		)
+		.limit(1);
+	return down !== undefined;
 }
 
 /** The monitor's open incident, the automatic one if a manual one is open too. */
@@ -210,12 +226,17 @@ async function interpret(
 		: result.checkedAt.getTime() - (currentStatus?.lastStatusChange?.getTime() ?? Infinity);
 	const steady = unchangedForMs >= FLAP_SETTLE_SECONDS * 1000;
 
-	// A flapping monitor keeps recording every status but holds its alerts until it stays in one
-	// status for the settle time, and then alerts that status. A monitor that stops bouncing and
-	// stays down therefore alerts within the settle time plus one check interval of its first
+	// A flapping monitor keeps recording every status but holds its alerts until it stays down for
+	// the settle time, or goes that long without a down check, and then alerts its status. Up and
+	// degraded count as one here, so jitter between them ends the hold. A monitor that stops
+	// bouncing and stays down alerts within the settle time plus one check interval of its first
 	// failure, or at alertAfterFailures if that comes later.
 	const flap = await activeFlap(tx, m.id);
-	const settled = flap !== undefined && steady && (result.status !== "down" || reachesThreshold);
+	const settled =
+		flap !== undefined &&
+		(result.status === "down"
+			? steady && reachesThreshold
+			: previousStatus !== "down" && !(await wentDownRecently(tx, m.id, result.checkedAt)));
 	const startsFlapping =
 		!flap && crossesThreshold && !steady && (await reachesFlapLimit(tx, m.id, result.checkedAt));
 

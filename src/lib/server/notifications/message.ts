@@ -85,7 +85,7 @@ export function describeNotification(payload: NotificationPayload): Notification
 			details: [
 				[
 					"Reason",
-					`This monitor keeps going down and recovering, so its status alerts are on hold. You get one alert when it holds a status for ${settle}, and a reminder every ${reminder} until then.`,
+					`This monitor keeps going down and recovering, so its status alerts are on hold. You get one alert when it stays down for ${settle} or goes ${settle} without going down, and a reminder every ${reminder} until then.`,
 				],
 				...url,
 			],
