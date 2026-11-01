@@ -34,9 +34,11 @@ Success is that the operator learns about an outage before their customers do, a
 > Start hosted for $12. Self-host whenever you want — same product, every feature, forever.
 
 **The enemy is the upgrade wall.** The category gates capability behind maturity events:
-Instatus jumps $20 → $300 (15×) with SAML SSO, private pages, and subscriber ceilings all
-behind it; Hyperping gates SSO and audit logs at $299; Atlassian Statuspage gates RBAC at
-$399 and ladders to $1,499. The triggers — a security questionnaire, an internal status
+Instatus jumps $20 → $300 (15×) with SAML SSO and a subscriber ceiling (5,000 to 25,000)
+behind it, and private pages start at $50; Hyperping gates audit logs at $299, while its
+SAML and OpenID Connect sign-in are included from Pro at $89; Atlassian Statuspage gates
+RBAC at $399 and ladders to $1,499. Vendor figures are sourced in
+`competitor-profiles/_summary.md`. The triggers — a security questionnaire, an internal status
 page, a subscriber count — correlate with a customer's company maturing, not with value
 delivered.
 
@@ -65,15 +67,19 @@ are free on paid plans because their marginal cost rounds to zero.
 
 ### Supporting claims (in priority order)
 
-1. **SSO costs $299/month at Hyperping and $300/month at Instatus. In Uppity it's free — you just have to run it yourself.**
-2. Instatus's Business tier gates SAML SSO _and_ its SLA behind the same wall. Uppity gates only the SLA, because one is a feature and one is insurance.
+1. **SAML SSO costs $300/month at Instatus (Business). Hyperping includes SAML and OpenID Connect sign-in from Pro at $89, and charges $299 (Business) for audit logs. In Uppity SSO and audit logs are free — you just have to run it yourself.**
+2. Instatus lists SAML SSO on Business at $300 and its 99.99% uptime SLA on Enterprise. Uppity gates only the SLA, because one is a feature and one is insurance.
 3. Hyperping's $299 buys 1,000 monitors on shared infrastructure. Uppity's $299 buys 2,000 and a dedicated instance.
+
+Sources: `competitor-profiles/_summary.md` for vendor facts (accessed 2026-11-01) and
+`docs/pricing-cost-model.md` for what the hosted service costs to run. Neither document
+restates Uppity's plan figures.
 
 ### Do not claim
 
 - "Fastest setup" or "simplest signup" — occupied by Instatus, and contradicted by our free tier
 - "Most reliable" / "best-in-class" — Better Stack owns this with far more substantiation
-- Feature breadth against Uptime Kuma (31 monitor types, 90+ integrations, 89.6k stars)
+- Feature breadth against Uptime Kuma (34 monitor types, 108 notification providers, 93,132 stars)
 - Atlassian Statuspage as a public benchmark. It performs **no monitoring at all**; naming
   it signals "we make status pages" and invites a brand comparison we lose. Keep it as an
   internal design bar for the public status page surface only.
@@ -101,8 +107,14 @@ are free on paid plans because their marginal cost rounds to zero.
 - **Not checked** (dead-lettered, since 2026-10-06). A monitor whose checks keep failing inside Uppity, as opposed to a target that is down, keeps retrying at the capped backoff (`UPPITY_CHECK_BACKOFF_MAX_MS`, 5 minutes by default). Until a check succeeds the app shows it as "Not checked" with the next attempt time, and the public page shows it as `unknown`. Any `unknown` monitor replaces "All systems operational" with "Some systems are not being monitored right now", and that banner outranks maintenance. Outages and degradation still outrank it. A paused monitor is outside this. `docs/adr/0005` has the rules.
 - Incident lifecycle: `investigating` → `identified` → `monitoring` → `resolved`.
 - Notification channels: `email`, `slack`, `discord`, `webhook`. Events include monitor down/up/degraded, checks stopped/resumed (sent to every enabled channel on the monitor, with no per-channel toggle), incident created/updated, and SSL expiry warnings.
-- Scheduled maintenance windows: `scheduled` → `in_progress` → `completed`, scoped to selected monitors, suppressing alerts while active.
-- Public status pages with monitor groups, uptime history (`UPPITY_STATUS_PAGE_HISTORY_DAYS`, default 90), and custom domains on qualifying plans.
+- Scheduled maintenance windows: `scheduled` → `in_progress` → `completed`, scoped to selected monitors, suppressing alerts while active. Owners and admins manage them in the app, and the public status page shows them.
+- Public status pages with monitor groups and uptime history (`UPPITY_STATUS_PAGE_HISTORY_DAYS`, default 90).
+- Custom domains for status pages, verified by a CNAME and a TXT record (`docs/custom-domains.md`). Owners and admins add a domain in the page's settings, and a verified domain serves that page only. Merged but unreleased as of v0.8.0. Self-hosted instances have it, and it needs a public hostname in `BETTER_AUTH_URL` or `UPPITY_STATUS_PAGE_CNAME_TARGET`. On the hosted service the feature stays hidden until `UPPITY_STATUS_PAGE_CNAME_TARGET` is set, and whether Railway can serve a certificate per customer domain is open, so it is not generally available there.
+- Flap handling, merged but unreleased as of v0.8.0. After 4 up and down alerts in an hour (`UPPITY_FLAP_THRESHOLD`, `UPPITY_FLAP_WINDOW_SECONDS`, `UPPITY_FLAP_SETTLE_SECONDS`), a monitor sends one "flapping" message with an hourly reminder, and the webhook event `monitor_flapping`, until it settles. A real outage still alerts.
+- Delivery retries for failed alerts, merged but unreleased as of v0.8.0. Email, Slack, Discord, webhooks and status page subscriber mail retry at 1, 2, 5, 10, 20 and 30 minutes. A clear refusal is not retried, and a timeout can deliver an alert twice.
+- Team invitations by email, with accept and decline, merged but unreleased as of v0.8.0. They need SMTP.
+- Mail abuse controls, merged but unreleased as of v0.8.0: addresses that hard-bounce or report spam are suppressed (admins can lift this); status page email subscriptions are switched on per organization on the hosted service; an optional Cloudflare Turnstile check on register, password reset and subscribe forms; and, on the hosted service, a daily instance ceiling on mail to unconfirmed addresses (1,000 by default) plus a block on organizations whose confirmations and invitations draw bounces or complaints. Alerts to confirmed addresses are never held back.
+- Operator alerts, merged but unreleased as of v0.8.0. Setting `UPPITY_OPS_ALERT_EMAIL` or `UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL` on the notifier reports overdue checks, dead-lettered monitors and an unreadable database.
 - Admin surface: users, organizations, audit log with CSV export, session management, impersonation, and a cross-organization list of not-checked monitors with a retry-now action.
 - Capacity blocks, self-serve from Billing settings on the Uppity plan: up to 40 blocks of 50 monitors. Increases apply at once; annual customers confirm an increase with the amount due at renewal. Reductions wait for the end of the billing period, because each period bills the most blocks held during it (`docs/adr/0004`). Only owners and admins can change capacity or start a checkout; other members see billing read-only.
 - SSL certificate expiry tracking with a configurable threshold and warning cooldown.
@@ -172,12 +184,6 @@ uptime. The dogfooded status page is where the measurement shows.
 
 **Outstanding implementation work**
 
-- **No grace period over capacity (NEO-69).** A scheduled reduction, or a downgrade to Free,
-  can leave an organization above its ceiling. Enforcement only refuses new monitors and
-  nothing deletes existing ones, so this state is tolerated but has no humane path yet.
-- **No operator alert channel (NEO-67).** Internal failures reach the operator only through
-  logs. A not-checked monitor logs `event_type: "monitor_dead_lettered"` at error level,
-  and a Railway log alert on that field is the stopgap.
 - **First per-plan retention sweep has run.** It executed on the first `UPPITY_CRON_CLEANUP`
   after the 2026-07-31 deploy, at the low volumes this instance held. The hazard it warned
   about is not retired, only spent here: on a populated instance the first sweep after
@@ -245,7 +251,7 @@ Name: **Uppity**, by NeonRook (`hello@neonrook.com`). No confirmed voice or tone
   demonstrating rather than asserted, and it compounds: every month it runs is proof that
   cannot be bought or fabricated. It is also where the 99.9% target can be checked.
 
-**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.3.3` (2026-10-06), still pre-1.0, and nothing about the version implies maturity that can be claimed. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
+**Absences that must not be fabricated:** there are no customers, testimonials, case studies, logos, press mentions, user counts, uptime statistics, review scores, or benchmark results. Version is `0.8.0` (2026-10-14), still pre-1.0, and nothing about the version implies maturity that can be claimed. Any surface needing social proof must either use real content the user supplies or be designed to work without it.
 
 ## Product Principles
 
