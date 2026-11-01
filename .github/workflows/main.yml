@@ -190,3 +190,29 @@ jobs:
           # tag now, so a missing one means that step did not do its job and the
           # release should fail loudly instead of quietly tagging github.sha itself.
           gh release create "v${VERSION}" --verify-tag --title "v${VERSION}" --notes-file "$notes"
+
+  # Staging needs no job here: Railway builds every push to main. Production moves
+  # only when this job points it at the new version's image, and it stands apart
+  # from release so a failed apply can be re-run without touching the tag.
+  deploy-production:
+    name: Deploy Production
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    needs: [select-mode, release]
+    if: needs.select-mode.outputs.mode == 'publish'
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # Evaluating .railway/railway.ts needs the railway package.
+      - uses: ./.github/actions/setup-toolchain
+        with:
+          paraglide: "false"
+
+      # Without --confirm-destructive, a plan that deletes anything fails here
+      # instead of reaching production.
+      - name: Apply the Railway configuration
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: mise exec railway@5.71.0 -- railway config apply --environment production --yes
