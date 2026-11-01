@@ -4,7 +4,13 @@ import { nanoid } from "nanoid";
 import { auth } from "#lib/server/auth.js";
 import { organization, member, user } from "#lib/server/db/auth-schema.js";
 import { db, type Db } from "#lib/server/db/index.js";
-import { incident, mailEvent, monitor, organizationMailBlock } from "#lib/server/db/schema.js";
+import {
+	emailSuppression,
+	incident,
+	mailEvent,
+	monitor,
+	organizationMailBlock,
+} from "#lib/server/db/schema.js";
 import { clearOpsAlert } from "#lib/server/ops-alert.js";
 
 import { auditService, AuditService, type Actor } from "./audit.service";
@@ -378,6 +384,32 @@ export class AdminService {
 			await clearOpsAlert(this.db, { type: "organization_mail_blocked", subject: organizationId });
 		}
 		return cleared;
+	}
+
+	async getSuppression(email: string) {
+		const [row] = await this.db
+			.select()
+			.from(emailSuppression)
+			.where(eq(emailSuppression.email, email));
+		return row ?? null;
+	}
+
+	/** Lets the lowercased address get mail again. Its subscribers then stay, not deleted. */
+	async liftSuppression(actor: Actor, email: string): Promise<boolean> {
+		return this.db.transaction(async (tx) => {
+			const [lifted] = await tx
+				.delete(emailSuppression)
+				.where(eq(emailSuppression.email, email))
+				.returning({ reason: emailSuppression.reason });
+			if (!lifted) return false;
+
+			await this.audit.record(tx, actor, {
+				action: "mail.suppression_lift",
+				targetLabel: email,
+				metadata: { reason: lifted.reason },
+			});
+			return true;
+		});
 	}
 
 	// --- Better-Auth-mediated mutations --------------------------------------
