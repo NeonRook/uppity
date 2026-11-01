@@ -19,6 +19,7 @@ import {
 	type Dialed,
 	type Phase,
 } from "../../lib/server/tcp";
+import { parseWebUrl } from "../../lib/utils/web-url";
 import type { CheckResult } from "./check";
 
 const MAX_REDIRECTS = 20;
@@ -113,7 +114,7 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 	if (!m.url) {
 		return { status: "down", responseTimeMs: 0, errorMessage: "No URL configured" };
 	}
-	const target = URL.parse(m.url);
+	const target = parseWebUrl(m.url);
 	if (!target) {
 		return { status: "down", responseTimeMs: 0, errorMessage: "URL is not valid" };
 	}
@@ -185,11 +186,9 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 			discard(response.body);
 
 			if (hop === MAX_REDIRECTS) throw new ProbeError(`More than ${MAX_REDIRECTS} redirects`);
-			const next = URL.parse(String(location), url);
-			if (next?.protocol !== "http:" && next?.protocol !== "https:") {
-				// The target's own text stays out: this message reaches alerts and public incidents.
-				throw new ProbeError("Redirect to an unsupported location");
-			}
+			const next = parseWebUrl(String(location), url);
+			// The target's own text stays out: this message reaches alerts.
+			if (!next) throw new ProbeError("Redirect to an unsupported location");
 			if (
 				response.statusCode === 303
 					? method !== "HEAD"
