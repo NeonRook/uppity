@@ -18,6 +18,7 @@ import {
 	type MonitorStatus,
 	type NotificationEvent,
 } from "../db/schema";
+import { activeFlap } from "../flap";
 import { logger as defaultLogger } from "../logger";
 import { EmailChannelService } from "../services/email-channel.service";
 import { sendSubscriberIncidentEmail } from "../subscriber-email";
@@ -336,15 +337,15 @@ export class NotificationService {
 
 		const prior = queuedRetry(row.payload);
 		const { newStatus } = row.payload as { newStatus?: string };
+		const overtaken =
+			type === "monitor_flapping"
+				? prior && !(await activeFlap(this.db, row.monitorId))
+				: newStatus && newStatus !== status.status;
 		const payload = this.buildNotificationPayload(
 			row,
 			monitor,
 			status,
-			lateDelivery(
-				prior,
-				row.createdAt,
-				newStatus && newStatus !== status.status ? status.status : undefined,
-			),
+			lateDelivery(prior, row.createdAt, overtaken ? status.status : undefined),
 		);
 
 		const round = await this.fanOut(
