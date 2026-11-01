@@ -36,6 +36,11 @@ describe("smtpTransport", () => {
 		expect(options?.requireTLS).toBe(false);
 	});
 
+	it("gives up on a server that hangs", async () => {
+		const options = await loadTransport({ SMTP_HOST: "smtp.example.com", SMTP_PORT: "587" });
+		expect(options).toMatchObject({ connectionTimeout: 30_000, socketTimeout: 60_000 });
+	});
+
 	it("uses implicit TLS on 465", async () => {
 		const options = await loadTransport({ SMTP_HOST: "smtp.example.com", SMTP_PORT: "465" });
 		expect(options?.secure).toBe(true);
