@@ -146,6 +146,7 @@
 	"monitor_http_config": "HTTP Configuration",
 	"monitor_url": "URL",
 	"monitor_url_placeholder": "https://example.com",
+	"monitor_url_not_web": "Use a URL that starts with http:// or https://",
 	"monitor_http_method": "HTTP Method",
 	"monitor_ssl_check": "SSL Certificate Check",
 	"monitor_ssl_check_desc": "Monitor SSL certificate expiry",

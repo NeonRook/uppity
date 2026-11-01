@@ -15,6 +15,7 @@ import {
 	MAX_TIMEOUT_SECONDS,
 } from "#lib/constants/monitor.js";
 import { m } from "#lib/paraglide/messages.js";
+import { parseWebUrl } from "#lib/utils/web-url.js";
 
 const channelLinkSchema = v.object({
 	channelId: v.string(),
@@ -73,7 +74,14 @@ const baseMonitorSchema = {
 const httpMonitorSchema = v.object({
 	...baseMonitorSchema,
 	type: v.literal("http"),
-	url: v.pipe(v.string(), v.url("Valid URL is required")),
+	url: v.pipe(
+		v.string(),
+		v.url("Valid URL is required"),
+		v.check(
+			(url) => parseWebUrl(url) !== null,
+			() => m.monitor_url_not_web(),
+		),
+	),
 	method: v.optional(v.picklist(HTTP_METHODS), DEFAULT_HTTP_METHOD),
 	sslCheckEnabled: v.optional(v.boolean(), false),
 	expectedBodyContains: v.optional(
