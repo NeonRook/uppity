@@ -36,6 +36,24 @@ export const IncidentEventPayload = v.object({
 });
 export type IncidentEventPayload = v.InferOutput<typeof IncidentEventPayload>;
 
+export const CHANNEL_CONFIRMATION_EVENT = "channel_confirmation";
+
+const NullableTimestamp = v.nullable(v.pipe(v.string(), v.isoTimestamp()));
+
+/** A confirmation email whose slot is taken. The link token stays on the channel, out of the queue. */
+export const ChannelConfirmationPayload = v.object({
+	channelId: v.string(),
+	sendId: v.string(),
+	email: v.string(),
+	requestedBy: v.string(),
+	previous: v.object({
+		confirmationSentAt: NullableTimestamp,
+		unsubscribedAt: NullableTimestamp,
+	}),
+	reasked: v.boolean(),
+});
+export type ChannelConfirmationPayload = v.InferOutput<typeof ChannelConfirmationPayload>;
+
 /**
  * Validates that a payload matches the schema for the given event type.
  * Returns the parsed payload or throws on mismatch.

@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import * as v from "valibot";
 import { describe, expect, vi } from "vitest";
 
 import { user } from "../db/auth-schema";
-import { channelConfirmationSend, notificationChannel } from "../db/schema";
+import { channelConfirmationSend, notificationChannel, notificationEvent } from "../db/schema";
 import type { ChannelConfirmation } from "../notifications/email";
+import { ChannelConfirmationPayload } from "../notifications/events";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMember, seedOrg } from "../test/seed";
@@ -242,6 +244,90 @@ describe("EmailChannelService.requestConfirmation", () => {
 		const channel = await seedEmailChannel(db, await seedOrg(db));
 
 		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBeNull();
+	});
+});
+
+const eventsOf = (db: TestDb["db"], orgId: string) =>
+	db.select().from(notificationEvent).where(eq(notificationEvent.organizationId, orgId));
+const sendsOf = (db: TestDb["db"], orgId: string) =>
+	db
+		.select()
+		.from(channelConfirmationSend)
+		.where(eq(channelConfirmationSend.organizationId, orgId));
+const queuedPayload = async (db: TestDb["db"], orgId: string) => {
+	const [event] = await eventsOf(db, orgId);
+	return v.parse(ChannelConfirmationPayload, event.payload);
+};
+
+describe("EmailChannelService.queueConfirmation", () => {
+	test("takes the slot and leaves the email to the worker", async ({ db: { db } }) => {
+		const { orgId, send, sent, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+
+		expect(send).not.toHaveBeenCalled();
+		expect((await service.lookup(channel.token))?.state).toBe("pending");
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("too_soon");
+
+		const payload = await queuedPayload(db, orgId);
+		expect(JSON.stringify(payload)).not.toContain(channel.token);
+
+		expect(await service.sendQueued(orgId, payload)).toBe(true);
+		expect(sent).toEqual([
+			{ email: "stranger@example.com", token: channel.token, requestedBy: ADMIN.email },
+		]);
+	});
+
+	test("confirms a verified member's address without queueing", async ({ db: { db } }) => {
+		const { orgId, service } = await setup(db);
+		const userId = await seedMember(db, orgId);
+		const channel = await seedEmailChannel(db, orgId, `${userId}@example.com`);
+
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+
+		expect((await service.lookup(channel.token))?.state).toBe("confirmed");
+		expect(await eventsOf(db, orgId)).toEqual([]);
+	});
+
+	test("a failed queued send gives the slot back", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		send.mockRejectedValueOnce(new Error("SMTP down"));
+
+		await expect(service.sendQueued(orgId, await queuedPayload(db, orgId))).rejects.toThrow(
+			"SMTP down",
+		);
+
+		expect(await sendsOf(db, orgId)).toEqual([]);
+		expect((await service.lookup(channel.token))?.state).toBe("expired");
+		expect(await service.requestConfirmation(channel.id, orgId, ADMIN)).toBe("sent");
+	});
+
+	test("skips an address that left the channel while queued", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await db
+			.update(notificationChannel)
+			.set({ config: { email: "other@example.com" }, ...freshRecipient() })
+			.where(eq(notificationChannel.id, channel.id));
+
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe(false);
+
+		expect(send).not.toHaveBeenCalled();
+		expect(await sendsOf(db, orgId)).toEqual([]);
+	});
+
+	test("skips an address that unsubscribed while queued", async ({ db: { db } }) => {
+		const { orgId, send, service } = await setup(db);
+		const channel = await seedEmailChannel(db, orgId);
+		await service.queueConfirmation(channel.id, orgId, ADMIN);
+		await service.unsubscribe(channel.token);
+
+		expect(await service.sendQueued(orgId, await queuedPayload(db, orgId))).toBe(false);
+		expect(send).not.toHaveBeenCalled();
 	});
 });
 

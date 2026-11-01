@@ -89,7 +89,7 @@ export class NotificationChannelService {
 			.returning(viewColumns);
 
 		if (input.type === "email" && !newChannel.unsubscribedAt) {
-			await this.requestConfirmation(id, input.organizationId, input.requester);
+			await this.queueConfirmation(id, input.organizationId, input.requester);
 		}
 		return newChannel;
 	}
@@ -114,18 +114,18 @@ export class NotificationChannelService {
 	}
 
 	/**
-	 * A failed send leaves the channel unconfirmed, and the channel list offers a resend,
+	 * A failure here leaves the channel unconfirmed, and the channel list offers a resend,
 	 * so it does not fail the save.
 	 */
-	private async requestConfirmation(
+	private async queueConfirmation(
 		id: string,
 		organizationId: string,
 		requester: Requester,
 	): Promise<void> {
 		try {
-			await emailChannelService.requestConfirmation(id, organizationId, requester);
+			await emailChannelService.queueConfirmation(id, organizationId, requester);
 		} catch (error) {
-			logger.error({ channel_id: id, error }, "Failed to send channel confirmation");
+			logger.error({ channel_id: id, error }, "Failed to queue channel confirmation");
 		}
 	}
 
@@ -177,7 +177,7 @@ export class NotificationChannelService {
 			.returning(viewColumns);
 
 		if (updated && readdressed && !updated.unsubscribedAt && requester) {
-			await this.requestConfirmation(id, organizationId, requester);
+			await this.queueConfirmation(id, organizationId, requester);
 		}
 		return updated ?? null;
 	}
