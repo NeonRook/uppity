@@ -34,6 +34,18 @@ describe("redactUrl", () => {
 		);
 	});
 
+	it("masks a bare token that ends in base64 padding", () => {
+		expect(redactUrl("https://example.com/x?aHVudGVyMg==&aHVudGVy===")).toBe(
+			"https://example.com/x?***=&***=",
+		);
+	});
+
+	it("keeps a plain name that has a real value, even if the name is a secret", () => {
+		expect(redactUrl("https://example.com/x?a-hunter2=1&b==c")).toBe(
+			"https://example.com/x?a-hunter2=***&b=***",
+		);
+	});
+
 	it("keeps a long ordinary parameter name", () => {
 		expect(redactUrl("https://example.com/x?X-Amz-SignedHeaders=host")).toBe(
 			"https://example.com/x?X-Amz-SignedHeaders=***",
