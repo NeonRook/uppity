@@ -113,6 +113,10 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 	if (!m.url) {
 		return { status: "down", responseTimeMs: 0, errorMessage: "No URL configured" };
 	}
+	const target = URL.parse(m.url);
+	if (!target) {
+		return { status: "down", responseTimeMs: 0, errorMessage: "URL is not valid" };
+	}
 
 	const timeoutSeconds = Math.min(m.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS);
 	const signal = AbortSignal.timeout(timeoutSeconds * 1000);
@@ -155,7 +159,7 @@ export async function performHttpCheck(m: HttpTarget): Promise<CheckResult> {
 		},
 	});
 
-	let url = new URL(m.url);
+	let url = target;
 	let method = m.method || DEFAULT_HTTP_METHOD;
 	let body = method !== "GET" && method !== "HEAD" ? (m.body ?? undefined) : undefined;
 	const headers: Record<string, string> = {

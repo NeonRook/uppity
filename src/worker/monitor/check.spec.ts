@@ -96,6 +96,19 @@ describe("executeCheck when a target misbehaves", () => {
 	beforeEach(() => vi.stubEnv("UPPITY_ALLOW_PRIVATE_TARGETS", "true"));
 	afterEach(() => vi.unstubAllEnvs());
 
+	test("records a stored URL that does not parse as a down result", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await monitorWith(drizzleDb, { type: "http", url: "not a url", retries: 0 });
+
+		await executeCheck(monitor, drizzleDb);
+
+		const rows = await drizzleDb
+			.select()
+			.from(monitorCheck)
+			.where(eq(monitorCheck.monitorId, monitor.id));
+		expect(rows).toMatchObject([{ status: "down", errorMessage: "URL is not valid" }]);
+	});
+
 	test("logs a connection dropped mid-body as a result, not an error", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const server = createServer((_req, res) => {
@@ -272,10 +285,15 @@ describe("a checker failure", () => {
 
 	test("thrown out of the check logs an error and backs the monitor off", async ({ db }) => {
 		const { db: drizzleDb } = db;
-		const monitor = await monitorWith(drizzleDb, { type: "http", url: "not a url" });
+		const monitor = await downMonitor(drizzleDb);
 		const { log, event } = eventFor(monitor);
+		const failing = Object.assign(Object.create(drizzleDb) as TestDb["db"], {
+			transaction: vi
+				.fn(drizzleDb.transaction.bind(drizzleDb))
+				.mockRejectedValueOnce(new TypeError("deadlock")),
+		});
 
-		await runCheck(monitor, drizzleDb, event);
+		await runCheck(monitor, failing, event);
 
 		expect(log.info).not.toHaveBeenCalled();
 		expect(log.error.mock.calls[0][0]).toMatchObject({
