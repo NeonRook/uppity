@@ -184,6 +184,55 @@ describe("IncidentService notification enqueue", () => {
 		expect(events.filter((e) => e.type === "incident_resolved")).toHaveLength(1);
 	});
 
+	test("resolving an ended incident keeps its postmortem status and resolution time", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const created = await service.create({
+			organizationId: orgId,
+			title: "X failed",
+			message: "initial",
+		});
+		const addUpdate = (status: "resolved" | "postmortem") =>
+			service.addUpdate({ incidentId: created.id, organizationId: orgId, status, message: status });
+		await addUpdate("resolved");
+		await addUpdate("postmortem");
+		const ended = await service.findByIdAndOrg(created.id, orgId);
+
+		const update = await addUpdate("resolved");
+
+		expect(update?.status).toBe("resolved");
+		expect(await service.findByIdAndOrg(created.id, orgId)).toMatchObject({
+			status: "postmortem",
+			resolvedAt: ended?.resolvedAt,
+		});
+	});
+
+	test("concurrent resolves enqueue one incident_resolved", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = new IncidentService(drizzleDb);
+		const orgId = await seedOrg(drizzleDb);
+		const created = await service.create({
+			organizationId: orgId,
+			title: "X failed",
+			message: "initial",
+		});
+		const resolve = () =>
+			service.addUpdate({
+				incidentId: created.id,
+				organizationId: orgId,
+				status: "resolved",
+				message: "Fixed",
+			});
+
+		await Promise.all([resolve(), resolve(), resolve(), resolve()]);
+
+		const events = await fetchEvents(drizzleDb, created.id);
+		expect(events.filter((e) => e.type === "incident_resolved")).toHaveLength(1);
+	});
+
 	test("addUpdate with status='resolved' on an already-resolved incident enqueues nothing", async ({
 		db,
 	}) => {
