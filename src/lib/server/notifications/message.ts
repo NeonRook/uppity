@@ -1,4 +1,4 @@
-import type { NotificationPayload, NotificationType } from "./types";
+import type { LateDelivery, NotificationPayload, NotificationType } from "./types";
 
 type Pair = [label: string, value: string];
 
@@ -18,6 +18,12 @@ const YELLOW = 0xeab308;
 const ORANGE = 0xf97316;
 const AMBER = 0xf59e0b;
 const GRAY = 0xa1a1a1;
+
+/** Says a message is late, and that what it describes has changed if it has. */
+export function lateNotice({ minutes, now }: LateDelivery): string {
+	const delay = `This message is ${minutes} ${minutes === 1 ? "minute" : "minutes"} late because earlier delivery attempts failed.`;
+	return now ? `${delay} It describes an earlier state: the status is now ${now}.` : delay;
+}
 
 export function describeNotification(payload: NotificationPayload): NotificationMessage {
 	const monitorName = payload.monitor?.name || "Unknown Monitor";
@@ -97,5 +103,13 @@ export function describeNotification(payload: NotificationPayload): Notification
 		}),
 	};
 
-	return messages[payload.type]();
+	const message = messages[payload.type]();
+	const { late } = payload;
+	if (!late) return message;
+	return {
+		...message,
+		title: `Delayed${late.now ? `, now ${late.now}` : ""}: ${message.title}`,
+		color: late.now ? GRAY : message.color,
+		details: [["Delivery", lateNotice(late)], ...message.details],
+	};
 }

@@ -56,10 +56,10 @@ async function sweep(trigger: "startup" | "sweep", lane: Lane = ALERTS): Promise
 }
 
 /** Skips a tick while the last sweep still runs, so its hanging sends cannot pile up. */
-async function sweepRetries(): Promise<void> {
+async function sweepRetries(trigger: "startup" | "sweep"): Promise<void> {
 	if (retrySweeping) return;
 	retrySweeping = true;
-	await sweep("sweep", RETRIES);
+	await sweep(trigger, RETRIES);
 	retrySweeping = false;
 }
 
@@ -82,7 +82,7 @@ async function start(): Promise<void> {
 	);
 
 	track(sweep("startup", CONFIRMATIONS));
-	track(sweep("startup", RETRIES));
+	track(sweepRetries("startup"));
 	await sweep("startup");
 
 	// Subscribe to pg_notify channel. Payload is the event row id.
@@ -104,7 +104,7 @@ async function start(): Promise<void> {
 	}, BACKLOG_SWEEP_INTERVAL_MS);
 
 	retryTimer = setInterval(() => {
-		if (running) track(sweepRetries());
+		if (running) track(sweepRetries("sweep"));
 	}, RETRY_SWEEP_INTERVAL_MS);
 
 	await stopped.promise;

@@ -1,4 +1,4 @@
-import { and, desc, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, gt, gte, inArray, or, sql } from "drizzle-orm";
 
 import { formatUtcDateTime } from "../../lib/format";
 import { appUrl } from "../../lib/server/account-email";
@@ -6,6 +6,7 @@ import { deadLetteredMonitors, overdueChecks } from "../../lib/server/check-stat
 import type { DbExecutor } from "../../lib/server/db/index";
 import { notificationEvent } from "../../lib/server/db/schema";
 import { childLogger } from "../../lib/server/logger";
+import { RETRY_QUEUED, RETRY_SENDING } from "../../lib/server/notifications/events";
 import {
 	clearOpsAlert,
 	opsAlertsEnabled,
@@ -19,10 +20,12 @@ const log = childLogger("consumer");
 /** Rows an alert names. The rest are on the admin pages. */
 const LISTED_ROWS = 10;
 const UNDELIVERED_WINDOW_HOURS = 1;
+/** Failed attempts before a mail server outage is news: about three minutes in. */
+const MAIL_DOWN_ATTEMPTS = 3;
 
 const CHECKS_OVERDUE = { type: "monitor_checks_overdue", subject: "scheduler" } as const;
 const DATABASE_UNREADABLE = { type: "monitor_checks_overdue", subject: "database" } as const;
-const UNDELIVERED = { type: "alert_undelivered", subject: "retries_exhausted" } as const;
+const UNDELIVERED = { type: "alert_undelivered", subject: "mail_server" } as const;
 
 /**
  * Watches the monitor worker from outside it: a worker that is down cannot log
@@ -106,27 +109,36 @@ function undeliveredAlerts(db: DbExecutor, limit: number) {
 		})
 		.from(notificationEvent)
 		.where(
-			and(
-				inArray(notificationEvent.status, ["failed", "partial"]),
-				sql`${notificationEvent.payload}->'retriesExhausted' = 'true'`,
-				gt(
-					notificationEvent.processedAt,
-					sql`NOW() - make_interval(hours => ${UNDELIVERED_WINDOW_HOURS})`,
+			or(
+				and(
+					inArray(notificationEvent.status, [RETRY_QUEUED, RETRY_SENDING]),
+					sql`${notificationEvent.payload}->'retry'->'mailServerDown' = 'true'`,
+					gte(sql`(${notificationEvent.payload}->'retry'->>'attempt')::int`, MAIL_DOWN_ATTEMPTS),
+				),
+				and(
+					inArray(notificationEvent.status, ["failed", "partial"]),
+					sql`${notificationEvent.payload}->'mailServerDown' = 'true'`,
+					gt(
+						notificationEvent.processedAt,
+						sql`NOW() - make_interval(hours => ${UNDELIVERED_WINDOW_HOURS})`,
+					),
 				),
 			),
 		)
-		.orderBy(desc(notificationEvent.processedAt))
+		.orderBy(desc(notificationEvent.createdAt))
 		.limit(limit);
 }
 
 /**
- * Reports alerts that ran out of retries. One subject for all of them, so an outage that fails
- * many rows is one message per cooldown, and a quiet window ends the cooldown. A rejection that
- * never retried stays out: a customer's dead webhook is theirs to fix. The message carries IDs
- * only, because errors quote customer text.
+ * Reports alerts held up by the instance's own mail server: a wrong password, a refused sender
+ * or a relay that is down fails every email at once. Counts rows still retrying, so the operator
+ * hears in minutes and can fix it while the retries can still deliver. One subject for all of
+ * them, so an outage is one message per cooldown, and a quiet window ends the cooldown. Customer
+ * endpoints stay out: a dead webhook is theirs to fix. The message goes through this same mail
+ * server when only an address is set, so the log line matters. It carries IDs only, because
+ * errors quote customer text.
  */
 export async function reportUndeliveredAlerts(db: DbExecutor, timeoutMs?: number): Promise<void> {
-	if (!opsAlertsEnabled()) return;
 	try {
 		const rows = await withTimeout(undeliveredAlerts(db, LISTED_ROWS), timeoutMs);
 		const [newest] = rows;
@@ -135,13 +147,18 @@ export async function reportUndeliveredAlerts(db: DbExecutor, timeoutMs?: number
 			return;
 		}
 
+		// Log alerts match on this event_type.
+		log.error(
+			{ event_type: UNDELIVERED.type, undelivered: newest.total },
+			"The mail server is failing alert delivery",
+		);
 		const lines = rows.map((row) => `- ${row.id}, organization ${row.organizationId}`);
 		if (newest.total > rows.length) lines.push(`- and ${newest.total - rows.length} more`);
 		await raiseOpsAlert(db, {
 			...UNDELIVERED,
-			title: `Alerts not delivered: ${newest.total}`,
+			title: `Alert email failing: ${newest.total}`,
 			body: [
-				`${newest.total} alert events ran out of delivery retries in the past ${UNDELIVERED_WINDOW_HOURS} hour. Check the mail server and the notifier logs.`,
+				`${newest.total} alert events could not get through this instance's mail server. They are still retrying, or ran out of retries in the past ${UNDELIVERED_WINDOW_HOURS} hour. Check the SMTP password, the sender address and the relay.`,
 				"",
 				`Review organizations at ${appUrl}/admin/organizations`,
 				"",

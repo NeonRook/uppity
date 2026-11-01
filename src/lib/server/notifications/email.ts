@@ -56,20 +56,33 @@ export async function sendChannelConfirmation({
 
 interface MailError {
 	code?: string;
+	command?: string;
 	responseCode?: number | false;
 }
 
-/** Nodemailer gives every server or connection failure a code; only a reply carries a number. */
-export function isTransientMailFailure(error: unknown): boolean {
-	const { code, responseCode } = error as MailError;
-	return responseCode ? responseCode < 500 : code !== undefined;
+/** Nodemailer's codes for a message it refused to send, which no server ever saw. */
+const UNSENDABLE = new Set(["EENVELOPE", "EMESSAGE", "ESTREAM"]);
+
+/**
+ * The instance's mail server failed whatever the address: it did not answer, refused the login
+ * or refused the sender. Worth retrying even on a 5xx, because the operator can fix it, and the
+ * next address would only get the same answer. Nodemailer gives every SMTP failure a code; only
+ * a reply carries a number, and only a reply to RCPT TO or DATA is about the one recipient.
+ */
+export function isMailServerDown(error: unknown): boolean {
+	const { code, command, responseCode } = error as MailError;
+	if (code === undefined) return false;
+	return responseCode ? command !== "RCPT TO" && command !== "DATA" : !UNSENDABLE.has(code);
 }
 
-/** The server never answered, so the next address would wait out the same timeout. */
-export function isMailServerDown(error: unknown): boolean {
-	const { code, responseCode } = error as MailError;
-	return !responseCode && code !== undefined;
+export function isTransientMailFailure(error: unknown): boolean {
+	const { responseCode } = error as MailError;
+	return isMailServerDown(error) || (responseCode ? responseCode < 500 : false);
 }
+
+/** A mail server's reply can quote the address, and delivery rows and logs keep this text. */
+export const mailFailureText = (error: unknown) =>
+	(error instanceof Error ? error.message : String(error)).replace(/\S+@\S+/g, "<address>");
 
 export async function sendEmail(
 	config: { email: string; token: string },
@@ -108,8 +121,9 @@ export async function sendEmail(
 	} catch (error) {
 		return {
 			success: false,
-			errorMessage: error instanceof Error ? error.message : "Failed to send email",
+			errorMessage: mailFailureText(error),
 			transient: isTransientMailFailure(error),
+			mailServerDown: isMailServerDown(error),
 		};
 	}
 }
