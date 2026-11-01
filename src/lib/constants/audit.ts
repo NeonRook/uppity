@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
 	"org.subscription_resync",
 	"org.mail_block_clear",
 	"monitor.dead_letter_reset",
+	"mail.suppression_lift",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

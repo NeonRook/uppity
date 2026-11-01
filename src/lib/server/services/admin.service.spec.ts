@@ -3,7 +3,13 @@ import { nanoid } from "nanoid";
 import { describe, expect } from "vitest";
 
 import { member, organization } from "../db/auth-schema";
-import { auditLog, mailEvent, monitor, organizationMailBlock } from "../db/schema";
+import {
+	auditLog,
+	emailSuppression,
+	mailEvent,
+	monitor,
+	organizationMailBlock,
+} from "../db/schema";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitor, seedOrg, seedUser } from "../test/seed";
@@ -312,6 +318,22 @@ describe("AdminService dead letter", () => {
 
 		expect(await service.resetDeadLetter(actor, id)).toBe(false);
 		expect(await auditRowsFor(drizzleDb, actor)).toHaveLength(0);
+	});
+});
+
+describe("liftSuppression", () => {
+	test("removes the address and audits, once", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const service = makeService(drizzleDb);
+		const actor = await makeActor(drizzleDb);
+		await drizzleDb.insert(emailSuppression).values({ email: "a@example.com", reason: "bounce" });
+
+		expect(await service.liftSuppression(actor, "a@example.com")).toBe(true);
+		expect(await service.liftSuppression(actor, "a@example.com")).toBe(false);
+
+		expect(await service.getSuppression("a@example.com")).toBeNull();
+		const audit = await auditRowsFor(drizzleDb, actor);
+		expect(audit.map((row) => row.action)).toEqual(["mail.suppression_lift"]);
 	});
 });
 

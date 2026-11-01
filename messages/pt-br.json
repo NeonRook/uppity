@@ -909,5 +909,14 @@
 	"admin_org_mail_block_bounce": "Devoluções permanentes demais em {date}.",
 	"admin_org_mail_block_complaint": "Reclamações de spam demais em {date}.",
 	"admin_org_mail_block_desc": "Confirmações e convites continuam recusados até você liberar. Alertas para endereços confirmados continuam saindo.",
-	"admin_org_mail_block_clear": "Liberar bloqueio"
+	"admin_org_mail_block_clear": "Liberar bloqueio",
+	"admin_suppression_title": "Endereços suprimidos",
+	"admin_suppression_desc": "Endereços com devolução permanente ou que marcaram nossos e-mails como spam não recebem e-mails de assinantes, confirmações nem convites, e suas assinaturas são excluídas após o período de retenção. Busque um endereço para remover a supressão.",
+	"admin_suppression_email": "Endereço de e-mail",
+	"admin_suppression_search": "Buscar",
+	"admin_suppression_none": "Este endereço não está suprimido.",
+	"admin_suppression_bounce": "Devolução permanente em {date}.",
+	"admin_suppression_complaint": "Reclamação de spam em {date}.",
+	"admin_suppression_provider": "Se você envia pelo Resend, remova o endereço também da lista de supressão do Resend. Caso contrário, os e-mails continuam sem chegar e o endereço volta para cá.",
+	"admin_suppression_lift": "Remover supressão"
 }

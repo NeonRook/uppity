@@ -909,5 +909,14 @@
 	"admin_org_mail_block_bounce": "Zu viele endgültige Zustellfehler am {date}.",
 	"admin_org_mail_block_complaint": "Zu viele Spam-Beschwerden am {date}.",
 	"admin_org_mail_block_desc": "Bestätigungen und Einladungen bleiben abgelehnt, bis du die Sperre aufhebst. Alarme an bestätigte Adressen gehen weiter raus.",
-	"admin_org_mail_block_clear": "Sperre aufheben"
+	"admin_org_mail_block_clear": "Sperre aufheben",
+	"admin_suppression_title": "Gesperrte Adressen",
+	"admin_suppression_desc": "Adressen, die endgültig abgewiesen oder unsere E-Mails als Spam markiert haben, erhalten keine Abonnenten-E-Mails, Bestätigungen oder Einladungen, und ihre Abonnements werden nach der Aufbewahrungsfrist gelöscht. Suche eine Adresse, um die Sperre aufzuheben.",
+	"admin_suppression_email": "E-Mail-Adresse",
+	"admin_suppression_search": "Suchen",
+	"admin_suppression_none": "Diese Adresse ist nicht gesperrt.",
+	"admin_suppression_bounce": "Endgültiger Zustellfehler am {date}.",
+	"admin_suppression_complaint": "Spam-Beschwerde am {date}.",
+	"admin_suppression_provider": "Wenn du über Resend sendest, entferne die Adresse auch aus der Sperrliste von Resend. Sonst kommen E-Mails weiterhin nicht an und die Adresse landet wieder hier.",
+	"admin_suppression_lift": "Sperre aufheben"
 }

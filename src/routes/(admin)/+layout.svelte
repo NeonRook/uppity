@@ -13,6 +13,7 @@
 		ShieldCheck,
 		ScrollText,
 		EyeOff,
+		MailX,
 	} from "@lucide/svelte";
 
 	import { signOut } from "#lib/auth-client.js";
@@ -31,6 +32,7 @@
 		{ name: "Organizations", href: "/admin/organizations", icon: Building2 },
 		{ name: "Audit Log", href: "/admin/audit", icon: ScrollText },
 		{ name: m.admin_dead_letter_title(), href: "/admin/dead-letters", icon: EyeOff },
+		{ name: m.admin_suppression_title(), href: "/admin/suppressions", icon: MailX },
 	];
 
 	function isActive(href: string): boolean {

@@ -909,5 +909,14 @@
 	"admin_org_mail_block_bounce": "Too many hard bounces on {date}.",
 	"admin_org_mail_block_complaint": "Too many spam complaints on {date}.",
 	"admin_org_mail_block_desc": "Confirmations and invitations stay refused until you clear this. Alerts to confirmed addresses keep going.",
-	"admin_org_mail_block_clear": "Clear block"
+	"admin_org_mail_block_clear": "Clear block",
+	"admin_suppression_title": "Suppressed addresses",
+	"admin_suppression_desc": "Addresses that hard-bounced or marked our mail as spam get no subscriber mail, confirmations or invitations, and their subscriptions are deleted after the retention period. Look one up to lift it.",
+	"admin_suppression_email": "Email address",
+	"admin_suppression_search": "Look up",
+	"admin_suppression_none": "This address is not suppressed.",
+	"admin_suppression_bounce": "Hard bounce on {date}.",
+	"admin_suppression_complaint": "Spam complaint on {date}.",
+	"admin_suppression_provider": "If you send through Resend, remove the address from Resend's suppression list too, or mail to it stays undelivered and it comes back here.",
+	"admin_suppression_lift": "Lift suppression"
 }
