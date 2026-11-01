@@ -24,7 +24,7 @@ jobs:
 
   select-mode:
     name: Select Mode
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     outputs:
       mode: ${{ steps.select-mode.outputs.mode }}
       version: ${{ steps.version.outputs.version }}
@@ -57,7 +57,7 @@ jobs:
 
   version:
     name: Version
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     needs: [checks, select-mode]
     if: needs.select-mode.outputs.mode == 'version'
     permissions:
@@ -118,7 +118,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-4vcpu-ubuntu-2604
     needs: [select-mode, publish]
     if: needs.select-mode.outputs.mode == 'publish'
     permissions:
@@ -196,7 +196,7 @@ jobs:
   # from release so a failed apply can be re-run without touching the tag.
   deploy-production:
     name: Deploy Production
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2604
     needs: [select-mode, release]
     if: needs.select-mode.outputs.mode == 'publish'
     environment: production
