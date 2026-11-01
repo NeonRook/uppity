@@ -39,6 +39,7 @@
 	import { toggleMonitor, deleteMonitor } from "#lib/remote/monitors.remote.js";
 	import { errorMessage } from "#lib/utils/error-message.js";
 	import { getStatusBadgeWithIcon, getCheckIcon, uncheckedSummary } from "#lib/utils/status.js";
+	import { parseWebUrl } from "#lib/utils/web-url.js";
 
 	let { data } = $props();
 
@@ -274,14 +275,16 @@
 						<dt class="text-muted-foreground text-sm font-medium">{m.monitor_url()}</dt>
 						<dd class="mt-1 flex items-center gap-1 text-sm">
 							<span class="font-mono">{data.monitor.url}</span>
-							<a
-								href={data.monitor.url}
-								target="_blank"
-								rel="external noopener noreferrer"
-								class="text-muted-foreground hover:text-foreground"
-							>
-								<ExternalLink class="h-3 w-3" />
-							</a>
+							{#if parseWebUrl(data.monitor.url)}
+								<a
+									href={data.monitor.url}
+									target="_blank"
+									rel="external noopener noreferrer"
+									class="text-muted-foreground hover:text-foreground"
+								>
+									<ExternalLink class="h-3 w-3" />
+								</a>
+							{/if}
 						</dd>
 					</div>
 					{@render field(m.monitor_http_method(), data.monitor.method ?? "-")}

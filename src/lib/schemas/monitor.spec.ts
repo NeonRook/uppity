@@ -20,6 +20,22 @@ describe("createMonitorSchema", () => {
 		});
 	});
 
+	it("accepts http and https URLs in any spelling", () => {
+		for (const url of ["http://example.com", "HTTPS://example.com/health"]) {
+			expect(parse({ url }).success).toBe(true);
+		}
+	});
+
+	it("rejects a URL that is not http or https", () => {
+		for (const url of [
+			"admin:hunter2@example.com/health",
+			"data:text/html,hi",
+			"ftp://example.com/",
+		]) {
+			expect(parse({ url }).success).toBe(false);
+		}
+	});
+
 	it("accepts body text up to the limit", () => {
 		expect(parse({ expectedBodyContains: "a".repeat(BODY_MATCH_MAX_LENGTH) }).success).toBe(true);
 	});
