@@ -147,6 +147,25 @@ describe("processResults", () => {
 		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
 	});
 
+	test("lowering the threshold during an outage alerts on the next failure", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const orgId = await seedOrganization(drizzleDb);
+		const monitor = await seedMonitor(drizzleDb, orgId, { alertAfterFailures: 5 });
+		await drizzleDb.insert(monitorStatus).values({ monitorId: monitor.id, status: "up" });
+		const down = { status: "down", responseTimeMs: 42 } as const;
+
+		await save(drizzleDb, monitor, down);
+		await save(drizzleDb, monitor, down);
+		await drizzleDb
+			.update(monitorTable)
+			.set({ alertAfterFailures: 1 })
+			.where(eq(monitorTable.id, monitor.id));
+		await save(drizzleDb, monitor, down);
+		await save(drizzleDb, monitor, down);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
+	});
+
 	test("recovery from a blip below the threshold stays silent", async ({ db }) => {
 		const { db: drizzleDb } = db;
 		const orgId = await seedOrganization(drizzleDb);
@@ -311,6 +330,7 @@ describe("processResults", () => {
 			lastCheckAt: new Date(),
 			consecutiveFailures: 1,
 		});
+		await seedDownAlert(drizzleDb, monitor);
 
 		await save(drizzleDb, monitor, {
 			status: "down",
@@ -325,11 +345,7 @@ describe("processResults", () => {
 		expect(status?.status).toBe("down");
 		expect(status?.consecutiveFailures).toBe(2);
 
-		const events = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(events).toHaveLength(0);
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_down"]);
 
 		const incidents = await drizzleDb
 			.select()

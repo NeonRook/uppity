@@ -216,11 +216,16 @@ async function interpret(
 		})
 		.where(eq(monitorStatus.monitorId, m.id));
 
-	// An outage alerts once, on the check that reaches the threshold. It recovers on the first up
-	// check, however many degraded checks came between, and that alerts only if the outage did.
+	// An outage alerts once, on the check that reaches the threshold, or on the next check if the
+	// threshold is lowered past the failures so far. It recovers on the first up check, however
+	// many degraded checks came between, and that alerts only if the outage did.
+	const inOutage =
+		(result.status !== "up" || previousStatus !== "up") && (await outageAlerted(tx, m.id));
 	const reachesThreshold = consecutiveFailures >= m.alertAfterFailures;
 	const crossesThreshold =
-		result.status === "down" && reachesThreshold && previousFailures < m.alertAfterFailures;
+		result.status === "down" &&
+		reachesThreshold &&
+		(previousFailures < m.alertAfterFailures || !inOutage);
 	const unchangedForMs = statusChanged
 		? 0
 		: result.checkedAt.getTime() - (currentStatus?.lastStatusChange?.getTime() ?? Infinity);
@@ -232,8 +237,6 @@ async function interpret(
 	// bouncing and stays down alerts within the settle time plus one check interval of its first
 	// failure, or at alertAfterFailures if that comes later.
 	const flap = await activeFlap(tx, m.id);
-	const inOutage =
-		(result.status !== "up" || previousStatus !== "up") && (await outageAlerted(tx, m.id));
 	const settled =
 		flap !== undefined &&
 		(result.status === "down"
