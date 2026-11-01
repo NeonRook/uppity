@@ -50,8 +50,8 @@
 	/**
 	 * Published monthly list prices, nothing interpolated (PRODUCT.md). These
 	 * are tier ceilings rather than per-capacity curves — which is why they are
-	 * drawn dashed. What lands you on them is a capability (SSO, audit logs,
-	 * private pages), never a monitor count.
+	 * drawn dashed. What lands you on them is a capability (audit logs),
+	 * never a monitor count.
 	 */
 	const COMPETITORS = [
 		{ label: "Instatus", price: 300 },
@@ -244,7 +244,7 @@ for (const el of document.querySelectorAll("[data-cliff-reveal]")) {
 			stroke-width="1.5"
 		/>
 		<text x={g.l + 6} y={scaleY(g, COMPETITORS[1].price) - 18} class="fill-status-down text-xs"
-			>{m.landing_gate_row_sso()} · {m.landing_gate_row_audit()}</text
+			>{m.landing_gate_row_audit()}</text
 		>
 
 		{#if compact}
