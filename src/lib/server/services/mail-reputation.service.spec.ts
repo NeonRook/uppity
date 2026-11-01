@@ -108,6 +108,22 @@ describe("recordMailFailure attribution", () => {
 		expect(rows).toHaveLength(1);
 	});
 
+	test("charges nobody when the event does not say when the email was sent", async ({ db }) => {
+		const orgId = await seedOrg(db.db);
+		const email = address();
+		await logSend(db.db, orgId, email, new Date());
+		const eventId = nanoid();
+
+		await recordMailFailure(
+			db.db,
+			eventId,
+			{ kind: "complaint", recipients: [email], sentAt: null },
+			THRESHOLDS,
+		);
+
+		expect(await eventOrg(db.db, eventId)).toBeNull();
+	});
+
 	test("a retried event counts once", async ({ db }) => {
 		const orgId = await seedOrg(db.db);
 		const email = address();
@@ -270,6 +286,72 @@ describe("UnsolicitedMailGuard ceiling", () => {
 		if (!claim.refused) await channels.releaseSend(claim.sendId);
 
 		expect(await db.db.select().from(unsolicitedMailSend)).toHaveLength(0);
+	});
+});
+
+describe("addresses typed into a public form", () => {
+	test("bounces never block the page's organization", async ({ db }) => {
+		const orgId = await fresh(db.db);
+		const subscribers = new StatusPageSubscriberService(db.db, vi.fn());
+		const channels = new EmailChannelService(db.db, vi.fn());
+		const page = await seedPage(db.db, orgId);
+		const dead = Array.from({ length: 10 }, address);
+		const eventIds = dead.map(() => nanoid());
+
+		for (const email of dead) await subscribers.subscribe(page, email);
+		for (const [i, email] of dead.entries()) {
+			await recordMailFailure(db.db, eventIds[i], bounce(email), THRESHOLDS);
+		}
+
+		expect(await isBlocked(db.db, orgId)).toBe(false);
+		expect(await eventOrg(db.db, eventIds[0])).toBeNull();
+		expect((await channels.claimInvitationSend(orgId, address())).refused).toBeUndefined();
+		const suppressed = await db.db
+			.select()
+			.from(emailSuppression)
+			.where(eq(emailSuppression.email, dead[0]));
+		expect(suppressed).toHaveLength(1);
+	});
+
+	test("do not dilute the organization's own bounce rate", async ({ db }) => {
+		const orgId = await fresh(db.db);
+		const [first, second] = [address(), address()];
+		for (const email of [first, second]) await logSend(db.db, orgId, email, new Date());
+		await db.db.insert(unsolicitedMailSend).values(
+			Array.from({ length: 100 }, () => ({
+				id: nanoid(),
+				organizationId: null,
+				email: address(),
+			})),
+		);
+
+		for (const email of [first, second]) {
+			await recordMailFailure(db.db, nanoid(), bounce(email), THRESHOLDS);
+		}
+
+		expect(await isBlocked(db.db, orgId)).toBe(true);
+	});
+
+	test("may use half the ceiling, leaving the rest for organizations", async ({ db }) => {
+		const orgId = await fresh(db.db);
+		const guard = new UnsolicitedMailGuard(db.db, 2);
+		const subscribers = new StatusPageSubscriberService(db.db, vi.fn(), undefined, guard);
+		const channels = new EmailChannelService(db.db, vi.fn(), 5, guard);
+		const page = await seedPage(db.db, orgId);
+
+		expect(await subscribers.subscribe(page, address())).toBe("sent");
+		expect(await subscribers.subscribe(page, address())).toBe("paused");
+		expect((await channels.claimInvitationSend(orgId, address())).refused).toBeUndefined();
+	});
+
+	test("a paused form answers the same for a suppressed address", async ({ db }) => {
+		const orgId = await fresh(db.db);
+		await db.db.insert(organizationMailBlock).values({ organizationId: orgId, reason: "bounce" });
+		const email = address();
+		await db.db.insert(emailSuppression).values({ email, reason: "bounce" });
+		const subscribers = new StatusPageSubscriberService(db.db, vi.fn());
+
+		expect(await subscribers.subscribe(await seedPage(db.db, orgId), email)).toBe("paused");
 	});
 });
 
