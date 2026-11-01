@@ -12,6 +12,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import process from "node:process";
 
+import { shutdownTelemetry } from "../src/lib/server/telemetry.ts";
 import { pinOrigin } from "./origin.ts";
 
 type Handler = (req: IncomingMessage, res: ServerResponse, next: () => void) => void;
@@ -70,7 +71,10 @@ function shutdown() {
 
 	server.closeIdleConnections();
 	const force = setTimeout(() => server.closeAllConnections(), shutdownTimeout * 1000);
-	server.close(() => clearTimeout(force));
+	server.close(() => {
+		clearTimeout(force);
+		void shutdownTelemetry();
+	});
 }
 
 process.on("SIGTERM", shutdown);

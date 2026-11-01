@@ -30,13 +30,16 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install
 
 # Install dependencies into a temp directory once, for the builder's use only.
-# Nothing from this tree reaches the runtime image: the SSR bundle inlines every
-# dependency it needs, so the runner stage ships no node_modules at all.
 FROM build-base AS install
 RUN mkdir -p /temp/deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /temp/deps/
 WORKDIR /temp/deps
 RUN pnpm install --frozen-lockfile
+
+# The runner's node_modules. Scripts are skipped: the prepare script needs the
+# dev tools this tree leaves out.
+FROM install AS prod-deps
+RUN rm -rf node_modules && pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Stage 2: Build application
 FROM build-base AS builder
@@ -67,6 +70,7 @@ RUN addgroup -S -g 1001 uppity && \
   adduser -S -u 1001 -G uppity uppity
 
 COPY --from=builder --chown=uppity:uppity /usr/src/app/build ./build
+COPY --from=prod-deps --chown=uppity:uppity /temp/deps/node_modules ./node_modules
 
 # Migration SQL. scripts/migrate.ts hardcodes ./drizzle; drizzle.config.ts is
 # drizzle-kit's config and drizzle-kit is not in this image, so it is not copied.

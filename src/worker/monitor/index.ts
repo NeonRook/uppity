@@ -1,6 +1,7 @@
 import { WORKER_POLL_BATCH_SIZE, WORKER_BACKOFF } from "../../lib/constants/worker";
 import { monitor } from "../../lib/server/db/schema";
 import { childLogger, wideEvent, type CheckWideEvent } from "../../lib/server/logger";
+import { shutdownTelemetry } from "../../lib/server/telemetry";
 import { client, db } from "../shared/db";
 import { runCheck } from "./check";
 import { startDomainRecheck } from "./domain-recheck";
@@ -183,10 +184,12 @@ async function start() {
 	await stopProcessing?.();
 
 	schedulerLogger.info("Shutdown complete");
+	await shutdownTelemetry();
 	process.exit(0);
 }
 
-start().catch((error) => {
+start().catch(async (error) => {
 	schedulerLogger.fatal({ error }, "Fatal error");
+	await shutdownTelemetry();
 	process.exit(1);
 });

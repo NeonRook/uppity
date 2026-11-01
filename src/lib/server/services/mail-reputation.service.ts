@@ -9,8 +9,11 @@ import {
 	organizationMailBlock,
 	unsolicitedMailSend,
 } from "#lib/server/db/schema.js";
+import { childLogger } from "#lib/server/logger/index.js";
 import { raiseOpsAlert } from "#lib/server/ops-alert.js";
 import type { MailFailure } from "#lib/server/resend-webhook.js";
+
+const log = childLogger("mail-reputation");
 
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -80,6 +83,7 @@ export class UnsolicitedMailGuard {
 		const fromVisitors = sent - fromOrganizations;
 		if (sent < this.ceiling && !(visitor && fromVisitors * 2 >= this.ceiling)) return false;
 
+		log.error({ event_type: "unsolicited_mail_ceiling", sent }, "Unsolicited mail ceiling reached");
 		void raiseOpsAlert(this.db, {
 			type: "unsolicited_mail_ceiling",
 			subject: "instance",
@@ -151,6 +155,10 @@ export async function recordMailFailure(
 	});
 
 	if (blocked) {
+		log.error(
+			{ event_type: "organization_mail_blocked", org_id: blocked.organizationId },
+			"Organization blocked from emailing new addresses",
+		);
 		void raiseOpsAlert(db, {
 			type: "organization_mail_blocked",
 			subject: blocked.organizationId,

@@ -1,18 +1,18 @@
 # Runtime permissions
 
-The production image runs on Node. `serve` and `migrate` start under Node's permission model
+The production image runs on Node. Every process starts under Node's permission model
 (`--permission`), which denies everything not granted on the command line.
 `scripts/entrypoint.sh` holds the flags and is the only thing that launches application code in
 the container.
 
 ## The four processes
 
-| Process           | `--permission` | Reads                  | Network      |
-| ----------------- | -------------- | ---------------------- | ------------ |
-| `serve`           | yes            | `./build`              | unrestricted |
-| `migrate`         | yes            | `./drizzle`, `./build` | unrestricted |
-| `worker-monitor`  | yes            | `./build`              | unrestricted |
-| `worker-notifier` | yes            | `./build`              | unrestricted |
+| Process           | `--permission` | Reads                                    | Network      |
+| ----------------- | -------------- | ---------------------------------------- | ------------ |
+| `serve`           | yes            | `./build`, `./node_modules`              | unrestricted |
+| `migrate`         | yes            | `./drizzle`, `./build`, `./node_modules` | unrestricted |
+| `worker-monitor`  | yes            | `./build`, `./node_modules`              | unrestricted |
+| `worker-notifier` | yes            | `./build`, `./node_modules`              | unrestricted |
 
 Under `--permission`, no process can write to the filesystem, spawn processes,
 start worker threads, load native addons, or use WASI, FFI or the inspector.
@@ -25,10 +25,14 @@ of executing it.
 **Reads on `./build`.** The server bundle, its chunks and the static assets all live there.
 Migrations are read from `./drizzle`, which only `migrate` needs.
 
+**Reads on `./node_modules`.** The image installs production dependencies, and the build imports
+them at runtime (ADR 0009).
+
 **The network, unrestricted.** Both processes need Postgres, and `serve` also binds its port and
 calls the SMTP hosts, the Polar API and Cloudflare Turnstile. `serve` and `worker-monitor` also
 look up the DNS records of status page custom domains, through `node:dns`'s `Resolver`, which needs
-no grant beyond this one. Node's `--allow-net` is a single switch with no host list,
+no grant beyond this one. `serve` and the workers also send telemetry to
+`OTEL_EXPORTER_OTLP_ENDPOINT` when it is set. Node's `--allow-net` is a single switch with no host list,
 and it is still marked experimental, so it prints one warning at startup. ADR 0008 records why the
 per-host allowlist was given up.
 

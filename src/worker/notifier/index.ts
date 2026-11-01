@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { childLogger, wideEvent, type NotifierWideEvent } from "../../lib/server/logger";
 import { NotificationService } from "../../lib/server/notifications/service";
+import { HEARTBEAT_EVENT, shutdownTelemetry } from "../../lib/server/telemetry";
 import { client, db } from "../shared/db";
 import { ALERTS, CONFIRMATIONS, processBacklog, processOne, RETRIES, type Lane } from "./processor";
 import { reportDeadLetters, reportOverdueChecks, reportUndeliveredAlerts } from "./watchdog";
@@ -96,6 +97,7 @@ async function start(): Promise<void> {
 
 	sweepTimer = setInterval(() => {
 		if (!running) return;
+		consumerLogger.info({ event_type: HEARTBEAT_EVENT }, "Watchdog pass");
 		track(sweep("sweep"));
 		track(sweep("sweep", CONFIRMATIONS));
 		track(reportOverdueChecks(db));
@@ -111,10 +113,12 @@ async function start(): Promise<void> {
 	await Promise.race([Promise.allSettled(inFlight), sleep(SHUTDOWN_GRACE_MS)]);
 
 	consumerLogger.info("Shutdown complete");
+	await shutdownTelemetry();
 	process.exit(0);
 }
 
-start().catch((error) => {
+start().catch(async (error) => {
 	consumerLogger.fatal({ error }, "Fatal error");
+	await shutdownTelemetry();
 	process.exit(1);
 });

@@ -64,9 +64,11 @@ What this means in practice: `pnpm dev` runs without those restrictions, so code
 that writes a file or spawns a process works locally and fails in the
 container with `ERR_ACCESS_DENIED`.
 
-The runner image ships no `node_modules`. `scripts/check-externals.ts` fails the
-build if a bare import survives bundling, so a new dependency that Vite cannot
-inline is a build error rather than a production 500.
+The runner image ships production `node_modules` and the build imports them at
+runtime (`docs/adr/0009-standard-dependency-layout.md`).
+`scripts/check-externals.ts` fails the build if a bare import is not in
+`dependencies`, so a package left in `devDependencies` is a build error rather
+than a production 500.
 
 ### Directory Structure
 
@@ -97,6 +99,9 @@ src/routes/
 
 - **Service Layer:** Routes delegate to services in `src/lib/server/services/`
 - **Schema Validation:** valibot schemas in `src/lib/schemas/` used by superforms
+- **Telemetry:** `src/lib/server/telemetry.ts` loads through `--import` before the
+  entry point. It exports traces, warnings, errors and the watchdog heartbeat, and
+  only the log fields in its allowlist leave the process.
 - **Background Jobs:** Health checks and notifications run in separate worker
   processes under `src/worker/`, not in the web tier
 
