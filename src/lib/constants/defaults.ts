@@ -1,4 +1,4 @@
-import { envInt, envString } from "#lib/utils.js";
+import { envInt, envIntBetween, envString } from "#lib/utils.js";
 
 import { isSelfHosted } from "./plans";
 
@@ -47,13 +47,18 @@ export const SSL_WARNING_COOLDOWN_HOURS = envInt("UPPITY_SSL_WARNING_COOLDOWN_HO
  * Up and down alerts within FLAP_WINDOW_SECONDS at which a monitor's next outage counts as
  * flapping and holds its alerts. Below 2 turns flap detection off.
  */
-export const FLAP_THRESHOLD = envInt("UPPITY_FLAP_THRESHOLD", 5);
+export const FLAP_THRESHOLD = envIntBetween("UPPITY_FLAP_THRESHOLD", 5, 0, 1000);
 
 /** How far back flapping alerts count, and the time between reminders while a monitor flaps. */
-export const FLAP_WINDOW_SECONDS = envInt("UPPITY_FLAP_WINDOW_SECONDS", 3600);
+export const FLAP_WINDOW_SECONDS = envIntBetween(
+	"UPPITY_FLAP_WINDOW_SECONDS",
+	3600,
+	60,
+	2_592_000,
+);
 
 /** How long a flapping monitor must stay down, or go without a down check, before it alerts. */
-export const FLAP_SETTLE_SECONDS = envInt("UPPITY_FLAP_SETTLE_SECONDS", 300);
+export const FLAP_SETTLE_SECONDS = envIntBetween("UPPITY_FLAP_SETTLE_SECONDS", 300, 1, 86_400);
 
 /** Cooldown between repeats of one operator alert while its cause lasts. */
 export const OPS_ALERT_COOLDOWN_HOURS = envInt("UPPITY_OPS_ALERT_COOLDOWN_HOURS", 6);

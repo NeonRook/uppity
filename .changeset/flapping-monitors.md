@@ -10,4 +10,4 @@ The monitor page explains when a monitor is flapping. Status, check history, upt
 
 Webhooks get a new `monitor_flapping` event type. Webhook consumers that act on `monitor_down` and `monitor_up` receive neither while a monitor flaps.
 
-Self-hosted operators can change this on the monitor worker with `UPPITY_FLAP_THRESHOLD`, `UPPITY_FLAP_WINDOW_SECONDS` and `UPPITY_FLAP_SETTLE_SECONDS`. A threshold below 2 turns it off. A longer settle time delays the alert for an outage that follows flapping.
+Self-hosted operators can change this on the monitor worker with `UPPITY_FLAP_THRESHOLD`, `UPPITY_FLAP_WINDOW_SECONDS` and `UPPITY_FLAP_SETTLE_SECONDS`. A threshold of 0 or 1 turns it off, and a value outside the range in `.env.example` uses the default. A longer settle time delays the alert for an outage that follows flapping.
