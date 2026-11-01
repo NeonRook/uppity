@@ -8,7 +8,7 @@
  * see the same row, from LISTEN, the sweep or the check that wrote it, and only
  * the first interprets it.
  */
-import { and, asc, eq, gte, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 import {
@@ -27,6 +27,7 @@ import {
 	notificationEvent,
 	type Monitor,
 } from "../../lib/server/db/schema";
+import { incidentActive } from "../../lib/server/incident-state";
 import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
 import type {
 	MonitorStatusEventPayload,
@@ -178,7 +179,7 @@ async function interpret(
 			.select({ id: incident.id })
 			.from(incident)
 			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
-			.where(and(eq(incidentMonitor.monitorId, m.id), ne(incident.status, "resolved")))
+			.where(and(eq(incidentMonitor.monitorId, m.id), incidentActive))
 			.limit(1);
 
 		if (!existingIncident) {
@@ -221,11 +222,7 @@ async function interpret(
 			.from(incident)
 			.innerJoin(incidentMonitor, eq(incident.id, incidentMonitor.incidentId))
 			.where(
-				and(
-					eq(incidentMonitor.monitorId, m.id),
-					eq(incident.isAutoCreated, true),
-					ne(incident.status, "resolved"),
-				),
+				and(eq(incidentMonitor.monitorId, m.id), eq(incident.isAutoCreated, true), incidentActive),
 			)
 			.limit(1);
 

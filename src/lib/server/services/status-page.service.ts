@@ -25,6 +25,7 @@ import {
 	FeatureNotAvailableError,
 	NotFoundError,
 } from "#lib/server/errors.js";
+import { incidentActive, incidentEnded } from "#lib/server/incident-state.js";
 import { monitorsBelongToOrg } from "#lib/server/services/monitor-ownership.js";
 import { subscriptionService } from "#lib/server/services/subscription.instance.js";
 
@@ -763,13 +764,9 @@ export class StatusPageService {
 			),
 		);
 		const [activeIncidents, resolvedIncidents] = await Promise.all([
-			this.incidentsWithUpdates(and(onThisPage, sql`${incident.status} != 'resolved'`)),
+			this.incidentsWithUpdates(and(onThisPage, incidentActive)),
 			this.incidentsWithUpdates(
-				and(
-					onThisPage,
-					sql`${incident.status} = 'resolved'`,
-					gte(incident.resolvedAt, historyDaysAgo),
-				),
+				and(onThisPage, incidentEnded, gte(incident.resolvedAt, historyDaysAgo)),
 				desc(incident.resolvedAt),
 			),
 		]);

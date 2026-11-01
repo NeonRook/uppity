@@ -192,7 +192,7 @@ export const incident = pgTable(
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
-		status: text("status").notNull().default("investigating"), // 'investigating' | 'identified' | 'monitoring' | 'resolved'
+		status: text("status").notNull().default("investigating"), // 'investigating' | 'identified' | 'monitoring' | 'resolved' | 'postmortem'
 		impact: text("impact").notNull().default("minor"), // 'none' | 'minor' | 'major' | 'critical'
 		startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
 		resolvedAt: timestamp("resolved_at", { withTimezone: true }),

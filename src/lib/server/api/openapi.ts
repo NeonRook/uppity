@@ -1,5 +1,6 @@
 import { API_KEY_PREFIX, API_KEYS_PER_ORGANIZATION } from "#lib/constants/api.js";
 import { FREE_PLAN, UPPITY_PLAN } from "#lib/constants/plans.js";
+import { INCIDENT_STATUSES } from "#lib/constants/status.js";
 
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "./pagination";
 
@@ -187,7 +188,7 @@ export const openApiDocument = {
 				properties: {
 					id: { type: "string" },
 					title: { type: "string" },
-					status: { enum: ["investigating", "identified", "monitoring", "resolved"] },
+					status: { enum: INCIDENT_STATUSES },
 					impact: { enum: ["none", "minor", "major", "critical"] },
 					autoCreated: { type: "boolean" },
 					startedAt: dateTime,
@@ -331,7 +332,7 @@ export const openApiDocument = {
 				properties: {
 					id: { type: "string" },
 					title: { type: "string" },
-					status: { enum: ["investigating", "identified", "monitoring", "resolved"] },
+					status: { enum: INCIDENT_STATUSES },
 					impact: { enum: ["none", "minor", "major", "critical"] },
 					createdAt: dateTime,
 					startedAt: dateTime,
