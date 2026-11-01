@@ -4,7 +4,7 @@ This is planning material, not a price list, an offer or a comparison page. It r
 
 Every source was accessed on 2026-11-01. Sources are the vendor's own pricing pages, docs, help centre and terms, plus the GitHub repository for Uptime Kuma. Vendors change these pages, so reread the source before citing a claim. "Not mentioned" means the pages read are silent on the point, not that the vendor lacks the feature.
 
-Prices are per month on monthly billing, unless a line says otherwise.
+Prices are per month on monthly billing, unless a line says otherwise. Each pricing page was also loaded in a browser on 2026-11-01, with the billing and page-type switches set to each state. Hyperping and UptimeRobot localise by visitor and showed EUR from a German address, with the same numerals Hyperping lists in USD in its page source. Instatus, Better Stack and Statuspage showed USD.
 
 ## At a glance
 
@@ -13,7 +13,7 @@ Prices are per month on monthly billing, unless a line says otherwise.
 | Instatus             | 15 monitors                | Pro, $20          | Business, $300; Enterprise is custom  | Not mentioned | SAML on Business, Google on all plans    | Admin activity on Business   | Private Pro, $50          |
 | Hyperping            | 20 monitors                | Essentials, $29   | Business, $299; Enterprise is custom  | Not mentioned | SAML and OIDC on Pro, $89                | Business, $299               | Pro, $89                  |
 | Atlassian Statuspage | Public page, no monitoring | Hobby, $29        | Enterprise, $1,499                    | Not mentioned | Startup, $99, with Atlassian Guard       | Activity Log, no plan stated | Private Starter, $79      |
-| UptimeRobot          | 50 monitors                | Solo, from EUR 10 | Scale, EUR 151; Enterprise is a quote | Not mentioned | Not mentioned                            | Not mentioned                | Team, EUR 35, by password |
+| UptimeRobot          | 50 monitors                | Solo, from EUR 10 | Scale, EUR 179; Enterprise is a quote | Not mentioned | Not mentioned                            | Not mentioned                | Team, EUR 35, by password |
 | Better Stack         | 10 monitors                | Usage-based       | No top plan listed                    | Not mentioned | Google included, generic SAML enterprise | $250 add-on                  | Listed, no plan stated    |
 | Uptime Kuma          | Open source                | None              | None                                  | Yes           | Not in release 2.5.9                     | Not verified                 | Not verified              |
 
@@ -41,19 +41,19 @@ Accessed 2026-11-01. Prices use "$", and the pages do not name a currency. Yearl
 
 - Starter is free, with 15 monitors, 2-minute checks, 200 subscribers, 5 team members and public pages only. ([pricing](https://instatus.com/pricing))
 - Pro is $20, or $15 on yearly billing, with 50 monitors, 30-second checks, 5,000 subscribers and 50 team members. ([pricing](https://instatus.com/pricing))
-- Private Pro is $50, or $37.50 on yearly billing. Select is $100, or $75 on yearly billing. The page's script marks both as Pro variants, and its table has a Public, Private and Select Audience switcher. ([pricing](https://instatus.com/pricing))
-- Business is $300, or $225 on yearly billing, with 1,000 monitors, 30-second checks, 25,000 subscribers, unlimited team members and 3 pages of any type. ([pricing](https://instatus.com/pricing))
+- Private Pro is $50, or $37.50 on yearly billing. Select is $100, or $75 on yearly billing. A page-type switch on the Pro column changes its name and price between Pro, Private Pro and Select, and the limits shown stay those of Pro. ([pricing](https://instatus.com/pricing))
+- Business is $300, or $225 on yearly billing, with 1,000 monitors, 30-second checks, 25,000 subscribers, unlimited team members and every page type. ([pricing](https://instatus.com/pricing))
 - Enterprise is custom priced. ([pricing](https://instatus.com/pricing))
 - Google SSO is on all plans. SAML SSO first appears on Business. Multiple SSO connections and SCIM directory sync are on Enterprise. ([SSO](https://instatus.com/help/team/sso), [pricing](https://instatus.com/pricing))
 - Per-issue activity is on all plans, and the admin activity display requires Business. ([activity](https://instatus.com/help/team/activity))
-- A custom domain first appears on Pro. The API is marked on all plans. ([pricing](https://instatus.com/pricing))
+- Custom domains are 1 or more on Pro and 3 or more on Business. The API is marked on all plans. ([pricing](https://instatus.com/pricing))
 - The pricing table lists these monitor types on all plans: Website, Keyword, API, Cron / Heartbeat, Ping, SSL, TCP / UDP, DNS. ([pricing](https://instatus.com/pricing))
 - Alert channels are Email, SMS, Slack, Discord, Microsoft Teams, Phone call, Webhook, WhatsApp and Mobile app. ([alerts](https://instatus.com/help/monitoring/alerts))
 - Non-profits and open-source projects can email for a free Pro account. ([pricing](https://instatus.com/pricing))
 
 ## Hyperping
 
-Accessed 2026-11-01. Prices are in USD. The page shows yearly-billing figures by default, and Yearly gives "2 months free". The $29 and $89 monthly prices are in the page's script and in its description.
+Accessed 2026-11-01. The page source lists USD, and a browser loaded from Germany showed the same numerals in EUR. The page shows yearly-billing figures by default, and Yearly gives "2 months free". Monthly billing shows $29, $89 and $299, and the same switch shows EUR figures when the visitor is in Europe.
 
 - Free is $0, with 20 monitors, 5-minute checks, 1 seat and no subscribers. ([pricing](https://hyperping.com/pricing))
 - Essentials is $29, or $24 on yearly billing, with 50 monitors, 30-second checks, 100 subscribers and 3 seats. ([pricing](https://hyperping.com/pricing))
@@ -99,12 +99,12 @@ Accessed 2026-11-01. Prices use "$", and the page lists monthly prices only.
 
 ## UptimeRobot
 
-Accessed 2026-11-01. These are the EUR amounts served to a request from Germany. The vendor says prices vary by region. Its `pricing.md` snapshot shows higher Team and Scale amounts and says to verify against the live page, so this section uses the live page. ([pricing.md](https://uptimerobot.com/pricing.md))
+Accessed 2026-11-01. These are the EUR amounts served to a request from Germany, read with the billing switch on Monthly. The vendor says prices vary by region and that annual billing saves about 15%. On annual billing the same page shows Solo EUR 9 and EUR 19, Team EUR 35, and Scale EUR 65 and EUR 149. ([pricing](https://uptimerobot.com/pricing/), [pricing.md](https://uptimerobot.com/pricing.md))
 
 - Free has 50 monitors, 5-minute checks and 1 status page. ([pricing](https://uptimerobot.com/pricing/))
 - Solo is EUR 10 for 10 monitors and EUR 22 for 50, with 60-second checks and 3 status pages. ([pricing](https://uptimerobot.com/pricing/))
-- Team is EUR 35, with 100 monitors, 30-second checks, 100 status pages and 3 login seats. ([pricing](https://uptimerobot.com/pricing/))
-- Scale is EUR 65 for 200 monitors and EUR 151 for 500, with 15-second checks, unlimited status pages and 5 login seats. ([pricing](https://uptimerobot.com/pricing/))
+- Team is EUR 41, with 100 monitors, 30-second checks, 100 status pages and 3 login seats. ([pricing](https://uptimerobot.com/pricing/))
+- Scale is EUR 77 for 200 monitors and EUR 179 for 500, with 15-second checks, unlimited status pages and 5 login seats. ([pricing](https://uptimerobot.com/pricing/))
 - Enterprise is a custom quote and lists an SLA. ([pricing.md](https://uptimerobot.com/pricing.md))
 - "The free plan can be used for business, commercial, and revenue-generating projects". ([help](https://help.uptimerobot.com/en/articles/11604710-who-should-use-uptimerobot-s-free-plan))
 - The terms require "only having a single account". ([terms](https://uptimerobot.com/terms/))
@@ -129,7 +129,7 @@ Accessed 2026-11-01. Prices use "$", and the page does not name a currency. Pric
 
 ## Unverified
 
-- Instatus: the limits on Private Pro and Select. The table has one set of Pro values with a page-type switcher, and no page states that the variants share them.
+- Instatus: the limits on Private Pro and Select. The table keeps the Pro values when the page-type switch changes, and no page states that the variants share them.
 - Instatus: its help page on upgrading says Pro adds "unlimited teammates and subscribers", while the pricing page lists 50 and 5,000. This document uses the pricing page. ([help](https://instatus.com/help/team/upgrade))
 - Hyperping: the plan requirement for roles, whether Free has the API, and the words "shared infrastructure" in `PRODUCT.md`. No page read describes the hosting of Business.
 - UptimeRobot: USD prices, and whether SSO or audit logs exist. No page read mentions either.
@@ -137,4 +137,4 @@ Accessed 2026-11-01. Prices use "$", and the page does not name a currency. Pric
 - Better Stack: plan conditions for RBAC, custom sub-domains and the API, and the terms of an Enterprise plan.
 - Uptime Kuma: status page subscribers, private status pages, roles, and whether SSO arrives in 3.0.
 - Instatus, Hyperping, UptimeRobot and Statuspage: an explicit statement that self-hosting is not offered. The pages read are silent.
-- Instatus and Hyperping: the script-sourced prices were read from page source, not on a rendered page. Confirm them in a browser before a comparison page quotes them.
+- Hyperping and UptimeRobot: USD prices on a rendered page. Both showed EUR from a German address. Hyperping's page source lists USD, and UptimeRobot's USD amounts are unread.

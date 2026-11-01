@@ -120,7 +120,7 @@ These figures are Railway's rates applied to round quantities, not measurements 
 
 ## Assumptions and gaps
 
-- Railway's docs do not say whether private network traffic or inbound traffic is billed. The model counts neither, because the rates name only egress. The first invoice settles this.
-- Railway's docs do not mention price differences between regions. The model uses one rate everywhere.
-- Railway's docs do not say how volume backups are billed. The model leaves them out.
+- Assumption: private network traffic and inbound traffic are not billed. Railway's docs list a rate for egress only, and its billing FAQ advises reaching databases over private networking to avoid high egress cost, but no page states either case outright. The first invoice settles this ([FAQ](https://docs.railway.com/reference/pricing/faqs)).
+- Assumption: one rate applies in every region. Railway's pricing and regions pages mention no regional difference ([Regions](https://docs.railway.com/reference/regions)).
+- Railway bills volume backups at the volume rate, on the incremental size of each backup ([Backups](https://docs.railway.com/reference/backups)). The model leaves them out until a backup schedule is chosen.
 - The model covers Railway only. It leaves out mail delivery, payment processing, domains, support time and tax.
