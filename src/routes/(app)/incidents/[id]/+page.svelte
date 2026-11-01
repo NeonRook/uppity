@@ -18,6 +18,7 @@
 	import {
 		INCIDENT_STATUS_VALUES,
 		INCIDENT_IMPACTS,
+		isEndedIncidentStatus,
 		type IncidentStatusValue,
 		type IncidentImpact,
 	} from "#lib/constants/status.js";
@@ -79,6 +80,7 @@
 	// Get existing postmortem if any
 	const existingPostmortem = $derived(data.incident.updates.find((u) => u.status === "postmortem"));
 
+	const ended = $derived(isEndedIncidentStatus(data.incident.status));
 	const statusInfo = $derived(getStatusInfo(data.incident.status));
 	const impactInfo = $derived(getImpactInfo(data.incident.impact));
 
@@ -121,7 +123,7 @@
 	{/each}
 
 	<!-- Add Update -->
-	{#if data.incident.status !== "resolved"}
+	{#if !ended}
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>{m.incident_post_update()}</Card.Title>
@@ -177,8 +179,8 @@
 		</Card.Root>
 	{/if}
 
-	<!-- Postmortem Section (only for resolved incidents) -->
-	{#if data.incident.status === "resolved"}
+	<!-- Postmortem Section (only for ended incidents) -->
+	{#if ended}
 		<Card.Root class="border-status-maintenance/30 bg-status-maintenance-surface">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">

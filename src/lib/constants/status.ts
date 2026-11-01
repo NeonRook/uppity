@@ -21,6 +21,12 @@ export const INCIDENT_STATUS_VALUES = [
 ] as const;
 export type IncidentStatusValue = (typeof INCIDENT_STATUS_VALUES)[number];
 
+/** Incident states that mean it has ended. A postmortem follows resolution. */
+export const ENDED_INCIDENT_STATUSES = ["resolved", "postmortem"] as const;
+
+export const isEndedIncidentStatus = (status: string): boolean =>
+	(ENDED_INCIDENT_STATUSES as readonly string[]).includes(status);
+
 /** Severity levels indicating how much an incident affects service availability. */
 export const INCIDENT_IMPACTS = ["none", "minor", "major", "critical"] as const;
 export type IncidentImpact = (typeof INCIDENT_IMPACTS)[number];

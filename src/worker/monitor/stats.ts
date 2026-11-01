@@ -24,6 +24,7 @@ import {
 	incidentMonitor,
 	subscription,
 } from "../../lib/server/db/schema";
+import { incidentActive } from "../../lib/server/incident-state";
 import { db } from "../shared/db";
 
 export class StatsService {
@@ -112,7 +113,7 @@ export class StatsService {
 					eq(incidentMonitor.monitorId, monitorId),
 					lt(incident.startedAt, endOfDay),
 					or(
-						notInArray(incident.status, ["resolved", "postmortem"]),
+						incidentActive,
 						gte(incident.startedAt, startOfDay),
 						gte(incident.resolvedAt, startOfDay),
 					),
