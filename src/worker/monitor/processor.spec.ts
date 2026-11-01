@@ -60,6 +60,18 @@ async function seedMonitor(
 	return row;
 }
 
+/** The alert a monitor seeded as already down would have sent. */
+async function seedDownAlert(drizzleDb: TestDb["db"], monitor: Monitor) {
+	await drizzleDb.insert(notificationEvent).values({
+		id: `notif-${nanoid()}`,
+		organizationId: monitor.organizationId,
+		monitorId: monitor.id,
+		type: "monitor_down",
+		payload: {},
+		status: "sent",
+	});
+}
+
 async function seedActiveMaintenanceWindow(
 	drizzleDb: TestDb["db"],
 	orgId: string,
@@ -337,6 +349,7 @@ describe("processResults", () => {
 			lastCheckAt: new Date(),
 			consecutiveFailures: 3,
 		});
+		await seedDownAlert(drizzleDb, monitor);
 
 		const incidentId = `inc-${nanoid()}`;
 		await drizzleDb.insert(incident).values({
@@ -355,8 +368,10 @@ describe("processResults", () => {
 		const [event] = await drizzleDb
 			.select()
 			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(event?.type).toBe("monitor_up");
+			.where(
+				and(eq(notificationEvent.monitorId, monitor.id), eq(notificationEvent.type, "monitor_up")),
+			);
+		expect(event).toBeDefined();
 		const payload = event?.payload as {
 			previousStatus: string;
 			newStatus: string;
@@ -389,6 +404,7 @@ describe("processResults", () => {
 			lastCheckAt: new Date(),
 			consecutiveFailures: 3,
 		});
+		await seedDownAlert(drizzleDb, monitor);
 
 		const incidentId = `inc-${nanoid()}`;
 		await drizzleDb.insert(incident).values({
@@ -404,11 +420,7 @@ describe("processResults", () => {
 
 		await save(drizzleDb, monitor, { status: "up", responseTimeMs: 120 });
 
-		const [event] = await drizzleDb
-			.select()
-			.from(notificationEvent)
-			.where(eq(notificationEvent.monitorId, monitor.id));
-		expect(event?.type).toBe("monitor_up");
+		expect((await eventTypes(drizzleDb, monitor.id)).at(-1)).toBe("monitor_up");
 
 		const [stillOpen] = await drizzleDb.select().from(incident).where(eq(incident.id, incidentId));
 		expect(stillOpen?.status).toBe("investigating");
@@ -919,30 +931,117 @@ async function updateMessages(drizzleDb: TestDb["db"], incidentId: string) {
 	return rows.map((row) => row.message);
 }
 
-describe("flapping", () => {
-	const MINUTE = 60_000;
-	type Beat = "up" | "down" | "degraded";
+const MINUTE = 60_000;
+type Beat = "up" | "down" | "degraded";
 
+/** Feeds one result per step and returns the time of the last one. */
+async function feed(
+	drizzleDb: TestDb["db"],
+	monitor: Monitor,
+	beats: Beat[],
+	start: number,
+	step = MINUTE,
+): Promise<number> {
+	let at = start;
+	for (const [i, status] of beats.entries()) {
+		at = start + i * step;
+		await insertResult(drizzleDb, monitor.id, { status, responseTimeMs: 1 }, new Date(at));
+		await processResults(drizzleDb, monitor.id);
+	}
+	return at;
+}
+
+describe("recovering through degraded", () => {
+	test("sends the recovery on the first up check and closes the incident", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const last = await feed(drizzleDb, monitor, ["down", "degraded"], Date.now() - 10 * MINUTE);
+		expect(await openIncidents(drizzleDb, monitor.id)).toHaveLength(1);
+
+		await feed(drizzleDb, monitor, ["up"], last + MINUTE);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([
+			"monitor_down",
+			"monitor_degraded",
+			"monitor_up",
+		]);
+		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+		const [recovery] = await drizzleDb
+			.select()
+			.from(notificationEvent)
+			.where(
+				and(eq(notificationEvent.monitorId, monitor.id), eq(notificationEvent.type, "monitor_up")),
+			);
+		expect(recovery.payload).toMatchObject({ previousStatus: "degraded", newStatus: "up" });
+	});
+
+	test("recovers once, however many degraded checks came first", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		await feed(
+			drizzleDb,
+			monitor,
+			["down", "degraded", "degraded", "up", "up"],
+			Date.now() - 10 * MINUTE,
+		);
+
+		const types = await eventTypes(drizzleDb, monitor.id);
+		expect(types.filter((type) => type === "monitor_up")).toHaveLength(1);
+	});
+
+	test("closes the incident once degraded has held for the settle time", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb);
+
+		const start = Date.now() - 20 * MINUTE;
+		await feed(drizzleDb, monitor, ["down", ...Array<Beat>(5).fill("degraded")], start);
+		const [open] = await openIncidents(drizzleDb, monitor.id);
+		expect(open).toBeDefined();
+
+		await feed(drizzleDb, monitor, ["degraded"], start + 6 * MINUTE);
+		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+		expect(await updateMessages(drizzleDb, open.id)).toContain(
+			"Monitor is responding again, with degraded performance.",
+		);
+
+		// The people who heard it was down still hear it is fully back.
+		await feed(drizzleDb, monitor, ["up"], start + 7 * MINUTE);
+		expect((await eventTypes(drizzleDb, monitor.id)).at(-1)).toBe("monitor_up");
+	});
+
+	test("an outage that alerted recovers even if a later down run stayed below the threshold", async ({
+		db,
+	}) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb, { alertAfterFailures: 2 });
+
+		await feed(
+			drizzleDb,
+			monitor,
+			["down", "down", "degraded", "down", "up"],
+			Date.now() - 10 * MINUTE,
+		);
+
+		expect((await eventTypes(drizzleDb, monitor.id)).at(-1)).toBe("monitor_up");
+		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+	});
+
+	test("a blip below the threshold that passes through degraded stays silent", async ({ db }) => {
+		const { db: drizzleDb } = db;
+		const monitor = await upMonitor(drizzleDb, { alertAfterFailures: 2 });
+
+		await feed(drizzleDb, monitor, ["down", "degraded", "up"], Date.now() - 10 * MINUTE);
+
+		expect(await eventTypes(drizzleDb, monitor.id)).toEqual(["monitor_degraded"]);
+	});
+});
+
+describe("flapping", () => {
 	const BOUNCES: Beat[] = ["down", "up", "down", "up", "down"];
 	const FOUR_ALERTS = ["monitor_down", "monitor_up", "monitor_down", "monitor_up"];
 	const BOUNCE_ALERTS = [...FOUR_ALERTS, "monitor_flapping"];
-
-	/** Feeds one result per step and returns the time of the last one. */
-	async function feed(
-		drizzleDb: TestDb["db"],
-		monitor: Monitor,
-		beats: Beat[],
-		start: number,
-		step = MINUTE,
-	): Promise<number> {
-		let at = start;
-		for (const [i, status] of beats.entries()) {
-			at = start + i * step;
-			await insertResult(drizzleDb, monitor.id, { status, responseTimeMs: 1 }, new Date(at));
-			await processResults(drizzleDb, monitor.id);
-		}
-		return at;
-	}
 
 	test("alerts as usual up to the limit, then sends one flapping message", async ({ db }) => {
 		const { db: drizzleDb } = db;
@@ -1106,6 +1205,10 @@ describe("flapping", () => {
 
 		expect(await eventTypes(drizzleDb, monitor.id)).toEqual([...BOUNCE_ALERTS, "monitor_degraded"]);
 		expect(await openIncidents(drizzleDb, monitor.id)).toEqual([]);
+
+		// Channels without degraded alerts were told about the flapping, so they hear the all-clear.
+		await feed(drizzleDb, monitor, ["up"], last + 7 * MINUTE);
+		expect((await eventTypes(drizzleDb, monitor.id)).at(-1)).toBe("monitor_up");
 	});
 
 	test("jitter between up and degraded ends the hold once it stops going down", async ({ db }) => {

@@ -30,7 +30,7 @@ import {
 	notificationEvent,
 	type Monitor,
 } from "../../lib/server/db/schema";
-import { activeFlap } from "../../lib/server/flap";
+import { activeFlap, outageAlerted } from "../../lib/server/flap";
 import { incidentActive } from "../../lib/server/incident-state";
 import type { CheckWideEvent, WideEventBuilder } from "../../lib/server/logger";
 import type {
@@ -216,8 +216,8 @@ async function interpret(
 		})
 		.where(eq(monitorStatus.monitorId, m.id));
 
-	// An outage alerts once, on the check that reaches the threshold, and its
-	// recovery alerts only if the outage did.
+	// An outage alerts once, on the check that reaches the threshold. It recovers on the first up
+	// check, however many degraded checks came between, and that alerts only if the outage did.
 	const reachesThreshold = consecutiveFailures >= m.alertAfterFailures;
 	const crossesThreshold =
 		result.status === "down" && reachesThreshold && previousFailures < m.alertAfterFailures;
@@ -232,6 +232,8 @@ async function interpret(
 	// bouncing and stays down alerts within the settle time plus one check interval of its first
 	// failure, or at alertAfterFailures if that comes later.
 	const flap = await activeFlap(tx, m.id);
+	const inOutage =
+		(result.status !== "up" || previousStatus !== "up") && (await outageAlerted(tx, m.id));
 	const settled =
 		flap !== undefined &&
 		(result.status === "down"
@@ -241,9 +243,7 @@ async function interpret(
 		!flap && crossesThreshold && !steady && (await reachesFlapLimit(tx, m.id, result.checkedAt));
 
 	const alertsDown = result.status === "down" && (settled || crossesThreshold);
-	const alertsUp =
-		result.status === "up" &&
-		(settled || (previousStatus === "down" && previousFailures >= m.alertAfterFailures));
+	const alertsUp = result.status === "up" && (settled || inOutage);
 	const alertsDegraded =
 		result.status === "degraded" && (settled || (statusChanged && previousStatus !== "unknown"));
 
@@ -271,7 +271,7 @@ async function interpret(
 		event?.merge({ incident_created: true, incident_id: incidentId });
 	};
 
-	const resolveAutoIncident = async () => {
+	const resolveAutoIncident = async (message: string) => {
 		// Manual incidents (isAutoCreated=false) are only resolved by humans.
 		const open = await activeIncident(tx, m.id);
 		if (!open?.isAutoCreated) return;
@@ -280,7 +280,7 @@ async function interpret(
 			.update(incident)
 			.set({ status: "resolved", resolvedAt: new Date(), updatedAt: new Date() })
 			.where(eq(incident.id, open.id));
-		await postUpdate(tx, open.id, "resolved", "Monitor has recovered automatically.");
+		await postUpdate(tx, open.id, "resolved", message);
 		event?.merge({ incident_resolved: true, incident_id: open.id });
 	};
 
@@ -314,21 +314,26 @@ async function interpret(
 		}
 	} else if (alertsUp) {
 		await enqueue("monitor_up", {
-			previousStatus: "down",
+			previousStatus: previousStatus === "degraded" ? "degraded" : "down",
 			newStatus: "up",
 			consecutiveFailures,
 			checkId: result.id,
 		});
 
-		await resolveAutoIncident();
-	} else if (alertsDegraded) {
-		await enqueue("monitor_degraded", {
-			previousStatus: previousStatus as Status | "unknown",
-			newStatus: "degraded",
-			consecutiveFailures,
-			checkId: result.id,
-		});
-		if (flap) await resolveAutoIncident();
+		await resolveAutoIncident("Monitor has recovered automatically.");
+	} else if (result.status === "degraded") {
+		if (alertsDegraded) {
+			await enqueue("monitor_degraded", {
+				previousStatus: previousStatus as Status | "unknown",
+				newStatus: "degraded",
+				consecutiveFailures,
+				checkId: result.id,
+			});
+		}
+		// A monitor that stays degraded is responding, so an incident saying it is down has ended.
+		if (settled || (steady && inOutage)) {
+			await resolveAutoIncident("Monitor is responding again, with degraded performance.");
+		}
 	}
 }
 
