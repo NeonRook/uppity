@@ -119,7 +119,7 @@ describe("notifier ops alerts, from the sweep timer to the webhook", () => {
 		shared.db = drizzleDb;
 		vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
 		await import("./index");
-		await vi.waitFor(() => expect(vi.getTimerCount()).toBe(1));
+		await vi.waitFor(() => expect(vi.getTimerCount()).toBe(2));
 
 		// The first sweep reports both.
 		await sweep();

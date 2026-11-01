@@ -1,9 +1,11 @@
 import { Agent, type buildConnector } from "undici";
 
-import { dial, ProbeError, type Dialed } from "../tcp";
+import { BlockedTargetError, dial, ProbeError, type Dialed } from "../tcp";
 import type { NotificationResult } from "./types";
 
 const CONNECT_TIMEOUT_MS = 10_000;
+/** Well inside the notifier's stuck-row threshold, as the SMTP timeouts are. */
+const DELIVERY_TIMEOUT_MS = 30_000;
 const ERROR_BODY_MAX_BYTES = 512;
 
 /**
@@ -37,10 +39,18 @@ async function connect(
 	callback(null, dialed.socket);
 }
 
+/** Overload and rate limit answers. Any other 4xx will get the same answer next time. */
+const isTransientStatus = (status: number) =>
+	status >= 500 || status === 408 || status === 425 || status === 429;
+
 /** fetch wraps connection failures; the cause says what went wrong. */
-function describe(error: unknown, label: string): string {
+function failure(error: unknown, label: string): NotificationResult {
 	const cause = error instanceof Error && error.cause instanceof ProbeError ? error.cause : error;
-	return cause instanceof Error ? cause.message : `Failed to send ${label} notification`;
+	return {
+		success: false,
+		errorMessage: cause instanceof Error ? cause.message : `Failed to send ${label} notification`,
+		transient: !(cause instanceof BlockedTargetError),
+	};
 }
 
 /** Decodes up to `limit` bytes of `body`; leaving the loop cancels the rest. */
@@ -70,16 +80,21 @@ export async function postJson(
 			headers: { "Content-Type": "application/json", ...init.headers },
 			body: JSON.stringify(body),
 			dispatcher: deliveries,
+			signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
 		};
 		const response = await fetch(url, request);
 
 		if (!response.ok) {
 			const text = await readPrefix(response.body, ERROR_BODY_MAX_BYTES);
-			return { success: false, errorMessage: `${label} error: ${response.status} - ${text}` };
+			return {
+				success: false,
+				errorMessage: `${label} error: ${response.status} - ${text}`,
+				transient: isTransientStatus(response.status),
+			};
 		}
 
 		return { success: true };
 	} catch (error) {
-		return { success: false, errorMessage: describe(error, label) };
+		return failure(error, label);
 	}
 }

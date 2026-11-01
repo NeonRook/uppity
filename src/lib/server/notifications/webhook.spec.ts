@@ -35,6 +35,7 @@ describe("sendWebhook delivery", () => {
 		expect(result).toEqual({
 			success: false,
 			errorMessage: "Blocked: 127.0.0.1 is a private address",
+			transient: false,
 		});
 	});
 
@@ -53,6 +54,7 @@ describe("sendWebhook delivery", () => {
 		expect(result).toEqual({
 			success: false,
 			errorMessage: `Connection refused by 127.0.0.1:${port}`,
+			transient: true,
 		});
 	});
 
@@ -75,6 +77,7 @@ describe("sendWebhook delivery", () => {
 			expect(result).toEqual({
 				success: false,
 				errorMessage: `Webhook error: 500 - ${"x".repeat(512)}`,
+				transient: true,
 			});
 		} finally {
 			server.closeAllConnections();

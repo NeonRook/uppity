@@ -30,6 +30,9 @@ export class ProbeError extends Error {
 	override name = "ProbeError";
 }
 
+/** The target is one Uppity refuses to reach, which no retry changes. */
+export class BlockedTargetError extends ProbeError {}
+
 export interface Certificate {
 	expiresAt: Date;
 	issuer?: string;
@@ -193,7 +196,7 @@ export async function dial({
 	if (!privateTargetsAllowed()) {
 		const blocked = addresses.find((a) => isPrivateAddress(a.address));
 		if (blocked) {
-			throw new ProbeError(
+			throw new BlockedTargetError(
 				blocked.address === host
 					? `Blocked: ${host} is a private address`
 					: `Blocked: ${host} resolves to a private address`,

@@ -525,8 +525,8 @@ export const notificationEvent = pgTable(
 		// | 'channel_confirmation'
 		payload: jsonb("payload").notNull(),
 		status: text("status").notNull().default("pending"),
-		// 'pending' | 'processing' | 'processed' | 'suppressed' | 'failed' | 'sent'
-		// | 'confirmation_queued' | 'confirmation_sending'
+		// 'pending' | 'processing' | 'processed' | 'suppressed' | 'failed' | 'partial' | 'sent'
+		// | 'retry_queued' | 'retry_sending' | 'confirmation_queued' | 'confirmation_sending'
 		claimedAt: timestamp("claimed_at", { withTimezone: true }),
 		processedAt: timestamp("processed_at", { withTimezone: true }),
 		errorMessage: text("error_message"),

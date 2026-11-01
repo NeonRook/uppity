@@ -162,9 +162,9 @@ describe("notifier integration (real Postgres)", () => {
 			organizationId: orgId,
 			name: "Test Webhook",
 			type: "webhook",
-			// 127.0.0.1:1 refuses the connection immediately — deterministic fast failure
-			// without needing a test HTTP server.
-			config: { url: "http://127.0.0.1:1/test" },
+			// A private address is refused before connecting, a final failure that needs no
+			// test HTTP server.
+			config: { url: "http://127.0.0.1:8080/test" },
 			enabled: true,
 		});
 		await drizzleDb.insert(monitorNotificationChannel).values({
