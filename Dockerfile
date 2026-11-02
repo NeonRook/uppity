@@ -24,7 +24,7 @@ ENV MISE_DATA_DIR=/mise \
   MISE_INSTALL_PATH=/usr/local/bin/mise \
   MISE_TRUSTED_CONFIG_PATHS=/usr/src/app \
   PATH=/mise/shims:$PATH
-ARG MISE_VERSION=v2026.9.16
+ARG MISE_VERSION=v2026.10.25
 COPY mise.toml /mise/config.toml
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl https://mise.run | MISE_VERSION=$MISE_VERSION sh && mise install
