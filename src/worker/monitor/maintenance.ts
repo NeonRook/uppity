@@ -19,6 +19,7 @@ import {
 	type MaintenanceWideEvent,
 	type WideEventBuilder,
 } from "../../lib/server/logger";
+import { raiseOpsAlert, reason } from "../../lib/server/ops-alert";
 import { runCapacityGrace } from "../../lib/server/services/capacity.service";
 import { pruneChannelConfirmationSends } from "../../lib/server/services/email-channel.service";
 import { pruneMailRecords } from "../../lib/server/services/mail-reputation.service";
@@ -239,6 +240,12 @@ export async function runDueMaintenanceJobs(
 
 			event.merge({ next_run_at: retryAt });
 			event.setError(error);
+			void raiseOpsAlert(targetDb, {
+				type: "maintenance_job_failed",
+				subject: job.id,
+				title: `Maintenance job failed: ${job.name}`,
+				body: `${job.id} failed and retries at ${retryAt.toISOString()}: ${reason(error)}`,
+			});
 		} finally {
 			event.emit("maintenance");
 		}

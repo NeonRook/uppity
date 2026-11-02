@@ -234,12 +234,15 @@ same customer meter, which has no per-subscription scoping —
 `polar_customer_meters_list` exposes no `subscription_id`. That plausibly charges the
 same capacity twice.
 
-There is no clean fix inside Polar's model. `MeterService` logs at **error** level
-whenever it reports a customer spanning more than one organization, on the same
-reasoning as the `without org reference` handlers: the failure is an incorrect
-invoice, and nobody finds those by reading a warning stream. Grep for
-`block charges may be duplicated`. Settle it empirically in sandbox before it matters
-in production.
+Polar prevents this as long as **Allow multiple subscriptions** stays off under
+Organization Settings → Subscriptions. That is Polar's default, and it is off in both
+sandbox and production. A customer then holds at most one active subscription, so a
+user who owns several organizations can pay for only one of them. Turning the setting
+on brings the duplicate charge back, because meters have no per-subscription scoping.
+
+If it happens anyway, `MeterService` logs at **error** level and raises the
+`billing_blocks_duplicated` operator alert whenever it reports a customer holding
+blocks across more than one organization. Grep for `block charges may be duplicated`.
 
 ### Provisioning token
 

@@ -7,10 +7,16 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 import * as schema from "../db/schema";
 import { subscription } from "../db/schema";
 import { logger } from "../logger";
+import { raiseOpsAlert } from "../ops-alert";
 import { test } from "../test/fixture";
 import type { TestDb } from "../test/harness";
 import { seedMonitors, seedOrg, seedSubscription } from "../test/seed";
 import { MeterService } from "./meter.service";
+
+vi.mock("../ops-alert", async (original) => ({
+	...(await original<typeof import("../ops-alert")>()),
+	raiseOpsAlert: vi.fn(async () => {}),
+}));
 
 // The wire-format assertions below deliberately use literal strings
 // ("usage_snapshot", "usage_snapshot_org") and literal metadata key lists
@@ -337,6 +343,30 @@ describe("MeterService", () => {
 					String(message).includes("charges may be duplicated"),
 				);
 				expect(duplicateWarnings).toHaveLength(0);
+				expect(raiseOpsAlert).not.toHaveBeenCalled();
+			} finally {
+				errors.mockRestore();
+			}
+		});
+
+		test("a customer holding blocks across several organizations raises an operator alert", async ({
+			db,
+		}) => {
+			const loud = `polar-cust-${nanoid()}`;
+			await seedOrganizationWithCustomer(db.db, loud, { blocks: 2 });
+			await seedOrganizationWithCustomer(db.db, loud, { blocks: 1 });
+			vi.mocked(raiseOpsAlert).mockClear();
+
+			const errors = vi.spyOn(logger, "error").mockImplementation(() => {});
+			try {
+				const ingest = vi.fn().mockResolvedValue({ inserted: 1, duplicates: 0 });
+				await new MeterService(db.db, ingest, 100).reportBlocks(loud);
+
+				expect(raiseOpsAlert).toHaveBeenCalledOnce();
+				expect(vi.mocked(raiseOpsAlert).mock.calls[0][1]).toMatchObject({
+					type: "billing_blocks_duplicated",
+					subject: loud,
+				});
 			} finally {
 				errors.mockRestore();
 			}

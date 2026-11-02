@@ -4,10 +4,16 @@ import { afterAll, beforeAll, describe, expect, vi } from "vitest";
 
 import { organization } from "../../lib/server/db/auth-schema";
 import { maintenanceJob, subscription } from "../../lib/server/db/schema";
+import { raiseOpsAlert } from "../../lib/server/ops-alert";
 import { MeterService } from "../../lib/server/services/meter.service";
 import { test } from "../../lib/server/test/fixture";
 import type { TestDb } from "../../lib/server/test/harness";
 import { initializeMaintenanceJobs, runDueMaintenanceJobs, runUsageSnapshot } from "./maintenance";
+
+vi.mock("../../lib/server/ops-alert", async (original) => ({
+	...(await original<typeof import("../../lib/server/ops-alert")>()),
+	raiseOpsAlert: vi.fn(async () => {}),
+}));
 
 const RETRY_MS = 15 * 60_000;
 
@@ -127,6 +133,10 @@ describe("runDueMaintenanceJobs", () => {
 		expect(job.lastRunAt).toBeNull();
 		expect(job.nextRunAt.getTime()).toBeGreaterThanOrEqual(before + RETRY_MS);
 		expect(job.nextRunAt.getTime()).toBeLessThanOrEqual(Date.now() + RETRY_MS);
+		expect(raiseOpsAlert).toHaveBeenCalledWith(
+			drizzleDb,
+			expect.objectContaining({ type: "maintenance_job_failed", subject: "broken" }),
+		);
 	});
 
 	test("a failing job retries no later than its next cron slot", async ({ db }) => {

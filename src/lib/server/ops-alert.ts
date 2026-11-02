@@ -28,7 +28,9 @@ export type OpsAlertType =
 	| "monitor_checks_overdue"
 	| "alert_undelivered"
 	| "unsolicited_mail_ceiling"
-	| "organization_mail_blocked";
+	| "organization_mail_blocked"
+	| "maintenance_job_failed"
+	| "billing_blocks_duplicated";
 
 export interface OpsAlert {
 	type: OpsAlertType;
