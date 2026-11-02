@@ -955,5 +955,9 @@
 	"status_page_domain_rate_limited": "Zu viele Prüfungen. Warte eine Minute und versuche es erneut.",
 	"status_page_domain_lapsed": "Verloren",
 	"status_page_domain_lapsed_help": "Die DNS-Prüfung hat diese Einträge nicht mehr gefunden. Die Seite wird deshalb nicht mehr auf dieser Domain ausgeliefert, und wer das DNS der Domain kontrolliert, kann sie beanspruchen. Trage die Einträge wieder ein und prüfe das DNS, um die Seite hier wieder auszuliefern.",
-	"status_page_domain_managers_only": "Nur Inhaber und Admins können die eigenen Domains dieser Organisation ändern."
+	"status_page_domain_managers_only": "Nur Inhaber und Admins können die eigenen Domains dieser Organisation ändern.",
+	"pricing_page_title": "Tarife — Uppity",
+	"pricing_meta_description": "Die Tarife von Uppity: ein kostenloser gehosteter Tarif für kleine Teams, oder selbst betreiben mit allen Funktionen.",
+	"pricing_title": "Tarife",
+	"pricing_lede": "Gehostet oder selbst betrieben, jeder Tarif läuft mit demselben Code. Für Funktionen zahlst du nie."
 }
