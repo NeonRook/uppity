@@ -955,5 +955,9 @@
 	"status_page_domain_rate_limited": "Too many checks. Wait a minute and try again.",
 	"status_page_domain_lapsed": "Lost",
 	"status_page_domain_lapsed_help": "DNS checks found these records gone, so the page no longer serves on this domain and anyone who controls its DNS can claim it. Put the records back and check DNS to serve here again.",
-	"status_page_domain_managers_only": "Only owners and admins can change this organization's custom domains."
+	"status_page_domain_managers_only": "Only owners and admins can change this organization's custom domains.",
+	"pricing_page_title": "Plans — Uppity",
+	"pricing_meta_description": "Uppity's plans: a free hosted plan for small teams, or run it yourself with every feature included.",
+	"pricing_title": "Plans",
+	"pricing_lede": "Hosted or self-hosted, every plan runs the same code. Features are never what you pay for."
 }

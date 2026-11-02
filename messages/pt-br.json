@@ -955,5 +955,9 @@
 	"status_page_domain_rate_limited": "Muitas verificações. Aguarde um minuto e tente novamente.",
 	"status_page_domain_lapsed": "Perdido",
 	"status_page_domain_lapsed_help": "As verificações de DNS não encontraram mais estes registros, então a página deixou de ser servida neste domínio e qualquer pessoa que controle o DNS dele pode reivindicá-lo. Coloque os registros de volta e verifique o DNS para servir aqui novamente.",
-	"status_page_domain_managers_only": "Somente proprietários e administradores podem alterar os domínios personalizados desta organização."
+	"status_page_domain_managers_only": "Somente proprietários e administradores podem alterar os domínios personalizados desta organização.",
+	"pricing_page_title": "Planos — Uppity",
+	"pricing_meta_description": "Os planos do Uppity: um plano hospedado gratuito para equipes pequenas, ou rode você mesmo com todos os recursos.",
+	"pricing_title": "Planos",
+	"pricing_lede": "Hospedado ou auto-hospedado, todo plano roda o mesmo código. Você nunca paga por recursos."
 }
