@@ -2,7 +2,7 @@ import { ingestEvents } from "@polar-sh/sdk/2026-10/services/events";
 
 import type { Db } from "#lib/server/db/index.js";
 import { logger } from "#lib/server/logger/index.js";
-import { reason } from "#lib/server/ops-alert.js";
+import { raiseOpsAlert, reason } from "#lib/server/ops-alert.js";
 import { polarClient } from "#lib/server/polar.js";
 
 import {
@@ -198,6 +198,12 @@ export class MeterService {
 					},
 					"Polar customer holds capacity blocks across several organizations — block charges may be duplicated",
 				);
+				void raiseOpsAlert(this.db, {
+					type: "billing_blocks_duplicated",
+					subject: snapshot.polarCustomerId,
+					title: "Capacity block charges may be duplicated",
+					body: `Polar customer ${snapshot.polarCustomerId} holds ${snapshot.blocks} capacity blocks across ${snapshot.organizationCount} organizations. Polar meters per customer, so each subscription bills the combined total. See POLAR_SETUP.md.`,
+				});
 			}
 		}
 

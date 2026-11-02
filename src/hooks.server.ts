@@ -1,7 +1,8 @@
 import { building } from "$app/env";
-import { sequence, type Handle } from "@sveltejs/kit/hooks";
+import { sequence, type Handle, type ServerInit } from "@sveltejs/kit/hooks";
 import { svelteKitHandler } from "better-auth/svelte-kit";
 
+import { isSelfHosted } from "#lib/constants/plans.js";
 import { paraglideMiddleware } from "#lib/paraglide/server.js";
 import { handleAdminGate } from "#lib/server/admin-gate.js";
 import { apiAuthDeps } from "#lib/server/api-auth.instance.js";
@@ -101,6 +102,18 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	// svelteKitHandler automatically handles better-auth routes
 	return svelteKitHandler({ event, resolve, auth, building });
+};
+
+/**
+ * Without the secret, every Polar webhook is rejected with a 500 and nothing is
+ * logged, so subscription changes stop syncing unnoticed. Failing the boot fails the
+ * deploy instead, and the running version keeps serving.
+ */
+export const init: ServerInit = () => {
+	if (building || isSelfHosted()) return;
+	if (process.env.POLAR_ACCESS_TOKEN && !process.env.POLAR_WEBHOOK_SECRET) {
+		throw new Error("POLAR_WEBHOOK_SECRET must be set when POLAR_ACCESS_TOKEN is");
+	}
 };
 
 export const handle: Handle = sequence(

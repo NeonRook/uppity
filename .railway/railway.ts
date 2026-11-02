@@ -179,6 +179,9 @@ export default defineRailway((ctx) => {
 			SMTP_PASSWORD: uppityServer.env.SMTP_PASSWORD,
 			SMTP_PORT: ctx.shared.SMTP_PORT,
 			SMTP_USER: uppityServer.env.SMTP_USER,
+			// Maintenance job failures and duplicated block charges are raised here.
+			UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL: workerNotifier.env.UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL,
+			UPPITY_OPS_ALERT_EMAIL: workerNotifier.env.UPPITY_OPS_ALERT_EMAIL,
 		},
 	});
 	const Application = group("Application", [workerNotifier, workerMonitor, uppityServer]);
