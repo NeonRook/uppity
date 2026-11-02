@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0
+
+### Minor Changes
+
+- [#212](https://github.com/NeonRook/uppity/pull/212) [`526bd7d`](https://github.com/NeonRook/uppity/commit/526bd7d22ac51a9774dd2e3dce0d243678a5e474) Thanks [@lucasvienna](https://github.com/lucasvienna)! - Operator alerts now also tell you when a maintenance job fails, such as the daily uptime stats or scheduled maintenance windows starting and ending. To receive them, set `UPPITY_OPS_ALERT_EMAIL` or `UPPITY_OPS_ALERT_DISCORD_WEBHOOK_URL` on the monitor worker too, not only on the notifier. A job that keeps failing alerts again after `UPPITY_OPS_ALERT_COOLDOWN_HOURS`.
+
+- [`8d81876`](https://github.com/NeonRook/uppity/commit/8d81876591d89b1651726abd211becc3730b78d7) Thanks [@lucasvienna](https://github.com/lucasvienna)! - There is now a plans page at `/pricing` that compares the free hosted plan with self-hosting. The site header and footer link to it.
+
 ## 0.10.0
 
 ### Minor Changes
