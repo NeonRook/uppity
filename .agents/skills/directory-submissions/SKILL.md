@@ -2,7 +2,7 @@
 name: directory-submissions
 description: When the user wants to submit their product to startup, SaaS, AI, agent, MCP, no-code, or review directories for backlinks, domain rating, and discovery. Also use when the user mentions "directory submissions," "submit to directories," "backlinks from directories," "list my product," "submit to Product Hunt," "BetaList," "TAAFT," "Futurepedia," "G2 listing," "Capterra listing," "AlternativeTo," "SaaSHub," "AI directories," "MCP registry," "publish my MCP server," "awesome list," "llms.txt directory," "Claude plugin directory," "agent directory," "dofollow backlinks," "launch directories," or "directory tracker." Use this whenever someone is planning the directory layer of a product launch or an ongoing backlink campaign. For the broader launch moment, see launch. For programmatic SEO pages that should live behind these backlinks, see programmatic-seo. For AI citation optimization, see ai-seo.
 metadata:
-  version: 2.1.0
+  version: 2.1.4
 ---
 
 # Directory Submissions
@@ -51,7 +51,7 @@ Directories are the *source* of link equity. You need *destinations* that can co
 - 1 "best of" blog post you wrote yourself about your own category, including honest coverage of competitors.
 
 ### Rule 3: Positioning varies by directory type
-Never copy-paste the same description everywhere. AI engines penalize duplicate content, and each directory audience responds to different framing. See `references/positioning-variations.md` for the full variant library. Short version:
+Never copy-paste the same description everywhere. Identical copy gives AI engines and readers no new signal across sources, and each directory audience responds to different framing. See `references/positioning-variations.md` for the full variant library. Short version:
 
 | Surface | Lead with | Why |
 |---|---|---|
@@ -137,7 +137,16 @@ Per submission:
 3. Upload assets.
 4. Submit.
 5. Log: date, URL, status, moderator notes.
-6. Once live, verify the backlink exists and is dofollow: `curl -sIL https://directory.com/your-listing | grep -i rel=`. If absent, the link is dofollow.
+6. Once live, inspect the actual link to your product using the procedure below; an empty HTTP-header search does not verify a backlink.
+
+### Verify the Actual Backlink
+
+Fetch the listing's HTML with `curl -fsSL https://directory.com/your-listing`, or inspect its rendered DOM in a browser. `curl -I` requests headers; it cannot inspect an anchor's `href` or `rel` attributes.
+
+1. Locate the specific `<a>` that links to your product. Check the destination, including redirects; don't classify an unrelated navigation link or a canonical tag.
+2. Record its actual `rel` tokens, such as `nofollow`, `sponsored`, or `ugc`. For an inspected anchor without those qualifiers, record **unqualified link observed**. There is no `dofollow` attribute to look for, and this is not a guarantee of indexing, ranking credit, or referral traffic. See [Google's link-qualification guidance](https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links).
+3. If the destination anchor is absent from downloaded HTML, check whether the page renders it with JavaScript. If the page is blocked, requires login, or cannot be inspected, record **unverified**; if inspection confirms no destination link, record **missing**. Neither outcome proves an unqualified backlink.
+4. Save the listing URL, checked destination, observed attributes, timestamp, and any access limitation in the tracker notes. Recheck after a directory changes its template or submission tier.
 
 ---
 
@@ -174,7 +183,7 @@ Product Hunt is the single highest-leverage submission but also the most easily 
 
 ## Reviews Playbook (G2 / Capterra / TrustRadius)
 
-G2 and Capterra (now owned by G2 as of Feb 2026) listings are **worthless without reviews**. 10 reviews is the magic threshold for Grid appearance. Run the 10-in-30 protocol during launch month.
+G2 and Capterra (G2 agreed to buy Capterra, GetApp, and Software Advice from Gartner; announced Jan 2026) listings are **worthless without reviews**. 10 reviews is the magic threshold for Grid appearance. Run the 10-in-30 protocol during launch month.
 
 ### The 10-in-30 protocol
 
@@ -193,13 +202,13 @@ G2 and Capterra (now owned by G2 as of Feb 2026) listings are **worthless withou
 ### Badges and paid plans
 
 - **"Users Love Us" badge** is still free: requires 20 reviews at 4.0+ average.
-- **Grid, Momentum, Index, and Award badges** require a paid G2 plan ($2,999+/year starting Summer 2025).
+- **Grid, Momentum, Index, and Award badges** require a paid G2 plan (check G2's current pricing).
 - **Do not spend on paid G2 in year one.** The free listing + Users Love Us badge is sufficient.
 
 ### Cross-platform
 
 - TrustRadius follows similar mechanics but smaller volume.
-- Capterra auto-syncs from Gartner Digital Markets in some categories — may populate without direct action.
+- Capterra, GetApp, and Software Advice sync listings with each other in some categories, so one may populate without direct action.
 
 ---
 
@@ -341,7 +350,7 @@ One self-reported 2026 case for calibration: an MCP server plus a micro SaaS, su
 6. **Don't ask for upvotes on Product Hunt.** The 2026 algorithm penalizes it. Ask for **feedback**.
 7. **Don't amend old directory listings every week.** Submit once, check quarterly.
 8. **Don't submit before the destination page exists.** Link equity needs a destination.
-9. **Don't duplicate descriptions across directories.** AI engines penalize duplicate content.
+9. **Don't duplicate descriptions across directories.** Identical copy adds no new signal across sources.
 10. **Don't lie on comparison pages.** AI engines cross-reference and de-rank lies.
 11. **Don't over-index on launch-day spike.** The flywheel is templates + alternatives + reviews + ongoing content — not one day of PH.
 12. **Don't forget Crunchbase, LinkedIn company page, and Wikidata.** These feed AI training corpora and matter for GEO.
@@ -386,6 +395,7 @@ Keep the plan actionable. Every item should be something the user can do today.
 - **programmatic-seo** — destination pages (alternatives, integrations, templates) that backlinks should flow into
 - **competitors** — `/alternatives/[tool]` page pattern
 - **ai-seo** — GEO optimization for AI citation
+- **link-building** — the rest of the link program once the directory foundation is in place
 - **content-strategy** — editorial content that attracts "best of" listicle inclusions
 - **free-tools** — lead magnets for destination pages
 - **community-marketing** — Reddit, Indie Hackers, Slack community mechanics
